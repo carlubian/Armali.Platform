@@ -18,6 +18,33 @@ In this phase, the focus is the application foundation:
 
 This phase should not go deep into detailed business functionality yet. Specific domains like shopping, expenses, inventory, and travel will be defined during Phase 2.
 
+## Product Shape Decisions
+
+The initial product shape is now defined:
+
+- A standard web application hosted on an internal household server.
+- A separate C# / ASP.NET Core backend exposing a REST API.
+- A separate TypeScript frontend optimized for desktop computers and large displays.
+- Chromium-based browsers as the primary supported platform.
+- One household with a small number of distinct `User` and `Admin` accounts.
+- Public household entities and creator-only private entities.
+- Online-only operation with explicit handling for unavailable services and expired sessions.
+- Spain as the initial regional context, with internationalization built into the frontend architecture.
+- Deployment to a local Ubuntu server using separate Docker images for the frontend and backend.
+- Persistent data stored outside the containers through Docker volumes where required.
+- Relational persistence through Entity Framework Core, using SQLite for local development and PostgreSQL for production.
+
+See [`docs/architecture/product-shape.md`](docs/architecture/product-shape.md) for the decisions, rationale, constraints, and explicit non-goals.
+See [`docs/architecture/deployment.md`](docs/architecture/deployment.md) for the initial runtime and containerization decisions.
+See [`docs/architecture/data-and-storage.md`](docs/architecture/data-and-storage.md) for database-provider and migration decisions.
+See [`docs/architecture/user-experience.md`](docs/architecture/user-experience.md) for the launcher-based navigation and immersive module experience.
+See [`docs/architecture/frontend.md`](docs/architecture/frontend.md) for the selected React, TypeScript, and Vite SPA foundation and remaining frontend decisions.
+See [`docs/architecture/backend.md`](docs/architecture/backend.md) for the ASP.NET Core modular-monolith structure and backend module boundaries.
+See [`docs/architecture/domain-organization.md`](docs/architecture/domain-organization.md) for module ownership, dependency direction, and cross-domain reference rules.
+See [`docs/architecture/shared-core.md`](docs/architecture/shared-core.md) for the deliberately minimal set of shared primitives and explicit exclusions.
+See [`docs/architecture/integrations.md`](docs/architecture/integrations.md) for provider adapters, resilience boundaries, webhook handling, and external-data privacy requirements.
+See [`docs/architecture/development-and-operations.md`](docs/architecture/development-and-operations.md) for repository organization and the evolving development and delivery model.
+
 ## Planning Phases
 
 ### Phase 1: Architecture, Structure, And Core
