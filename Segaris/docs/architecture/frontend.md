@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-This document records the Phase 1 decisions for the Armali Platform frontend architecture.
+This document records the Phase 1 decisions for the Segaris Platform frontend architecture.
 
 ## Application Stack
 
@@ -14,7 +14,7 @@ The compiled application will be served as static assets by the frontend contain
 
 ## Rendering Model
 
-Armali does not initially require server-side rendering or a React meta-framework such as Next.js.
+Segaris does not initially require server-side rendering or a React meta-framework such as Next.js.
 
 The application is private, runs on the household network, and has no search-engine optimization requirement. A client-rendered SPA keeps the frontend deployment independent from the backend while avoiding an additional server runtime and framework layer.
 
@@ -24,7 +24,7 @@ This choice does not prevent direct URLs, browser history, route-based code spli
 
 The SPA will use React Router for client-side routing.
 
-React Router is a justified external dependency because Armali requires browser history, direct URLs, authenticated routes, nested module routes, and a consistent not-found experience. Implementing those behaviors locally would create unnecessary infrastructure code. More sophisticated routing systems are not needed unless future requirements demonstrate a concrete benefit.
+React Router is a justified external dependency because Segaris requires browser history, direct URLs, authenticated routes, nested module routes, and a consistent not-found experience. Implementing those behaviors locally would create unnecessary infrastructure code. More sophisticated routing systems are not needed unless future requirements demonstrate a concrete benefit.
 
 The initial route model will remain simple:
 
@@ -37,7 +37,7 @@ The initial route model will remain simple:
 
 Ordinary module switching continues to happen through the launcher, even though direct module URLs remain available for refresh, browser history, and future deep links.
 
-Armali will use React Router as a library inside the Vite SPA. It will not initially adopt a React Router framework mode, server rendering, route loaders, or route actions as an additional application architecture. Data access remains a separate frontend concern and uses the ASP.NET Core REST API.
+Segaris will use React Router as a library inside the Vite SPA. It will not initially adopt a React Router framework mode, server rendering, route loaders, or route actions as an additional application architecture. Data access remains a separate frontend concern and uses the ASP.NET Core REST API.
 
 ## State Management
 
@@ -71,11 +71,11 @@ Local state should remain close to the components that own it. It is promoted on
 
 ### Additional Stores
 
-Armali will not initially use Redux Toolkit, Zustand, or another general client-state library. A store may be introduced later only when a concrete shared-state problem cannot be handled clearly through TanStack Query, focused Context, URL state, or local React state. The requirement and rationale must be documented before adding it.
+Segaris will not initially use Redux Toolkit, Zustand, or another general client-state library. A store may be introduced later only when a concrete shared-state problem cannot be handled clearly through TanStack Query, focused Context, URL state, or local React state. The requirement and rationale must be documented before adding it.
 
 ## Forms And Validation
 
-Armali forms will use React Hook Form for form state and Zod for client-side schema validation.
+Segaris forms will use React Hook Form for form state and Zod for client-side schema validation.
 
 React Hook Form owns field registration, touched and dirty state, submission state, and field-level errors. Zod schemas define the client-side shape and validation rules needed to provide immediate feedback before submission. The integration should use the standard React Hook Form resolver for Zod rather than a custom validation adapter.
 
@@ -109,7 +109,7 @@ This protection applies to in-application navigation and, where browser capabili
 
 ## Internationalization
 
-Armali will use i18next with react-i18next for interface translations. Browser-native `Intl` APIs provide locale-aware formatting for dates, times, numbers, currencies, lists, and relative values where appropriate.
+Segaris will use i18next with react-i18next for interface translations. Browser-native `Intl` APIs provide locale-aware formatting for dates, times, numbers, currencies, lists, and relative values where appropriate.
 
 English using the `en-GB` locale is the required complete interface language and the fallback when a translation is unavailable. Spanish using `es-ES` may be added incrementally, but the application architecture and new interface text must support translation from the beginning.
 
@@ -131,7 +131,7 @@ Translation resources are stored in the frontend repository and divided into foc
 
 Translation keys are semantic and stable, for example `inventory.item.createTitle`. Source-language sentences should not be used as keys. Modules own their translation resources alongside their frontend feature code or through an equivalent module-oriented structure selected during implementation.
 
-Translation files remain local to the repository initially. Armali does not require an external translation-management service.
+Translation files remain local to the repository initially. Segaris does not require an external translation-management service.
 
 ### Backend Messages
 
@@ -151,11 +151,11 @@ Automated frontend validation should detect missing fallback-language keys, inva
 
 ## Failure Boundaries And Loading
 
-Armali separates unexpected rendering failures, expected API failures, routing outcomes, and service availability so each problem receives an appropriate recovery experience.
+Segaris separates unexpected rendering failures, expected API failures, routing outcomes, and service availability so each problem receives an appropriate recovery experience.
 
 ### Rendering Error Boundaries
 
-A shared application error-boundary component uses React's native error-boundary lifecycle. Armali does not initially add a separate error-boundary dependency.
+A shared application error-boundary component uses React's native error-boundary lifecycle. Segaris does not initially add a separate error-boundary dependency.
 
 The application has two primary boundary levels:
 

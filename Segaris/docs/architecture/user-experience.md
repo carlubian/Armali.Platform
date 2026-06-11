@@ -1,16 +1,16 @@
 # User Experience
 
-This document records the Phase 1 decisions that define the overall user experience and navigation model of Armali Platform.
+This document records the Phase 1 decisions that define the overall user experience and navigation model of Segaris Platform.
 
 ## Experience Model
 
-Armali is a collection of immersive modules presented within one platform. Each module should feel like a small application dedicated to its domain rather than one section of a single continuous administrative workspace.
+Segaris is a collection of immersive modules presented within one platform. Each module should feel like a small application dedicated to its domain rather than one section of a single continuous administrative workspace.
 
 The platform provides shared infrastructure, identity, and baseline interaction conventions, but it must leave enough visual and navigational freedom for each module to develop an experience appropriate to its purpose.
 
 ## Launcher
 
-After signing in, the user enters a central dashboard that acts as the Armali launcher. It presents the available modules as cards, buttons, or another visually prominent launch surface.
+After signing in, the user enters a central dashboard that acts as the Segaris launcher. It presents the available modules as cards, buttons, or another visually prominent launch surface.
 
 The launcher has one primary responsibility:
 
@@ -35,7 +35,7 @@ This indicator is one of the platform's three attention and feedback mechanisms.
 
 ## Attention, Feedback, And Calendar Events
 
-Armali does not initially require a unified notification center or a general stream of notification records. Instead, it uses three mechanisms with different purposes and lifetimes.
+Segaris does not initially require a unified notification center or a general stream of notification records. Instead, it uses three mechanisms with different purposes and lifetimes.
 
 ### Launcher Attention Indicators
 
@@ -69,7 +69,7 @@ There is no persistent global sidebar or equivalent direct module-to-module navi
 
 Each module owns its internal navigation and may use the structure best suited to its workflows. To move to another module, the user first returns to the central launcher and then opens the destination module.
 
-Every module must therefore provide a clear, consistently located action for returning to the launcher. This action is part of the shared Armali shell even when the surrounding module interface has a distinct visual identity.
+Every module must therefore provide a clear, consistently located action for returning to the launcher. This action is part of the shared Segaris shell even when the surrounding module interface has a distinct visual identity.
 
 Direct URLs may still identify pages within a module for browser history, refresh, and future deep-linking needs. They do not change the intended interaction model: ordinary module switching happens through the launcher.
 
@@ -90,7 +90,7 @@ Module layout, navigation hierarchy, information density, visual emphasis, and d
 
 Screen designs are being prepared outside this repository workflow and will be added somewhere under the project documentation before frontend implementation begins.
 
-Those designs will be the primary source of inspiration for Armali's visual language and module experiences. Phase 1 will not select a UI library, define a complete component catalog, or prescribe detailed styling before those references are available.
+Those designs will be the primary source of inspiration for Segaris's visual language and module experiences. Phase 1 will not select a UI library, define a complete component catalog, or prescribe detailed styling before those references are available.
 
 The designs are references rather than an automatic implementation specification. Before implementation, they must be reviewed together with the documented product constraints and translated into explicit decisions covering at least:
 
@@ -104,7 +104,7 @@ If a design conflicts with an established product, privacy, accessibility, or te
 
 ## Rationale
 
-This model reinforces the product concept that Armali contains several focused tools rather than exposing all household domains through one generic management interface. Returning through the launcher makes the transition between those tools explicit and preserves each module's sense of place.
+This model reinforces the product concept that Segaris contains several focused tools rather than exposing all household domains through one generic management interface. Returning through the launcher makes the transition between those tools explicit and preserves each module's sense of place.
 
 The additional navigation step is intentional. The launcher should make that step fast and recognizable, and modules should not reproduce a second global navigation system that weakens their independence.
 

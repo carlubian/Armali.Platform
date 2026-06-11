@@ -4,7 +4,7 @@ This document records the Phase 1 decisions for repository organization, develop
 
 ## Repository Model
 
-Armali Platform will use a single monorepo containing the frontend, backend, tests, deployment definitions, documentation, and operational scripts.
+Segaris Platform will use a single monorepo containing the frontend, backend, tests, deployment definitions, documentation, and operational scripts.
 
 The initial structure is:
 
@@ -50,11 +50,11 @@ During normal development, the frontend and backend run natively so that each ec
 
 A separate Compose definition or profile must also support running the complete containerized system locally. This provides a production-like validation path for images, networking, health checks, persistence, and runtime configuration without making containers mandatory for every edit cycle.
 
-The containerized topology uses the same Compose-compatible service model in local development and production. Production is deployed as a Portainer stack from Compose definitions stored in the repository. Caddy is the only service that publishes a household-facing port and routes HTTP requests to the frontend or backend; TLS and application-managed DNS are not part of the initial system. The published port is controlled by `ARMALI_HTTP_PORT` and defaults to `5525`.
+The containerized topology uses the same Compose-compatible service model in local development and production. Production is deployed as a Portainer stack from Compose definitions stored in the repository. Caddy is the only service that publishes a household-facing port and routes HTTP requests to the frontend or backend; TLS and application-managed DNS are not part of the initial system. The published port is controlled by `Segaris_HTTP_PORT` and defaults to `5525`.
 
-Production bind mounts are rooted at `ARMALI_DATA_PATH`, defaulting to `/data/volumes/armali` to follow the server's existing volume convention. PostgreSQL uses a Docker-managed named volume, while attachments and generated backup packages use explicit bind mounts beneath that root.
+Production bind mounts are rooted at `Segaris_DATA_PATH`, defaulting to `/data/volumes/Segaris` to follow the server's existing volume convention. PostgreSQL uses a Docker-managed named volume, while attachments and generated backup packages use explicit bind mounts beneath that root.
 
-Backup scheduling and lifecycle management are external operational concerns. Armali only exposes the administrative backup-generation API and produces the latest valid package; a separate service calls the API, transfers the package to external storage, and owns encryption, retention, and cleanup.
+Backup scheduling and lifecycle management are external operational concerns. Segaris only exposes the administrative backup-generation API and produces the latest valid package; a separate service calls the API, transfers the package to external storage, and owns encryption, retention, and cleanup.
 
 ## Application Configuration
 
@@ -125,7 +125,7 @@ GitHub Actions will report suite status on pull requests so contributors can ass
 
 ## Observability
 
-Armali uses lightweight structured logging and health checks suitable for a single household server. Observability infrastructure is optional and must never become a runtime dependency for normal application behavior.
+Segaris uses lightweight structured logging and health checks suitable for a single household server. Observability infrastructure is optional and must never become a runtime dependency for normal application behavior.
 
 ### Structured Logging
 
@@ -162,7 +162,7 @@ Each backend request has a correlation identifier based on the ASP.NET Core trac
 
 ### Initial Scope
 
-Armali does not initially require Prometheus, Grafana, distributed tracing infrastructure, or a separate application-performance monitoring service. Seq provides centralized searchable events when available; Docker or Portainer logs and health endpoints remain the operational fallback.
+Segaris does not initially require Prometheus, Grafana, distributed tracing infrastructure, or a separate application-performance monitoring service. Seq provides centralized searchable events when available; Docker or Portainer logs and health endpoints remain the operational fallback.
 
 Administrative and background operations, including backup generation and migrations, emit structured start, completion, failure, and duration events. Operational logs do not replace functional audit history, which remains outside the shared data model.
 
@@ -187,13 +187,13 @@ The exact division into required GitHub checks may evolve to balance feedback ti
 
 After a change reaches the main branch, GitHub Actions repeats the required validations and builds independent frontend and backend container images. Images are published to the household's private Azure Container Registry.
 
-Each image is tagged with the immutable Git commit SHA. Releases may add a human-readable version tag pointing to the same image, but deployment definitions must not rely exclusively on a mutable `latest` tag. Frontend and backend images from the same workflow run form one logical Armali release and should normally be deployed together.
+Each image is tagged with the immutable Git commit SHA. Releases may add a human-readable version tag pointing to the same image, but deployment definitions must not rely exclusively on a mutable `latest` tag. Frontend and backend images from the same workflow run form one logical Segaris release and should normally be deployed together.
 
 ### Registry Authentication
 
 GitHub Actions authenticates to Azure Container Registry using credentials stored through GitHub repository or environment secrets, or an equivalent GitHub-supported secret mechanism. Secrets are never stored in workflow files, repository configuration files, image layers, or build arguments that persist in image history.
 
-Where practical, Azure workload identity federation through GitHub Actions OIDC is preferred over a long-lived registry password because it avoids storing reusable Azure credentials. Initial implementation may use narrowly scoped ACR push credentials if federation would add disproportionate setup complexity. Any stored credential must have only the permissions needed to publish Armali images.
+Where practical, Azure workload identity federation through GitHub Actions OIDC is preferred over a long-lived registry password because it avoids storing reusable Azure credentials. Initial implementation may use narrowly scoped ACR push credentials if federation would add disproportionate setup complexity. Any stored credential must have only the permissions needed to publish Segaris images.
 
 Portainer already owns separate credentials with pull access to the private Azure Container Registry. GitHub Actions does not transmit deployment credentials to Portainer, and Portainer does not require GitHub repository secrets.
 

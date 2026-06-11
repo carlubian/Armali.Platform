@@ -1,10 +1,10 @@
 # Shared Core
 
-This document records the deliberately small shared core for Armali Platform. Shared code exists only for stable technical or cross-cutting semantics. Domain concepts remain owned by their modules unless functional evidence establishes one coherent shared lifecycle.
+This document records the deliberately small shared core for Segaris Platform. Shared code exists only for stable technical or cross-cutting semantics. Domain concepts remain owned by their modules unless functional evidence establishes one coherent shared lifecycle.
 
 ## Design Principle
 
-Armali shares contracts and primitives, not a universal domain model.
+Segaris shares contracts and primitives, not a universal domain model.
 
 The shared core must remain small enough that business modules can evolve independently. It must not become a dependency destination for code with unclear ownership or a shortcut around module boundaries.
 
@@ -66,7 +66,7 @@ The shared data convention consists of:
 - `UpdatedAt` as a UTC technical instant.
 - `UpdatedBy` as a `UserId` when modification is attributable to a user.
 
-These fields are a convention, not a mandatory inheritance hierarchy. Armali does not introduce a universal `Entity`, `AuditableEntity`, or aggregate-root base class.
+These fields are a convention, not a mandatory inheritance hierarchy. Segaris does not introduce a universal `Entity`, `AuditableEntity`, or aggregate-root base class.
 
 Each entity includes only the metadata meaningful for its lifecycle. Immutable records, join tables, migration state, background infrastructure, and system-created technical records may use a different subset or explicit system attribution.
 
@@ -132,7 +132,7 @@ Categories, statuses, tags, notes, comments, reminders, and similar concepts rem
 An indicative shared-code structure is:
 
 ```text
-Armali.Shared/
+Segaris.Shared/
 |-- Identity/
 |   |-- UserId.cs
 |   `-- ICurrentUser.cs

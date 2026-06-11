@@ -40,7 +40,7 @@ Secrets and production connection strings must be injected at runtime and must n
 
 ## Migrations
 
-Schema changes will be managed with Entity Framework Core migrations. One application `ArmaliDbContext` composes mappings owned by the individual backend modules.
+Schema changes will be managed with Entity Framework Core migrations. One application `SegarisDbContext` composes mappings owned by the individual backend modules.
 
 Because EF Core migrations can contain provider-specific metadata or SQL, PostgreSQL and SQLite use separate migration assemblies generated from the same model. Every logical schema change has a corresponding migration in both provider histories, with PostgreSQL remaining the production reference. See `docs/architecture/backend.md` for context ownership, naming, query, transaction, and migration-pair conventions.
 
@@ -91,7 +91,7 @@ SQLite is optimized for developer convenience, not exact production parity. Deve
 
 User-uploaded files will be stored on the local server filesystem. The backend container will access this storage through a persistent Docker volume. Files must never depend on the writable layer of the container image.
 
-In production, this storage is a bind mount rooted at `${ARMALI_DATA_PATH}/attachments`, where `ARMALI_DATA_PATH` defaults to `/data/volumes/armali`. See `docs/architecture/deployment.md` for the host layout and access boundaries.
+In production, this storage is a bind mount rooted at `${Segaris_DATA_PATH}/attachments`, where `Segaris_DATA_PATH` defaults to `/data/volumes/Segaris`. See `docs/architecture/deployment.md` for the host layout and access boundaries.
 
 The initial directory layout is organized by owning module, followed by a UUID-based physical filename:
 
@@ -116,17 +116,17 @@ Attachments are deleted immediately when the attachment itself or its owning ent
 - Partial failures are logged with enough information for diagnosis and recovery.
 - A maintenance operation should be able to detect missing files and unreferenced physical files.
 
-External backup retention may preserve an older copy after deletion, but the live Armali storage does not provide a recycle bin or indefinite attachment retention.
+External backup retention may preserve an older copy after deletion, but the live Segaris storage does not provide a recycle bin or indefinite attachment retention.
 
 ## Backup Package Generation
 
-Armali will expose an administrative API for generating a restorable package of the current application data. A separate household infrastructure service will call this API during a period in which no user activity is expected and will copy the completed package to a data lake or equivalent backup destination.
+Segaris will expose an administrative API for generating a restorable package of the current application data. A separate household infrastructure service will call this API during a period in which no user activity is expected and will copy the completed package to a data lake or equivalent backup destination.
 
 The package contains:
 
 - A restorable PostgreSQL dump.
 - All live attachment files.
-- A manifest containing the creation time, Armali application version, database schema version, and file hashes.
+- A manifest containing the creation time, Segaris application version, database schema version, and file hashes.
 
 The package does not contain secrets or general operational configuration.
 
@@ -144,7 +144,7 @@ The job writes to a temporary staging location and replaces the previous complet
 
 The application remains available while the job runs. A PostgreSQL dump can provide a consistent database snapshot, but PostgreSQL and the attachment filesystem do not share a global snapshot. The initial operational guarantee therefore relies on running the job during an agreed period without application writes. The job should record or detect overlapping writes where practical so the operator can reject a suspect package rather than assuming cross-storage atomicity.
 
-Armali's operational responsibility ends after exposing the administrative API and producing the latest valid package. An external household service is responsible for:
+Segaris's operational responsibility ends after exposing the administrative API and producing the latest valid package. An external household service is responsible for:
 
 - Calling the API on its own schedule.
 - Waiting for generation to complete and retrieving or copying the resulting package.
@@ -153,9 +153,9 @@ Armali's operational responsibility ends after exposing the administrative API a
 - Managing retention, versioning, expiration, and deletion of stored copies.
 - Monitoring transfer and storage failures.
 
-Armali does not contain a backup scheduler, external-storage credentials, retention configuration, or lifecycle-management logic. These concerns must not be added to the application unless the architecture decision is explicitly revisited.
+Segaris does not contain a backup scheduler, external-storage credentials, retention configuration, or lifecycle-management logic. These concerns must not be added to the application unless the architecture decision is explicitly revisited.
 
-The latest package and its temporary staging data live under the production bind mount `${ARMALI_DATA_PATH}/backups`, defaulting to `/data/volumes/armali/backups`. The exact filenames and staging subdirectories will be defined during implementation planning.
+The latest package and its temporary staging data live under the production bind mount `${Segaris_DATA_PATH}/backups`, defaulting to `/data/volumes/Segaris/backups`. The exact filenames and staging subdirectories will be defined during implementation planning.
 
 ## Shared Data Conventions
 

@@ -1,10 +1,10 @@
 # Runtime And Deployment
 
-This document records the Phase 1 decisions for the initial Armali Platform runtime and deployment model.
+This document records the Phase 1 decisions for the initial Segaris Platform runtime and deployment model.
 
 ## Hosting Target
 
-Armali Platform will run on a local household server, expected to use Ubuntu.
+Segaris Platform will run on a local household server, expected to use Ubuntu.
 
 The server is part of the household infrastructure rather than a public cloud environment. The application remains online-only relative to this server: clients require network access to it and do not maintain an offline replica.
 
@@ -40,10 +40,10 @@ The exact storage layout must be decided together with the primary database and 
 
 ## Host Storage Layout
 
-Production persistence follows the existing server convention under `/data/volumes/<application>`. Armali uses this default layout:
+Production persistence follows the existing server convention under `/data/volumes/<application>`. Segaris uses this default layout:
 
 ```text
-/data/volumes/armali/
+/data/volumes/Segaris/
 |-- attachments/
 `-- backups/
 ```
@@ -51,15 +51,15 @@ Production persistence follows the existing server convention under `/data/volum
 - `attachments/` is bind-mounted into the backend container and contains live user-uploaded files.
 - `backups/` is bind-mounted into the backend container as the staging and output location for the latest completed backup package. It is also the integration point from which the external household backup service copies the package off-server.
 
-The root host path is configurable through the Compose environment variable `ARMALI_DATA_PATH`, which defaults to `/data/volumes/armali`. Compose definitions derive the bind mounts from that variable rather than repeating absolute host paths:
+The root host path is configurable through the Compose environment variable `Segaris_DATA_PATH`, which defaults to `/data/volumes/Segaris`. Compose definitions derive the bind mounts from that variable rather than repeating absolute host paths:
 
 ```yaml
 volumes:
-  - "${ARMALI_DATA_PATH:-/data/volumes/armali}/attachments:/data/attachments"
-  - "${ARMALI_DATA_PATH:-/data/volumes/armali}/backups:/data/backups"
+  - "${Segaris_DATA_PATH:-/data/volumes/Segaris}/attachments:/data/attachments"
+  - "${Segaris_DATA_PATH:-/data/volumes/Segaris}/backups:/data/backups"
 ```
 
-PostgreSQL data uses a Docker-managed named volume rather than a bind mount. Database files must not be inspected, copied, or modified directly from the host as an application backup mechanism; database recovery uses the PostgreSQL dump included in Armali's backup package.
+PostgreSQL data uses a Docker-managed named volume rather than a bind mount. Database files must not be inspected, copied, or modified directly from the host as an application backup mechanism; database recovery uses the PostgreSQL dump included in Segaris's backup package.
 
 The backend is the only application container with access to the attachment and backup bind mounts. Caddy and the frontend have no access to persistent application data. Host directories must be created with ownership and permissions matching the non-root backend container user before the production stack starts.
 
@@ -93,7 +93,7 @@ Only the ingress component is exposed to the household network. Backend, databas
 
 ## Ingress And Network Access
 
-Caddy will provide the initial ingress layer as a dedicated container. It is used for HTTP routing only; Armali does not require Caddy to manage public domains or TLS certificates.
+Caddy will provide the initial ingress layer as a dedicated container. It is used for HTTP routing only; Segaris does not require Caddy to manage public domains or TLS certificates.
 
 The routing model is:
 
@@ -104,22 +104,22 @@ The routing model is:
 
 This gives browsers one same-origin application address and avoids exposing or configuring a separate backend URL on client devices.
 
-Armali is served over plain HTTP because it is an internal household application deployed on a protected local network. HTTPS, certificate generation, and certificate trust distribution are outside the initial deployment scope. This decision must be reconsidered before exposing Armali to an untrusted network, allowing remote access, or moving authentication traffic across infrastructure that is not fully controlled by the household.
+Segaris is served over plain HTTP because it is an internal household application deployed on a protected local network. HTTPS, certificate generation, and certificate trust distribution are outside the initial deployment scope. This decision must be reconsidered before exposing Segaris to an untrusted network, allowing remote access, or moving authentication traffic across infrastructure that is not fully controlled by the household.
 
-The deployment publishes Caddy on one fixed host port. The default is `5525`, configurable through the Compose environment variable `ARMALI_HTTP_PORT`:
+The deployment publishes Caddy on one fixed host port. The default is `5525`, configurable through the Compose environment variable `Segaris_HTTP_PORT`:
 
 ```yaml
 ports:
-  - "${ARMALI_HTTP_PORT:-5525}:80"
+  - "${Segaris_HTTP_PORT:-5525}:80"
 ```
 
 The variable changes only the host port. Caddy continues to listen on port `80` inside its container, and internal service ports remain private implementation details of the Compose network.
 
-Local containerized execution may use the default or override `ARMALI_HTTP_PORT` through the Compose environment. Portainer supplies the same variable as stack configuration, allowing the production port to change without editing the Compose definition. The repository must include the default in the relevant example configuration and must not require a real environment file to be committed.
+Local containerized execution may use the default or override `Segaris_HTTP_PORT` through the Compose environment. Portainer supplies the same variable as stack configuration, allowing the production port to change without editing the Compose definition. The repository must include the default in the relevant example configuration and must not require a real environment file to be committed.
 
 The household server must retain a stable LAN address through infrastructure configuration such as a static address or DHCP reservation. Successive deployments should preserve the configured published port so clients and any UniFi DNS record can continue to point to the same address.
 
-Armali itself does not manage local DNS. It can be accessed directly through the server IP and port, or through a custom DNS record managed by the household network infrastructure.
+Segaris itself does not manage local DNS. It can be accessed directly through the server IP and port, or through a custom DNS record managed by the household network infrastructure.
 
 ## Compose And Portainer
 

@@ -1,10 +1,10 @@
 # Product Shape
 
-This document records the Phase 1 decisions that define the intended shape of Armali Platform. These constraints should guide later architecture and functional decisions.
+This document records the Phase 1 decisions that define the intended shape of Segaris Platform. These constraints should guide later architecture and functional decisions.
 
 ## Application Form
 
-Armali Platform will be a standard web application hosted on an internal household server.
+Segaris Platform will be a standard web application hosted on an internal household server.
 
 The product is intended primarily for desktop computers with large displays. Future use on touchscreens of approximately 21 inches or larger is desirable, but touch interaction is not a primary design constraint. When two approaches are otherwise equivalent, prefer the touch-friendly option; do not sacrifice visual quality, information density, dependency stability, or maintainability for preferential touch support.
 
@@ -62,7 +62,7 @@ The architecture should leave room for future headless authentication, such as A
 
 ## Connectivity And Failure States
 
-Armali Platform is online-only relative to its internal server. The frontend does not need offline data access, local change queues, or synchronization.
+Segaris Platform is online-only relative to its internal server. The frontend does not need offline data access, local change queues, or synchronization.
 
 When the backend cannot be reached, the frontend must show an explicit global unavailable state. It must not display empty tables or incomplete views that could be mistaken for valid data.
 

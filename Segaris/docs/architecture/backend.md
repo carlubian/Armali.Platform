@@ -1,14 +1,14 @@
 # Backend Architecture
 
-This document records the Phase 1 decisions for the Armali Platform backend architecture.
+This document records the Phase 1 decisions for the  Segaris backend architecture.
 
 ## Architecture Style
 
 The backend will be a modular monolith built with ASP.NET Core.
 
-Armali runs as one backend process, exposes one REST API, uses one relational database, and is deployed as one backend container. Internally, business capabilities are organized as explicit modules so the growing set of household domains does not collapse into one undifferentiated application layer.
+Segaris runs as one backend process, exposes one REST API, uses one relational database, and is deployed as one backend container. Internally, business capabilities are organized as explicit modules so the growing set of household domains does not collapse into one undifferentiated application layer.
 
-A distributed microservice architecture is not justified for the initial product. Armali has one household, a small number of users, one deployment target, and no independent scaling or availability requirements. Separate services would add networking, deployment, data-consistency, observability, and operational costs without a corresponding product benefit.
+A distributed microservice architecture is not justified for the initial product. Segaris has one household, a small number of users, one deployment target, and no independent scaling or availability requirements. Separate services would add networking, deployment, data-consistency, observability, and operational costs without a corresponding product benefit.
 
 ## Solution Shape
 
@@ -18,7 +18,7 @@ An indicative structure is:
 
 ```text
 src/backend/
-|-- Armali.Api/
+|-- Segaris.Api/
 |   |-- Platform/
 |   |-- Modules/
 |   |   |-- Identity/
@@ -28,14 +28,14 @@ src/backend/
 |   |   |-- Travel/
 |   |   `-- ...
 |   `-- Program.cs
-`-- Armali.Shared/
+`-- Segaris.Shared/
 ```
 
 The exact solution and project names will be selected during implementation planning. Additional projects should be introduced only when they provide an enforceable boundary or independently reusable capability, not to mirror conceptual layers mechanically.
 
-`Armali.Api` is the executable composition root and contains the REST host, module registration, middleware, authentication integration, health checks, and runtime configuration.
+`Segaris.Api` is the executable composition root and contains the REST host, module registration, middleware, authentication integration, health checks, and runtime configuration.
 
-`Armali.Shared` is intentionally small. It may contain stable technical primitives and contracts that genuinely apply across modules. It must not become a general location for domain entities, miscellaneous helpers, or code that has no clear owner.
+`Segaris.Shared` is intentionally small. It may contain stable technical primitives and contracts that genuinely apply across modules. It must not become a general location for domain entities, miscellaneous helpers, or code that has no clear owner.
 
 ## Vertical Module Structure
 
@@ -73,7 +73,7 @@ Entity Framework Core remains the persistence abstraction described in `docs/arc
 
 The initial implementation should prefer a single application `DbContext` with module-owned configuration classes unless implementation experience demonstrates that separate contexts provide a useful enforceable boundary without complicating migrations and transactions. This choice will be confirmed with the detailed domain-organization decision.
 
-Armali will not add a generic repository or generic unit-of-work abstraction over EF Core. Module-specific repositories may be introduced when they express a meaningful domain collection or isolate non-trivial persistence behavior. Straightforward queries and updates may use the module's EF Core boundary directly.
+Segaris will not add a generic repository or generic unit-of-work abstraction over EF Core. Module-specific repositories may be introduced when they express a meaningful domain collection or isolate non-trivial persistence behavior. Straightforward queries and updates may use the module's EF Core boundary directly.
 
 ## API Style
 
@@ -123,7 +123,7 @@ The initial implementation maintains C# and TypeScript transport types independe
 
 Successful endpoints return the most specific standard status code. Error responses use ASP.NET Core `ProblemDetails` or `ValidationProblemDetails` with the `application/problem+json` media type where supported.
 
-Armali extends problem details with stable machine-readable fields:
+Segaris extends problem details with stable machine-readable fields:
 
 - `code`: a stable application error code translated by the frontend.
 - `traceId`: the request correlation identifier used for diagnosis.
@@ -146,7 +146,7 @@ Authorization behavior must be consistent across modules. In particular, creator
 
 ### Collections, Filtering, And Pagination
 
-Collection endpoints use explicit resource-specific query parameters. Armali does not initially expose OData, GraphQL, a generic filter expression language, or arbitrary client-selected database fields.
+Collection endpoints use explicit resource-specific query parameters. Segaris does not initially expose OData, GraphQL, a generic filter expression language, or arbitrary client-selected database fields.
 
 Large or potentially growing collections use page-based pagination with:
 
@@ -181,11 +181,11 @@ The initial routes do not include a `/v1` prefix and the backend does not add an
 
 Frontend and backend are one household product, are normally released together, and initially have no independently supported external consumers. The API should still prefer additive and compatible contract evolution where practical.
 
-Formal API versioning is introduced only when Armali must support multiple contract generations concurrently, an external consumer cannot upgrade with the main application, or a breaking change cannot be coordinated through one release. That decision must define the supported version lifetime and may use URL, header, or another standard strategy based on the concrete need.
+Formal API versioning is introduced only when Segaris must support multiple contract generations concurrently, an external consumer cannot upgrade with the main application, or a breaking change cannot be coordinated through one release. That decision must define the supported version lifetime and may use URL, header, or another standard strategy based on the concrete need.
 
 ## Authentication And Sessions
 
-Armali uses ASP.NET Core Identity as the user, password, role, lockout, security-stamp, and credential-hashing foundation. It does not use the scaffolded Identity Razor interface. The React SPA interacts with Armali-owned Minimal API endpoints and transport contracts.
+Segaris uses ASP.NET Core Identity as the user, password, role, lockout, security-stamp, and credential-hashing foundation. It does not use the scaffolded Identity Razor interface. The React SPA interacts with Segaris-owned Minimal API endpoints and transport contracts.
 
 ### Browser Authentication
 
@@ -193,13 +193,13 @@ The same-origin SPA authenticates through an ASP.NET Core authentication cookie.
 
 - The cookie is `HttpOnly` and uses `SameSite=Strict`.
 - JavaScript never reads or stores the authentication credential.
-- Armali does not place JWT access or refresh tokens in browser local storage, session storage, or normal frontend state.
+- Segaris does not place JWT access or refresh tokens in browser local storage, session storage, or normal frontend state.
 - The initial session expires after 12 hours of inactivity and uses sliding expiration while the user remains active.
 - There is no persistent "remember me" option initially.
 - Explicit sign-out removes the browser credential.
 - Password changes, account deactivation, and security-sensitive administrative changes invalidate existing sessions through ASP.NET Core Identity security-stamp validation or an equivalent central mechanism.
 
-The cookie cannot initially use the `Secure` flag because the documented deployment serves Armali over plain HTTP on a protected household network. This is an accepted limitation of the initial local-only deployment, not a general security recommendation. HTTPS and `Secure` cookies become mandatory before Armali is exposed through remote access, an untrusted network, or infrastructure outside household control.
+The cookie cannot initially use the `Secure` flag because the documented deployment serves Segaris over plain HTTP on a protected household network. This is an accepted limitation of the initial local-only deployment, not a general security recommendation. HTTPS and `Secure` cookies become mandatory before Segaris is exposed through remote access, an untrusted network, or infrastructure outside household control.
 
 The authentication endpoints are:
 
@@ -210,7 +210,7 @@ DELETE /api/session
 POST   /api/session/password
 ```
 
-Administrative user creation, activation, deactivation, and credential recovery use endpoints under `/api/admin/users`. Armali has no public registration or email-based password-recovery workflow initially.
+Administrative user creation, activation, deactivation, and credential recovery use endpoints under `/api/admin/users`. Segaris has no public registration or email-based password-recovery workflow initially.
 
 Login failures use a generic response that does not reveal whether a username exists, an account is inactive, or a password was incorrect. Authentication events are logged without passwords, credential material, or other secrets.
 
@@ -244,7 +244,7 @@ The production Compose topology mounts a dedicated persistent location for the k
 
 ### Future User API Keys
 
-The authentication architecture preserves a separate future API-key scheme for trusted non-browser clients acting as a specific Armali user.
+The authentication architecture preserves a separate future API-key scheme for trusted non-browser clients acting as a specific Segaris user.
 
 An API key is presented through the `Authorization` header and never through the browser authentication cookie. It produces the same application user identity and enters the same authorization policies as an interactive session, so role and creator-only privacy rules remain centralized and unchanged.
 
@@ -263,11 +263,11 @@ API-key creation, permission granularity, management screens, rotation, rate lim
 
 ## Background Jobs
 
-Armali provides a small shared background-job infrastructure inside the backend process. It is built with ASP.NET Core `BackgroundService` and persists job state in PostgreSQL.
+Segaris provides a small shared background-job infrastructure inside the backend process. It is built with ASP.NET Core `BackgroundService` and persists job state in PostgreSQL.
 
 The infrastructure supports multiple job types without knowing their domain behavior. Modules register their own typed job definitions and handlers while the shared platform owns queuing, claiming, status transitions, progress, cancellation requests, and diagnostic metadata.
 
-Armali does not initially require Hangfire, Quartz, a message broker, a separate worker container, or a distributed scheduler. The single backend instance processes jobs sequentially unless measured requirements later justify bounded concurrency.
+Segaris does not initially require Hangfire, Quartz, a message broker, a separate worker container, or a distributed scheduler. The single backend instance processes jobs sequentially unless measured requirements later justify bounded concurrency.
 
 ### Job Lifecycle
 
@@ -354,7 +354,7 @@ Backup generation is the first expected job type and follows the general lifecyc
 
 ## Entity Framework Core Organization
 
-Armali uses one application `ArmaliDbContext` for the modular monolith.
+Segaris uses one application `SegarisDbContext` for the modular monolith.
 
 One context matches the single relational database and keeps startup migration, cross-module transactions, testing, and operational recovery understandable. Module boundaries are enforced through code ownership and published contracts rather than by creating several contexts over the same database or pretending modules are independently deployed services.
 
@@ -373,7 +373,7 @@ Modules/
         `-- InventoryQueries.cs
 ```
 
-Entity mappings use focused `IEntityTypeConfiguration<TEntity>` classes located with their owning module. `ArmaliDbContext.OnModelCreating` applies the registered module configurations through explicit registration or assembly scanning with a controlled convention.
+Entity mappings use focused `IEntityTypeConfiguration<TEntity>` classes located with their owning module. `SegarisDbContext.OnModelCreating` applies the registered module configurations through explicit registration or assembly scanning with a controlled convention.
 
 The context should not expose a growing public `DbSet` property for every entity as the primary navigation API. Module-internal persistence code may use `Set<TEntity>()` through the scoped context. This reduces accidental discovery of other modules' entities but is not considered a security boundary.
 
@@ -390,13 +390,13 @@ travel_trips
 platform_background_jobs
 ```
 
-Armali does not use PostgreSQL schemas to represent module boundaries because SQLite does not support schemas and must share the same conceptual model. Prefixes prevent common names from colliding and keep ownership visible in both providers.
+Segaris does not use PostgreSQL schemas to represent module boundaries because SQLite does not support schemas and must share the same conceptual model. Prefixes prevent common names from colliding and keep ownership visible in both providers.
 
 Column, key, index, constraint, and join-table names follow one documented `snake_case` convention. Database object names must be explicit or produced through one tested naming convention so migrations do not churn when C# implementation names are refactored.
 
 ### Context Lifetime And Transactions
 
-`ArmaliDbContext` uses the normal scoped lifetime. One application use case normally performs one coordinated `SaveChangesAsync` call after validation and domain behavior complete.
+`SegarisDbContext` uses the normal scoped lifetime. One application use case normally performs one coordinated `SaveChangesAsync` call after validation and domain behavior complete.
 
 The context is not shared across parallel tasks and must not escape its dependency-injection scope. Background job handlers create their own scope and context rather than retaining one from the request that queued the job.
 
@@ -417,11 +417,11 @@ Transactions cannot include the attachment filesystem or external services. Thos
 
 ### Provider-Specific Migrations
 
-PostgreSQL and SQLite use separate migration assemblies generated from the same `ArmaliDbContext` model:
+PostgreSQL and SQLite use separate migration assemblies generated from the same `SegarisDbContext` model:
 
 ```text
-Armali.Migrations.Postgres
-Armali.Migrations.Sqlite
+Segaris.Migrations.Postgres
+Segaris.Migrations.Sqlite
 ```
 
 The active provider configuration selects the matching migrations assembly. A design-time factory or equivalent tooling configuration creates the context for each provider without requiring production secrets or starting the complete web application.

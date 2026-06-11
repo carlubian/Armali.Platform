@@ -1,10 +1,10 @@
 # Domain Organization
 
-This document records the Phase 1 ownership and dependency model for Armali Platform modules. It defines where capabilities belong and how modules may collaborate without deciding the detailed entities and workflows that remain Phase 2 work.
+This document records the Phase 1 ownership and dependency model for Segaris Platform modules. It defines where capabilities belong and how modules may collaborate without deciding the detailed entities and workflows that remain Phase 2 work.
 
 ## Module Categories
 
-Armali organizes capabilities into platform modules, business modules, and cross-domain read modules.
+Segaris organizes capabilities into platform modules, business modules, and cross-domain read modules.
 
 The categories describe architectural responsibility rather than deployment units. Every module remains part of the same ASP.NET Core modular monolith and React application.
 
@@ -46,7 +46,7 @@ Modules own the parameters, behavior, authorization, and result semantics of the
 
 Administration owns platform-wide configuration and administrative operations that do not naturally belong to another module. This includes the initial single-household regional settings and operational configuration exposed through the application.
 
-Armali does not initially create a `Household` aggregate or tenant identifier. There is exactly one household, and multi-household tenancy is outside scope. A household entity may be introduced only if functional requirements establish meaningful household behavior beyond a settings record.
+Segaris does not initially create a `Household` aggregate or tenant identifier. There is exactly one household, and multi-household tenancy is outside scope. A household entity may be introduced only if functional requirements establish meaningful household behavior beyond a settings record.
 
 Administration must not become the owner of every classification or configuration screen. Module-specific categories, statuses, and rules remain owned by their domain even when only administrators may manage them.
 
@@ -60,7 +60,7 @@ Launcher owns:
 
 Each module owns the rule that calculates its attention state. Launcher consumes the published result and does not query or interpret domain entities.
 
-The initial module catalog is compiled with the application. Armali does not require dynamic plugin discovery or runtime installation of unknown modules.
+The initial module catalog is compiled with the application. Segaris does not require dynamic plugin discovery or runtime installation of unknown modules.
 
 ## Business Modules
 
@@ -175,7 +175,7 @@ Examples deliberately deferred to Phase 2 include:
 
 ## Shared-Code Discipline
 
-Armali does not create a broad `Common` domain containing generic categories, statuses, notes, reminders, or base entities.
+Segaris does not create a broad `Common` domain containing generic categories, statuses, notes, reminders, or base entities.
 
 Code is shared only when the semantics and lifecycle are genuinely common. Technical primitives may live in the small shared platform layer described in `docs/architecture/backend.md`. Domain duplication is acceptable when two concepts merely look similar but can evolve independently.
 

@@ -1,6 +1,6 @@
 # Agent Operating Guide
 
-This repository is the planning and implementation workspace for Armali Platform: an internal household management application.
+This repository is the planning and implementation workspace for Segaris: an internal household management application.
 
 The project is intentionally planned in phases. Future agents must recover context from the files in this repository, not from prior chat history.
 
@@ -22,7 +22,7 @@ Technical identifiers, filenames, code, and commit messages may remain in Englis
 
 ## Project Intent
 
-Armali Platform will be an internal management application for a household. It is expected to cover domains such as:
+Segaris will be an internal management application for a household. It is expected to cover domains such as:
 
 - Purchases and shopping.
 - Expenses and household finance tracking.

@@ -1,10 +1,10 @@
 # External Integrations
 
-This document records the Phase 1 boundaries for services and systems outside Armali Platform. Integrations remain replaceable adapters and must not leak provider-specific concepts into domain behavior.
+This document records the Phase 1 boundaries for services and systems outside Segaris Platform. Integrations remain replaceable adapters and must not leak provider-specific concepts into domain behavior.
 
 ## Integration Principle
 
-Armali uses a ports-and-adapters approach when a concrete external integration exists.
+Segaris uses a ports-and-adapters approach when a concrete external integration exists.
 
 The module that needs an external capability defines a narrow interface in application or domain terms. An infrastructure adapter implements that interface with the provider SDK, HTTP protocol, filesystem command, or other external mechanism.
 
@@ -19,9 +19,9 @@ public interface IReceiptTextExtractor
 }
 ```
 
-The contract describes the capability required by Armali. It does not expose provider URLs, request DTOs, authentication methods, model names, SDK response types, or provider exceptions.
+The contract describes the capability required by Segaris. It does not expose provider URLs, request DTOs, authentication methods, model names, SDK response types, or provider exceptions.
 
-Interfaces are added when a real integration is designed. Armali does not create speculative abstractions for every possible future service.
+Interfaces are added when a real integration is designed. Segaris does not create speculative abstractions for every possible future service.
 
 ## Ownership And Placement
 
@@ -76,11 +76,11 @@ An integration must not deserialize unbounded or polymorphic provider content wi
 
 Retries are limited to failures that are plausibly transient, such as selected timeouts, connection failures, `408`, `429`, and appropriate server errors. Retry delays use bounded exponential backoff with jitter when retry is justified.
 
-Unsafe or non-idempotent operations are not retried automatically unless the provider supports an idempotency key or Armali can prove duplicate execution is harmless. The adapter documents the idempotency behavior of every retried operation.
+Unsafe or non-idempotent operations are not retried automatically unless the provider supports an idempotency key or Segaris can prove duplicate execution is harmless. The adapter documents the idempotency behavior of every retried operation.
 
 Circuit breakers and outbound concurrency limits are introduced when an integration's call volume and failure behavior make them useful. They are not mandatory decoration for a service called a few times per month.
 
-All resilience strategies have finite limits. Armali must not wait indefinitely, create unbounded retry storms, or hide a persistent provider failure behind repeated background attempts.
+All resilience strategies have finite limits. Segaris must not wait indefinitely, create unbounded retry storms, or hide a persistent provider failure behind repeated background attempts.
 
 ## Dependency Classification
 
@@ -88,13 +88,13 @@ Every integration is classified by its effect on application availability.
 
 ### Optional
 
-An optional dependency enhances diagnostics or behavior but its absence does not prevent normal Armali use.
+An optional dependency enhances diagnostics or behavior but its absence does not prevent normal Segaris use.
 
 Seq is the initial example. Delivery remains best-effort and its failure does not affect startup, readiness, requests, jobs, or local container logging.
 
 ### Required For One Operation
 
-The dependency is necessary only for a specific command, query, or background job. Its failure produces a controlled failure for that operation while the rest of Armali remains available.
+The dependency is necessary only for a specific command, query, or background job. Its failure produces a controlled failure for that operation while the rest of Segaris remains available.
 
 Future OCR, AI extraction, calendar synchronization, exchange-rate retrieval, or document-processing services are expected to use this classification unless their requirements prove otherwise.
 
@@ -102,7 +102,7 @@ Long-running or failure-prone operations use the persistent background-job infra
 
 ### Required For Application Readiness
 
-A dependency enters backend readiness only when Armali cannot safely serve its core API without it. Initial required dependencies are PostgreSQL and the configured local attachment storage. External SaaS providers are not initially readiness dependencies.
+A dependency enters backend readiness only when Segaris cannot safely serve its core API without it. Initial required dependencies are PostgreSQL and the configured local attachment storage. External SaaS providers are not initially readiness dependencies.
 
 Adding an external readiness dependency requires explicit architectural review because its outage would make the complete household application unavailable.
 
@@ -121,7 +121,7 @@ Internal failure categories may include:
 - Malformed or incompatible provider response.
 - Permanent provider-side failure.
 
-User-facing API errors use stable Armali error codes and safe parameters. Provider request identifiers may be retained in structured logs and administrative diagnostics when they contain no sensitive data. Provider response bodies, tokens, document contents, and private input are not written to normal logs.
+User-facing API errors use stable Segaris error codes and safe parameters. Provider request identifiers may be retained in structured logs and administrative diagnostics when they contain no sensitive data. Provider response bodies, tokens, document contents, and private input are not written to normal logs.
 
 ## Privacy Review
 
@@ -133,7 +133,7 @@ The review records at least:
 - Whether public records, private records, credentials, identity data, or uploaded documents are included.
 - The provider, processing region, subprocessors where known, and transport security.
 - Provider retention, deletion, model-training, and human-review behavior.
-- The Armali configuration or administrative action that enables the integration.
+- The Segaris configuration or administrative action that enables the integration.
 - Which users may invoke it and whether additional per-operation confirmation is required.
 - What is stored locally about requests, results, consent, and failures.
 - How users can stop future transfer and delete retained provider-side data where supported.
@@ -164,7 +164,7 @@ Each webhook integration defines:
 - Background-job handoff when processing can be slow or failure-prone.
 - Safe logging that excludes secrets and sensitive payload contents.
 
-Webhook claims, user identifiers, roles, record IDs, and filenames are untrusted input. The adapter resolves them through Armali-owned mappings and authorization rules before changing domain state.
+Webhook claims, user identifiers, roles, record IDs, and filenames are untrusted input. The adapter resolves them through Segaris-owned mappings and authorization rules before changing domain state.
 
 Webhook endpoints are rate limited independently from normal authenticated API traffic and do not use browser cookies or antiforgery tokens. Their provider authentication mechanism is mandatory.
 
@@ -176,7 +176,7 @@ Seq is an optional technical adapter owned by observability. It receives sanitiz
 
 ### External Backup Automation
 
-The household backup service is an external client of Armali's authenticated administrative API. Armali does not call it and does not store its external-storage credentials. It starts backup generation, observes the persistent job, and copies the completed package according to the operational contract.
+The household backup service is an external client of Segaris's authenticated administrative API. Segaris does not call it and does not store its external-storage credentials. It starts backup generation, observes the persistent job, and copies the completed package according to the operational contract.
 
 This client will eventually authenticate through an explicitly provisioned user-bound API key or another approved machine credential with the minimum administrative capability required for backups.
 
