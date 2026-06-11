@@ -42,7 +42,6 @@ Current phase: **Phase 1 - Architecture, Structure, And Core**.
 | Resolved | File and attachment storage | Files live in a persistent local Docker volume, grouped by module and named with UUIDs. Metadata and ownership remain in PostgreSQL. Deletion is immediate and uses compensating operations to keep the database and filesystem aligned. See `docs/architecture/data-and-storage.md`. |
 | Resolved | Backup package generation | An asynchronous administrative API generates one latest package containing a PostgreSQL dump, attachments, and a manifest. Only one job may run at a time; output is staged before atomically replacing the previous package. An external service copies it off-server. See `docs/architecture/data-and-storage.md`. |
 | Resolved | Shared data conventions | Auto-incrementing integer keys, UTC technical timestamps, date-only civil dates, fixed-precision amounts with ISO currency, last-write-wins updates, and physical deletion by default. See `docs/architecture/data-and-storage.md`. |
-| Open | Data import, export, and restoration | Define user-facing portability, package restoration, restore verification, and module-specific behavior for externally referenced records. |
 | Resolved | Search strategy | Search is module-specific and database-backed. The baseline is exact filtering for classifications and partial matching on entity names, with no initial global index or dedicated search service. See `docs/architecture/data-and-storage.md`. |
 | Resolved | Audit and history | Entities store creation and last-modification metadata only. There is no general audit table, revision history, soft deletion, or undo after confirmation. See `docs/architecture/data-and-storage.md`. |
 
@@ -63,14 +62,6 @@ Current phase: **Phase 1 - Architecture, Structure, And Core**.
 | Deferred | Design system | Screen designs will be added to the project documentation before frontend implementation and used as the primary visual inspiration. Review them first, then select the UI library and define shared components, module variation, density, and accessibility requirements. See `docs/architecture/user-experience.md`. |
 | Resolved | Attention and feedback model | Segaris uses three distinct mechanisms: module-owned attention indicators on launcher cards, transient toast feedback for actions and background processes, and persistent events or due dates shown through a calendar view. There is no initial unified notification inbox, email, or push delivery. Calendar ownership and detailed event rules remain Phase 2 functional decisions. See `docs/architecture/user-experience.md`. |
 | Open | Reporting model | Dashboards, charts, exports, household summaries. |
-
-### Automation And Intelligence
-
-| Status | Decision | Notes |
-| --- | --- | --- |
-| Open | AI usage | Whether to include AI-assisted extraction, categorization, planning, or summaries. |
-| Open | Document ingestion | Receipts, invoices, tickets, bookings, warranties, and OCR needs. |
-| Open | Rule automation | Recurring tasks, budget alerts, low-stock alerts, travel reminders. |
 
 ### Development And Operations
 
