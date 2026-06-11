@@ -20,7 +20,7 @@ The initial structure is:
 `-- scripts/
 ```
 
-The exact project and package names inside these directories will be chosen when implementation planning begins.
+Backend solution, assembly, namespace, and test-project names are defined in `docs/planning/BACKEND_FOUNDATION_DECISIONS.md`. Frontend package names remain to be selected with frontend implementation planning.
 
 ## Rationale
 
@@ -77,6 +77,10 @@ The backend configuration file may contain local credentials and connection stri
 Frontend configuration is public by nature: values included in the compiled application can be inspected by anyone using the browser. The frontend `.env` must therefore contain only non-secret settings such as the backend base URL, feature flags, or display configuration. Credentials, private API keys, and service tokens belong exclusively in the backend or deployment environment.
 
 Environment-specific generated files and framework conventions may be introduced later if the selected frontend framework requires them, but they must preserve this division: tracked examples, untracked real configuration, and no frontend secrets.
+
+The backend targets .NET 10 LTS. The repository-root `global.json` establishes the minimum .NET 10 SDK feature band, rolls forward only within .NET 10, and excludes prerelease SDKs. Backend configuration sources, precedence, environment-variable mapping, typed sections, and secret rules are defined in `docs/planning/BACKEND_FOUNDATION_DECISIONS.md`.
+
+Local database reset and seed are explicit development commands rather than startup behavior. Reset is restricted to the `Development` environment and guarded against production-like PostgreSQL targets. Seed operations are deterministic and idempotent; tests continue to own disposable data independently.
 
 ## Testing Strategy
 

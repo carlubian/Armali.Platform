@@ -45,6 +45,7 @@ See [`docs/architecture/shared-core.md`](docs/architecture/shared-core.md) for t
 See [`docs/architecture/integrations.md`](docs/architecture/integrations.md) for provider adapters, resilience boundaries, webhook handling, and external-data privacy requirements.
 See [`docs/architecture/development-and-operations.md`](docs/architecture/development-and-operations.md) for repository organization and the evolving development and delivery model.
 See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
+See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
 
 ## Planning Phases
 

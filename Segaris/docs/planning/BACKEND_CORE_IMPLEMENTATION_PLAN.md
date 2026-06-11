@@ -46,10 +46,10 @@ The following open architecture items must be resolved at the indicated point. T
 
 | Decision | Required by |
 | --- | --- |
-| Supported .NET and ASP.NET Core version | Wave 1 |
-| Exact solution and project names | Wave 1 |
-| Configuration keys and environment-variable hierarchy | Wave 1 |
-| Development seed and database-reset workflow | Wave 2 |
+| Supported .NET and ASP.NET Core version | Resolved in Wave 0 |
+| Exact solution and project names | Resolved in Wave 0 |
+| Configuration keys and environment-variable hierarchy | Resolved in Wave 0 |
+| Development seed and database-reset workflow | Resolved in Wave 0 |
 | Temporary-password and forced-change behavior | Wave 4 |
 | Production secret injection and rotation | Wave 8 |
 | Backend container UID/GID and host-directory provisioning | Wave 8 |
@@ -64,6 +64,8 @@ The following open architecture items must be resolved at the indicated point. T
 Work is divided into dependency-ordered waves. A wave may be split into multiple pull requests, but its exit criteria should pass before work that depends on it is considered complete.
 
 ### Wave 0: Resolve Foundation Blockers
+
+Status: **Completed**. Decisions and conventions are recorded in `docs/planning/BACKEND_FOUNDATION_DECISIONS.md`; SDK selection is enforced by the repository-root `global.json`.
 
 Tasks:
 
