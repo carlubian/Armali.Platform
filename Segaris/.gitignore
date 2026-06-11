@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+TestResults/
+*.user
+
+src/backend/**/appsettings.json
+src/backend/**/appsettings.*.json
+!src/backend/appsettings.example.json

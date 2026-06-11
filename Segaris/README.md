@@ -47,6 +47,28 @@ See [`docs/architecture/development-and-operations.md`](docs/architecture/develo
 See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
 See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
 
+## Backend Implementation Status
+
+Wave 1 of the backend foundation is complete. The repository now contains:
+
+- The .NET 10 solution at `src/backend/Segaris.slnx`.
+- The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
+- Explicit `Platform` and `Modules/Identity` registration points.
+- Five backend test projects under `tests/backend`.
+- Central build, analyzer, formatting, and package-version policies.
+- Startup validation for the active database provider and connection string.
+- A liveness endpoint at `/health/live`.
+- Repeatable PowerShell commands under `scripts/`.
+
+To run the backend locally:
+
+1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values.
+2. Run `./scripts/backend-restore.ps1`.
+3. Run `./scripts/backend-build.ps1` and `./scripts/backend-test.ps1`.
+4. Run `./scripts/backend-run.ps1`.
+
+Use `./scripts/backend-format.ps1 -Verify` to check repository formatting without changing files. Wave 2 will add EF Core, SQLite/PostgreSQL provider selection, migrations, and the development reset/seed command described in the foundation decisions.
+
 ## Planning Phases
 
 ### Phase 1: Architecture, Structure, And Core

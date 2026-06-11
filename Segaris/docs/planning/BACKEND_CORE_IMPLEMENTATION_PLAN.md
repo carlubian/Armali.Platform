@@ -86,6 +86,8 @@ Exit criteria:
 
 ### Wave 1: Repository And Backend Skeleton
 
+Status: **Completed on 2026-06-11**. The solution skeleton, module composition points, validated database configuration, health endpoint, five test projects, repository policies, and developer scripts are implemented. Persistence-specific behavior remains in Wave 2.
+
 Tasks:
 
 1. Create the monorepo directories: `src/backend`, `tests`, `deploy/compose`, and `scripts`.
