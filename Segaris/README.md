@@ -44,6 +44,7 @@ See [`docs/architecture/domain-organization.md`](docs/architecture/domain-organi
 See [`docs/architecture/shared-core.md`](docs/architecture/shared-core.md) for the deliberately minimal set of shared primitives and explicit exclusions.
 See [`docs/architecture/integrations.md`](docs/architecture/integrations.md) for provider adapters, resilience boundaries, webhook handling, and external-data privacy requirements.
 See [`docs/architecture/development-and-operations.md`](docs/architecture/development-and-operations.md) for repository organization and the evolving development and delivery model.
+See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
 
 ## Planning Phases
 
