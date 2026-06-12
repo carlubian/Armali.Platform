@@ -1,0 +1,51 @@
+# Infrastructure-only stack for native backend development.
+#
+# Runs just the backing services and publishes their ports to localhost so the
+# backend and tests can run natively (dotnet run / dotnet test) against them:
+#
+#   docker compose -f docker-compose.infra.yml up -d
+#
+# (scripts/infra-up.ps1 wraps this.) Point the native backend at this PostgreSQL
+# through CONNECTIONSTRINGS__SEGARIS or appsettings.json, for example:
+#   Host=localhost;Port=5432;Database=segaris;Username=segaris;Password=segaris
+#
+# Seq is optional and only started with the "seq" profile:
+#   docker compose -f docker-compose.infra.yml --profile seq up -d
+
+name: segaris-infra
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SEGARIS_POSTGRES_DB:-segaris}
+      POSTGRES_USER: ${SEGARIS_POSTGRES_USER:-segaris}
+      POSTGRES_PASSWORD: ${SEGARIS_POSTGRES_PASSWORD:-segaris}
+    ports:
+      - "${SEGARIS_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SEGARIS_POSTGRES_USER:-segaris} -d ${SEGARIS_POSTGRES_DB:-segaris}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  seq:
+    image: datalust/seq:latest
+    profiles:
+      - seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      # Seq web UI.
+      - "${SEGARIS_SEQ_UI_PORT:-5341}:80"
+    volumes:
+      - seq-data:/data
+
+volumes:
+  postgres-data:
+  seq-data:

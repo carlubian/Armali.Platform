@@ -1,0 +1,112 @@
+# Segaris production-oriented Compose stack.
+#
+# This is the base topology used for both full local container execution and
+# Portainer production deployment. It references images by tag and never builds.
+#
+#   * Local full stack:   add docker-compose.local.yml to build the images
+#                         (see scripts/compose-up.ps1).
+#   * Production:         Portainer supplies the SEGARIS_* image tags (immutable
+#                         commit-SHA tags from the private registry) and the
+#                         required secrets as stack environment variables.
+#
+# Secrets (database password, bootstrap administrator, Seq API key) are injected
+# as environment variables and never committed. See deploy/compose/.env.example.
+
+name: segaris
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SEGARIS_POSTGRES_DB:-segaris}
+      POSTGRES_USER: ${SEGARIS_POSTGRES_USER:-segaris}
+      POSTGRES_PASSWORD: ${SEGARIS_POSTGRES_PASSWORD:?SEGARIS_POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SEGARIS_POSTGRES_USER:-segaris} -d ${SEGARIS_POSTGRES_DB:-segaris}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    image: ${SEGARIS_BACKEND_IMAGE:-segaris-backend:local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      SEGARIS__DATABASE__PROVIDER: Postgres
+      CONNECTIONSTRINGS__SEGARIS: "Host=postgres;Port=5432;Database=${SEGARIS_POSTGRES_DB:-segaris};Username=${SEGARIS_POSTGRES_USER:-segaris};Password=${SEGARIS_POSTGRES_PASSWORD:?SEGARIS_POSTGRES_PASSWORD is required}"
+      SEGARIS__STORAGE__ATTACHMENTSPATH: /data/attachments
+      SEGARIS__STORAGE__BACKUPSPATH: /data/backups
+      SEGARIS__STORAGE__DATAPROTECTIONKEYSPATH: /data/dataprotection-keys
+      # First-administrator bootstrap. Leave empty after the first administrator
+      # exists; the bootstrap is idempotent and only acts when no account matches.
+      SEGARIS__IDENTITY__BOOTSTRAP__USERNAME: ${SEGARIS_BOOTSTRAP_USERNAME:-}
+      SEGARIS__IDENTITY__BOOTSTRAP__PASSWORD: ${SEGARIS_BOOTSTRAP_PASSWORD:-}
+      # Optional best-effort Seq delivery. Disabled by default.
+      SEGARIS__OBSERVABILITY__SEQ__ENABLED: ${SEGARIS_SEQ_ENABLED:-false}
+      SEGARIS__OBSERVABILITY__SEQ__SERVERURL: ${SEGARIS_SEQ_SERVERURL:-}
+      SEGARIS__OBSERVABILITY__SEQ__APIKEY: ${SEGARIS_SEQ_APIKEY:-}
+    volumes:
+      - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/attachments:/data/attachments"
+      - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/backups:/data/backups"
+      - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/dataprotection-keys:/data/dataprotection-keys"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  frontend:
+    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend-placeholder:local}
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  caddy:
+    image: ${SEGARIS_CADDY_IMAGE:-segaris-caddy:local}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    ports:
+      - "${SEGARIS_HTTP_PORT:-5525}:80"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
+    driver: bridge

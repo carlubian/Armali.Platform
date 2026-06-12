@@ -8,7 +8,7 @@ Segaris Platform will run on a local household server, expected to use Ubuntu.
 
 The server is part of the household infrastructure rather than a public cloud environment. The application remains online-only relative to this server: clients require network access to it and do not maintain an offline replica.
 
-Ubuntu is the intended target, but the exact supported version and hardware requirements will be chosen closer to implementation.
+The server baseline is Ubuntu 24.04 LTS on an x64 CPU with 6–8 cores, at least 8 GB RAM, and an SSD of at least 256 GB. See `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`.
 
 ## Containerization
 
@@ -20,6 +20,8 @@ The frontend and backend will be built as separate images and run as separate co
 - The backend container runs the ASP.NET Core REST API and owns application and domain behavior.
 
 The containers may be released together, but they remain independently buildable. Their interface is the documented REST API.
+
+The backend image is a multi-stage build on the .NET 10 SDK and ASP.NET Core runtime images, runs as a dedicated non-root identity (UID:GID 5525:5525), listens on container port 8080, and bundles the PostgreSQL 17 client (`pg_dump`) for the administrative backup job. Concrete container, Compose, ingress, and operational decisions are recorded in `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`. The implemented assets live under `src/backend/Segaris.Api/Dockerfile`, `deploy/caddy/`, `deploy/frontend-placeholder/`, and `deploy/compose/`.
 
 Docker Compose is the expected initial orchestration mechanism because the system targets one local server and does not currently need cluster orchestration. This is an architectural default rather than a final implementation commitment.
 
@@ -43,21 +45,26 @@ The exact storage layout must be decided together with the primary database and 
 Production persistence follows the existing server convention under `/data/volumes/<application>`. Segaris uses this default layout:
 
 ```text
-/data/volumes/Segaris/
+/data/volumes/segaris/
 |-- attachments/
-`-- backups/
+|-- backups/
+`-- dataprotection-keys/
 ```
 
 - `attachments/` is bind-mounted into the backend container and contains live user-uploaded files.
 - `backups/` is bind-mounted into the backend container as the staging and output location for the latest completed backup package. It is also the integration point from which the external household backup service copies the package off-server.
+- `dataprotection-keys/` is bind-mounted into the backend container and holds the ASP.NET Core Data Protection key ring so authentication sessions survive backend container replacement.
 
-The root host path is configurable through the Compose environment variable `Segaris_DATA_PATH`, which defaults to `/data/volumes/Segaris`. Compose definitions derive the bind mounts from that variable rather than repeating absolute host paths:
+The root host path is configurable through the Compose environment variable `SEGARIS_DATA_PATH`, which defaults to `/data/volumes/segaris`. Compose definitions derive the bind mounts from that variable rather than repeating absolute host paths:
 
 ```yaml
 volumes:
-  - "${Segaris_DATA_PATH:-/data/volumes/Segaris}/attachments:/data/attachments"
-  - "${Segaris_DATA_PATH:-/data/volumes/Segaris}/backups:/data/backups"
+  - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/attachments:/data/attachments"
+  - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/backups:/data/backups"
+  - "${SEGARIS_DATA_PATH:-/data/volumes/segaris}/dataprotection-keys:/data/dataprotection-keys"
 ```
+
+These directories must be owned by the backend container identity (UID:GID 5525:5525) before the stack starts; `scripts/host-provision.sh` creates and chowns them.
 
 PostgreSQL data uses a Docker-managed named volume rather than a bind mount. Database files must not be inspected, copied, or modified directly from the host as an application backup mechanism; database recovery uses the PostgreSQL dump included in Segaris's backup package.
 
@@ -106,16 +113,16 @@ This gives browsers one same-origin application address and avoids exposing or c
 
 Segaris is served over plain HTTP because it is an internal household application deployed on a protected local network. HTTPS, certificate generation, and certificate trust distribution are outside the initial deployment scope. This decision must be reconsidered before exposing Segaris to an untrusted network, allowing remote access, or moving authentication traffic across infrastructure that is not fully controlled by the household.
 
-The deployment publishes Caddy on one fixed host port. The default is `5525`, configurable through the Compose environment variable `Segaris_HTTP_PORT`:
+The deployment publishes Caddy on one fixed host port. The default is `5525`, configurable through the Compose environment variable `SEGARIS_HTTP_PORT`:
 
 ```yaml
 ports:
-  - "${Segaris_HTTP_PORT:-5525}:80"
+  - "${SEGARIS_HTTP_PORT:-5525}:80"
 ```
 
-The variable changes only the host port. Caddy continues to listen on port `80` inside its container, and internal service ports remain private implementation details of the Compose network.
+The variable changes only the host port. Caddy continues to listen on port `80` inside its container, and internal service ports remain private implementation details of the Compose network. The Caddy routing configuration is baked into a dedicated `segaris-caddy` image as config-as-code so the production stack needs no host file bind mount; only the published port is supplied at runtime.
 
-Local containerized execution may use the default or override `Segaris_HTTP_PORT` through the Compose environment. Portainer supplies the same variable as stack configuration, allowing the production port to change without editing the Compose definition. The repository must include the default in the relevant example configuration and must not require a real environment file to be committed.
+Local containerized execution may use the default or override `SEGARIS_HTTP_PORT` through the Compose environment. Portainer supplies the same variable as stack configuration, allowing the production port to change without editing the Compose definition. The repository must include the default in the relevant example configuration and must not require a real environment file to be committed.
 
 The household server must retain a stable LAN address through infrastructure configuration such as a static address or DHCP reservation. Successive deployments should preserve the configured published port so clients and any UniFi DNS record can continue to point to the same address.
 
@@ -139,10 +146,18 @@ The initial deployment does not require:
 - Independent scaling of frontend and backend replicas.
 - Cloud-managed persistence as a prerequisite.
 
-## Open Decisions
+## Resolved Decisions
 
-- Confirm the Ubuntu version and server hardware baseline.
-- Define the exact Caddy routing and health-check configuration.
-- Define the concrete backend container UID/GID and host-directory provisioning procedure.
-- Define the restore procedure and periodic restore verification.
-- Define secret injection and rotation.
+The deployment decisions previously open here were resolved in Wave 8 and are
+recorded in `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`:
+
+- Server baseline: Ubuntu 24.04 LTS, x64 6–8 cores, ≥8 GB RAM, ≥256 GB SSD.
+- Caddy routing and health checks: `/api/*` to the backend, all other traffic to
+  the frontend; baked into the `segaris-caddy` image; health gating through
+  container health checks and `/health/ready`.
+- Backend container identity and provisioning: UID:GID 5525:5525, with
+  `scripts/host-provision.sh` creating and chowning the host directories.
+- Restore procedure and verification: `scripts/restore.sh` and
+  `docs/operations/backup-and-restore.md`, rehearsed at least quarterly.
+- Secret injection and rotation: Portainer stack environment variables, rotated
+  by updating the stack and re-deploying.

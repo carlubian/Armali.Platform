@@ -51,10 +51,12 @@ See [`docs/planning/BACKEND_IDENTITY_DECISIONS.md`](docs/planning/BACKEND_IDENTI
 See [`docs/planning/BACKEND_ATTACHMENT_DECISIONS.md`](docs/planning/BACKEND_ATTACHMENT_DECISIONS.md) for the Wave 5 attachment security, storage, ownership, and recovery decisions.
 See [`docs/planning/BACKEND_BACKUP_DECISIONS.md`](docs/planning/BACKEND_BACKUP_DECISIONS.md) for the Wave 6 persistent background-job infrastructure, backup authorization, package format, and recovery decisions.
 See [`docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md`](docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md) for the Wave 7 logging, Seq, correlation, health, diagnostics, rate-limit, and redaction decisions.
+See [`docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`](docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md) for the Wave 8 server baseline, container identity/image, Caddy ingress, Compose topology, persistence layout, secret injection, and recovery decisions.
+See [`docs/operations/`](docs/operations/) for the deployment, backup/restore, and rollback runbooks.
 
 ## Backend Implementation Status
 
-Waves 1 through 7 of the backend foundation are complete. The repository now contains:
+Waves 1 through 8 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -89,6 +91,9 @@ Waves 1 through 7 of the backend foundation are complete. The repository now con
 - Request correlation through `X-Trace-ID`, ProblemDetails, request completion events, and accepted frontend diagnostic responses.
 - `/health/ready` coverage for database connectivity, pending migrations, and writable attachment storage, while `/health/live` remains process-only.
 - A protected `/api/diagnostics/frontend` endpoint with a fixed schema, antiforgery, validated payload/rate limits, and known-secret redaction, plus a separate login rate limit.
+- A multi-stage backend Dockerfile running as the non-root identity `5525:5525` and bundling the PostgreSQL 17 client for backups, a temporary frontend placeholder image, and a `segaris-caddy` ingress image with baked-in `/api/*` and frontend routing.
+- Compose definitions for production/Portainer (`docker-compose.yml`), local builds (`docker-compose.local.yml`), and infrastructure-only native development (`docker-compose.infra.yml`), with PostgreSQL on a named volume and attachments, backups, and Data Protection keys on bind mounts under `SEGARIS_DATA_PATH`, published through Caddy on `SEGARIS_HTTP_PORT` (default 5525).
+- Host provisioning, Compose smoke-test, and restore scripts, plus deployment, backup/restore, and rollback runbooks under `docs/operations/`, with production secrets injected as Portainer stack environment variables.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
@@ -99,6 +104,10 @@ To run the backend locally:
 4. Run `./scripts/backend-run.ps1`.
 
 Use `./scripts/backend-format.ps1 -Verify` to check repository formatting without changing files. Use `./scripts/backend-reset.ps1 -Confirm` to recreate the configured Development database and seed it, or `./scripts/backend-seed.ps1` to run only the idempotent seed phase. PostgreSQL integration tests require Docker locally and are mandatory in CI.
+
+To run the supporting services in containers while developing the backend natively, run `./scripts/infra-up.ps1` (add `-Seq` for the Seq UI) and point the backend at `Host=localhost;Port=5432;Database=segaris;Username=segaris;Password=segaris`; stop them with `./scripts/infra-down.ps1`.
+
+To run the complete stack (PostgreSQL, backend, frontend placeholder, and Caddy ingress) in containers, run `./scripts/compose-up.ps1` and open `http://localhost:5525/`; stop it with `./scripts/compose-down.ps1`. The Bash smoke test `./scripts/compose-smoke-test.sh` builds the stack, verifies readiness and Caddy routing, and tears it down. See [`docs/operations/deployment.md`](docs/operations/deployment.md) for production deployment through Portainer.
 
 ## Planning Phases
 

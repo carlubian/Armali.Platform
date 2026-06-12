@@ -51,12 +51,12 @@ The following open architecture items must be resolved at the indicated point. T
 | Configuration keys and environment-variable hierarchy | Resolved in Wave 0 |
 | Development seed and database-reset workflow | Resolved in Wave 0 |
 | Temporary-password and forced-change behavior | Resolved in Wave 4 |
-| Production secret injection and rotation | Wave 8 |
-| Backend container UID/GID and host-directory provisioning | Wave 8 |
-| Attachment size, type, validation, and malware policy | Wave 5 |
+| Production secret injection and rotation | Resolved in Wave 8 |
+| Backend container UID/GID and host-directory provisioning | Resolved in Wave 8 |
+| Attachment size, type, validation, and malware policy | Resolved in Wave 5 |
 | Backup API authorization details | Resolved in Wave 6 |
-| Restore procedure and verification frequency | Wave 8 |
-| Ubuntu and server hardware baseline | Wave 8 |
+| Restore procedure and verification frequency | Resolved in Wave 8 |
+| Ubuntu and server hardware baseline | Resolved in Wave 8 |
 | Exact required GitHub checks and branch protection | Wave 9 |
 
 ## Delivery Strategy
@@ -275,6 +275,25 @@ Exit criteria:
 - Operators can diagnose startup, requests, migrations, storage, and jobs through container logs and health endpoints even when Seq is unavailable.
 
 ### Wave 8: Containers, Compose, Caddy, And Operations
+
+Status: **Completed on 2026-06-12**. The implementation adds a multi-stage backend
+Dockerfile that runs as the non-root identity 5525:5525 and bundles the PostgreSQL
+17 client for backups, a temporary frontend placeholder image, and a `segaris-caddy`
+image with baked-in `/api/*` and frontend routing. Compose provides a
+production-oriented base (`docker-compose.yml`), a local build override
+(`docker-compose.local.yml`), and an infrastructure-only dev stack
+(`docker-compose.infra.yml`), all preserving one service topology, with PostgreSQL
+on a named volume and attachments, backups, and Data Protection keys on bind mounts
+under `SEGARIS_DATA_PATH`. Health checks gate dependents, and the published host
+port is `SEGARIS_HTTP_PORT` (default 5525). Tracked examples (`deploy/compose/.env.example`),
+host provisioning, smoke-test, and restore scripts, and the deployment, backup/restore,
+and rollback runbooks are included. Secrets are injected as Portainer stack
+environment variables. Decisions are recorded in
+`docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`. The mixed-case `Segaris_DATA_PATH`/
+`Segaris_HTTP_PORT` naming and `/data/volumes/Segaris` path in earlier notes were
+standardized to `SEGARIS_DATA_PATH`/`SEGARIS_HTTP_PORT` and `/data/volumes/segaris`.
+Docker image build, Compose startup, and Caddy-routing smoke validation are exercised
+by `scripts/compose-smoke-test.sh`; this suite becomes a required CI check in Wave 9.
 
 Tasks:
 
