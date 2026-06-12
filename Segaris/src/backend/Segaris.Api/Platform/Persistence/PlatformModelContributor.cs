@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Segaris.Api.Platform.Attachments;
+using Segaris.Api.Platform.Jobs;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Platform.Persistence;
@@ -11,6 +12,7 @@ internal sealed class PlatformModelContributor : ISegarisModelContributor
     {
         ConfigureCompatibilityRecord(modelBuilder.Entity<PersistenceCompatibilityRecord>());
         ConfigureAttachment(modelBuilder.Entity<AttachmentRecord>());
+        ConfigureJob(modelBuilder.Entity<JobRecord>());
     }
 
     private static void ConfigureCompatibilityRecord(
@@ -46,5 +48,32 @@ internal sealed class PlatformModelContributor : ISegarisModelContributor
             attachment.EntityType,
             attachment.EntityId,
         });
+    }
+
+    private static void ConfigureJob(EntityTypeBuilder<JobRecord> builder)
+    {
+        builder.ToTable("platform_background_jobs");
+        builder.HasKey(job => job.Id);
+        builder.Property(job => job.Id).ValueGeneratedOnAdd();
+        builder.Property(job => job.JobType).HasMaxLength(80).IsRequired();
+        builder.Property(job => job.State)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired();
+        builder.Property(job => job.ActiveExclusivityKey).HasMaxLength(80);
+        builder.Property(job => job.Parameters).HasMaxLength(4000);
+        builder.Property(job => job.ProgressCode).HasMaxLength(80);
+        builder.Property(job => job.ResultReference).HasMaxLength(260);
+        builder.Property(job => job.ResultCode).HasMaxLength(80);
+        builder.Property(job => job.FailureCode).HasMaxLength(80);
+        builder.Property(job => job.TraceId).HasMaxLength(120);
+        builder.Property(job => job.CreatedAt).IsRequired();
+        builder.Property(job => job.UpdatedAt).IsRequired();
+
+        // One active job per exclusivity key. The column is null for terminal jobs and for
+        // job types without mutual exclusion, and both providers permit multiple nulls in a
+        // unique index, so this enforces single-run without a provider-specific filter.
+        builder.HasIndex(job => job.ActiveExclusivityKey).IsUnique();
+        builder.HasIndex(job => job.State);
     }
 }

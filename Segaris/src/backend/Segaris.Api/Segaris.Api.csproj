@@ -23,4 +23,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Segaris.UnitTests" />
+    <InternalsVisibleTo Include="Segaris.Api.IntegrationTests" />
+    <InternalsVisibleTo Include="Segaris.Postgres.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

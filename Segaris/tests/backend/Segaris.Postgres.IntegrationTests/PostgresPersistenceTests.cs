@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Formats.Tar;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -228,6 +230,141 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         countCommand.CommandText = "SELECT COUNT(*) FROM platform_attachments";
         Assert.Equal(0L, (long)(await countCommand.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public async Task Postgres_backup_generates_a_valid_package()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        if (!PgDumpAvailable() && !IsContinuousIntegration())
+        {
+            // The real dump path needs the PostgreSQL client tools. CI provides them; a
+            // developer machine without them skips rather than fails.
+            return;
+        }
+
+        const string adminUserName = "pg-backup-admin";
+        const string adminPassword = "PgBackupPass123!";
+        var attachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-pg-backup-att-{Guid.NewGuid():N}");
+        var backupsPath = Path.Combine(Path.GetTempPath(), $"segaris-pg-backup-out-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(attachmentsPath);
+        Directory.CreateDirectory(Path.Combine(attachmentsPath, "capex"));
+        await File.WriteAllTextAsync(
+            Path.Combine(attachmentsPath, "capex", "demo.txt"),
+            "attachment payload");
+        try
+        {
+            await using var factory = CreateFactory(
+                new("Segaris:Storage:AttachmentsPath", attachmentsPath),
+                new("Segaris:Storage:BackupsPath", backupsPath),
+                new("Segaris:Identity:Bootstrap:UserName", adminUserName),
+                new("Segaris:Identity:Bootstrap:Password", adminPassword));
+            using var admin = factory.CreateClient();
+            using var login = await admin.PostAsJsonAsync(
+                "/api/session",
+                new { userName = adminUserName, password = adminPassword },
+                CancellationToken.None);
+            login.EnsureSuccessStatusCode();
+
+            using var start = await PostWithCsrfAsync(admin, "/api/backup-jobs", new { });
+            Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
+            var started = await start.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+            var id = started.GetProperty("id").GetInt32();
+
+            var terminal = await PollUntilTerminalAsync(admin, id);
+            Assert.Equal("Succeeded", terminal.GetProperty("state").GetString());
+            Assert.Equal("segaris-backup.tar", terminal.GetProperty("resultReference").GetString());
+
+            var packagePath = Path.Combine(backupsPath, "segaris-backup.tar");
+            Assert.True(File.Exists(packagePath));
+
+            var entries = new List<string>();
+            await using (var stream = File.OpenRead(packagePath))
+            using (var reader = new TarReader(stream))
+            {
+                while (reader.GetNextEntry() is { } entry)
+                {
+                    entries.Add(entry.Name);
+                }
+            }
+
+            Assert.Contains("database.dump", entries);
+            Assert.Contains("manifest.json", entries);
+            Assert.Contains(entries, name => name.StartsWith("attachments/", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TryDeleteDirectory(attachmentsPath);
+            TryDeleteDirectory(backupsPath);
+        }
+    }
+
+    private static async Task<JsonElement> PollUntilTerminalAsync(HttpClient client, int id)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        while (DateTime.UtcNow < deadline)
+        {
+            var status = await client.GetFromJsonAsync<JsonElement>(
+                $"/api/backup-jobs/{id}",
+                CancellationToken.None);
+            var state = status.GetProperty("state").GetString();
+            if (state is "Succeeded" or "Failed" or "Cancelled" or "Interrupted")
+            {
+                return status;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException($"Backup job {id} did not reach a terminal state.");
+    }
+
+    private static bool PgDumpAvailable()
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "pg_dump",
+                ArgumentList = { "--version" },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            if (process is null)
+            {
+                return false;
+            }
+
+            process.WaitForExit(5000);
+            return process.HasExited && process.ExitCode == 0;
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private WebApplicationFactory<Program> CreateFactory(

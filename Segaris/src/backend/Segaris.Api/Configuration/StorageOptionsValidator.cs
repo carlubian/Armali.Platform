@@ -19,6 +19,12 @@ internal sealed class StorageOptionsValidator(IHostEnvironment environment)
                 "Segaris:Storage:AttachmentsPath is required in Production.");
         }
 
+        if (environment.IsProduction() && string.IsNullOrWhiteSpace(options.BackupsPath))
+        {
+            return ValidateOptionsResult.Fail(
+                "Segaris:Storage:BackupsPath is required in Production.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

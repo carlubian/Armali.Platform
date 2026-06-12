@@ -54,7 +54,7 @@ The following open architecture items must be resolved at the indicated point. T
 | Production secret injection and rotation | Wave 8 |
 | Backend container UID/GID and host-directory provisioning | Wave 8 |
 | Attachment size, type, validation, and malware policy | Wave 5 |
-| Backup API authorization details | Wave 6 |
+| Backup API authorization details | Resolved in Wave 6 |
 | Restore procedure and verification frequency | Wave 8 |
 | Ubuntu and server hardware baseline | Wave 8 |
 | Exact required GitHub checks and branch protection | Wave 9 |
@@ -215,6 +215,8 @@ Exit criteria:
 - Modules can safely attach files through a narrow contract, and database/filesystem inconsistencies are detectable and recoverable.
 
 ### Wave 6: Persistent Background Jobs And Backups
+
+Status: **Completed on 2026-06-12**. The implementation adds the `platform_background_jobs` record with central `JobStateMachine` validation, a single-instance `BackgroundService` worker with atomic claiming, portable single-run exclusivity through a unique active-key index, cooperative cancellation, and startup recovery of interrupted jobs. The administrative backup capability registers a `backup` job handler, generates a staged `segaris-backup.tar` (PostgreSQL `pg_dump`, live attachments, and a hashed manifest), and atomically replaces the previous package; backups require the PostgreSQL provider and are retrieved from the backups volume rather than downloaded through the API. The `/api/backup-jobs` endpoints enforce the `Admin` policy and antiforgery, and disclose conflicts with the active job identifier. Paired SQLite/PostgreSQL migrations upgrade from the Wave 5 attachment schema; unit, SQLite probe, backup-orchestration, and real `pg_dump` PostgreSQL suites pass. Decisions are recorded in `docs/planning/BACKEND_BACKUP_DECISIONS.md`. Completed job-record retention and cleanup are intentionally deferred for the low-volume deployment.
 
 Tasks:
 
