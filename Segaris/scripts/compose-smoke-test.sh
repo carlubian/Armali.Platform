@@ -21,6 +21,10 @@ HTTP_PORT="${SEGARIS_HTTP_PORT:-15525}"
 
 WORK_DIR="$(mktemp -d)"
 mkdir -p "${WORK_DIR}/attachments" "${WORK_DIR}/backups" "${WORK_DIR}/dataprotection-keys"
+# The backend runs as the fixed non-root identity 5525:5525. These directories
+# contain disposable smoke-test data, so allow that container identity to write
+# without requiring privileged ownership changes on the GitHub runner.
+chmod 0777 "${WORK_DIR}/attachments" "${WORK_DIR}/backups" "${WORK_DIR}/dataprotection-keys"
 
 export SEGARIS_HTTP_PORT="${HTTP_PORT}"
 export SEGARIS_DATA_PATH="${WORK_DIR}"
@@ -42,7 +46,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "--- Building and starting stack (project: ${PROJECT}, port: ${HTTP_PORT}) ---"
-compose up --build -d
+if ! compose up --build -d; then
+  echo "Compose failed while starting the stack." >&2
+  compose ps || true
+  compose logs backend || true
+  exit 1
+fi
 
 echo "--- Waiting for the backend to become healthy ---"
 deadline=$(( $(date +%s) + 240 ))
