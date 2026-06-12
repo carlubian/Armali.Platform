@@ -207,4 +207,4 @@ The stack also aligns with the existing decisions to use Vitest, Testing Library
 
 ## Open Decisions
 
-- Select the UI component and styling strategy after the screen designs are available.
+- None remaining for Phase 1. The UI component and styling strategy is resolved in `docs/architecture/design-system.md`.

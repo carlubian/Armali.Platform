@@ -39,12 +39,14 @@ See [`docs/architecture/deployment.md`](docs/architecture/deployment.md) for the
 See [`docs/architecture/data-and-storage.md`](docs/architecture/data-and-storage.md) for database-provider and migration decisions.
 See [`docs/architecture/user-experience.md`](docs/architecture/user-experience.md) for the launcher-based navigation and immersive module experience.
 See [`docs/architecture/frontend.md`](docs/architecture/frontend.md) for the selected React, TypeScript, and Vite SPA foundation and remaining frontend decisions.
+See [`docs/architecture/design-system.md`](docs/architecture/design-system.md) for the adopted design system, ported component plan, and screen-variant decisions based on `docs/ui-design/`.
 See [`docs/architecture/backend.md`](docs/architecture/backend.md) for the ASP.NET Core modular-monolith structure and backend module boundaries.
 See [`docs/architecture/domain-organization.md`](docs/architecture/domain-organization.md) for module ownership, dependency direction, and cross-domain reference rules.
 See [`docs/architecture/shared-core.md`](docs/architecture/shared-core.md) for the deliberately minimal set of shared primitives and explicit exclusions.
 See [`docs/architecture/integrations.md`](docs/architecture/integrations.md) for provider adapters, resilience boundaries, webhook handling, and external-data privacy requirements.
 See [`docs/architecture/development-and-operations.md`](docs/architecture/development-and-operations.md) for repository organization and the evolving development and delivery model.
 See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
+See [`docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan that produces a functional application core with login, self-service profile (including avatar), administrative user management, a minimal launcher, and the required backend, container, and CI changes.
 See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
 See [`docs/planning/BACKEND_MODULE_CONVENTIONS.md`](docs/planning/BACKEND_MODULE_CONVENTIONS.md) for the Wave 3 implementation path that new backend modules must follow.
 See [`docs/planning/BACKEND_IDENTITY_DECISIONS.md`](docs/planning/BACKEND_IDENTITY_DECISIONS.md) for the Wave 4 identity, session, antiforgery, administrative-user, and credential-lifecycle decisions.
@@ -57,10 +59,10 @@ See [`docs/operations/`](docs/operations/) for the deployment, backup/restore, a
 
 ## Backend Implementation Status
 
-Waves 1 through 8 of the backend foundation are complete. Wave 9 is implemented
-locally; its GitHub environment, Azure OIDC federation, and `main` branch
-protection are active. The first controlled publication run remains pending. The
-repository now contains:
+Waves 1 through 9 of the backend foundation are complete. Its GitHub environment,
+Azure OIDC federation, and `main` branch protection are active, and the first
+controlled publication run produced the backend, frontend, and Caddy images in
+the private Azure Container Registry. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -98,7 +100,7 @@ repository now contains:
 - A multi-stage backend Dockerfile running as the non-root identity `5525:5525` and bundling the PostgreSQL 17 client for backups, a temporary frontend placeholder image, and a `segaris-caddy` ingress image with baked-in `/api/*` and frontend routing.
 - Compose definitions for production/Portainer (`docker-compose.yml`), local builds (`docker-compose.local.yml`), and infrastructure-only native development (`docker-compose.infra.yml`), with PostgreSQL on a named volume and attachments, backups, and Data Protection keys on bind mounts under `SEGARIS_DATA_PATH`, published through Caddy on `SEGARIS_HTTP_PORT` (default 5525).
 - Host provisioning, Compose smoke-test, and restore scripts, plus deployment, backup/restore, and rollback runbooks under `docs/operations/`, with production secrets injected as Portainer stack environment variables.
-- Secret-free pull-request validation with required `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` checks, plus trusted main-branch publication of immutable backend, frontend, and Caddy images to ACR through Azure OIDC.
+- Secret-free pull-request validation with required `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` checks, plus trusted main-branch publication of immutable backend, frontend, and Caddy images to the private ACR through Azure OIDC, with the first publication run completed.
 - A complete local foundation gate at `scripts/foundation-acceptance.ps1` that mirrors the required CI boundaries.
 - Repeatable PowerShell commands under `scripts/`.
 

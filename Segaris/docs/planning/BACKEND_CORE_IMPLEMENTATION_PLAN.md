@@ -320,16 +320,17 @@ Exit criteria:
 
 ### Wave 9: CI, Publication, And Foundation Acceptance
 
-Status: **Implemented locally on 2026-06-12; activation pending**. Pull requests are
-configured to run three secret-free required checks (`Segaris Backend`, `Segaris
-PostgreSQL`, and `Segaris Compose`). Successful trusted `main` validations trigger
-publication of the backend, temporary frontend, and Caddy images to ACR with exact
-commit-SHA tags through Azure OIDC, without automatic deployment. The local
+Status: **Completed on 2026-06-12**. Pull requests are configured to run three
+secret-free required checks (`Segaris Backend`, `Segaris PostgreSQL`, and `Segaris
+Compose`). Successful trusted `main` validations trigger publication of the
+backend, temporary frontend, and Caddy images to ACR with exact commit-SHA tags
+through Azure OIDC, without automatic deployment. The local
 `scripts/foundation-acceptance.ps1` command mirrors the complete acceptance gate.
 The `segaris-production-images` environment, OIDC federation, and `main` branch
-protection were configured on 2026-06-12. The first controlled publication run
-remains before this wave can be marked completed. Decisions are recorded in
-`docs/planning/BACKEND_CI_DECISIONS.md`.
+protection were configured on 2026-06-12. The pull request implementing this wave
+has been merged, the required checks passed, and the first controlled publication
+run produced the backend, frontend, and Caddy images in the private ACR. Decisions
+are recorded in `docs/planning/BACKEND_CI_DECISIONS.md`.
 
 Tasks:
 

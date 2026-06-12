@@ -88,19 +88,15 @@ Module layout, navigation hierarchy, information density, visual emphasis, and d
 
 ## Design References
 
-Screen designs are being prepared outside this repository workflow and will be added somewhere under the project documentation before frontend implementation begins.
+Initial screen designs are available under `docs/ui-design/` and were the primary source of inspiration for Segaris's visual language and shared shell.
 
-Those designs will be the primary source of inspiration for Segaris's visual language and module experiences. Phase 1 will not select a UI library, define a complete component catalog, or prescribe detailed styling before those references are available.
+The selected design system, component-porting approach, and screen-variant decisions are documented in `docs/architecture/design-system.md`. The designs are references rather than an automatic implementation specification: they were reviewed together with the documented product constraints, and any conflict with an established product, privacy, accessibility, or technical constraint must be documented and resolved rather than silently copied.
 
-The designs are references rather than an automatic implementation specification. Before implementation, they must be reviewed together with the documented product constraints and translated into explicit decisions covering at least:
+Remaining work, to be completed alongside or after the frontend foundation implementation:
 
-- Shared and module-specific components.
 - Visual consistency and permitted variation between immersive modules.
-- Information density and interaction behavior on large desktop displays.
-- Accessibility, keyboard operation, localization, and reusable state patterns.
-- The frontend libraries and implementation approach needed to reproduce the intended experience sustainably.
-
-If a design conflicts with an established product, privacy, accessibility, or technical constraint, the conflict must be documented and resolved rather than silently copying the design.
+- Information density and interaction behavior on large desktop displays for modules not yet designed.
+- Accessibility, keyboard operation, localization, and reusable state patterns for the ported components.
 
 ## Rationale
 
@@ -116,8 +112,8 @@ The additional navigation step is intentional. The launcher should make that ste
 - Define shared toast behavior with the future design system, including duration, severity, accessibility, and treatment of background-process results.
 - Define which module or application section owns the calendar and which domain events and due dates it includes.
 - Define the shared shell elements that remain visible inside every module.
-- Review the future screen designs and define whether modules may have distinct themes and how much visual variation the design system permits.
+- Define whether modules may have distinct themes and how much visual variation the design system in `docs/architecture/design-system.md` permits.
 - Define the behavior of browser back navigation and direct deep links across authentication and authorization boundaries.
 - Define keyboard navigation and whether a command palette is useful within the launcher or individual modules.
-- Define the design system and accessibility baseline after the screen designs are available.
+- Define the accessibility baseline for the ported design-system components.
 - Define the reporting model.
