@@ -112,6 +112,8 @@ The physical path must not contain the original filename or reproduce the full e
 
 The UUID is generated before the file is written and is independent from the integer database identifier used by the attachment record.
 
+Wave 5 fixes the concrete upload policy at 25 MiB per file and uses a positive allow-list covering PDF, common modern Office and OpenDocument packages, JPEG/PNG/WebP images, and common text formats including TXT, CSV, Markdown, XML, JSON, YAML, and YML. Extension, media type, and content are validated together. Malware scanning is not included in the initial trusted-household deployment. See `docs/planning/BACKEND_ATTACHMENT_DECISIONS.md` for the complete policy and recovery behavior.
+
 Attachments are deleted immediately when the attachment itself or its owning entity is permanently deleted. Both the database record and physical file must be removed. PostgreSQL and the filesystem cannot participate in one atomic transaction, so the persistence layer must use compensating operations:
 
 - A failed filesystem operation prevents the database operation from being treated as successfully completed.
@@ -203,4 +205,3 @@ Modules with legal, financial, or operational requirements beyond this baseline 
 - Define the backup administrative API authorization details.
 - Define package restoration and restore verification.
 - Define user-facing data import, export, and portability requirements.
-- Define attachment size limits, permitted file types, content validation, and malware-scanning requirements.

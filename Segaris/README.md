@@ -48,10 +48,11 @@ See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_
 See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
 See [`docs/planning/BACKEND_MODULE_CONVENTIONS.md`](docs/planning/BACKEND_MODULE_CONVENTIONS.md) for the Wave 3 implementation path that new backend modules must follow.
 See [`docs/planning/BACKEND_IDENTITY_DECISIONS.md`](docs/planning/BACKEND_IDENTITY_DECISIONS.md) for the Wave 4 identity, session, antiforgery, administrative-user, and credential-lifecycle decisions.
+See [`docs/planning/BACKEND_ATTACHMENT_DECISIONS.md`](docs/planning/BACKEND_ATTACHMENT_DECISIONS.md) for the Wave 5 attachment security, storage, ownership, and recovery decisions.
 
 ## Backend Implementation Status
 
-Waves 1 through 4 of the backend foundation are complete. The repository now contains:
+Waves 1 through 5 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -76,11 +77,14 @@ Waves 1 through 4 of the backend foundation are complete. The repository now con
 - A hardened same-origin session cookie, antiforgery for cookie-authenticated writes, and filesystem-persisted Data Protection keys.
 - `/api/session` endpoints (login, current session, logout, password change) and administrative user management under `/api/admin/users`.
 - Configuration-driven first-administrator bootstrap and session invalidation on deactivation and credential recovery.
+- Narrow attachment contracts with a 25 MiB positive allow-list, content validation, UUID filesystem names, relational metadata, and owner-bound access.
+- Compensating create/delete operations, reconciliation diagnostics for missing and orphaned files, and attachment-storage readiness at `/health/ready`.
+- Paired SQLite/PostgreSQL attachment migrations with upgrade coverage from the previous Identity schema.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
 
-1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values. To create the first administrator, set `Segaris:Identity:Bootstrap:UserName` and `:Password` (preferably through user secrets or environment variables); leave them empty to seed only the platform roles.
+1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values, including `Segaris:Storage:AttachmentsPath`. To create the first administrator, set `Segaris:Identity:Bootstrap:UserName` and `:Password` (preferably through user secrets or environment variables); leave them empty to seed only the platform roles.
 2. Run `./scripts/backend-restore.ps1`.
 3. Run `./scripts/backend-build.ps1` and `./scripts/backend-test.ps1`.
 4. Run `./scripts/backend-run.ps1`.

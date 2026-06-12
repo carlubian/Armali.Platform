@@ -25,7 +25,16 @@ internal static class ServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
 
+        services
+            .AddOptions<StorageOptions>()
+            .Bind(configuration.GetSection(StorageOptions.SectionName), binder =>
+            {
+                binder.ErrorOnUnknownConfiguration = true;
+            })
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
+
         return services;
     }
 }
-

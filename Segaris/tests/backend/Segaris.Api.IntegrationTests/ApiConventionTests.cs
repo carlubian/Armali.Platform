@@ -234,6 +234,9 @@ public sealed class ApiConventionTests
                         settings.Add(new(
                             "Segaris:Storage:DataProtectionKeysPath",
                             Path.Combine(Path.GetTempPath(), $"segaris-keys-{Guid.NewGuid():N}")));
+                        settings.Add(new(
+                            "Segaris:Storage:AttachmentsPath",
+                            Path.Combine(Path.GetTempPath(), $"segaris-attachments-{Guid.NewGuid():N}")));
                     }
 
                     configuration.AddInMemoryCollection(settings);

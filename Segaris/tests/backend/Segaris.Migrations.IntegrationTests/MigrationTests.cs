@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Segaris.Api.Persistence;
 
 namespace Segaris.Migrations.IntegrationTests;
@@ -44,6 +46,35 @@ public sealed class MigrationTests
 
         Assert.Equal(sqliteNames, postgresNames);
         Assert.Contains("InitialPersistenceFoundation", sqliteNames);
+        Assert.Contains("AttachmentStorage", sqliteNames);
+    }
+
+    [Fact]
+    public async Task Sqlite_upgrades_from_the_previous_identity_schema()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-upgrade-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
+            var identityMigration = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_IdentityFoundation", StringComparison.Ordinal));
+            var migrator = database.GetService<IMigrator>();
+
+            await migrator.MigrateAsync(identityMigration);
+            await migrator.MigrateAsync();
+
+            var applied = await database.Database.GetAppliedMigrationsAsync();
+            Assert.Contains(applied, migration => migration.EndsWith("_AttachmentStorage"));
+            await database.Database.OpenConnectionAsync();
+            await using var command = database.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM platform_attachments";
+            Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
     }
 
     [Fact]

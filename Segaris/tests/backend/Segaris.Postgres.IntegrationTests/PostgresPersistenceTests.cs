@@ -1,12 +1,17 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
 using Testcontainers.PostgreSql;
@@ -121,6 +126,108 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.Equal(2, list.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Postgres_supports_attachment_metadata_lifecycle()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string adminUserName = "pg-attachment-admin";
+        const string adminPassword = "PgAttachmentPass123!";
+        var attachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-pg-attachments-{Guid.NewGuid():N}");
+        try
+        {
+            await using var factory = CreateFactory(
+                new("Segaris:Storage:AttachmentsPath", attachmentsPath),
+                new("Segaris:Identity:Bootstrap:UserName", adminUserName),
+                new("Segaris:Identity:Bootstrap:Password", adminPassword));
+            using var client = factory.CreateClient();
+            using var login = await client.PostAsJsonAsync(
+                "/api/session",
+                new { userName = adminUserName, password = adminPassword },
+                CancellationToken.None);
+            login.EnsureSuccessStatusCode();
+
+            var token = await client.GetFromJsonAsync<JsonElement>(
+                "/api/session/antiforgery",
+                CancellationToken.None);
+            using var multipart = new MultipartFormDataContent();
+            var file = new ByteArrayContent("postgres attachment"u8.ToArray());
+            file.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+            multipart.Add(file, "file", "postgres.txt");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/platform/attachments")
+            {
+                Content = multipart,
+            };
+            request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("csrfToken").GetString());
+            using var created = await client.SendAsync(request, CancellationToken.None);
+            var descriptor = await created.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+            var id = descriptor.GetProperty("id").GetProperty("value").GetInt32();
+
+            var metadata = await client.GetFromJsonAsync<JsonElement>(
+                $"/api/platform/attachments/{id}/metadata",
+                CancellationToken.None);
+
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            Assert.Equal("postgres.txt", metadata.GetProperty("fileName").GetString());
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(attachmentsPath, recursive: true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Postgres_upgrades_from_the_previous_identity_schema()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        var schema = $"attachment_upgrade_{Guid.NewGuid():N}";
+        await using (var connection = new NpgsqlConnection(postgres.GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"CREATE SCHEMA \"{schema}\"";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var connectionString = new NpgsqlConnectionStringBuilder(postgres.GetConnectionString())
+        {
+            SearchPath = schema,
+        }.ConnectionString;
+        await using var database = new SegarisDesignTimeDbContextFactory().CreateDbContext(
+        [
+            "--provider",
+            "Postgres",
+            "--connection",
+            connectionString,
+        ]);
+        var identityMigration = database.Database.GetMigrations()
+            .Single(migration => migration.EndsWith("_IdentityFoundation", StringComparison.Ordinal));
+        var migrator = database.GetService<IMigrator>();
+
+        await migrator.MigrateAsync(identityMigration);
+        await migrator.MigrateAsync();
+
+        var applied = await database.Database.GetAppliedMigrationsAsync();
+        Assert.Contains(applied, migration => migration.EndsWith("_AttachmentStorage"));
+        await database.Database.OpenConnectionAsync();
+        await using var countCommand = database.Database.GetDbConnection().CreateCommand();
+        countCommand.CommandText = "SELECT COUNT(*) FROM platform_attachments";
+        Assert.Equal(0L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     private WebApplicationFactory<Program> CreateFactory(

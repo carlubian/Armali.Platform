@@ -192,6 +192,8 @@ Exit criteria:
 
 ### Wave 5: Attachments And Required Storage
 
+Status: **Completed on 2026-06-12**. The implementation adds the documented 25 MiB positive allow-list, extension/media-type/content validation, narrow shared attachment contracts, UUID filesystem storage with relational metadata, owner-bound lookup, compensating create/delete behavior, reconciliation diagnostics, attachment-storage readiness, paired SQLite/PostgreSQL migrations, and Testing-only HTTP probes. SQLite and PostgreSQL upgrade coverage starts from the Wave 4 Identity schema; all backend suites pass. Decisions are recorded in `docs/planning/BACKEND_ATTACHMENT_DECISIONS.md`.
+
 Tasks:
 
 1. Finalize and document attachment limits and validation policy.

@@ -56,6 +56,19 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void Startup_rejects_unknown_storage_properties()
+    {
+        using var factory = CreateFactory(
+        [
+            new("Segaris:Database:Provider", "Sqlite"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
+            new("Segaris:Storage:Unexpected", "value"),
+        ]);
+
+        Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+    }
+
+    [Fact]
     public void Startup_stops_when_database_migration_fails()
     {
         var invalidPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing", "test.db");

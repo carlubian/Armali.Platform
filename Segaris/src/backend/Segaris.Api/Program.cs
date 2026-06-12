@@ -24,14 +24,6 @@ if (databaseCommand is not null)
     return;
 }
 
-if (app.Environment.IsProduction()
-    && string.IsNullOrWhiteSpace(builder.Configuration["Segaris:Storage:DataProtectionKeysPath"]))
-{
-    throw new InvalidOperationException(
-        "Segaris:Storage:DataProtectionKeysPath is required in Production so the Data Protection "
-        + "key ring persists outside the disposable backend container.");
-}
-
 await app.Services.MigrateSegarisDatabaseAsync();
 await app.Services.SeedIdentityAsync();
 
@@ -44,6 +36,10 @@ app.UseAntiforgery();
 
 app.MapGet("/", () => Results.Redirect("/health/live"));
 app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready", new()
+{
+    Predicate = registration => registration.Tags.Contains("ready", StringComparer.Ordinal),
+});
 app.MapSegarisModules();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))

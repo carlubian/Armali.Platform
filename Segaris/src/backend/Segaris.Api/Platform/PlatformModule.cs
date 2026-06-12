@@ -1,5 +1,6 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
 
@@ -12,6 +13,7 @@ internal sealed class PlatformModule : ISegarisModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISegarisModelContributor, PlatformModelContributor>();
+        services.AddSegarisAttachments(configuration);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -20,6 +22,7 @@ internal sealed class PlatformModule : ISegarisModule
         if (environment.IsEnvironment("Testing"))
         {
             endpoints.MapApiConventionProbes();
+            endpoints.MapAttachmentProbes();
         }
     }
 }
