@@ -14,6 +14,7 @@ public sealed class DependencyTests
             .ToArray();
 
         Assert.DoesNotContain("Segaris.Api", references);
+        Assert.All(references, reference => Assert.StartsWith("System", reference, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -34,5 +35,34 @@ public sealed class DependencyTests
             .ToArray();
 
         Assert.DoesNotContain("Segaris.Api", references);
+    }
+
+    [Fact]
+    public void Shared_does_not_contain_excluded_generic_domain_abstractions()
+    {
+        var forbiddenTypeNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "AggregateRoot",
+            "AuditableEntity",
+            "Category",
+            "Comment",
+            "Entity",
+            "EntityType",
+            "GenericRepository",
+            "Household",
+            "Money",
+            "Note",
+            "Reminder",
+            "Repository",
+            "Status",
+            "Tag",
+        };
+
+        var violations = SharedAssembly.Assembly.GetTypes()
+            .Where(type => forbiddenTypeNames.Contains(type.Name))
+            .Select(type => type.FullName)
+            .ToArray();
+
+        Assert.Empty(violations);
     }
 }

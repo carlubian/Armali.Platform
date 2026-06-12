@@ -137,6 +137,8 @@ Exit criteria:
 
 ### Wave 3: Shared Core And API Conventions
 
+Status: **Completed on 2026-06-12**. The implementation adds the deliberately small shared primitives, claims-backed current-user access, creator-only visibility policy, standard module route groups, camel-case JSON, bounded request bodies, centralized ProblemDetails, validated pagination and deterministic sorting, OpenAPI 3.1, development-only Scalar documentation, and focused unit, integration, and architecture coverage. The implementation path for future modules is recorded in `docs/planning/BACKEND_MODULE_CONVENTIONS.md`.
+
 Tasks:
 
 1. Implement stable primitives such as `UserId`, ISO currency code validation, UTC clock abstraction, creation/modification metadata, visibility values, and pagination contracts.

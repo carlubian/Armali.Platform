@@ -15,6 +15,16 @@ internal static class SegarisModules
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var duplicateModule = RegisteredModules
+            .GroupBy(module => module.Name, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateModule is not null)
+        {
+            throw new InvalidOperationException(
+                $"The module name '{duplicateModule.Key}' is registered more than once.");
+        }
+
         foreach (var module in RegisteredModules)
         {
             module.AddServices(services, configuration);
@@ -33,4 +43,3 @@ internal static class SegarisModules
         return endpoints;
     }
 }
-

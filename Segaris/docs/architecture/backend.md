@@ -174,6 +174,10 @@ Small bounded reference collections may return an unpaginated array when the mod
 
 Sorting is deterministic and includes a stable tie-breaker. Invalid filter, sort, page, or page-size values return a structured `400` response rather than being silently ignored.
 
+The implemented shared defaults are page `1`, page size `25`, and maximum page size `100`. Modules allow-list their supported sort fields and always identify a stable tie-breaker, normally the resource identifier.
+
+JSON API request bodies are limited to 1 MiB by default. An endpoint that legitimately requires a different bound must declare it explicitly through endpoint metadata; attachments will define their own security and size policy in Wave 5.
+
 ### OpenAPI
 
 The backend generates an OpenAPI document through the supported ASP.NET Core OpenAPI tooling. Endpoint metadata documents request contracts, successful responses, problem responses, authentication requirements, and relevant operation summaries.

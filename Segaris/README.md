@@ -46,10 +46,11 @@ See [`docs/architecture/integrations.md`](docs/architecture/integrations.md) for
 See [`docs/architecture/development-and-operations.md`](docs/architecture/development-and-operations.md) for repository organization and the evolving development and delivery model.
 See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
 See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
+See [`docs/planning/BACKEND_MODULE_CONVENTIONS.md`](docs/planning/BACKEND_MODULE_CONVENTIONS.md) for the Wave 3 implementation path that new backend modules must follow.
 
 ## Backend Implementation Status
 
-Waves 1 and 2 of the backend foundation are complete. The repository now contains:
+Waves 1 through 3 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -63,6 +64,13 @@ Waves 1 and 2 of the backend foundation are complete. The repository now contain
 - Automatic startup migrations that fail startup before HTTP traffic is accepted.
 - Development-only, explicitly confirmed database reset and idempotent seed commands.
 - SQLite migration tests and PostgreSQL compatibility coverage through Testcontainers.
+- Shared identity, visibility, UTC time, metadata, ISO currency, pagination, sorting, and error-code primitives.
+- A claims-backed current-user adapter and creator-only privacy policy that administrators do not bypass.
+- Standard `/api` route groups, camel-case JSON, bounded request bodies, cancellation propagation, and explicit DTO probes.
+- Centralized ProblemDetails responses with stable error codes and trace identifiers.
+- Bounded page-based pagination, allow-listed deterministic sorting, and a stable tie-breaker convention.
+- OpenAPI 3.1 generation in Development and Testing, with Scalar interactive documentation only in Development.
+- Architecture tests that enforce shared-core dependency and excluded-abstraction rules.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
