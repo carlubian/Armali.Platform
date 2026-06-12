@@ -48,6 +48,21 @@ It fails if the backend does not reach readiness or if Caddy routing is wrong.
 
 ## Production Deployment (Portainer)
 
+### Image publication setup
+
+Create a GitHub environment named `segaris-production-images` and add the variables
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME`, and
+`ACR_LOGIN_SERVER`. The Azure application or managed identity must have a federated
+credential for this repository's environment subject and only the `AcrPush` role
+on the target registry. Do not create a client secret for this workflow.
+
+This environment is configured for `olyssia.azurecr.io` using Azure OIDC; no
+GitHub secret is required for registry publication.
+
+Every trusted commit on `main` publishes `segaris-backend`, `segaris-frontend`,
+and `segaris-caddy` with the exact Git commit SHA as the tag. Publication never
+updates Portainer automatically.
+
 ### One-time host preparation
 
 1. Provision the persistent directories with the correct ownership (UID:GID

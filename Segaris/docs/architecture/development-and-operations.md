@@ -178,26 +178,34 @@ GitHub Actions provides validation and image publication. Production deployment 
 
 Pull request workflows run the repository validation suites without publishing images or deploying:
 
-- Restore and build the backend and frontend.
-- Run repository formatting and linting checks.
-- Run backend unit and integration tests.
-- Run frontend unit and component tests.
-- Run PostgreSQL migration tests.
-- Run Playwright end-to-end tests against a disposable Compose stack.
+- `Segaris Backend`: restore, formatting verification, build, unit tests, architecture
+  tests, and API integration tests.
+- `Segaris PostgreSQL`: production-provider integration tests and provider-specific
+  migration tests through disposable Testcontainers databases.
+- `Segaris Compose`: a clean build of the complete stack plus readiness and Caddy routing
+  validation through `scripts/compose-smoke-test.sh`.
 
-The exact division into required GitHub checks may evolve to balance feedback time and reliability, but failed required checks prevent merging through branch-protection configuration.
+All three jobs are required checks for `main`. The workflow has only read access to
+repository contents and receives no production or registry credentials. Frontend
+unit/component and Playwright suites will join these gates when the real frontend
+replaces the temporary placeholder.
 
 ### Main Branch Publication
 
-After a change reaches the main branch, GitHub Actions repeats the required validations and builds independent frontend and backend container images. Images are published to the household's private Azure Container Registry.
+After a change reaches the main branch, GitHub Actions repeats the three validation
+jobs for that exact commit. Only a successful main-branch validation triggers the
+workflow that builds and publishes independent backend, temporary frontend, and
+Caddy container images to the household's private Azure Container Registry.
 
 Each image is tagged with the immutable Git commit SHA. Releases may add a human-readable version tag pointing to the same image, but deployment definitions must not rely exclusively on a mutable `latest` tag. Frontend and backend images from the same workflow run form one logical Segaris release and should normally be deployed together.
 
 ### Registry Authentication
 
-GitHub Actions authenticates to Azure Container Registry using credentials stored through GitHub repository or environment secrets, or an equivalent GitHub-supported secret mechanism. Secrets are never stored in workflow files, repository configuration files, image layers, or build arguments that persist in image history.
-
-Where practical, Azure workload identity federation through GitHub Actions OIDC is preferred over a long-lived registry password because it avoids storing reusable Azure credentials. Initial implementation may use narrowly scoped ACR push credentials if federation would add disproportionate setup complexity. Any stored credential must have only the permissions needed to publish Segaris images.
+GitHub Actions authenticates through Azure workload identity federation and OIDC.
+The federated identity is scoped to this repository's `segaris-production-images`
+environment and receives only `AcrPush` on the target registry. The environment
+stores identifiers and registry names as variables; no Azure client secret or
+registry password is stored in GitHub.
 
 Portainer already owns separate credentials with pull access to the private Azure Container Registry. GitHub Actions does not transmit deployment credentials to Portainer, and Portainer does not require GitHub repository secrets.
 
@@ -225,10 +233,12 @@ A container rollback does not automatically reverse database migrations. Normal 
 - GitHub Actions permissions are declared explicitly and kept to the minimum required.
 - Production `appsettings.json`, Portainer stack variables, Seq credentials, database credentials, and other runtime secrets are not needed to build images and are not stored in the container registry.
 
+The concrete workflow, required-check, branch-ruleset, and environment-variable
+contract is recorded in `docs/planning/BACKEND_CI_DECISIONS.md`.
+
 ## Open Decisions
 
 - Define the exact local startup commands and Docker Compose profiles.
 - Define production generation or mounting of backend configuration and secret rotation.
 - Define repository-wide formatting, linting, and validation commands.
 - Decide whether REST contracts generate frontend types or are maintained independently.
-- Define repository-wide branch protection and the exact required GitHub Actions checks.

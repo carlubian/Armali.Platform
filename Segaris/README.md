@@ -52,11 +52,15 @@ See [`docs/planning/BACKEND_ATTACHMENT_DECISIONS.md`](docs/planning/BACKEND_ATTA
 See [`docs/planning/BACKEND_BACKUP_DECISIONS.md`](docs/planning/BACKEND_BACKUP_DECISIONS.md) for the Wave 6 persistent background-job infrastructure, backup authorization, package format, and recovery decisions.
 See [`docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md`](docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md) for the Wave 7 logging, Seq, correlation, health, diagnostics, rate-limit, and redaction decisions.
 See [`docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`](docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md) for the Wave 8 server baseline, container identity/image, Caddy ingress, Compose topology, persistence layout, secret injection, and recovery decisions.
+See [`docs/planning/BACKEND_CI_DECISIONS.md`](docs/planning/BACKEND_CI_DECISIONS.md) for the Wave 9 required checks, branch protection, Azure OIDC image publication, and foundation-acceptance decisions.
 See [`docs/operations/`](docs/operations/) for the deployment, backup/restore, and rollback runbooks.
 
 ## Backend Implementation Status
 
-Waves 1 through 8 of the backend foundation are complete. The repository now contains:
+Waves 1 through 8 of the backend foundation are complete. Wave 9 is implemented
+locally; its GitHub environment, Azure OIDC federation, and `main` branch
+protection are active. The first controlled publication run remains pending. The
+repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -94,6 +98,8 @@ Waves 1 through 8 of the backend foundation are complete. The repository now con
 - A multi-stage backend Dockerfile running as the non-root identity `5525:5525` and bundling the PostgreSQL 17 client for backups, a temporary frontend placeholder image, and a `segaris-caddy` ingress image with baked-in `/api/*` and frontend routing.
 - Compose definitions for production/Portainer (`docker-compose.yml`), local builds (`docker-compose.local.yml`), and infrastructure-only native development (`docker-compose.infra.yml`), with PostgreSQL on a named volume and attachments, backups, and Data Protection keys on bind mounts under `SEGARIS_DATA_PATH`, published through Caddy on `SEGARIS_HTTP_PORT` (default 5525).
 - Host provisioning, Compose smoke-test, and restore scripts, plus deployment, backup/restore, and rollback runbooks under `docs/operations/`, with production secrets injected as Portainer stack environment variables.
+- Secret-free pull-request validation with required `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` checks, plus trusted main-branch publication of immutable backend, frontend, and Caddy images to ACR through Azure OIDC.
+- A complete local foundation gate at `scripts/foundation-acceptance.ps1` that mirrors the required CI boundaries.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
@@ -104,6 +110,8 @@ To run the backend locally:
 4. Run `./scripts/backend-run.ps1`.
 
 Use `./scripts/backend-format.ps1 -Verify` to check repository formatting without changing files. Use `./scripts/backend-reset.ps1 -Confirm` to recreate the configured Development database and seed it, or `./scripts/backend-seed.ps1` to run only the idempotent seed phase. PostgreSQL integration tests require Docker locally and are mandatory in CI.
+
+Use `./scripts/foundation-acceptance.ps1` to run the complete backend-foundation acceptance gate locally, including all backend suites and the disposable Compose smoke test.
 
 To run the supporting services in containers while developing the backend natively, run `./scripts/infra-up.ps1` (add `-Seq` for the Seq UI) and point the backend at `Host=localhost;Port=5432;Database=segaris;Username=segaris;Password=segaris`; stop them with `./scripts/infra-down.ps1`.
 
