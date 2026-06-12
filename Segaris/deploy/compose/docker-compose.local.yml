@@ -1,0 +1,27 @@
+# Local build override for the full container stack.
+#
+# Layer this on top of docker-compose.yml to build the Segaris images locally
+# instead of pulling them from a registry:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+#
+# (scripts/compose-up.ps1 wraps this.) Production never uses this file; Portainer
+# pulls immutable image tags instead.
+
+services:
+  backend:
+    build:
+      # The backend image builds from the repository root (see the Dockerfile).
+      context: ../..
+      dockerfile: src/backend/Segaris.Api/Dockerfile
+    image: ${SEGARIS_BACKEND_IMAGE:-segaris-backend:local}
+
+  frontend:
+    build:
+      context: ../frontend-placeholder
+    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend-placeholder:local}
+
+  caddy:
+    build:
+      context: ../caddy
+    image: ${SEGARIS_CADDY_IMAGE:-segaris-caddy:local}

@@ -1,0 +1,112 @@
+name: Segaris Foundation Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: segaris-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  backend:
+    name: Segaris Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: Segaris/global.json
+
+      - name: Restore
+        shell: pwsh
+        run: ./Segaris/scripts/backend-restore.ps1
+
+      - name: Verify formatting
+        shell: pwsh
+        run: ./Segaris/scripts/backend-format.ps1 -Verify
+
+      - name: Build
+        shell: pwsh
+        run: ./Segaris/scripts/backend-build.ps1
+
+      - name: Run unit tests
+        run: dotnet test Segaris/tests/backend/Segaris.UnitTests/Segaris.UnitTests.csproj --no-restore --no-build
+
+      - name: Run architecture tests
+        run: dotnet test Segaris/tests/backend/Segaris.ArchitectureTests/Segaris.ArchitectureTests.csproj --no-restore --no-build
+
+      - name: Run API integration tests
+        run: dotnet test Segaris/tests/backend/Segaris.Api.IntegrationTests/Segaris.Api.IntegrationTests.csproj --no-restore --no-build
+
+  postgres:
+    name: Segaris PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: Segaris/global.json
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo tee /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc > /dev/null
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+          pg_dump --version
+
+      - name: Restore
+        shell: pwsh
+        run: ./Segaris/scripts/backend-restore.ps1
+
+      - name: Build
+        shell: pwsh
+        run: ./Segaris/scripts/backend-build.ps1
+
+      - name: Run PostgreSQL integration tests
+        run: dotnet test Segaris/tests/backend/Segaris.Postgres.IntegrationTests/Segaris.Postgres.IntegrationTests.csproj --no-restore --no-build
+
+      - name: Run migration tests
+        run: dotnet test Segaris/tests/backend/Segaris.Migrations.IntegrationTests/Segaris.Migrations.IntegrationTests.csproj --no-restore --no-build
+
+  compose:
+    name: Segaris Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Compose smoke test
+        run: ./Segaris/scripts/compose-smoke-test.sh

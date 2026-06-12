@@ -1,0 +1,33 @@
+# The backend image builds from the repository root. Keep the build context
+# small and never leak local configuration, secrets, or build output.
+
+# Build output
+**/bin/
+**/obj/
+TestResults/
+
+# Tooling and IDE state
+.git/
+.github/
+.vs/
+.idea/
+.claude/
+
+# Tests are not referenced by Segaris.Api and are not needed in the image.
+tests/
+
+# Frontend, deployment assets, and documentation are not part of the backend image.
+src/frontend/
+deploy/
+docs/
+scripts/
+*.md
+
+# Local backend configuration and any accidental local data must never be copied.
+src/backend/**/appsettings.json
+src/backend/**/appsettings.*.json
+!src/backend/appsettings.example.json
+**/*.local.db
+**/attachments.local/
+**/backups.local/
+*.user

@@ -1,6 +1,6 @@
-# Segaris Platform
+# Armali Platform
 
-Global repository for software related to facility ES-OVD-02 and the Segaris Platform.
+Global repository for software related to facility ES-OVD-02 and the Armali Platform.
 
 Each project is generally build and deployed individually.
 

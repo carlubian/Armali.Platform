@@ -28,12 +28,17 @@ src/backend/
 |   |   |-- Travel/
 |   |   `-- ...
 |   `-- Program.cs
+|-- Segaris.Persistence/
+|-- Segaris.Migrations.Postgres/
+|-- Segaris.Migrations.Sqlite/
 `-- Segaris.Shared/
 ```
 
 The exact solution and project names will be selected during implementation planning. Additional projects should be introduced only when they provide an enforceable boundary or independently reusable capability, not to mirror conceptual layers mechanically.
 
 `Segaris.Api` is the executable composition root and contains the REST host, module registration, middleware, authentication integration, health checks, and runtime configuration.
+
+`Segaris.Persistence` owns the provider-neutral `SegarisDbContext`, persistence conventions, provider selection, and the model-contributor contract used by modules. It exists as a separate project so both migration assemblies and the API can depend on the context without circular project references. Module entities and mappings remain owned by their modules inside `Segaris.Api`.
 
 `Segaris.Shared` is intentionally small. It may contain stable technical primitives and contracts that genuinely apply across modules. It must not become a general location for domain entities, miscellaneous helpers, or code that has no clear owner.
 
@@ -169,6 +174,10 @@ Small bounded reference collections may return an unpaginated array when the mod
 
 Sorting is deterministic and includes a stable tie-breaker. Invalid filter, sort, page, or page-size values return a structured `400` response rather than being silently ignored.
 
+The implemented shared defaults are page `1`, page size `25`, and maximum page size `100`. Modules allow-list their supported sort fields and always identify a stable tie-breaker, normally the resource identifier.
+
+JSON API request bodies are limited to 1 MiB by default. An endpoint that legitimately requires a different bound must declare it explicitly through endpoint metadata; attachments will define their own security and size policy in Wave 5.
+
 ### OpenAPI
 
 The backend generates an OpenAPI document through the supported ASP.NET Core OpenAPI tooling. Endpoint metadata documents request contracts, successful responses, problem responses, authentication requirements, and relevant operation summaries.
@@ -218,11 +227,11 @@ Login failures use a generic response that does not reveal whether a username ex
 
 ASP.NET Core Identity performs password hashing using its supported password hasher and upgrade behavior. Application code must not implement its own password hashing algorithm.
 
-The initial policy requires a minimum length of 12 characters. It does not require arbitrary combinations of uppercase letters, lowercase letters, digits, and symbols. Administrators may set an initial credential, but the account-management flow should support requiring the user to replace a temporary password when first used.
+The initial policy requires a minimum length of 12 characters. It does not require arbitrary combinations of uppercase letters, lowercase letters, digits, and symbols. Administrators set a permanent, immediately usable password when creating an account or recovering credentials; users may change their own password but are not forced to replace it on first use. This was resolved in Wave 4 and is recorded in `docs/planning/BACKEND_IDENTITY_DECISIONS.md`.
 
 Five failed authentication attempts trigger a 15-minute lockout. Lockout and failure responses remain generic to the client. Administrators may restore account access through the documented administrative workflow.
 
-The exact temporary-password, forced-change, and administrator-recovery behavior will be completed during functional definition.
+Administrator-initiated credential recovery resets the target account's password and invalidates its active sessions through security-stamp revalidation. The first administrator is bootstrapped idempotently from configuration or environment variables, and no credential is committed to the repository.
 
 ### Cross-Site Request Forgery
 
