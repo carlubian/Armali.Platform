@@ -111,6 +111,8 @@ Exit criteria:
 
 ### Wave 2: Persistence Foundation And Provider Compatibility
 
+Status: **Completed on 2026-06-12**. The implementation adds `Segaris.Persistence`, one modular `SegarisDbContext`, SQLite and PostgreSQL migration assemblies, startup migration execution, provider compatibility fixtures, development reset/seed commands, and automated migration coverage. The SQLite, PostgreSQL Testcontainers, migration, API, unit, and architecture suites pass. PostgreSQL coverage remains mandatory in CI. There is no previous supported schema fixture for this first migration baseline; upgrade-fixture coverage begins with the next schema release.
+
 Tasks:
 
 1. Implement `SegarisDbContext` as the single application context.

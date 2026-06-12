@@ -28,12 +28,17 @@ src/backend/
 |   |   |-- Travel/
 |   |   `-- ...
 |   `-- Program.cs
+|-- Segaris.Persistence/
+|-- Segaris.Migrations.Postgres/
+|-- Segaris.Migrations.Sqlite/
 `-- Segaris.Shared/
 ```
 
 The exact solution and project names will be selected during implementation planning. Additional projects should be introduced only when they provide an enforceable boundary or independently reusable capability, not to mirror conceptual layers mechanically.
 
 `Segaris.Api` is the executable composition root and contains the REST host, module registration, middleware, authentication integration, health checks, and runtime configuration.
+
+`Segaris.Persistence` owns the provider-neutral `SegarisDbContext`, persistence conventions, provider selection, and the model-contributor contract used by modules. It exists as a separate project so both migration assemblies and the API can depend on the context without circular project references. Module entities and mappings remain owned by their modules inside `Segaris.Api`.
 
 `Segaris.Shared` is intentionally small. It may contain stable technical primitives and contracts that genuinely apply across modules. It must not become a general location for domain entities, miscellaneous helpers, or code that has no clear owner.
 

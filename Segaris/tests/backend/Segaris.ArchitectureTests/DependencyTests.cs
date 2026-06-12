@@ -1,3 +1,4 @@
+using Segaris.Persistence;
 using Segaris.Shared;
 
 namespace Segaris.ArchitectureTests;
@@ -22,5 +23,16 @@ public sealed class DependencyTests
 
         Assert.Equal("Segaris.Api", apiAssembly.GetName().Name);
         Assert.NotNull(apiAssembly.EntryPoint);
+    }
+
+    [Fact]
+    public void Persistence_does_not_reference_the_api_or_modules()
+    {
+        var references = PersistenceAssembly.Assembly
+            .GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .ToArray();
+
+        Assert.DoesNotContain("Segaris.Api", references);
     }
 }

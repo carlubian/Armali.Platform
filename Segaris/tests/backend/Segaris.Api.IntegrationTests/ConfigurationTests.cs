@@ -21,7 +21,7 @@ public sealed class ConfigurationTests
         using var factory = CreateFactory(
         [
             new("Segaris:Database:Provider", "Unknown"),
-            new("ConnectionStrings:Segaris", "Data Source=test.db"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
         ]);
 
         Assert.ThrowsAny<OptionsValidationException>(() => factory.CreateClient());
@@ -34,7 +34,7 @@ public sealed class ConfigurationTests
         [
             new("Segaris:Database:Provider", "Sqlite"),
             new("Segaris:Database:Unexpected", "value"),
-            new("ConnectionStrings:Segaris", "Data Source=test.db"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
         ]);
 
         Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
@@ -46,13 +46,26 @@ public sealed class ConfigurationTests
         using var factory = CreateFactory(
         [
             new("Segaris:Database:Provider", "Sqlite"),
-            new("ConnectionStrings:Segaris", "Data Source=test.db"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
         ]);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health/live", CancellationToken.None);
 
         response.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public void Startup_stops_when_database_migration_fails()
+    {
+        var invalidPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing", "test.db");
+        using var factory = CreateFactory(
+        [
+            new("Segaris:Database:Provider", "Sqlite"),
+            new("ConnectionStrings:Segaris", $"Data Source={invalidPath}"),
+        ]);
+
+        Assert.ThrowsAny<Exception>(() => factory.CreateClient());
     }
 
     private static WebApplicationFactory<Program> CreateFactory(

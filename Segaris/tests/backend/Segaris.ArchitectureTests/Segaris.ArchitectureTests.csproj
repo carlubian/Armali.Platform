@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\backend\Segaris.Api\Segaris.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\backend\Segaris.Persistence\Segaris.Persistence.csproj" />
     <ProjectReference Include="..\..\..\src\backend\Segaris.Shared\Segaris.Shared.csproj" />
   </ItemGroup>
 

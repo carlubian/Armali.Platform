@@ -5,5 +5,8 @@
   <Project Path="../../tests/backend/Segaris.Postgres.IntegrationTests/Segaris.Postgres.IntegrationTests.csproj" />
   <Project Path="../../tests/backend/Segaris.UnitTests/Segaris.UnitTests.csproj" />
   <Project Path="Segaris.Api/Segaris.Api.csproj" />
+  <Project Path="Segaris.Migrations.Postgres/Segaris.Migrations.Postgres.csproj" />
+  <Project Path="Segaris.Migrations.Sqlite/Segaris.Migrations.Sqlite.csproj" />
+  <Project Path="Segaris.Persistence/Segaris.Persistence.csproj" />
   <Project Path="Segaris.Shared/Segaris.Shared.csproj" />
 </Solution>

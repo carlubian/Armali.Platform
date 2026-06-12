@@ -49,7 +49,7 @@ See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUN
 
 ## Backend Implementation Status
 
-Wave 1 of the backend foundation is complete. The repository now contains:
+Waves 1 and 2 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -58,6 +58,11 @@ Wave 1 of the backend foundation is complete. The repository now contains:
 - Central build, analyzer, formatting, and package-version policies.
 - Startup validation for the active database provider and connection string.
 - A liveness endpoint at `/health/live`.
+- A single `SegarisDbContext` with module-owned model contributors.
+- Runtime SQLite/PostgreSQL selection and provider-specific migration assemblies.
+- Automatic startup migrations that fail startup before HTTP traffic is accepted.
+- Development-only, explicitly confirmed database reset and idempotent seed commands.
+- SQLite migration tests and PostgreSQL compatibility coverage through Testcontainers.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
@@ -67,7 +72,7 @@ To run the backend locally:
 3. Run `./scripts/backend-build.ps1` and `./scripts/backend-test.ps1`.
 4. Run `./scripts/backend-run.ps1`.
 
-Use `./scripts/backend-format.ps1 -Verify` to check repository formatting without changing files. Wave 2 will add EF Core, SQLite/PostgreSQL provider selection, migrations, and the development reset/seed command described in the foundation decisions.
+Use `./scripts/backend-format.ps1 -Verify` to check repository formatting without changing files. Use `./scripts/backend-reset.ps1 -Confirm` to recreate the configured Development database and seed it, or `./scripts/backend-seed.ps1` to run only the idempotent seed phase. PostgreSQL integration tests require Docker locally and are mandatory in CI.
 
 ## Planning Phases
 

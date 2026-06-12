@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\backend\Segaris.Api\Segaris.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\backend\Segaris.Migrations.Postgres\Segaris.Migrations.Postgres.csproj" />
+    <ProjectReference Include="..\..\..\src\backend\Segaris.Migrations.Sqlite\Segaris.Migrations.Sqlite.csproj" />
   </ItemGroup>
 
 </Project>

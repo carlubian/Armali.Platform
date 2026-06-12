@@ -24,6 +24,7 @@ Initial production projects:
 | --- | --- | --- |
 | `src/backend/Segaris.Api/Segaris.Api.csproj` | `Segaris.Api` | Executable ASP.NET Core composition root, modules, and platform implementations. |
 | `src/backend/Segaris.Shared/Segaris.Shared.csproj` | `Segaris.Shared` | Deliberately small shared primitives and published contracts. |
+| `src/backend/Segaris.Persistence/Segaris.Persistence.csproj` | `Segaris.Persistence` | Provider-neutral EF Core context, model-contributor contract, provider configuration, and persistence conventions. Added in Wave 2 to prevent circular dependencies between the API and migration assemblies. |
 | `src/backend/Segaris.Migrations.Postgres/Segaris.Migrations.Postgres.csproj` | `Segaris.Migrations.Postgres` | PostgreSQL migration history. Added in Wave 2. |
 | `src/backend/Segaris.Migrations.Sqlite/Segaris.Migrations.Sqlite.csproj` | `Segaris.Migrations.Sqlite` | SQLite migration history. Added in Wave 2. |
 
@@ -111,6 +112,8 @@ Database reset is an explicit developer operation. The API never drops or recrea
 - Development users and credentials are not defined until Wave 4 resolves administrator bootstrap and temporary-password behavior. No fixed password is committed to the repository.
 
 Automated tests own their data and continue to create disposable databases; they do not call the developer reset script.
+
+Wave 2 implements these commands as `scripts/backend-reset.ps1 -Confirm [-NoSeed]` and `scripts/backend-seed.ps1`. The seed pipeline is intentionally empty until a platform capability, beginning with Identity roles in Wave 4, owns deterministic foundation data.
 
 ## Deferred Decisions Preserved
 
