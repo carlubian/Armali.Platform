@@ -242,6 +242,16 @@ Exit criteria:
 
 ### Wave 7: Observability, Diagnostics, And Runtime Safety
 
+Status: **Completed on 2026-06-12**. The implementation uses Serilog for compact structured
+console events and optional bounded best-effort Seq delivery, propagates one trace identifier
+through response headers, ProblemDetails, request logs, and frontend diagnostics, and completes
+readiness with database connectivity, pending-migration, and attachment-storage checks. The
+authenticated frontend diagnostics endpoint has a fixed bounded schema, antiforgery, configurable
+payload and rate limits, and known-secret redaction; login uses a separate rate-limit policy.
+Focused unit and API integration tests cover configuration validation, Seq unavailability,
+correlation consistency, health behavior, authentication, antiforgery, schema, payload, rate, and
+redaction. Decisions are recorded in `docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md`.
+
 Tasks:
 
 1. Configure structured logging to `stdout`/`stderr` with category-specific levels.

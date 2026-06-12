@@ -132,7 +132,8 @@ public sealed class ApiConventionTests
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("server.unexpected", problem.GetProperty("code").GetString());
-        Assert.True(problem.TryGetProperty("traceId", out _));
+        var traceId = problem.GetProperty("traceId").GetString();
+        Assert.Equal(traceId, response.Headers.GetValues("X-Trace-ID").Single());
         Assert.DoesNotContain("Probe failure", problem.ToString(), StringComparison.Ordinal);
     }
 

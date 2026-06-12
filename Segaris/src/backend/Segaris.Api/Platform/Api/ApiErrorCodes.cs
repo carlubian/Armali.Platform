@@ -11,6 +11,7 @@ internal static class ApiErrorCodes
     public static readonly ErrorCode Conflict = new("resource.conflict");
     public static readonly ErrorCode Unprocessable = new("request.unprocessable");
     public static readonly ErrorCode RequestTooLarge = new("request.too_large");
+    public static readonly ErrorCode RateLimited = new("request.rate_limited");
     public static readonly ErrorCode Unexpected = new("server.unexpected");
     public static readonly ErrorCode Unavailable = new("server.unavailable");
 
@@ -22,6 +23,7 @@ internal static class ApiErrorCodes
         StatusCodes.Status404NotFound => NotFound,
         StatusCodes.Status409Conflict => Conflict,
         StatusCodes.Status413PayloadTooLarge => RequestTooLarge,
+        StatusCodes.Status429TooManyRequests => RateLimited,
         StatusCodes.Status422UnprocessableEntity => Unprocessable,
         StatusCodes.Status503ServiceUnavailable => Unavailable,
         _ => Unexpected,

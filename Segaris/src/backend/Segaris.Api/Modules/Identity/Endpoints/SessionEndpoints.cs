@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Observability;
 
 namespace Segaris.Api.Modules.Identity.Endpoints;
 
@@ -22,6 +23,7 @@ internal static class SessionEndpoints
 
         group.MapPost("", LoginAsync)
             .AllowAnonymous()
+            .RequireRateLimiting(ObservabilityServiceCollectionExtensions.AuthenticationRateLimitPolicy)
             .WithSummary("Authenticates a user and establishes a session cookie");
 
         group.MapGet("", (ClaimsPrincipal principal) =>

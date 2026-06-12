@@ -4,6 +4,8 @@ using Segaris.Api.Configuration;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Observability;
+using Serilog;
 
 var databaseCommand = DatabaseCommand.Parse(args);
 var builder = WebApplication.CreateBuilder(args);
@@ -11,8 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = ApiRequestSizeMiddleware.DefaultMaximumRequestBodySize);
 builder.Services.AddSegarisConfiguration(builder.Configuration, builder.Environment);
+builder.AddSegarisLogging();
 builder.Services.AddSegarisApiConventions();
 builder.Services.AddHealthChecks();
+builder.Services.AddSegarisObservability(builder.Configuration);
 builder.Services.AddSegarisModules(builder.Configuration);
 builder.Services.AddSegarisPersistence(builder.Configuration);
 
@@ -27,9 +31,17 @@ if (databaseCommand is not null)
 await app.Services.MigrateSegarisDatabaseAsync();
 await app.Services.SeedIdentityAsync();
 
+app.UseMiddleware<RequestCorrelationMiddleware>();
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        diagnosticContext.Set("TraceId", httpContext.TraceIdentifier);
+});
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseRouting();
 app.UseMiddleware<ApiRequestSizeMiddleware>();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Persistence;
 
@@ -11,6 +12,23 @@ internal static class DatabaseMigrationExtensions
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        await database.Database.MigrateAsync(cancellationToken);
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<SegarisDbContext>>();
+        var stopwatch = Stopwatch.StartNew();
+        logger.LogInformation("Applying Segaris database migrations.");
+        try
+        {
+            await database.Database.MigrateAsync(cancellationToken);
+            logger.LogInformation(
+                "Segaris database migrations completed in {ElapsedMilliseconds} ms.",
+                stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception exception)
+        {
+            logger.LogCritical(
+                exception,
+                "Segaris database migration failed after {ElapsedMilliseconds} ms.",
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
     }
 }

@@ -35,6 +35,26 @@ internal static class ServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
 
+        services
+            .AddOptions<ObservabilityOptions>()
+            .Bind(configuration.GetSection(ObservabilityOptions.SectionName), binder =>
+            {
+                binder.ErrorOnUnknownConfiguration = true;
+            })
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<ObservabilityOptions>, ObservabilityOptionsValidator>();
+
+        services
+            .AddOptions<DiagnosticsOptions>()
+            .Bind(configuration.GetSection(DiagnosticsOptions.SectionName), binder =>
+            {
+                binder.ErrorOnUnknownConfiguration = true;
+            })
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<DiagnosticsOptions>, DiagnosticsOptionsValidator>();
+
         return services;
     }
 }

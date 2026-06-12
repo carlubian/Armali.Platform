@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Persistence;
 using Segaris.Shared.Time;
@@ -131,6 +132,8 @@ internal sealed class JobWorker(
     {
         var registration = registry.Get(job.JobType);
         using var cancellation = coordinator.TrackRunning(job.Id, stoppingToken);
+        var stopwatch = Stopwatch.StartNew();
+        logger.LogInformation("Starting job {JobId} of type {JobType}.", job.Id, job.JobType);
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
@@ -138,6 +141,11 @@ internal sealed class JobWorker(
             var context = new JobExecutionContext(job.Id, job.JobType, job.Parameters, ReportProgressAsync);
             var result = await handler.ExecuteAsync(context, cancellation.Token);
             await CompleteAsync(job.Id, JobState.Succeeded, result, failureCode: null);
+            logger.LogInformation(
+                "Job {JobId} of type {JobType} completed in {ElapsedMilliseconds} ms.",
+                job.Id,
+                job.JobType,
+                stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {

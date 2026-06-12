@@ -50,10 +50,11 @@ See [`docs/planning/BACKEND_MODULE_CONVENTIONS.md`](docs/planning/BACKEND_MODULE
 See [`docs/planning/BACKEND_IDENTITY_DECISIONS.md`](docs/planning/BACKEND_IDENTITY_DECISIONS.md) for the Wave 4 identity, session, antiforgery, administrative-user, and credential-lifecycle decisions.
 See [`docs/planning/BACKEND_ATTACHMENT_DECISIONS.md`](docs/planning/BACKEND_ATTACHMENT_DECISIONS.md) for the Wave 5 attachment security, storage, ownership, and recovery decisions.
 See [`docs/planning/BACKEND_BACKUP_DECISIONS.md`](docs/planning/BACKEND_BACKUP_DECISIONS.md) for the Wave 6 persistent background-job infrastructure, backup authorization, package format, and recovery decisions.
+See [`docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md`](docs/planning/BACKEND_OBSERVABILITY_DECISIONS.md) for the Wave 7 logging, Seq, correlation, health, diagnostics, rate-limit, and redaction decisions.
 
 ## Backend Implementation Status
 
-Waves 1 through 6 of the backend foundation are complete. The repository now contains:
+Waves 1 through 7 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -84,11 +85,15 @@ Waves 1 through 6 of the backend foundation are complete. The repository now con
 - A persistent background-job foundation with a single `platform_background_jobs` table, central state-machine validation, a single-instance `BackgroundService` worker, atomic claiming, portable single-run exclusivity, cooperative cancellation, and interrupted-job recovery at startup.
 - An administrative backup capability under `/api/backup-jobs` that generates a single `segaris-backup.tar` package (PostgreSQL `pg_dump`, live attachments, and a hashed manifest) in staging and atomically replaces the previous package; the package is read from the backups volume rather than downloaded through the API, and backups require the PostgreSQL provider.
 - Paired SQLite/PostgreSQL background-job migrations with upgrade coverage from the previous attachment schema.
+- Compact structured Serilog events on `stdout`/`stderr`, category-specific levels, and optional bounded best-effort Seq delivery that never affects readiness or core operation.
+- Request correlation through `X-Trace-ID`, ProblemDetails, request completion events, and accepted frontend diagnostic responses.
+- `/health/ready` coverage for database connectivity, pending migrations, and writable attachment storage, while `/health/live` remains process-only.
+- A protected `/api/diagnostics/frontend` endpoint with a fixed schema, antiforgery, validated payload/rate limits, and known-secret redaction, plus a separate login rate limit.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
 
-1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values, including `Segaris:Storage:AttachmentsPath` and `Segaris:Storage:BackupsPath`. To create the first administrator, set `Segaris:Identity:Bootstrap:UserName` and `:Password` (preferably through user secrets or environment variables); leave them empty to seed only the platform roles. Generating a backup additionally requires the PostgreSQL provider and the `pg_dump` client tool on `PATH`.
+1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values, including storage, diagnostics, and optional Seq settings. To create the first administrator, set `Segaris:Identity:Bootstrap:UserName` and `:Password` (preferably through user secrets or environment variables); leave them empty to seed only the platform roles. Generating a backup additionally requires the PostgreSQL provider and the `pg_dump` client tool on `PATH`.
 2. Run `./scripts/backend-restore.ps1`.
 3. Run `./scripts/backend-build.ps1` and `./scripts/backend-test.ps1`.
 4. Run `./scripts/backend-run.ps1`.

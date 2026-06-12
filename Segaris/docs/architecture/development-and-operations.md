@@ -134,7 +134,7 @@ Segaris uses lightweight structured logging and health checks suitable for a sin
 ### Structured Logging
 
 - Backend logs are structured events and are always written to `stdout` and `stderr` for Docker and Portainer visibility.
-- The backend also supports optional delivery to an existing Seq server on the household network. The exact .NET logging provider will be selected during implementation, with Serilog and its Seq sink as the expected option if the standard ASP.NET Core providers cannot meet the requirement cleanly.
+- The backend uses Serilog with compact JSON console events and supports optional delivery through the Serilog Seq sink to an existing Seq server on the household network. Delivery uses bounded buffering and batches.
 - Seq delivery is best-effort. Network failures, timeouts, authentication failures, or Seq downtime must not fail requests, delay application startup indefinitely, make health checks unhealthy, or stop background operations.
 - Local container logs remain available when Seq is unavailable. Docker or Portainer owns their rotation and retention policy.
 - Production defaults to the `Information` level, with category-specific overrides supplied through backend configuration.

@@ -69,6 +69,54 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void Startup_rejects_enabled_seq_without_a_valid_server_url()
+    {
+        using var factory = CreateFactory(
+        [
+            new("Segaris:Database:Provider", "Sqlite"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
+            new("Segaris:Observability:Seq:Enabled", "true"),
+            new("Segaris:Observability:Seq:ServerUrl", "not-a-url"),
+        ]);
+
+        Assert.ThrowsAny<OptionsValidationException>(() => factory.CreateClient());
+    }
+
+    [Fact]
+    public async Task Unavailable_seq_does_not_block_startup_requests_or_readiness()
+    {
+        using var factory = CreateFactory(
+        [
+            new("Segaris:Database:Provider", "Sqlite"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
+            new("Segaris:Observability:Seq:Enabled", "true"),
+            new("Segaris:Observability:Seq:ServerUrl", "http://127.0.0.1:1"),
+            new("Segaris:Observability:Seq:MinimumLevel", "Information"),
+        ]);
+        using var client = factory.CreateClient();
+
+        using var live = await client.GetAsync("/health/live", CancellationToken.None);
+        using var ready = await client.GetAsync("/health/ready", CancellationToken.None);
+
+        live.EnsureSuccessStatusCode();
+        ready.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public void Startup_rejects_unbounded_diagnostics_configuration()
+    {
+        using var factory = CreateFactory(
+        [
+            new("Segaris:Database:Provider", "Sqlite"),
+            new("ConnectionStrings:Segaris", "Data Source=:memory:"),
+            new("Segaris:Diagnostics:MaxBodyBytes", "1048576"),
+            new("Segaris:Diagnostics:PermitLimit", "0"),
+        ]);
+
+        Assert.ThrowsAny<OptionsValidationException>(() => factory.CreateClient());
+    }
+
+    [Fact]
     public void Startup_stops_when_database_migration_fails()
     {
         var invalidPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing", "test.db");
