@@ -45,6 +45,7 @@ Duplicate module names fail during service registration. The API host remains th
 - Use `SortRequest.Create` with module-owned allow-listed fields.
 - Every sort contract names a stable tie-breaker, normally `id`.
 - Invalid page, page size, sort field, or sort direction returns a structured `400` response rather than being ignored.
+- Do not order by a `DateTimeOffset` column: SQLite cannot `ORDER BY` that type. Order by the auto-incrementing `id`, which is monotonic with creation, when creation order is needed.
 
 ## OpenAPI And Documentation
 

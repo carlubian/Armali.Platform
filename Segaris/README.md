@@ -47,10 +47,11 @@ See [`docs/architecture/development-and-operations.md`](docs/architecture/develo
 See [`docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md`](docs/planning/BACKEND_CORE_IMPLEMENTATION_PLAN.md) for the dependency-ordered implementation plan for the backend, tests, and deployment foundation.
 See [`docs/planning/BACKEND_FOUNDATION_DECISIONS.md`](docs/planning/BACKEND_FOUNDATION_DECISIONS.md) for the completed Wave 0 decisions covering .NET 10, project naming, backend configuration, and local database reset/seed conventions.
 See [`docs/planning/BACKEND_MODULE_CONVENTIONS.md`](docs/planning/BACKEND_MODULE_CONVENTIONS.md) for the Wave 3 implementation path that new backend modules must follow.
+See [`docs/planning/BACKEND_IDENTITY_DECISIONS.md`](docs/planning/BACKEND_IDENTITY_DECISIONS.md) for the Wave 4 identity, session, antiforgery, administrative-user, and credential-lifecycle decisions.
 
 ## Backend Implementation Status
 
-Waves 1 through 3 of the backend foundation are complete. The repository now contains:
+Waves 1 through 4 of the backend foundation are complete. The repository now contains:
 
 - The .NET 10 solution at `src/backend/Segaris.slnx`.
 - The executable `Segaris.Api` composition root and deliberately small `Segaris.Shared` project.
@@ -71,11 +72,15 @@ Waves 1 through 3 of the backend foundation are complete. The repository now con
 - Bounded page-based pagination, allow-listed deterministic sorting, and a stable tie-breaker convention.
 - OpenAPI 3.1 generation in Development and Testing, with Scalar interactive documentation only in Development.
 - Architecture tests that enforce shared-core dependency and excluded-abstraction rules.
+- ASP.NET Core Identity integrated into the shared context with `int` keys, a 12-character password policy, and five-attempt/15-minute lockout.
+- A hardened same-origin session cookie, antiforgery for cookie-authenticated writes, and filesystem-persisted Data Protection keys.
+- `/api/session` endpoints (login, current session, logout, password change) and administrative user management under `/api/admin/users`.
+- Configuration-driven first-administrator bootstrap and session invalidation on deactivation and credential recovery.
 - Repeatable PowerShell commands under `scripts/`.
 
 To run the backend locally:
 
-1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values.
+1. Copy `src/backend/appsettings.example.json` to `src/backend/appsettings.json` and review its values. To create the first administrator, set `Segaris:Identity:Bootstrap:UserName` and `:Password` (preferably through user secrets or environment variables); leave them empty to seed only the platform roles.
 2. Run `./scripts/backend-restore.ps1`.
 3. Run `./scripts/backend-build.ps1` and `./scripts/backend-test.ps1`.
 4. Run `./scripts/backend-run.ps1`.

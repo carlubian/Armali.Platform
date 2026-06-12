@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using Segaris.Api.Composition;
 using Segaris.Api.Configuration;
+using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Api;
 
@@ -23,11 +24,23 @@ if (databaseCommand is not null)
     return;
 }
 
+if (app.Environment.IsProduction()
+    && string.IsNullOrWhiteSpace(builder.Configuration["Segaris:Storage:DataProtectionKeysPath"]))
+{
+    throw new InvalidOperationException(
+        "Segaris:Storage:DataProtectionKeysPath is required in Production so the Data Protection "
+        + "key ring persists outside the disposable backend container.");
+}
+
 await app.Services.MigrateSegarisDatabaseAsync();
+await app.Services.SeedIdentityAsync();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseMiddleware<ApiRequestSizeMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapGet("/", () => Results.Redirect("/health/live"));
 app.MapHealthChecks("/health/live");

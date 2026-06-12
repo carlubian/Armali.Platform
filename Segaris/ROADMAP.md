@@ -52,7 +52,7 @@ Current phase: **Phase 1 - Architecture, Structure, And Core**.
 | --- | --- | --- |
 | Resolved | Authentication | Local username-and-password accounts for the initial trusted environment. Preserve an extension point for future user-bound API keys; detailed session and API-key design remains an architecture concern. See `docs/architecture/product-shape.md`. |
 | Resolved | Authorization model | One household with `User` and `Admin` roles. Public entities are shared by all users; private entities are creator-only and remain hidden from administrators. |
-| Open | Administrator credential lifecycle | Define first-administrator bootstrap, temporary-password handling, forced password changes, and approved credential recovery before Wave 4. No fixed development or production credential may be committed. |
+| Resolved | Administrator credential lifecycle | The first administrator is bootstrapped idempotently from `Segaris:Identity:Bootstrap` configuration or environment variables; no credential is committed. Administrators set permanent, immediately usable passwords for new accounts and for approved credential recovery, and users may change their own password but are not forced to. Deactivation and credential recovery invalidate active sessions through security-stamp revalidation. See `docs/planning/BACKEND_IDENTITY_DECISIONS.md` and `docs/architecture/backend.md`. |
 | Open | Backup API authorization | Define the exact administrator policy, antiforgery behavior, conflict disclosure, and result-download authorization before Wave 6. |
 | Open | Sensitive data policy | Expenses, documents, IDs, travel details, credentials, and private notes. |
 | Open | Secrets management | Where API keys, tokens, and service credentials live. |

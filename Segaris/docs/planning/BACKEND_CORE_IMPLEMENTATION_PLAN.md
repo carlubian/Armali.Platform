@@ -50,7 +50,7 @@ The following open architecture items must be resolved at the indicated point. T
 | Exact solution and project names | Resolved in Wave 0 |
 | Configuration keys and environment-variable hierarchy | Resolved in Wave 0 |
 | Development seed and database-reset workflow | Resolved in Wave 0 |
-| Temporary-password and forced-change behavior | Wave 4 |
+| Temporary-password and forced-change behavior | Resolved in Wave 4 |
 | Production secret injection and rotation | Wave 8 |
 | Backend container UID/GID and host-directory provisioning | Wave 8 |
 | Attachment size, type, validation, and malware policy | Wave 5 |
@@ -163,6 +163,8 @@ Exit criteria:
 - New modules have one documented path for registration, API contracts, errors, pagination, current-user access, and visibility enforcement.
 
 ### Wave 4: Identity, Sessions, And Administrative Users
+
+Status: **Completed on 2026-06-12**. ASP.NET Core Identity is integrated into the single `SegarisDbContext` through a module-owned model contributor (the persistence project stays free of Identity dependencies), with `int` keys aligned to `UserId`. The implementation adds the configured password policy, lockout, security-stamp revalidation, the hardened same-origin session cookie, antiforgery for cookie-authenticated writes, filesystem-persisted Data Protection keys, the `/api/session` endpoints with password change, administrative user management under `/api/admin/users`, configuration-driven first-administrator bootstrap, and session invalidation on deactivation and credential recovery. SQLite, PostgreSQL, migration, API, unit, and architecture suites pass; PostgreSQL coverage includes an Identity lifecycle test. Decisions are recorded in `docs/planning/BACKEND_IDENTITY_DECISIONS.md`.
 
 Tasks:
 

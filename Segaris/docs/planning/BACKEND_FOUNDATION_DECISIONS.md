@@ -75,7 +75,9 @@ The following is the complete known backend configuration surface for the founda
 | `ConnectionStrings:Segaris` | Always | Active provider connection string. |
 | `Segaris:Storage:AttachmentsPath` | Attachments are enabled | Persistent attachment root. |
 | `Segaris:Storage:BackupsPath` | Backup generation is enabled | Persistent latest-package and staging root. |
-| `Segaris:Storage:DataProtectionKeysPath` | Cookie authentication is enabled | Persistent ASP.NET Core Data Protection key ring. |
+| `Segaris:Storage:DataProtectionKeysPath` | Required in Production; optional in Development | Persistent ASP.NET Core Data Protection key ring. When set, keys are written there; in Production startup fails if it is missing. |
+| `Segaris:Identity:Bootstrap:UserName` | Optional | First-administrator user name applied idempotently at startup when no matching account exists. |
+| `Segaris:Identity:Bootstrap:Password` | Bootstrap user name is set | First-administrator password; a secret, supplied only through user secrets or environment/mounted configuration. |
 | `Segaris:Jobs:WorkerEnabled` | Optional | Enables the persistent background worker; defaults to `true`. |
 | `Segaris:Jobs:PollIntervalSeconds` | Worker enabled | Bounded delay between claim attempts. |
 | `Segaris:Jobs:ShutdownGracePeriodSeconds` | Worker enabled | Bounded graceful-shutdown allowance. |
@@ -97,7 +99,7 @@ Settings introduced by later capabilities must follow this hierarchy, update `ap
 - Passwords, connection-string credentials, Seq API keys, and future provider credentials never receive usable values in tracked files.
 - Secrets use user secrets for local development or environment/mounted production configuration.
 - Secret values must not be accepted through frontend configuration, normal logs, API responses, job parameters, or image build arguments.
-- The first-administrator bootstrap schema is intentionally deferred to Wave 4 so its credential lifecycle is designed together with temporary-password and forced-change behavior.
+- The first-administrator bootstrap was resolved in Wave 4: `Segaris:Identity:Bootstrap:UserName` and `:Password` create the first administrator idempotently at startup. The password is a secret supplied only through user secrets or environment/mounted configuration, never committed. See `docs/planning/BACKEND_IDENTITY_DECISIONS.md`.
 
 ## Development Database Reset And Seed
 

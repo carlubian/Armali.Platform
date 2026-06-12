@@ -222,11 +222,21 @@ public sealed class ApiConventionTests
                 builder.ConfigureAppConfiguration((_, configuration) =>
                 {
                     configuration.Sources.Clear();
-                    configuration.AddInMemoryCollection(
-                    [
+                    var settings = new List<KeyValuePair<string, string?>>
+                    {
                         new("Segaris:Database:Provider", "Sqlite"),
                         new("ConnectionStrings:Segaris", "Data Source=:memory:"),
-                    ]);
+                    };
+
+                    // Production requires a persistent Data Protection key location.
+                    if (string.Equals(environment, "Production", StringComparison.Ordinal))
+                    {
+                        settings.Add(new(
+                            "Segaris:Storage:DataProtectionKeysPath",
+                            Path.Combine(Path.GetTempPath(), $"segaris-keys-{Guid.NewGuid():N}")));
+                    }
+
+                    configuration.AddInMemoryCollection(settings);
                 });
             });
     }
