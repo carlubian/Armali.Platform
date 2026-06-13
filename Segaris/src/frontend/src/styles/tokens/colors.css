@@ -1,0 +1,117 @@
+/* ============================================================
+   Project Armali — Color tokens
+   A warm coastal / Mediterranean palette. Light theme only.
+   Bone & sand neutrals, aqua sea primary, sun-gold secondary,
+   Mediterranean azure, sea-green, terracotta for danger.
+   Nothing is pure black or pure white.
+   ============================================================ */
+
+:root {
+  /* ---- Neutrals: bone, sand, warm ink ----------------------- */
+  --bone-50: #fdfbf6; /* lightest wash */
+  --bone-100: #faf5ec; /* app background */
+  --bone-200: #f4ecde; /* sunk panels */
+  --sand-300: #ebdfcc; /* hairline / sand */
+  --sand-400: #dccbb0; /* stronger sand border */
+
+  --ink-900: #2c2823; /* primary text (warm near-black) */
+  --ink-700: #4c463d; /* strong secondary */
+  --ink-500: #786f62; /* secondary text */
+  --ink-400: #9a9081; /* muted / placeholder */
+  --ink-300: #bcb2a2; /* disabled text */
+
+  /* ---- Aqua — primary emphasis (the sea) -------------------- */
+  --aqua-700: #0a767b;
+  --aqua-600: #0e8e92;
+  --aqua-500: #16a6a6;
+  --aqua-400: #45bcb8;
+  --aqua-300: #86d4cf;
+  --aqua-100: #d8f0ec;
+  --aqua-50: #eaf8f5;
+
+  /* ---- Gold — secondary emphasis (sun & sand) --------------- */
+  --gold-600: #c58e2c;
+  --gold-500: #dba63e;
+  --gold-400: #e8bd63;
+  --gold-300: #f0d193;
+  --gold-100: #f8eccd;
+  --gold-50: #fcf6e6;
+
+  /* ---- Azure — Mediterranean blue (calls to action) --------- */
+  --azure-600: #2d6588;
+  --azure-500: #3a7ca5;
+  --azure-400: #5e99bd;
+  --azure-100: #dceaf2;
+  --azure-50: #ecf3f8;
+
+  /* ---- Sea green — success / positive ----------------------- */
+  --sea-600: #3f7a62;
+  --sea-500: #519b79;
+  --sea-400: #79b797;
+  --sea-100: #deefe4;
+  --sea-50: #edf6f0;
+
+  /* ---- Terracotta — destructive / error --------------------- */
+  --terracotta-600: #b0432f;
+  --terracotta-500: #cb5742;
+  --terracotta-400: #de806e;
+  --terracotta-100: #f6ded7;
+  --terracotta-50: #fbede8;
+
+  /* ---- Aurora blob hues (decorative backgrounds) ------------ */
+  --aurora-aqua: #7bd8d2;
+  --aurora-gold: #f2ce7e;
+  --aurora-azure: #8fb9d6;
+  --aurora-rose: #e9a98f;
+
+  /* ============================================================
+     SEMANTIC ALIASES — reach for these in product code
+     ============================================================ */
+
+  /* Surfaces */
+  --surface-app: var(--bone-100);
+  --surface-sunken: var(--bone-200);
+  --surface-card: rgba(255, 253, 248, 0.72); /* glass card */
+  --surface-card-solid: #fffdf8;
+  --surface-raised: rgba(255, 253, 248, 0.85);
+  --surface-overlay: rgba(253, 251, 246, 0.78); /* dialogs / popovers */
+  --surface-frost: rgba(255, 255, 255, 0.45); /* foreground glass chips */
+  --scrim: rgba(44, 40, 35, 0.28); /* dialog backdrop */
+
+  /* Text */
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-500);
+  --text-muted: var(--ink-400);
+  --text-disabled: var(--ink-300);
+  --text-on-accent: #fffdf8;
+  --text-link: var(--azure-600);
+
+  /* Accents */
+  --accent: var(--aqua-500);
+  --accent-hover: var(--aqua-600);
+  --accent-press: var(--aqua-700);
+  --accent-soft: var(--aqua-100);
+  --accent-secondary: var(--gold-500);
+  --accent-secondary-soft: var(--gold-100);
+  --action: var(--azure-500);
+  --action-hover: var(--azure-600);
+  --action-soft: var(--azure-100);
+
+  /* Status */
+  --success: var(--sea-500);
+  --success-soft: var(--sea-100);
+  --warning: var(--gold-500);
+  --warning-soft: var(--gold-100);
+  --danger: var(--terracotta-500);
+  --danger-hover: var(--terracotta-600);
+  --danger-soft: var(--terracotta-100);
+  --info: var(--azure-500);
+  --info-soft: var(--azure-100);
+
+  /* Borders / hairlines */
+  --border-subtle: rgba(124, 110, 86, 0.16);
+  --border-default: rgba(124, 110, 86, 0.26);
+  --border-strong: rgba(124, 110, 86, 0.4);
+  --border-glass: rgba(255, 255, 255, 0.55);
+  --ring-focus: var(--aqua-400);
+}

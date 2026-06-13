@@ -1,0 +1,21 @@
+/*
+ * Segaris global stylesheet entry point.
+ *
+ * Ports the Project Armali design tokens (fonts, colors, typography, spacing,
+ * effects, base) into the frontend, self-hosting the woff2 fonts under
+ * src/assets/fonts. The order matters: fonts and primitive tokens load before
+ * the semantic aliases and base element styles that consume them.
+ *
+ * The prototype's `--sidebar-w` token is intentionally dropped (Segaris has no
+ * persistent sidebar). See docs/architecture/design-system.md.
+ *
+ * Component styles are co-located with each component under components/ui and
+ * imported by the component module rather than aggregated here.
+ */
+
+@import './tokens/fonts.css';
+@import './tokens/colors.css';
+@import './tokens/typography.css';
+@import './tokens/spacing.css';
+@import './tokens/effects.css';
+@import './tokens/base.css';

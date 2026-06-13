@@ -31,6 +31,7 @@ internal sealed class IdentityTestServer : IDisposable
             ?? Path.Combine(Path.GetTempPath(), $"segaris-identity-{Guid.NewGuid():N}.db");
         KeysPath = keysPath
             ?? Path.Combine(Path.GetTempPath(), $"segaris-keys-{Guid.NewGuid():N}");
+        AttachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-identity-attachments-{Guid.NewGuid():N}");
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -43,6 +44,7 @@ internal sealed class IdentityTestServer : IDisposable
                     ["Segaris:Database:Provider"] = "Sqlite",
                     ["ConnectionStrings:Segaris"] = $"Data Source={DatabasePath}",
                     ["Segaris:Storage:DataProtectionKeysPath"] = KeysPath,
+                    ["Segaris:Storage:AttachmentsPath"] = AttachmentsPath,
                     ["Segaris:Identity:Bootstrap:UserName"] = AdminUserName,
                     ["Segaris:Identity:Bootstrap:Password"] = AdminPassword,
                 });
@@ -53,6 +55,8 @@ internal sealed class IdentityTestServer : IDisposable
     public string DatabasePath { get; }
 
     public string KeysPath { get; }
+
+    public string AttachmentsPath { get; }
 
     public HttpClient CreateClient(bool handleCookies = true) =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
@@ -65,6 +69,7 @@ internal sealed class IdentityTestServer : IDisposable
         {
             TryDeleteFile(DatabasePath);
             TryDeleteDirectory(KeysPath);
+            TryDeleteDirectory(AttachmentsPath);
         }
     }
 

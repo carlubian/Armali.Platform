@@ -57,7 +57,11 @@ RUN apt-get update \
 # Dedicated non-root identity. The UID/GID match the host directory ownership
 # documented for the attachments, backups, and Data Protection key bind mounts.
 RUN groupadd --gid 5525 segaris \
-    && useradd --uid 5525 --gid 5525 --no-create-home --shell /usr/sbin/nologin segaris
+    && useradd --uid 5525 --gid 5525 --no-create-home --shell /usr/sbin/nologin segaris \
+    && install -d -o 5525 -g 5525 \
+        /data/attachments \
+        /data/backups \
+        /data/dataprotection-keys
 
 WORKDIR /app
 COPY --from=build /app/publish ./

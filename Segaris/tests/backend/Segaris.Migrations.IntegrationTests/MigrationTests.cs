@@ -47,27 +47,28 @@ public sealed class MigrationTests
         Assert.Equal(sqliteNames, postgresNames);
         Assert.Contains("InitialPersistenceFoundation", sqliteNames);
         Assert.Contains("AttachmentStorage", sqliteNames);
+        Assert.Contains("IdentityProfile", sqliteNames);
     }
 
     [Fact]
-    public async Task Sqlite_upgrades_from_the_previous_identity_schema()
+    public async Task Sqlite_upgrades_from_the_current_schema()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-upgrade-{Guid.NewGuid():N}.db");
         try
         {
             await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
-            var identityMigration = database.Database.GetMigrations()
-                .Single(migration => migration.EndsWith("_IdentityFoundation", StringComparison.Ordinal));
+            var previousMigration = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_BackgroundJobs", StringComparison.Ordinal));
             var migrator = database.GetService<IMigrator>();
 
-            await migrator.MigrateAsync(identityMigration);
+            await migrator.MigrateAsync(previousMigration);
             await migrator.MigrateAsync();
 
             var applied = await database.Database.GetAppliedMigrationsAsync();
-            Assert.Contains(applied, migration => migration.EndsWith("_AttachmentStorage"));
+            Assert.Contains(applied, migration => migration.EndsWith("_IdentityProfile"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM platform_attachments";
+            command.CommandText = "SELECT COUNT(*) FROM identity_users WHERE Language = 'en-GB'";
             Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally

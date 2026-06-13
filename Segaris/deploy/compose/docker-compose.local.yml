@@ -18,8 +18,10 @@ services:
 
   frontend:
     build:
-      context: ../frontend-placeholder
-    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend-placeholder:local}
+      context: ../../src/frontend
+      args:
+        VITE_APP_VERSION: ${SEGARIS_FRONTEND_VERSION:-local}
+    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend:local}
 
   caddy:
     build:

@@ -14,13 +14,25 @@ public interface IAttachmentService
         AttachmentOwner owner,
         CancellationToken cancellationToken);
 
+    Task<AttachmentDescriptor?> FindByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken);
+
     Task<AttachmentDownload?> OpenReadAsync(
         AttachmentId id,
         AttachmentOwner owner,
         CancellationToken cancellationToken);
 
+    Task<AttachmentDownload?> OpenReadByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken);
+
     Task<bool> DeleteAsync(
         AttachmentId id,
+        AttachmentOwner owner,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteByOwnerAsync(
         AttachmentOwner owner,
         CancellationToken cancellationToken);
 }

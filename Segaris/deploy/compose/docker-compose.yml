@@ -69,12 +69,12 @@ services:
       start_period: 90s
 
   frontend:
-    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend-placeholder:local}
+    image: ${SEGARIS_FRONTEND_IMAGE:-segaris-frontend:local}
     restart: unless-stopped
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/"]
       interval: 15s
       timeout: 5s
       retries: 5

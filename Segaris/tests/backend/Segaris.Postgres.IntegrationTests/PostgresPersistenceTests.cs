@@ -190,7 +190,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Postgres_upgrades_from_the_previous_identity_schema()
+    public async Task Postgres_upgrades_from_the_current_schema()
     {
         if (postgres is null)
         {
@@ -217,18 +217,18 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             "--connection",
             connectionString,
         ]);
-        var identityMigration = database.Database.GetMigrations()
-            .Single(migration => migration.EndsWith("_IdentityFoundation", StringComparison.Ordinal));
+        var previousMigration = database.Database.GetMigrations()
+            .Single(migration => migration.EndsWith("_BackgroundJobs", StringComparison.Ordinal));
         var migrator = database.GetService<IMigrator>();
 
-        await migrator.MigrateAsync(identityMigration);
+        await migrator.MigrateAsync(previousMigration);
         await migrator.MigrateAsync();
 
         var applied = await database.Database.GetAppliedMigrationsAsync();
-        Assert.Contains(applied, migration => migration.EndsWith("_AttachmentStorage"));
+        Assert.Contains(applied, migration => migration.EndsWith("_IdentityProfile"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
-        countCommand.CommandText = "SELECT COUNT(*) FROM platform_attachments";
+        countCommand.CommandText = "SELECT COUNT(*) FROM identity_users WHERE \"Language\" = 'en-GB'";
         Assert.Equal(0L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 

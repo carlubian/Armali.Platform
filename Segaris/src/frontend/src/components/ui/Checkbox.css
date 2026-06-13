@@ -1,0 +1,61 @@
+.arm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  cursor: pointer;
+  font-family: var(--font-body);
+  user-select: none;
+}
+.arm-check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.arm-check__box {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--radius-xs);
+  background: var(--surface-card-solid);
+  border: 1.5px solid var(--border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    border-color var(--dur-fast) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.arm-check__box svg {
+  width: 13px;
+  height: 13px;
+  stroke: var(--text-on-accent);
+  stroke-width: 3.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 18;
+  stroke-dashoffset: 18;
+  transition: stroke-dashoffset var(--dur-base) var(--ease-out);
+}
+.arm-check input:checked + .arm-check__box {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--glow-aqua);
+}
+.arm-check input:checked + .arm-check__box svg {
+  stroke-dashoffset: 0;
+}
+.arm-check input:focus-visible + .arm-check__box {
+  box-shadow: var(--ring);
+}
+.arm-check--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.arm-check__label {
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}

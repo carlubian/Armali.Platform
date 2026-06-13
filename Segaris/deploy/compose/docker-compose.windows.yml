@@ -1,0 +1,16 @@
+# Docker Desktop on Windows cannot use the production Linux bind-mount default
+# (/data/volumes/segaris) with the ownership expected by the non-root backend.
+# Use Docker-managed volumes for local PowerShell execution instead. The base
+# Compose file remains production-oriented and keeps its explicit bind mounts.
+
+services:
+  backend:
+    volumes:
+      - attachments-data:/data/attachments
+      - backups-data:/data/backups
+      - dataprotection-keys-data:/data/dataprotection-keys
+
+volumes:
+  attachments-data:
+  backups-data:
+  dataprotection-keys-data:

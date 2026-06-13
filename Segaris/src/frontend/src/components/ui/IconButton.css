@@ -1,0 +1,65 @@
+.arm-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex: none;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  background: var(--surface-frost);
+  color: var(--text-secondary);
+  -webkit-backdrop-filter: var(--blur-chip);
+  backdrop-filter: var(--blur-chip);
+  cursor: pointer;
+  position: relative;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-soft),
+    color var(--dur-base) var(--ease-soft);
+}
+.arm-iconbtn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-press);
+  box-shadow: var(--glow-aqua);
+}
+.arm-iconbtn:active {
+  transform: scale(0.92);
+}
+.arm-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.arm-iconbtn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+.arm-iconbtn--sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+.arm-iconbtn--lg {
+  width: 48px;
+  height: 48px;
+}
+.arm-iconbtn--solid {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.arm-iconbtn--solid:hover {
+  color: var(--text-on-accent);
+  filter: brightness(1.05);
+}
+.arm-iconbtn--bare {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.arm-iconbtn--bare:hover {
+  background: var(--surface-sunken);
+  box-shadow: none;
+}

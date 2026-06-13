@@ -1,0 +1,61 @@
+.arm-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65em;
+  cursor: pointer;
+  font-family: var(--font-body);
+  user-select: none;
+}
+.arm-switch__track {
+  --_w: 44px;
+  --_h: 26px;
+  position: relative;
+  width: var(--_w);
+  height: var(--_h);
+  flex: none;
+  background: var(--sand-400);
+  border-radius: var(--radius-pill);
+  transition:
+    background var(--dur-base) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.arm-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: var(--bone-50);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(86, 74, 54, 0.3);
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+.arm-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.arm-switch input:checked + .arm-switch__track {
+  background: var(--accent);
+  box-shadow: var(--glow-aqua);
+}
+.arm-switch input:checked + .arm-switch__track .arm-switch__thumb {
+  transform: translateX(18px);
+}
+.arm-switch input:focus-visible + .arm-switch__track {
+  box-shadow: var(--ring);
+}
+.arm-switch--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.arm-switch__label {
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+/* ambient breathing when on + 'live' */
+.arm-switch--live input:checked + .arm-switch__track {
+  animation: armali-breathe var(--dur-breathe) var(--ease-soft) infinite;
+}

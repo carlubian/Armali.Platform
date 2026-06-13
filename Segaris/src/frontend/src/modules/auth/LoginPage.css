@@ -1,0 +1,104 @@
+/* Centered-card login, ported from the design-system reference
+   (`docs/ui-design/segaris/screens-login.jsx`, "Centered glass card over the
+   aurora" variant selected in docs/architecture/design-system.md). */
+
+.seg-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-7);
+}
+
+.seg-login__card {
+  width: 100%;
+  max-width: 416px;
+  padding: var(--space-9);
+  background: var(--surface-card);
+  -webkit-backdrop-filter: var(--blur-strong);
+  backdrop-filter: var(--blur-strong);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--glow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.seg-login__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.62em;
+}
+.seg-login__brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  flex: none;
+  background: #fffcf7;
+  box-shadow:
+    var(--glow-soft),
+    0 0 0 1px rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+.seg-login__brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.seg-login__brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-3xl);
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.seg-login__title {
+  font-size: var(--text-3xl);
+  margin-top: var(--space-5);
+}
+.seg-login__sub {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.seg-login__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-6) 0 var(--space-2);
+}
+
+.seg-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.seg-login__error svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.seg-login__foot {
+  text-align: center;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-5);
+}

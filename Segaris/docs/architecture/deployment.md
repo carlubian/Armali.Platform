@@ -21,7 +21,7 @@ The frontend and backend will be built as separate images and run as separate co
 
 The containers may be released together, but they remain independently buildable. Their interface is the documented REST API.
 
-The backend image is a multi-stage build on the .NET 10 SDK and ASP.NET Core runtime images, runs as a dedicated non-root identity (UID:GID 5525:5525), listens on container port 8080, and bundles the PostgreSQL 17 client (`pg_dump`) for the administrative backup job. Concrete container, Compose, ingress, and operational decisions are recorded in `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`. The implemented assets live under `src/backend/Segaris.Api/Dockerfile`, `deploy/caddy/`, `deploy/frontend-placeholder/`, and `deploy/compose/`.
+The backend image is a multi-stage build on the .NET 10 SDK and ASP.NET Core runtime images, runs as a dedicated non-root identity (UID:GID 5525:5525), listens on container port 8080, and bundles the PostgreSQL 17 client (`pg_dump`) for the administrative backup job. The frontend image is a multi-stage Node and Nginx build under `src/frontend` that serves the compiled SPA with client-side route fallback. Concrete container, Compose, ingress, and operational decisions are recorded in `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`. The implemented assets live under `src/backend/Segaris.Api/Dockerfile`, `src/frontend/Dockerfile`, `deploy/caddy/`, and `deploy/compose/`.
 
 Docker Compose is the expected initial orchestration mechanism because the system targets one local server and does not currently need cluster orchestration. This is an architectural default rather than a final implementation commitment.
 

@@ -1,0 +1,64 @@
+.seg-shell {
+  min-height: 100vh;
+  background: var(--surface-app);
+}
+.seg-topbar {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  backdrop-filter: blur(18px);
+}
+.seg-topbar__left,
+.seg-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.seg-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+.seg-brand img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.seg-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--aqua-700);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.seg-back:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-md);
+}
+.seg-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border-subtle);
+}
+.seg-shell__notice {
+  position: fixed;
+  top: calc(var(--topbar-h) + var(--space-4));
+  right: var(--space-5);
+  z-index: 30;
+}
+.seg-spin {
+  animation: arm-spin 900ms linear infinite;
+}

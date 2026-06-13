@@ -194,7 +194,7 @@ replaces the temporary placeholder.
 
 After a change reaches the main branch, GitHub Actions repeats the three validation
 jobs for that exact commit. Only a successful main-branch validation triggers the
-workflow that builds and publishes independent backend, temporary frontend, and
+workflow that builds and publishes independent backend, frontend, and
 Caddy container images to the household's private Azure Container Registry.
 
 Each image is tagged with the immutable Git commit SHA. Releases may add a human-readable version tag pointing to the same image, but deployment definitions must not rely exclusively on a mutable `latest` tag. Frontend and backend images from the same workflow run form one logical Segaris release and should normally be deployed together.

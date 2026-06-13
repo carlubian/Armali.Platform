@@ -1,0 +1,31 @@
+# Segaris frontend static server.
+#
+# This Caddy site serves the built single-page application inside the frontend
+# container. It is distinct from the ingress Caddy (deploy/caddy): the ingress
+# terminates the published host port and proxies /api/* to the backend, while
+# this server only serves the compiled assets to the ingress over the internal
+# network on port 80.
+
+:80 {
+	root * /srv
+	encode gzip
+
+	# Fingerprinted build assets are immutable and may be cached aggressively.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# The application shell must never be cached so a new deployment is picked
+	# up immediately.
+	header /index.html Cache-Control "no-store"
+
+	# Single-page-application fallback: any path that is not a real file is
+	# served the application shell so client-side routing works on direct
+	# requests and refreshes.
+	try_files {path} /index.html
+	file_server
+
+	log {
+		output stdout
+		format console
+	}
+}
