@@ -6,6 +6,7 @@ import { useSession } from '@/app/session/SessionContext'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { NotFound, ServiceUnavailable } from '@/components/feedback/SystemScreens'
 import { AppShell } from '@/components/shell/AppShell'
+import { UsersPage } from '@/modules/admin/UsersPage'
 import { LoginPage } from '@/modules/auth/LoginPage'
 import { LauncherPage } from '@/modules/launcher/LauncherPage'
 import { ProfilePage } from '@/modules/profile/ProfilePage'
@@ -46,6 +47,14 @@ export function AppRouter() {
           element={
             <ModuleBoundary>
               <ProfilePage />
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="users"
+          element={
+            <ModuleBoundary>
+              <UsersPage />
             </ModuleBoundary>
           }
         />

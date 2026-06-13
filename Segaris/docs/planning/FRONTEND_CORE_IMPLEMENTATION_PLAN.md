@@ -60,8 +60,8 @@ The following open items must be resolved at the indicated point. They should no
 | Frontend environment/configuration contract (`src/frontend/.env.example`) | Resolved in Wave 0 |
 | Self-service profile and avatar API contract, including endpoint routes, DTO shapes, migration names, and the admin-list response extension | Resolved in Wave 1 |
 | Avatar validation rules (allowed types, size, single-avatar replace semantics) on top of the existing attachment policy | Resolved in Wave 1 |
-| Frontend container build and static-asset-serving strategy, replacing `deploy/frontend-placeholder` | Resolved in Wave 9 |
-| Required CI checks for the frontend and placement of end-to-end tests | Resolved in Wave 9 |
+| Frontend container build and static-asset-serving strategy, replacing `deploy/frontend-placeholder` | Resolved in Wave 10 |
+| Required CI checks for the frontend and placement of end-to-end tests | Resolved in Wave 10 |
 
 ## Delivery Strategy
 
@@ -312,7 +312,7 @@ synchronization, and unsaved navigation.
 
 ### Wave 7: Administrative User Management
 
-Status: **Not started**. Depends on Wave 4.
+Status: **Completed**. Depends on Wave 4.
 
 Tasks:
 
@@ -335,7 +335,83 @@ Exit criteria:
 
 - An administrator can fully manage household accounts through the interface, matching the documented `/api/admin/users` contract.
 
-### Wave 8: Launcher And Shared-Shell Completion
+Resolution: the cards-variant user-management screen lives under
+`src/frontend/src/modules/admin/UsersPage.tsx`, reachable from an Admin-only
+launcher entry (the full module grid arrives in Wave 9) and guarded both on the
+client (the `Admin` role) and by surfacing the backend's `403` through a new
+shared `AccessDenied` system screen. The paginated list (`GET /api/admin/users`)
+uses explicit previous/next pagination and a sort control mapped to the
+backend's `userName`/`createdAt` allow-list. Account creation
+(`POST /api/admin/users`), password reset (`POST /api/admin/users/{id}/password`),
+and activate/deactivate (`POST /api/admin/users/{id}/activate|deactivate`, with a
+confirmation step before deactivation) are implemented with React Hook Form, Zod,
+field-mapped backend validation, and TanStack Query cache invalidation, plus
+`platform.admin.users` i18n keys and a full-stack Playwright journey gated on
+seeded administrator credentials.
+
+Scope note: the existing `/api/admin/users` contract supports creating accounts,
+resetting passwords, and activating/deactivating them, but has **no** endpoint to
+change an existing member's display name or role (and `create` derives the
+display name from the username). At the project owner's request, editing the
+display name and role is treated as a deliberate gap and deferred to **Wave 8**
+below, which adds the required backend endpoints and the frontend edit dialog.
+The remaining launcher and shared-shell completion work shifts to **Wave 9**, and
+the containers/Compose/CI completion work to **Wave 10**.
+
+### Wave 8: Administrative User Editing (Display Name And Role)
+
+Status: **Not started**. Depends on Wave 7.
+
+This wave closes the gap identified in Wave 7: administrators can create,
+reset, activate, and deactivate accounts, but cannot yet edit an existing
+member's display name or role. It is a small backend Identity extension plus the
+paired frontend edit dialog, structured like Wave 1 (frontend against a
+documented contract) so it can ship as one reviewable change.
+
+Tasks:
+
+1. Add an admin update endpoint to `AdminUserEndpoints`
+   (`PUT /api/admin/users/{id}`) that updates a member's display name and role,
+   antiforgery-gated, with explicit DTOs (no EF entity serialization). Changing
+   the role removes the previous role and assigns the new one through
+   `UserManager`; reuse the `User`/`Admin` allow-list and the display-name
+   validation already used by the self-service profile.
+2. Decide and document whether an administrator may change their own role, and
+   guard against removing the last remaining administrator so a household cannot
+   lock itself out of administration.
+3. Extend the create flow if desired so a separate display name can be set at
+   creation time rather than derived from the username, or explicitly keep the
+   derive-from-username behavior and document it.
+4. In the frontend admin screen, add an "Edit" action per user card opening a
+   dialog (React Hook Form + Zod) that edits display name and role against the
+   new endpoint, mapping backend validation errors to fields and invalidating the
+   user list on success. Keep password reset and activate/deactivate as the
+   existing discrete actions.
+5. Add the new `platform.admin.users.edit.*` i18n keys (`en-GB`).
+
+Tests:
+
+- Backend unit and integration tests for the update endpoint, including role
+  reassignment, the last-administrator guard, display-name validation, ownership
+  of the antiforgery requirement, and `403` for non-administrators.
+- Paired SQLite/PostgreSQL coverage only if a schema change is introduced
+  (none is expected, since `DisplayName` already exists).
+- Frontend tests for the edit dialog: a successful display-name/role change is
+  reflected in the list, and a backend validation error maps to the form.
+
+Deliverables:
+
+- An addendum to `docs/planning/IDENTITY_PROFILE_DECISIONS.md` (or a new admin
+  decision document) recording the update endpoint contract, the role-change and
+  last-administrator rules, and the create-time display-name decision.
+
+Exit criteria:
+
+- An administrator can edit a household member's display name and role through
+  the interface, in addition to creating, resetting, activating, and
+  deactivating accounts.
+
+### Wave 9: Launcher And Shared-Shell Completion
 
 Status: **Not started**. Depends on Waves 5, 6, and 7.
 
@@ -359,7 +435,7 @@ Exit criteria:
 
 - The application core — login, launcher, profile including avatar, and administrative user management — is navigable end to end as one coherent shell, in English.
 
-### Wave 9: Containers, Compose, And CI Completion
+### Wave 10: Containers, Compose, And CI Completion
 
 Status: **Not started**.
 
@@ -396,9 +472,13 @@ The following pull-request sequence keeps changes reviewable while preserving us
 5. Application shell, routing, session context, TanStack Query, error boundaries, and i18n bootstrap.
 6. Login.
 7. Self-service profile, including avatar.
-8. Administrative user management.
-9. Launcher and shared-shell completion, with the final i18n and accessibility pass.
-10. Frontend container, Compose updates, CI checks, and image publication.
+8. Administrative user management (list, create, password reset,
+   activate/deactivate).
+9. Administrative user editing — backend update endpoint plus the display-name
+   and role edit dialog.
+10. Launcher and shared-shell completion, with the final i18n and accessibility
+    pass.
+11. Frontend container, Compose updates, CI checks, and image publication.
 
 Each pull request should update configuration examples and documentation in the same change whenever it introduces or changes a supported setting, endpoint, or command.
 

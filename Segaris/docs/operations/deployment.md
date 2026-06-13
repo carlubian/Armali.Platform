@@ -26,7 +26,10 @@ For validating the complete runtime on a developer machine.
    ./scripts/compose-up.ps1
    ```
    The first run creates `deploy/compose/.env` from the example with a local
-   development password. Builds all images and starts the stack.
+   development password. Builds all images and starts the stack. On Windows,
+   the script uses Docker-managed volumes for backend storage so the container's
+   non-root user can write to them; Linux deployments retain the configured host
+   bind mounts.
 3. Open `http://localhost:5525/`. The placeholder page confirms frontend routing;
    `http://localhost:5525/api/session` confirms backend routing.
 4. Tear down with `./scripts/compose-down.ps1` (add `-Volumes` to drop data).

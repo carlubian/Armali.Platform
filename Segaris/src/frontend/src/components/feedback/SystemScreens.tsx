@@ -1,4 +1,4 @@
-import { ArrowLeft, CloudOff, Compass, RefreshCw } from 'lucide-react'
+import { ArrowLeft, CloudOff, Compass, RefreshCw, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -19,6 +19,26 @@ export function ServiceUnavailable({ onRetry }: { onRetry: () => void }) {
         <p>{t('errors.unavailableBody')}</p>
         <Button iconLeft={<RefreshCw size={17} />} onClick={onRetry}>
           {t('common.tryAgain')}
+        </Button>
+      </section>
+    </main>
+  )
+}
+
+export function AccessDenied() {
+  const { t } = useTranslation('platform')
+  const navigate = useNavigate()
+  return (
+    <main className="seg-system-screen armali-aurora">
+      <section className="seg-state-card">
+        <span className="seg-state-icon seg-state-icon--danger">
+          <ShieldAlert size={36} />
+        </span>
+        <div className="armali-eyebrow">{t('errors.accessDeniedEyebrow')}</div>
+        <h1>{t('errors.accessDeniedTitle')}</h1>
+        <p>{t('errors.accessDeniedBody')}</p>
+        <Button iconLeft={<ArrowLeft size={17} />} onClick={() => void navigate('/')}>
+          {t('common.returnToLauncher')}
         </Button>
       </section>
     </main>

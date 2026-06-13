@@ -8,6 +8,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $composeDir = Join-Path $root "deploy/compose"
 $baseFile = Join-Path $composeDir "docker-compose.yml"
 $localFile = Join-Path $composeDir "docker-compose.local.yml"
+$windowsFile = Join-Path $composeDir "docker-compose.windows.yml"
 $envFile = Join-Path $composeDir ".env"
 $exampleFile = Join-Path $composeDir ".env.example"
 
@@ -24,7 +25,11 @@ if (-not (Test-Path $envFile)) {
     Write-Host "Review it before any non-local use; never commit it."
 }
 
-$arguments = @("compose", "--env-file", $envFile, "-f", $baseFile, "-f", $localFile, "up", "-d")
+$arguments = @("compose", "--env-file", $envFile, "-f", $baseFile, "-f", $localFile)
+if ($IsWindows -or $env:OS -eq "Windows_NT") {
+    $arguments += @("-f", $windowsFile)
+}
+$arguments += @("up", "-d")
 if (-not $NoBuild) {
     $arguments += "--build"
 }
