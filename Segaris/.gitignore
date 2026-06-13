@@ -11,3 +11,7 @@ src/backend/**/appsettings.*.json
 
 deploy/compose/.env
 !deploy/compose/.env.example
+
+src/frontend/.env
+src/frontend/.env.*
+!src/frontend/.env.example

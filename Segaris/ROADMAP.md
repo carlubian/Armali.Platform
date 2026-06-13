@@ -86,6 +86,7 @@ Current phase: **Phase 1 - Architecture, Structure, And Core**.
 | Resolved | Restore procedure | `scripts/restore.sh` restores a `segaris-backup.tar` package (pg_restore plus attachment mirror) into the running stack and requires explicit confirmation; the household administrator owns recovery and rehearses it at least quarterly. See `docs/operations/backup-and-restore.md` and `docs/operations/rollback.md`. |
 | Resolved | Required CI checks | `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` are required checks for `main`; branches must be current, review conversations resolved, and force pushes/deletion blocked. No approval is required while the repository has one regular maintainer. See `docs/planning/BACKEND_CI_DECISIONS.md`. |
 | Resolved | Frontend core implementation plan | A dependency-ordered, wave-based plan covering the frontend scaffold, design-system port, shared shell, login, self-service profile (including avatar), administrative user management, a minimal launcher, a scoped backend Identity-profile extension, and the container/Compose/CI changes needed to serve the real frontend image. See `docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Frontend foundation conventions | Node 24.16.0 and pnpm 11.6.0 are pinned at repository level. ESLint/Prettier/TypeScript, Vitest/Testing Library, and Playwright have explicit ownership and placement conventions; local API access uses a same-origin Vite `/api` proxy; public build-time environment values and the module-oriented source tree are fixed for the Wave 2 scaffold. See `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`. |
 
 ## Phase 2: Functional Definition Backlog
 
@@ -228,4 +229,3 @@ These decisions should wait until requirements are clearer.
 | Deferred | Version sequencing | Decide how to split architecture, core, and domain features. |
 | Deferred | Acceptance criteria format | Standardize what each version document must include. |
 | Deferred | Implementation agent handoff format | Define the context package for future implementation agents. |
-

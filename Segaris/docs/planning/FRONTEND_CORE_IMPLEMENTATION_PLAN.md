@@ -69,7 +69,7 @@ Work is divided into dependency-ordered waves. A wave may be split into multiple
 
 ### Wave 0: Resolve Frontend Foundation Blockers
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -87,6 +87,10 @@ Deliverables:
 Exit criteria:
 
 - Wave 2 can scaffold the frontend repository without inventing undocumented conventions.
+
+Resolution: the runtime, package manager, tooling boundaries, test placement,
+same-origin development proxy, public environment contract, and source-tree
+conventions are recorded in `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`.
 
 ### Wave 1: Backend Identity-Profile Extension
 
