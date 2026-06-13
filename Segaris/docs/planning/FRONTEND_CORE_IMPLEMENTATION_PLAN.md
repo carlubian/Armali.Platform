@@ -270,7 +270,7 @@ smoke spec) accompany the screen.
 
 ### Wave 6: Self-Service Profile, Including Avatar
 
-Status: **Not started**. Depends on Waves 1 and 4.
+Status: **Completed**. Depends on Waves 1 and 4.
 
 Tasks:
 
@@ -293,6 +293,22 @@ Tests:
 Exit criteria:
 
 - Any authenticated user can edit their display name, language, password, and avatar, with changes reflected immediately across the shared shell.
+
+Resolution: the profile placeholder is replaced by the responsive Project
+Armali profile screen under `src/frontend/src/modules/profile/`. React Hook Form
+and Zod own separate profile and password forms, with the Wave 1 language and
+password policies mirrored for immediate feedback and translated API failures
+kept at the form boundary. Profile and avatar mutations update the TanStack
+Query session-profile cache directly, including avatar cache busting, so the
+shared shell reflects changes without a reload. Avatar upload, replacement, and
+removal enforce the JPEG/PNG/WebP and 25 MiB client policy before the backend's
+authoritative validation. The application now uses React Router's data-router
+provider, without loaders or actions, so dirty profile/password forms can block
+internal navigation through the shared confirmation dialog while
+`beforeunload` covers refresh and tab closure. Focused Vitest coverage and an
+environment-gated full-stack Playwright journey cover profile details,
+password success/rejection, avatar lifecycle and rejection, shell
+synchronization, and unsaved navigation.
 
 ### Wave 7: Administrative User Management
 

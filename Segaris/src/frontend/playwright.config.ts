@@ -6,7 +6,8 @@ import { defineConfig, devices } from '@playwright/test'
  * Specs live under the repository's `tests/frontend/e2e/` directory because they
  * validate the deployed frontend boundary rather than one frontend module. The
  * sign-in journey runs against the full stack and is skipped without seeded
- * credentials; profile and admin journeys are added in later waves.
+ * credentials. Profile uses the same seeded-account contract; the admin
+ * journey is added with the administrative-user wave.
  */
 const port = 4173
 const host = '127.0.0.1'

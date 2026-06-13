@@ -20,10 +20,52 @@ export interface SignInCredentials {
   password: string
 }
 
+export interface UpdateProfileRequest {
+  displayName: string
+  language: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface AvatarResponse {
+  avatarUrl: string
+  contentType: string
+  size: number
+}
+
 export const sessionApi = {
   getSession: (signal?: AbortSignal) => apiRequest<Session>('/api/session', { signal }),
   getProfile: (signal?: AbortSignal) =>
     apiRequest<Profile>('/api/session/profile', { signal }),
+  updateProfile: (profile: UpdateProfileRequest, signal?: AbortSignal) =>
+    apiRequest<Profile>('/api/session/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profile),
+      signal,
+    }),
+  changePassword: (passwords: ChangePasswordRequest, signal?: AbortSignal) =>
+    apiRequest<void>('/api/session/password', {
+      method: 'POST',
+      body: JSON.stringify(passwords),
+      signal,
+    }),
+  uploadAvatar: (file: File, signal?: AbortSignal) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest<AvatarResponse>('/api/session/profile/avatar', {
+      method: 'PUT',
+      body,
+      signal,
+    })
+  },
+  removeAvatar: (signal?: AbortSignal) =>
+    apiRequest<void>('/api/session/profile/avatar', {
+      method: 'DELETE',
+      signal,
+    }),
   signIn: (credentials: SignInCredentials, signal?: AbortSignal) =>
     apiRequest<void>('/api/session', {
       method: 'POST',

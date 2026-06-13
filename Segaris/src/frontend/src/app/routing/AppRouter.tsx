@@ -8,7 +8,7 @@ import { NotFound, ServiceUnavailable } from '@/components/feedback/SystemScreen
 import { AppShell } from '@/components/shell/AppShell'
 import { LoginPage } from '@/modules/auth/LoginPage'
 import { LauncherPage } from '@/modules/launcher/LauncherPage'
-import { ProfilePlaceholder } from '@/modules/profile/ProfilePlaceholder'
+import { ProfilePage } from '@/modules/profile/ProfilePage'
 
 function ProtectedRoutes() {
   const { status, refresh } = useSession()
@@ -45,7 +45,7 @@ export function AppRouter() {
           path="profile"
           element={
             <ModuleBoundary>
-              <ProfilePlaceholder />
+              <ProfilePage />
             </ModuleBoundary>
           }
         />
