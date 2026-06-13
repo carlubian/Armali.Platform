@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
 using Segaris.Api.Platform.Observability;
+using Segaris.Shared.Attachments;
 
 namespace Segaris.Api.Modules.Identity.Endpoints;
 
@@ -26,19 +27,7 @@ internal static class SessionEndpoints
             .RequireRateLimiting(ObservabilityServiceCollectionExtensions.AuthenticationRateLimitPolicy)
             .WithSummary("Authenticates a user and establishes a session cookie");
 
-        group.MapGet("", (ClaimsPrincipal principal) =>
-        {
-            var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-            var roles = principal.FindAll(ClaimTypes.Role)
-                .Select(claim => claim.Value)
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            return TypedResults.Ok(new SessionResponse(
-                int.Parse(userId!, System.Globalization.CultureInfo.InvariantCulture),
-                principal.Identity!.Name!,
-                roles));
-        })
+        group.MapGet("", GetSessionAsync)
         .RequireAuthorization()
         .WithSummary("Returns the current authenticated session");
 
@@ -102,6 +91,35 @@ internal static class SessionEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<IResult> GetSessionAsync(
+        ClaimsPrincipal principal,
+        UserManager<SegarisUser> userManager,
+        IAttachmentService attachments,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            throw ApiProblemException.NotFound();
+        }
+
+        var roles = principal.FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        var avatar = await attachments.FindByOwnerAsync(
+            IdentityProfilePolicy.AvatarOwner(user.Id),
+            cancellationToken);
+
+        return TypedResults.Ok(new SessionResponse(
+            user.Id,
+            user.UserName!,
+            user.DisplayName,
+            user.Language,
+            roles,
+            avatar is null ? null : IdentityProfilePolicy.AvatarUrl(user.Id)));
+    }
+
     private static async Task<IResult> ChangePasswordAsync(
         ChangePasswordRequest request,
         UserManager<SegarisUser> userManager,
@@ -142,7 +160,13 @@ internal static class SessionEndpoints
 
     internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
-    internal sealed record SessionResponse(int UserId, string UserName, IReadOnlyList<string> Roles);
+    internal sealed record SessionResponse(
+        int UserId,
+        string UserName,
+        string DisplayName,
+        string Language,
+        IReadOnlyList<string> Roles,
+        string? AvatarUrl);
 
     internal sealed record AntiforgeryResponse(string CsrfToken);
 }

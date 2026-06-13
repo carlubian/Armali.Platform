@@ -70,6 +70,7 @@ internal sealed class IdentitySeeder(
         var administrator = new SegarisUser
         {
             UserName = options.UserName,
+            DisplayName = options.UserName,
             IsActive = true,
             CreatedAt = clock.UtcNow,
         };

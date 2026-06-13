@@ -94,6 +94,33 @@ internal sealed class FileSystemAttachmentService(
         return record is null ? null : ToDescriptor(record);
     }
 
+    public async Task<AttachmentDescriptor?> FindByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken)
+    {
+        var record = await FindRecordByOwnerAsync(owner, tracking: false, cancellationToken);
+        return record is null ? null : ToDescriptor(record);
+    }
+
+    public async Task<AttachmentDownload?> OpenReadByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await FindByOwnerAsync(owner, cancellationToken);
+        return descriptor is null
+            ? null
+            : await OpenReadAsync(descriptor.Id, owner, cancellationToken);
+    }
+
+    public async Task<bool> DeleteByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await FindByOwnerAsync(owner, cancellationToken);
+        return descriptor is not null
+            && await DeleteAsync(descriptor.Id, owner, cancellationToken);
+    }
+
     public async Task<AttachmentDownload?> OpenReadAsync(
         AttachmentId id,
         AttachmentOwner owner,
@@ -193,6 +220,26 @@ internal sealed class FileSystemAttachmentService(
         return await query.SingleOrDefaultAsync(
             attachment => attachment.Id == id.Value
                 && attachment.Module == module
+                && attachment.EntityType == owner.EntityType
+                && attachment.EntityId == owner.EntityId,
+            cancellationToken);
+    }
+
+    private async Task<AttachmentRecord?> FindRecordByOwnerAsync(
+        AttachmentOwner owner,
+        bool tracking,
+        CancellationToken cancellationToken)
+    {
+        ValidateOwner(owner);
+        var module = AttachmentStoragePaths.NormalizeModule(owner.Module);
+        IQueryable<AttachmentRecord> query = dbContext.Set<AttachmentRecord>();
+        if (!tracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.SingleOrDefaultAsync(
+            attachment => attachment.Module == module
                 && attachment.EntityType == owner.EntityType
                 && attachment.EntityId == owner.EntityId,
             cancellationToken);

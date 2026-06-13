@@ -29,6 +29,8 @@ internal sealed class IdentityModelContributor : ISegarisModelContributor
             user.Property(entity => entity.NormalizedUserName).HasMaxLength(256);
             user.Property(entity => entity.Email).HasMaxLength(256);
             user.Property(entity => entity.NormalizedEmail).HasMaxLength(256);
+            user.Property(entity => entity.DisplayName).HasMaxLength(200).IsRequired();
+            user.Property(entity => entity.Language).HasMaxLength(10).IsRequired();
             user.Property(entity => entity.CreatedAt).IsRequired();
 
             user.HasMany<IdentityUserClaim<int>>()

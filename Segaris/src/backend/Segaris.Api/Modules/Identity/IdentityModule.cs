@@ -92,6 +92,7 @@ internal sealed class IdentityModule : ISegarisModule
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapSessionEndpoints();
+        endpoints.MapProfileEndpoints();
         endpoints.MapAdminUserEndpoints();
     }
 

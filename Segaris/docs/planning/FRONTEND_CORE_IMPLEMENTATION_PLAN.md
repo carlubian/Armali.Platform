@@ -94,7 +94,7 @@ conventions are recorded in `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`.
 
 ### Wave 1: Backend Identity-Profile Extension
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -120,6 +120,11 @@ Deliverables:
 Exit criteria:
 
 - The frontend can retrieve and update a user's display name, language, and avatar entirely through documented `/api/session/profile*` endpoints on both database providers.
+
+Resolution: the profile DTOs, `IdentityProfile` migration pair, `en-GB`
+allow-list, avatar validation and replacement behavior, and authenticated
+household avatar-read policy are recorded in
+`docs/planning/IDENTITY_PROFILE_DECISIONS.md`.
 
 ### Wave 2: Frontend Repository And Scaffold
 

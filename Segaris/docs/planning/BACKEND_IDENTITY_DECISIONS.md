@@ -57,6 +57,10 @@ POST   /api/admin/users/{id}/deactivate  (Admin)     Deactivate and invalidate s
 POST   /api/admin/users/{id}/password    (Admin)     Recover credentials and invalidate sessions
 ```
 
+The Wave 1 frontend-core extension adds display names, language preference, and
+avatar endpoints. Its complete contract and visibility policy are recorded in
+`docs/planning/IDENTITY_PROFILE_DECISIONS.md`.
+
 Login failures return a single generic `401` that does not reveal whether the account exists, is inactive, or had the wrong password. The `Admin` role does not bypass creator-only privacy.
 
 ## Implementation Notes For Future Modules

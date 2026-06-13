@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
 
@@ -44,6 +45,7 @@ internal static class AdminUserEndpoints
         [AsParameters] PaginationQuery query,
         HttpRequest request,
         UserManager<SegarisUser> userManager,
+        IAttachmentService attachments,
         CancellationToken cancellationToken)
     {
         var pagination = query.ToRequest();
@@ -64,7 +66,10 @@ internal static class AdminUserEndpoints
         foreach (var user in page)
         {
             var roles = await userManager.GetRolesAsync(user);
-            items.Add(ToResponse(user, roles));
+            var avatar = await attachments.FindByOwnerAsync(
+                IdentityProfilePolicy.AvatarOwner(user.Id),
+                cancellationToken);
+            items.Add(ToResponse(user, roles, avatar is not null));
         }
 
         return TypedResults.Ok(PaginatedResponse<AdminUserResponse>.Create(items, pagination, totalCount));
@@ -82,6 +87,7 @@ internal static class AdminUserEndpoints
         var user = new SegarisUser
         {
             UserName = request.UserName,
+            DisplayName = request.UserName!.Trim(),
             IsActive = true,
             CreatedAt = clock.UtcNow,
         };
@@ -98,7 +104,7 @@ internal static class AdminUserEndpoints
             throw IdentityProblem.FromResult(assigned, "role");
         }
 
-        var response = ToResponse(user, [role.ToString()]);
+        var response = ToResponse(user, [role.ToString()], hasAvatar: false);
         return TypedResults.Created($"/api/admin/users/{user.Id}", response);
     }
 
@@ -231,12 +237,17 @@ internal static class AdminUserEndpoints
         };
     }
 
-    private static AdminUserResponse ToResponse(SegarisUser user, IEnumerable<string> roles) => new(
+    private static AdminUserResponse ToResponse(
+        SegarisUser user,
+        IEnumerable<string> roles,
+        bool hasAvatar) => new(
         user.Id,
         user.UserName!,
+        user.DisplayName,
         roles.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
         user.IsActive,
-        user.CreatedAt);
+        user.CreatedAt,
+        hasAvatar ? IdentityProfilePolicy.AvatarUrl(user.Id) : null);
 
     internal sealed record CreateUserRequest(string? UserName, string? Password, string? Role);
 
@@ -245,7 +256,9 @@ internal static class AdminUserEndpoints
     internal sealed record AdminUserResponse(
         int Id,
         string UserName,
+        string DisplayName,
         IReadOnlyList<string> Roles,
         bool IsActive,
-        DateTimeOffset CreatedAt);
+        DateTimeOffset CreatedAt,
+        string? AvatarUrl);
 }

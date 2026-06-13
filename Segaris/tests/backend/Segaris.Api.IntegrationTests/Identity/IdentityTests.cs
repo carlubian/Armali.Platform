@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -19,6 +20,113 @@ public sealed class IdentityTests
         Assert.Contains(
             session.GetProperty("roles").EnumerateArray().Select(role => role.GetString()),
             role => role == "Admin");
+        Assert.Equal(IdentityTestServer.AdminUserName, session.GetProperty("displayName").GetString());
+        Assert.Equal("en-GB", session.GetProperty("language").GetString());
+    }
+
+    [Fact]
+    public async Task Current_user_can_read_and_update_their_profile()
+    {
+        using var server = new IdentityTestServer();
+        using var client = server.CreateClient();
+        await IdentityTestServer.LoginAsync(client, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+
+        var initial = await client.GetFromJsonAsync<JsonElement>("/api/session/profile", CancellationToken.None);
+        using var updated = await SendWithCsrfAsync(
+            client,
+            HttpMethod.Put,
+            "/api/session/profile",
+            new { displayName = "  Household Admin  ", language = "en-GB" });
+        var body = await updated.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        var session = await client.GetFromJsonAsync<JsonElement>("/api/session", CancellationToken.None);
+
+        Assert.Equal(IdentityTestServer.AdminUserName, initial.GetProperty("displayName").GetString());
+        Assert.Equal("Household Admin", body.GetProperty("displayName").GetString());
+        Assert.Equal("Household Admin", session.GetProperty("displayName").GetString());
+    }
+
+    [Fact]
+    public async Task Profile_updates_reject_unsupported_languages_and_require_antiforgery()
+    {
+        using var server = new IdentityTestServer();
+        using var client = server.CreateClient();
+        await IdentityTestServer.LoginAsync(client, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+
+        using var unsupported = await SendWithCsrfAsync(
+            client,
+            HttpMethod.Put,
+            "/api/session/profile",
+            new { displayName = "Founder", language = "es-ES" });
+        using var missingCsrf = await client.PutAsJsonAsync(
+            "/api/session/profile",
+            new { displayName = "Founder", language = "en-GB" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, unsupported.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, missingCsrf.StatusCode);
+    }
+
+    [Fact]
+    public async Task Avatar_upload_replace_download_and_delete_work()
+    {
+        using var server = new IdentityTestServer();
+        using var client = server.CreateClient();
+        await IdentityTestServer.LoginAsync(client, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+
+        using var first = await PutAvatarAsync(client, "avatar.png", "image/png", PngBytes(1));
+        var profile = await client.GetFromJsonAsync<JsonElement>("/api/session/profile", CancellationToken.None);
+        using var firstDownload = await client.GetAsync("/api/session/profile/avatar", CancellationToken.None);
+        using var replacement = await PutAvatarAsync(client, "avatar.webp", "image/webp", WebpBytes());
+        using var secondDownload = await client.GetAsync("/api/session/profile/avatar", CancellationToken.None);
+        using var deleted = await SendWithCsrfAsync(client, HttpMethod.Delete, "/api/session/profile/avatar");
+        using var missing = await client.GetAsync("/api/session/profile/avatar", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal("/api/users/1/avatar", profile.GetProperty("avatarUrl").GetString());
+        Assert.Equal("image/png", firstDownload.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(HttpStatusCode.OK, replacement.StatusCode);
+        Assert.Equal("image/webp", secondDownload.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Empty(Directory.EnumerateFiles(server.AttachmentsPath, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task Authenticated_users_can_read_but_cannot_modify_another_users_avatar()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var memberId = await CreateUserAsync(admin, "member", "MemberPass123!", "User");
+
+        using var member = server.CreateClient();
+        await IdentityTestServer.LoginAsync(member, "member", "MemberPass123!");
+        using var uploaded = await PutAvatarAsync(member, "member.png", "image/png", PngBytes(2));
+        using var sharedRead = await admin.GetAsync($"/api/users/{memberId}/avatar", CancellationToken.None);
+        using var forbiddenWrite = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Delete,
+            $"/api/users/{memberId}/avatar");
+
+        Assert.Equal(HttpStatusCode.OK, uploaded.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, sharedRead.StatusCode);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, forbiddenWrite.StatusCode);
+    }
+
+    [Fact]
+    public async Task Avatar_uploads_reject_non_image_files()
+    {
+        using var server = new IdentityTestServer();
+        using var client = server.CreateClient();
+        await IdentityTestServer.LoginAsync(client, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+
+        using var response = await PutAvatarAsync(
+            client,
+            "document.pdf",
+            "application/pdf",
+            "%PDF-1.7"u8.ToArray());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -316,4 +424,29 @@ public sealed class IdentityTests
 
         return await client.SendAsync(request, CancellationToken.None);
     }
+
+    private static async Task<HttpResponseMessage> PutAvatarAsync(
+        HttpClient client,
+        string fileName,
+        string contentType,
+        byte[] content)
+    {
+        var csrf = await IdentityTestServer.GetCsrfTokenAsync(client);
+        using var multipart = new MultipartFormDataContent();
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        multipart.Add(file, "file", fileName);
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/session/profile/avatar")
+        {
+            Content = multipart,
+        };
+        request.Headers.Add("X-CSRF-TOKEN", csrf);
+        return await client.SendAsync(request, CancellationToken.None);
+    }
+
+    private static byte[] PngBytes(byte marker) =>
+        [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, marker];
+
+    private static byte[] WebpBytes() =>
+        [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50];
 }
