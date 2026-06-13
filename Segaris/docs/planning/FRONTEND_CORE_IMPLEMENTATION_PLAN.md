@@ -477,7 +477,7 @@ shared-shell navigation and sign-out flow against the running stack.
 
 ### Wave 10: Containers, Compose, And CI Completion
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -500,6 +500,26 @@ Tests:
 Exit criteria:
 
 - `docker compose -f docker-compose.yml -f docker-compose.local.yml up --build` serves a working application with login, profile, and administrative user management functioning end to end, and CI enforces this on every pull request.
+
+Resolution: the frontend ships as a multi-stage `src/frontend/Dockerfile` — a
+`node:24.16.0-alpine` build stage and a `caddy:2-alpine` runtime stage that
+serves the compiled assets from a config-as-code `src/frontend/Caddyfile` with
+single-page fallback (`try_files {path} /index.html`), `no-store` on the shell,
+and immutable caching on fingerprinted `/assets/*`. Caddy was chosen over the
+plan's original nginx sketch so the stack keeps one web-server technology (the
+ingress is Caddy too); the Caddyfile is validated at build time with
+`caddy validate`. The empty `deploy/frontend-placeholder` was removed and the
+`segaris-publish-images` matrix now builds the real image from `src/frontend`.
+A new **Segaris Frontend** job in `segaris-validation.yml` runs restore, lint,
+format verification, type-check/build, and unit/component tests on Node 24.16
+without Docker or the backend. The Compose smoke test (`compose-smoke-test.sh`)
+now seeds a disposable bootstrap administrator and, after the routing and
+SPA-fallback checks, exercises the authenticated flow end to end through Caddy
+(antiforgery token, sign-in, `GET /api/session/profile`, `GET /api/admin/users`).
+`scripts/foundation-acceptance.ps1` gained the frontend restore/lint/format/
+build/test steps ahead of that Compose gate. The full
+`docker compose ... up --build` stack was verified serving login, profile, and
+administrative user management end to end.
 
 ## Recommended Pull Request Breakdown
 

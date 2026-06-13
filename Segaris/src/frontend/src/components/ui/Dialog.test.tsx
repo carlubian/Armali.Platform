@@ -15,17 +15,21 @@ describe('Dialog', () => {
   })
 
   it('renders a modal dialog with title, description, body, and footer', () => {
-    render(
-      <Dialog
-        title="Deactivate user"
-        description="This will revoke their access."
-        footer={<button type="button">Confirm</button>}
-      >
-        Are you sure?
-      </Dialog>,
+    const { container } = render(
+      <div className="screen-content">
+        <Dialog
+          title="Deactivate user"
+          description="This will revoke their access."
+          footer={<button type="button">Confirm</button>}
+        >
+          Are you sure?
+        </Dialog>
+      </div>,
     )
     const dialog = screen.getByRole('dialog', { name: 'Deactivate user' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(container.querySelector('.arm-dialog__scrim')).toBeNull()
+    expect(dialog.parentElement?.parentElement).toBe(document.body)
     expect(screen.getByText('This will revoke their access.')).toBeInTheDocument()
     expect(screen.getByText('Are you sure?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
@@ -39,7 +43,7 @@ describe('Dialog', () => {
   it('closes via the close button, the Escape key, and the backdrop', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    const { container } = render(
+    render(
       <Dialog title="Closable" onClose={onClose}>
         Body
       </Dialog>,
@@ -47,7 +51,7 @@ describe('Dialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Close' }))
     await user.keyboard('{Escape}')
-    const scrim = container.querySelector('.arm-dialog__scrim')
+    const scrim = document.body.querySelector('.arm-dialog__scrim')
     expect(scrim).not.toBeNull()
     await user.click(scrim as Element)
 

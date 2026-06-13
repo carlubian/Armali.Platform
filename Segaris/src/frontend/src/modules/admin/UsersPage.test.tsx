@@ -316,8 +316,33 @@ describe('administrative user management', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Edit user' })
     expect(within(dialog).getByLabelText('Role')).toBeDisabled()
     expect(
-      within(dialog).getByText('You cannot change your own role. Ask another administrator.'),
+      within(dialog).getByText(
+        'You cannot change your own role. Ask another administrator.',
+      ),
     ).toBeInTheDocument()
+  })
+
+  it('prevents an administrator from deactivating themselves', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({ userCount: 3 })
+    render(<App />)
+
+    await screen.findByText('Member 01')
+    const card = screen.getByText('Member 01').closest('.seg-ucard') as HTMLElement
+    const deactivate = within(card).getByRole('button', { name: 'Deactivate' })
+
+    expect(deactivate).toBeDisabled()
+    expect(deactivate).toHaveAttribute(
+      'title',
+      'You cannot deactivate your own account.',
+    )
+    await user.click(deactivate)
+    expect(
+      screen.queryByRole('dialog', { name: 'Deactivate account?' }),
+    ).not.toBeInTheDocument()
+    expect(requests.some((request) => request.url.includes('/1/deactivate'))).toBe(
+      false,
+    )
   })
 
   it('resets a password for a member', async () => {

@@ -365,6 +365,14 @@ export function UsersPage() {
                       size="sm"
                       variant="ghost"
                       iconLeft={<UserX size={15} />}
+                      disabled={
+                        setActiveMutation.isPending || user.id === session?.userId
+                      }
+                      title={
+                        user.id === session?.userId
+                          ? t('admin.users.ownDeactivateLocked')
+                          : undefined
+                      }
                       onClick={() => setDeactivateTarget(user)}
                     >
                       {t('admin.users.deactivate')}

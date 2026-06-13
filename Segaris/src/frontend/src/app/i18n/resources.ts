@@ -151,6 +151,7 @@ export const platform = {
         confirm: 'Deactivate',
         cancel: 'Keep active',
       },
+      ownDeactivateLocked: 'You cannot deactivate your own account.',
       actionError: 'That action could not be completed. Please try again.',
     },
   },

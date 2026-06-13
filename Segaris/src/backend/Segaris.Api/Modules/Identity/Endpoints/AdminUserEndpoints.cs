@@ -31,13 +31,13 @@ internal static class AdminUserEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithSummary("Updates an account's display name and role");
 
-        group.MapPost("/{id:int}/activate", (int id, UserManager<SegarisUser> userManager) =>
-            SetActiveAsync(id, true, userManager))
+        group.MapPost("/{id:int}/activate", (int id, ClaimsPrincipal principal, UserManager<SegarisUser> userManager) =>
+            SetActiveAsync(id, true, principal, userManager))
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithSummary("Activates an account");
 
-        group.MapPost("/{id:int}/deactivate", (int id, UserManager<SegarisUser> userManager) =>
-            SetActiveAsync(id, false, userManager))
+        group.MapPost("/{id:int}/deactivate", (int id, ClaimsPrincipal principal, UserManager<SegarisUser> userManager) =>
+            SetActiveAsync(id, false, principal, userManager))
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithSummary("Deactivates an account and invalidates its sessions");
 
@@ -196,6 +196,7 @@ internal static class AdminUserEndpoints
     private static async Task<IResult> SetActiveAsync(
         int id,
         bool isActive,
+        ClaimsPrincipal principal,
         UserManager<SegarisUser> userManager)
     {
         var user = await userManager.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -207,6 +208,15 @@ internal static class AdminUserEndpoints
         if (user.IsActive == isActive)
         {
             return TypedResults.NoContent();
+        }
+
+        if (!isActive
+            && string.Equals(
+                userManager.GetUserId(principal),
+                user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                StringComparison.Ordinal))
+        {
+            throw ActiveStateProblem("Administrators cannot deactivate their own account.");
         }
 
         user.IsActive = isActive;
@@ -320,6 +330,15 @@ internal static class AdminUserEndpoints
         errors: new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["role"] = [message],
+        });
+
+    private static ApiProblemException ActiveStateProblem(string message) => new(
+        StatusCodes.Status400BadRequest,
+        ApiErrorCodes.BadRequest,
+        "One or more request values are invalid.",
+        errors: new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["isActive"] = [message],
         });
 
     private static SortRequest ParseSort(string? sort, string? direction)

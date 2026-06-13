@@ -39,8 +39,8 @@ jobs:
             dockerfile: Segaris/src/backend/Segaris.Api/Dockerfile
           - name: frontend
             repository: segaris-frontend
-            context: Segaris/deploy/frontend-placeholder
-            dockerfile: Segaris/deploy/frontend-placeholder/Dockerfile
+            context: Segaris/src/frontend
+            dockerfile: Segaris/src/frontend/Dockerfile
           - name: caddy
             repository: segaris-caddy
             context: Segaris/deploy/caddy

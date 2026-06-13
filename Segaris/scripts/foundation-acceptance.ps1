@@ -43,6 +43,12 @@ try {
         dotnet test tests/backend/Segaris.Migrations.IntegrationTests/Segaris.Migrations.IntegrationTests.csproj --no-restore --no-build
     }
 
+    Invoke-Step "Frontend restore" { & "$root/scripts/frontend-restore.ps1" }
+    Invoke-Step "Frontend lint" { & "$root/scripts/frontend-lint.ps1" }
+    Invoke-Step "Frontend formatting" { & "$root/scripts/frontend-format.ps1" -Verify }
+    Invoke-Step "Frontend build" { & "$root/scripts/frontend-build.ps1" }
+    Invoke-Step "Frontend unit tests" { & "$root/scripts/frontend-test.ps1" }
+
     $bash = Get-Command bash -ErrorAction SilentlyContinue
     if ($null -eq $bash) {
         throw "The Compose acceptance gate requires bash and Docker Compose."

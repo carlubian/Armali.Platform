@@ -57,6 +57,44 @@ jobs:
       - name: Run API integration tests
         run: dotnet test Segaris/tests/backend/Segaris.Api.IntegrationTests/Segaris.Api.IntegrationTests.csproj --no-restore --no-build
 
+  frontend:
+    name: Segaris Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.16.0
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Restore
+        shell: pwsh
+        run: ./Segaris/scripts/frontend-restore.ps1
+
+      - name: Lint
+        shell: pwsh
+        run: ./Segaris/scripts/frontend-lint.ps1
+
+      - name: Verify formatting
+        shell: pwsh
+        run: ./Segaris/scripts/frontend-format.ps1 -Verify
+
+      - name: Type-check and build
+        shell: pwsh
+        run: ./Segaris/scripts/frontend-build.ps1
+
+      - name: Run unit and component tests
+        shell: pwsh
+        run: ./Segaris/scripts/frontend-test.ps1
+
   postgres:
     name: Segaris PostgreSQL
     runs-on: ubuntu-latest

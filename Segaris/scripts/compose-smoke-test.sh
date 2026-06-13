@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
 # Build and start the full Segaris container stack locally, verify that Caddy
-# routes correctly and the backend reaches readiness, then tear everything down.
+# routes correctly, the backend reaches readiness, and the authenticated
+# application flow (sign-in, self-service profile, administrative user list)
+# works end to end through the ingress, then tear everything down.
 #
-# This is the Wave 8 smoke test. It is safe to run repeatedly; it uses an
-# isolated Compose project and ephemeral host storage in a temporary directory,
-# and always cleans up.
+# It is safe to run repeatedly; it uses an isolated Compose project and ephemeral
+# host storage in a temporary directory, seeds a disposable bootstrap
+# administrator, and always cleans up.
 #
 # Usage:
 #   ./compose-smoke-test.sh
@@ -26,11 +28,17 @@ mkdir -p "${WORK_DIR}/attachments" "${WORK_DIR}/backups" "${WORK_DIR}/dataprotec
 # without requiring privileged ownership changes on the GitHub runner.
 chmod 0777 "${WORK_DIR}/attachments" "${WORK_DIR}/backups" "${WORK_DIR}/dataprotection-keys"
 
+# Seed a disposable first administrator so the functional flow below can sign in
+# and exercise the profile and administrative endpoints. The bootstrap is
+# idempotent and only acts on the empty smoke database.
+SMOKE_ADMIN_USERNAME="smoke-admin"
+SMOKE_ADMIN_PASSWORD="SmokeAdmin123!"
+
 export SEGARIS_HTTP_PORT="${HTTP_PORT}"
 export SEGARIS_DATA_PATH="${WORK_DIR}"
 export SEGARIS_POSTGRES_PASSWORD="smoke-test-only"
-export SEGARIS_BOOTSTRAP_USERNAME=""
-export SEGARIS_BOOTSTRAP_PASSWORD=""
+export SEGARIS_BOOTSTRAP_USERNAME="${SMOKE_ADMIN_USERNAME}"
+export SEGARIS_BOOTSTRAP_PASSWORD="${SMOKE_ADMIN_PASSWORD}"
 
 compose() {
   docker compose -p "${PROJECT}" \
@@ -91,6 +99,52 @@ case "${api_status}" in
   200|401|403) echo "Backend routing OK." ;;
   *) echo "Unexpected status from /api/session; backend routing may be broken." >&2; exit 1 ;;
 esac
+
+echo "--- Checking the authenticated application flow (login, profile, admin) ---"
+COOKIES="${WORK_DIR}/cookies.txt"
+
+# 1. Obtain an antiforgery token (and its cookie) for the state-changing sign-in.
+csrf="$(curl -fsS -c "${COOKIES}" -b "${COOKIES}" "${base}/api/session/antiforgery" \
+  | sed -n 's/.*"csrfToken":"\([^"]*\)".*/\1/p')"
+if [[ -z "${csrf}" ]]; then
+  echo "Could not obtain an antiforgery token from /api/session/antiforgery." >&2
+  exit 1
+fi
+
+# 2. Sign in as the seeded administrator. The administrator is created during
+#    backend startup, so allow a few attempts before giving up.
+login_status=""
+for _ in 1 2 3 4 5 6; do
+  login_status="$(curl -s -o /dev/null -w '%{http_code}' \
+    -c "${COOKIES}" -b "${COOKIES}" \
+    -H 'Content-Type: application/json' \
+    -H "X-CSRF-TOKEN: ${csrf}" \
+    -X POST "${base}/api/session" \
+    --data "{\"userName\":\"${SMOKE_ADMIN_USERNAME}\",\"password\":\"${SMOKE_ADMIN_PASSWORD}\"}")"
+  [[ "${login_status}" == "204" ]] && break
+  sleep 5
+done
+if [[ "${login_status}" != "204" ]]; then
+  echo "Sign-in as the seeded administrator failed (HTTP ${login_status})." >&2
+  exit 1
+fi
+echo "Sign-in OK."
+
+# 3. The self-service profile must be reachable for the authenticated session.
+profile_status="$(curl -s -o /dev/null -w '%{http_code}' -b "${COOKIES}" "${base}/api/session/profile")"
+if [[ "${profile_status}" != "200" ]]; then
+  echo "GET /api/session/profile returned HTTP ${profile_status} (expected 200)." >&2
+  exit 1
+fi
+echo "Profile OK."
+
+# 4. The administrative user list must be reachable for the administrator role.
+admin_status="$(curl -s -o /dev/null -w '%{http_code}' -b "${COOKIES}" "${base}/api/admin/users")"
+if [[ "${admin_status}" != "200" ]]; then
+  echo "GET /api/admin/users returned HTTP ${admin_status} (expected 200)." >&2
+  exit 1
+fi
+echo "Administrative user management OK."
 
 echo ""
 echo "Smoke test passed."

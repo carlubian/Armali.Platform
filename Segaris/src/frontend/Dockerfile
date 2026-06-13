@@ -15,10 +15,15 @@ ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 
 RUN pnpm run build
 
-FROM nginx:1.29-alpine AS runtime
+# Runtime stage: Caddy serves the compiled static assets with single-page
+# fallback. Caddy is used across the stack (the ingress is Caddy too), so the
+# frontend keeps a single web-server technology and a config-as-code Caddyfile.
+FROM caddy:2-alpine AS runtime
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY Caddyfile /etc/caddy/Caddyfile
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+COPY --from=build /app/dist /srv
 
 EXPOSE 80
 

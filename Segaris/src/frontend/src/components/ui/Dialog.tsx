@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import type { ComponentPropsWithRef, CSSProperties, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 import './Dialog.css'
 
@@ -60,7 +61,7 @@ export function Dialog({
     if (event.target === event.currentTarget) onClose?.()
   }
 
-  return (
+  return createPortal(
     // The backdrop close is a convenience; keyboard users dismiss via the close
     // button or the Escape key handled above.
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
@@ -111,6 +112,7 @@ export function Dialog({
         {children != null && <div className="arm-dialog__body">{children}</div>}
         {footer != null && <div className="arm-dialog__footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -287,6 +287,27 @@ public sealed class IdentityTests
     }
 
     [Fact]
+    public async Task Administrators_cannot_deactivate_their_own_account()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var session = await admin.GetFromJsonAsync<JsonElement>("/api/session", CancellationToken.None);
+        var adminId = session.GetProperty("userId").GetInt32();
+
+        using var deactivate = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Post,
+            $"/api/admin/users/{adminId}/deactivate");
+        var problem = await deactivate.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        using var stillAuthenticated = await admin.GetAsync("/api/session", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, deactivate.StatusCode);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("isActive", out _));
+        Assert.Equal(HttpStatusCode.OK, stillAuthenticated.StatusCode);
+    }
+
+    [Fact]
     public async Task A_user_can_change_their_password_and_the_old_one_stops_working()
     {
         using var server = new IdentityTestServer();
