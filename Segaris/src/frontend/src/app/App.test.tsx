@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
@@ -26,7 +26,7 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function mockAuthenticatedFetch() {
+function mockAuthenticatedFetch(currentSession = session, signOutFails = false) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url =
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -35,9 +35,30 @@ function mockAuthenticatedFetch() {
       return Promise.resolve(json({ csrfToken: 'token' }))
     }
     if (url === '/api/session' && init?.method === 'DELETE') {
+      if (signOutFails) return Promise.reject(new TypeError('Failed to fetch'))
       return Promise.resolve(new Response(null, { status: 204 }))
     }
-    if (url === '/api/session') return Promise.resolve(json(session))
+    if (url.startsWith('/api/admin/users?')) {
+      return Promise.resolve(
+        json({
+          items: [
+            {
+              id: currentSession.userId,
+              userName: currentSession.userName,
+              displayName: currentSession.displayName,
+              roles: currentSession.roles,
+              isActive: true,
+              createdAt: '2026-01-01T00:00:00Z',
+              avatarUrl: null,
+            },
+          ],
+          page: 1,
+          pageSize: 12,
+          totalCount: 1,
+        }),
+      )
+    }
+    if (url === '/api/session') return Promise.resolve(json(currentSession))
     return Promise.reject(new Error(`Unexpected request: ${url}`))
   })
 }
@@ -65,7 +86,40 @@ describe('application routing and session', () => {
     expect(
       await screen.findByRole('heading', { name: 'Choose a module' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Household Admin')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Household Admin' })).toBeVisible()
+    const modules = screen.getByRole('region', { name: 'Available modules' })
+    expect(within(modules).getByRole('button', { name: /My profile/i })).toBeVisible()
+    expect(
+      within(modules).getByRole('button', { name: /Household users/i }),
+    ).toBeVisible()
+  })
+
+  it('hides administrative modules from regular users', async () => {
+    mockAuthenticatedFetch({ ...session, roles: ['User'] })
+    render(<App />)
+    const modules = await screen.findByRole('region', { name: 'Available modules' })
+    expect(within(modules).getByRole('button', { name: /My profile/i })).toBeVisible()
+    expect(
+      within(modules).queryByRole('button', { name: /Household users/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('navigates from the launcher to each module and back', async () => {
+    mockAuthenticatedFetch()
+    render(<App />)
+
+    let modules = await screen.findByRole('region', { name: 'Available modules' })
+    fireEvent.click(within(modules).getByRole('button', { name: /My profile/i }))
+    await screen.findByRole('heading', { name: 'My profile' })
+    fireEvent.click(screen.getByRole('button', { name: 'Launcher' }))
+
+    modules = await screen.findByRole('region', { name: 'Available modules' })
+    fireEvent.click(within(modules).getByRole('button', { name: /Household users/i }))
+    await screen.findByRole('heading', { name: 'Household users' })
+    fireEvent.click(screen.getByRole('button', { name: 'Launcher' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Choose a module' }),
+    ).toBeVisible()
   })
 
   it('renders the explicit not-found route', async () => {
@@ -104,6 +158,14 @@ describe('application routing and session', () => {
       '/api/session',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('keeps the session active and reports a failed sign out', async () => {
+    mockAuthenticatedFetch(session, true)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out')
+    expect(screen.getByRole('heading', { name: 'Choose a module' })).toBeVisible()
   })
 
   it('shows service unavailable and retries on demand', async () => {

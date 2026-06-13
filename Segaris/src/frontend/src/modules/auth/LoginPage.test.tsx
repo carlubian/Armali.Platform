@@ -96,7 +96,7 @@ describe('login screen', () => {
       await screen.findByRole('heading', { name: 'Choose a module' }),
     ).toBeInTheDocument()
     // The session context is populated: the shell shows the signed-in identity.
-    expect(screen.getByText('Marina')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Marina' })).toBeVisible()
   })
 
   it('shows a generic error for invalid credentials without leaking account state', async () => {

@@ -53,3 +53,12 @@
   height: 28px;
   background: var(--border-subtle);
 }
+.seg-shell__notice {
+  position: fixed;
+  top: calc(var(--topbar-h) + var(--space-4));
+  right: var(--space-5);
+  z-index: 30;
+}
+.seg-spin {
+  animation: arm-spin 900ms linear infinite;
+}

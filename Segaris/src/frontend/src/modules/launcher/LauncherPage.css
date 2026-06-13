@@ -1,6 +1,6 @@
 .seg-launcher {
   min-height: calc(100vh - var(--topbar-h));
-  padding: var(--space-8);
+  padding: var(--space-9);
 }
 .seg-launcher__head {
   position: relative;
@@ -21,9 +21,95 @@
   color: var(--text-secondary);
   font-size: var(--text-lg);
 }
-.seg-launcher__content {
+.seg-modules {
   position: relative;
   z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-5);
+}
+.seg-mod {
+  position: relative;
+  min-height: 230px;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  text-align: left;
+  color: var(--text-primary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  backdrop-filter: var(--blur-glass);
+  box-shadow: var(--glow-card);
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.seg-mod:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--glow-aqua), var(--glow-card);
+}
+.seg-mod__icon {
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--aqua-100);
+  color: var(--aqua-700);
+}
+.seg-mod--gold .seg-mod__icon {
+  background: var(--gold-100);
+  color: var(--gold-600);
+}
+.seg-mod__name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+.seg-mod__desc {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+.seg-mod__foot {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+.seg-mod:hover .seg-mod__foot {
+  color: var(--aqua-700);
+}
+.seg-mod__attn {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--gold-500);
+  box-shadow: 0 0 0 4px var(--gold-100);
+  animation: armali-breathe var(--dur-breathe) var(--ease-soft) infinite;
+}
+@media (max-width: 720px) {
+  .seg-launcher {
+    padding: var(--space-6);
+  }
+  .seg-launcher__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

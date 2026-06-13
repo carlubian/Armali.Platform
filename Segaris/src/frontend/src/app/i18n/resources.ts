@@ -10,6 +10,9 @@ export const platform = {
   },
   auth: {
     signOut: 'Sign out',
+    signingOut: 'Signing out…',
+    signOutErrorTitle: 'Could not sign out',
+    signOutErrorBody: 'Your session is still active. Please try again.',
     login: {
       title: 'Welcome home',
       subtitle: 'Sign in to your household to open Segaris.',
@@ -29,10 +32,24 @@ export const platform = {
     },
   },
   launcher: {
-    eyebrow: 'Household platform',
+    greeting: 'Welcome, {{name}}',
     title: 'Choose a module',
     description: 'Open a tool to manage that part of your home. Return here to switch.',
-    foundation: 'Application foundation ready',
+    availableModules: 'Available modules',
+    moduleCount_one: '{{count}} module',
+    moduleCount_other: '{{count}} modules',
+    open: 'Open',
+    attention: 'Needs your attention',
+    modules: {
+      profile: {
+        title: 'My profile',
+        description: 'Update your display name, language, password, and profile photo.',
+      },
+      users: {
+        title: 'Household users',
+        description: 'Create and manage the accounts that can access Segaris.',
+      },
+    },
   },
   shell: {
     launcher: 'Launcher',

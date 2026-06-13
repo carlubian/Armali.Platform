@@ -53,15 +53,15 @@ Excluded:
 
 The following open items must be resolved at the indicated point. They should not silently acquire implementation defaults.
 
-| Decision | Required by |
-| --- | --- |
-| Frontend package manager, lint/format/test tooling, and directory conventions | Resolved in Wave 0 |
-| Development integration between the Vite dev server and the backend (proxy vs. CORS) | Resolved in Wave 0 |
-| Frontend environment/configuration contract (`src/frontend/.env.example`) | Resolved in Wave 0 |
-| Self-service profile and avatar API contract, including endpoint routes, DTO shapes, migration names, and the admin-list response extension | Resolved in Wave 1 |
-| Avatar validation rules (allowed types, size, single-avatar replace semantics) on top of the existing attachment policy | Resolved in Wave 1 |
-| Frontend container build and static-asset-serving strategy, replacing `deploy/frontend-placeholder` | Resolved in Wave 10 |
-| Required CI checks for the frontend and placement of end-to-end tests | Resolved in Wave 10 |
+| Decision                                                                                                                                    | Required by         |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Frontend package manager, lint/format/test tooling, and directory conventions                                                               | Resolved in Wave 0  |
+| Development integration between the Vite dev server and the backend (proxy vs. CORS)                                                        | Resolved in Wave 0  |
+| Frontend environment/configuration contract (`src/frontend/.env.example`)                                                                   | Resolved in Wave 0  |
+| Self-service profile and avatar API contract, including endpoint routes, DTO shapes, migration names, and the admin-list response extension | Resolved in Wave 1  |
+| Avatar validation rules (allowed types, size, single-avatar replace semantics) on top of the existing attachment policy                     | Resolved in Wave 1  |
+| Frontend container build and static-asset-serving strategy, replacing `deploy/frontend-placeholder`                                         | Resolved in Wave 10 |
+| Required CI checks for the frontend and placement of end-to-end tests                                                                       | Resolved in Wave 10 |
 
 ## Delivery Strategy
 
@@ -432,7 +432,7 @@ are recorded in `docs/planning/IDENTITY_PROFILE_DECISIONS.md`.
 
 ### Wave 9: Launcher And Shared-Shell Completion
 
-Status: **Not started**. Depends on Waves 5, 6, and 7.
+Status: **Completed**. Depends on Waves 5, 6, and 7.
 
 Tasks:
 
@@ -453,6 +453,27 @@ Tests:
 Exit criteria:
 
 - The application core — login, launcher, profile including avatar, and administrative user management — is navigable end to end as one coherent shell, in English.
+
+Resolution: the launcher placeholder is replaced by a responsive Project Armali
+module grid backed by a typed `ModuleCardModel` catalog. It currently exposes
+"My profile" to every authenticated user and "Household users" only to
+administrators, while preserving optional role and attention-indicator fields
+for future modules without adding domain data to the launcher. The shared top
+bar provides the consistent return-to-launcher, profile, avatar, and sign-out
+actions on every protected route. Sign-out now disables itself while the
+antiforgery-protected `DELETE /api/session` request is pending, clears the
+session and returns to login on success, and keeps the active shell with an
+accessible persistent error toast if the request fails.
+
+The `platform` resource now contains the final launcher and sign-out copy, and
+its tests scan literal application translation calls in addition to validating
+the registered fallback resource. Reduced-motion handling covers pseudo-elements,
+transitions, the aurora, dialogs, toasts, spinners, and the optional breathing
+attention dot. Focused component/application tests cover role-filtered cards,
+the attention contract, the full launcher/profile/admin navigation loop, and
+sign-out success/failure. `axe-core` audits cover login, launcher, profile, and
+administration, and an environment-gated Playwright journey covers the complete
+shared-shell navigation and sign-out flow against the running stack.
 
 ### Wave 10: Containers, Compose, And CI Completion
 
