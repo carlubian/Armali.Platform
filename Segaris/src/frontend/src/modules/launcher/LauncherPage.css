@@ -1,0 +1,29 @@
+.seg-launcher {
+  min-height: calc(100vh - var(--topbar-h));
+  padding: var(--space-8);
+}
+.seg-launcher__head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-6);
+  max-width: 1200px;
+  margin: 0 auto var(--space-8);
+}
+.seg-launcher__head h1 {
+  margin-top: var(--space-2);
+  font-size: var(--text-4xl);
+}
+.seg-launcher__head p {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+}
+.seg-launcher__content {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+}

@@ -84,6 +84,12 @@ The shared platform experience should define only the conventions needed for coh
 - Confirmation of irreversible destructive operations.
 - A baseline for accessibility and common controls.
 
+The shared shell keeps a compact top bar visible on protected routes. The
+launcher shows the Segaris brand; module routes replace it with a consistently
+located return-to-launcher action. Profile access, sign-out, and the current
+user avatar remain available at the opposite edge of the bar. Modules may
+define the content below this bar but must not replace these platform actions.
+
 Module layout, navigation hierarchy, information density, visual emphasis, and domain-specific interactions may differ when that makes the module more effective or immersive.
 
 ## Design References
@@ -111,7 +117,6 @@ The additional navigation step is intentional. The launcher should make that ste
 - Define the API contract through which each module exposes its current-user attention state to the launcher.
 - Define shared toast behavior with the future design system, including duration, severity, accessibility, and treatment of background-process results.
 - Define which module or application section owns the calendar and which domain events and due dates it includes.
-- Define the shared shell elements that remain visible inside every module.
 - Define whether modules may have distinct themes and how much visual variation the design system in `docs/architecture/design-system.md` permits.
 - Define the behavior of browser back navigation and direct deep links across authentication and authorization boundaries.
 - Define keyboard navigation and whether a command palette is useful within the launcher or individual modules.

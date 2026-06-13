@@ -195,7 +195,7 @@ port.
 
 ### Wave 4: Application Shell, Routing, Session, Query, And Error Handling
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -218,6 +218,14 @@ Tests:
 Exit criteria:
 
 - An authenticated session loads the shared shell and launcher chrome; unauthenticated access redirects to login; the global failure and not-found states render correctly before any feature screen exists.
+
+Resolution: React Router now separates the public login entry point, protected
+shell routes, module boundaries, and the explicit not-found route. TanStack
+Query owns the combined session/profile view through a focused session context;
+the shared API client supplies antiforgery tokens, bounded request timeouts, and
+typed failure categories. The `platform` i18next namespace, `Intl` formatters,
+root/module error boundaries, shared loading/unavailable/not-found screens, and
+the shell top bar are implemented with focused Vitest coverage.
 
 ### Wave 5: Login
 
