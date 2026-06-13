@@ -180,3 +180,26 @@ The selected foundation follows the established SPA, same-origin cookie, and
 independent frontend-build decisions. Exact runtime and package-manager pins make
 the scaffold reproducible, while deferring application dependency versions to
 Wave 2 avoids creating a partial frontend package before the scaffold exists.
+
+## Wave 2 Implementation Notes
+
+Wave 2 applied these conventions while scaffolding `src/frontend` and resolved
+the following points that were left open or proved inexact above:
+
+- pnpm 10+ reads project-wide settings from `pnpm-workspace.yaml`, not from
+  `.npmrc` (which it now treats as registry/auth configuration). The
+  exact-pinning and pinned-engine policies are therefore enforced in
+  `src/frontend/pnpm-workspace.yaml` via `saveExact: true` and
+  `engineStrict: true`. The repository-root `.npmrc` is not read for a project
+  rooted at `src/frontend`.
+- ESLint is pinned to the `9.x` line rather than `10.x`. `eslint-plugin-react`
+  does not yet support ESLint 10's rule context API; ESLint 9 is the current
+  line the React, hooks, accessibility, and `typescript-eslint` plugins target,
+  and flat configuration is its default. Revisit when the React plugin ships
+  ESLint 10 support.
+- The selected, exactly pinned versions are recorded in
+  `src/frontend/package.json` and locked in `src/frontend/pnpm-lock.yaml`. The
+  scaffold runs on React 19, Vite 8, TypeScript 6, Vitest 4, and Playwright 1.6.
+- The development proxy override `SEGARIS_FRONTEND_PROXY_TARGET` is validated in
+  `vite.config.ts` (absolute HTTP/HTTPS origin only) and defaults to
+  `http://localhost:5004`.

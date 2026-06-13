@@ -128,7 +128,7 @@ household avatar-read policy are recorded in
 
 ### Wave 2: Frontend Repository And Scaffold
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -149,6 +149,15 @@ Tests:
 Exit criteria:
 
 - A contributor can clone the repository, install dependencies, build the frontend, and run it locally against the backend through the development proxy.
+
+Resolution: `src/frontend` is scaffolded as a Vite + React + TypeScript SPA with
+ESLint (flat), Prettier, project-referenced `tsconfig`, the `/api` development
+proxy, the `.env.example` contract, and colocated Vitest plus
+`tests/frontend/e2e` Playwright smoke coverage. The `{layer}-{action}`
+PowerShell wrappers (`frontend-restore|build|lint|format|test|run`) and the
+exactly pinned dependency set are committed with `pnpm-lock.yaml`. Selected
+versions and the ESLint 9 pin are recorded in
+`docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`.
 
 ### Wave 3: Design-System Token And Component Port
 

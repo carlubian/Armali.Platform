@@ -77,6 +77,36 @@ while developing the backend natively:
 
 Add `-Seq` to `infra-up.ps1` when the local Seq UI is needed.
 
+## Frontend Development
+
+The frontend is a Vite + React + TypeScript single-page application under
+`src/frontend`, managed with pnpm (provisioned through Corepack). Create
+`src/frontend/.env` from `src/frontend/.env.example`, then use the repository
+scripts:
+
+```powershell
+./scripts/frontend-restore.ps1
+./scripts/frontend-build.ps1
+./scripts/frontend-test.ps1
+./scripts/frontend-run.ps1
+```
+
+Useful supporting commands:
+
+```powershell
+./scripts/frontend-lint.ps1
+./scripts/frontend-format.ps1 -Verify
+./scripts/frontend-test.ps1 -E2E
+```
+
+`frontend-run.ps1` starts the Vite development server, which proxies `/api` to
+the backend (default `http://localhost:5004`, overridable with
+`SEGARIS_FRONTEND_PROXY_TARGET`) so session and antiforgery cookies stay
+same-origin. Run the backend with `./scripts/backend-run.ps1` alongside it.
+
+End-to-end tests require the Playwright browsers, installed once with
+`corepack pnpm -C src/frontend exec playwright install chromium`.
+
 ## Containerized Stack
 
 Run the complete local stack and open `http://localhost:5525/`:

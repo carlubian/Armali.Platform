@@ -1,0 +1,29 @@
+/*
+ * Minimal base styles for the scaffold.
+ *
+ * The Project Armali design tokens, self-hosted fonts, and reset are ported in
+ * Wave 3 (design-system token and component port). This file is intentionally
+ * small until then.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
