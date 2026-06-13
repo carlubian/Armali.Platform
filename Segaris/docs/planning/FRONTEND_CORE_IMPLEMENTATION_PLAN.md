@@ -360,7 +360,7 @@ the containers/Compose/CI completion work to **Wave 10**.
 
 ### Wave 8: Administrative User Editing (Display Name And Role)
 
-Status: **Not started**. Depends on Wave 7.
+Status: **Completed**. Depends on Wave 7.
 
 This wave closes the gap identified in Wave 7: administrators can create,
 reset, activate, and deactivate accounts, but cannot yet edit an existing
@@ -410,6 +410,25 @@ Exit criteria:
 - An administrator can edit a household member's display name and role through
   the interface, in addition to creating, resetting, activating, and
   deactivating accounts.
+
+Resolution: a `PUT /api/admin/users/{id}` endpoint (`AdminUserEndpoints`,
+antiforgery-gated, explicit `UpdateUserRequest`/`AdminUserResponse` DTOs) updates
+a member's display name and role, reusing the self-service display-name rule
+(`IdentityProfilePolicy.TryNormalizeDisplayName`) and the create-flow
+`User`/`Admin` allow-list, reassigning the role through `UserManager` only when
+it changes. Per the project owner's decisions, an administrator **cannot** change
+their own role (a `400` `role` field error) but may edit their own display name,
+and a defence-in-depth last-administrator guard is retained; the create flow
+keeps deriving the display name from the username (no schema change). The
+frontend admin screen (`UsersPage.tsx`) gains a per-card "Edit" action opening a
+React Hook Form + Zod dialog against the new endpoint, with the role selector
+locked when editing yourself, field-mapped backend validation, and user-list
+invalidation on success, plus `platform.admin.users.edit.*` `en-GB` keys.
+Backend integration tests cover role reassignment, the self-role prohibition,
+own display-name editing, display-name validation, antiforgery enforcement, and
+the `403` for non-administrators; frontend tests cover the edit success path,
+backend validation mapping, and the self-edit role lock. The contract and rules
+are recorded in `docs/planning/IDENTITY_PROFILE_DECISIONS.md`.
 
 ### Wave 9: Launcher And Shared-Shell Completion
 

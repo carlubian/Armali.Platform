@@ -70,3 +70,58 @@ Any authenticated household user may read another user's avatar. Only the
 owner may upload, replace, or remove their avatar because all mutations are
 available exclusively through the current-session routes. Missing users and
 missing avatars return `404`.
+
+## Administrative User Editing (Wave 8)
+
+Wave 8 closes the Wave 7 gap where administrators could create, reset,
+activate, and deactivate accounts but could not edit an existing member's
+display name or role.
+
+### Endpoint Contract
+
+```text
+PUT /api/admin/users/{id}   Updates a member's display name and role
+```
+
+The request is an explicit DTO (no EF entity serialization):
+
+```json
+{
+  "displayName": "Household Admin",
+  "role": "Admin"
+}
+```
+
+The endpoint is `Admin`-only and antiforgery-gated, like the other
+`/api/admin/users` mutations. It returns the standard `AdminUserResponse`
+(id, userName, displayName, roles, isActive, createdAt, avatarUrl). A missing
+user returns `404`.
+
+`displayName` reuses the self-service profile rule (trimmed, 1 to 200
+characters) through `IdentityProfilePolicy.TryNormalizeDisplayName`. `role`
+reuses the create-flow `User`/`Admin` allow-list. Invalid values return `400`
+with field-keyed errors (`displayName`, `role`).
+
+The role is changed through `UserManager`: when the requested role differs from
+the current one, the previous role assignments are removed and the new role is
+assigned. When the role is unchanged, only the display name is updated.
+
+### Role-Change Rules
+
+- **No self role change.** An administrator cannot change their own role; the
+  request is rejected with a `400` `role` field error. A different
+  administrator must perform the change. Administrators may still edit their own
+  display name.
+- **Last-administrator guard.** Demoting a user who is the only remaining
+  administrator is rejected with a `400` `role` field error. With the
+  self-role-change prohibition in place this guard is effectively a
+  defence-in-depth measure — the actor is always an administrator, so any other
+  administrative target implies at least two administrators — but it is retained
+  so the lock-out invariant does not depend solely on the self-change rule.
+
+### Create-Time Display Name
+
+The create flow is deliberately left unchanged: a new account's display name is
+still derived from its username. Administrators set a distinct display name
+afterwards through the new edit endpoint. No schema change is introduced, since
+`DisplayName` already exists.

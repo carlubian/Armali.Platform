@@ -33,6 +33,11 @@ export interface CreateUserRequest {
   role: string
 }
 
+export interface UpdateUserRequest {
+  displayName: string
+  role: string
+}
+
 export const adminUsersApi = {
   list: (query: ListUsersQuery = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams()
@@ -49,6 +54,12 @@ export const adminUsersApi = {
   create: (request: CreateUserRequest, signal?: AbortSignal) =>
     apiRequest<AdminUser>('/api/admin/users', {
       method: 'POST',
+      body: JSON.stringify(request),
+      signal,
+    }),
+  update: (id: number, request: UpdateUserRequest, signal?: AbortSignal) =>
+    apiRequest<AdminUser>(`/api/admin/users/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(request),
       signal,
     }),

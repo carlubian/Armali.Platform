@@ -112,6 +112,27 @@ function mockBackend(options: { roles?: string[]; userCount?: number } = {}) {
         return json({ ...created, avatarUrl: null }, 201)
       }
 
+      const updateMatch = url.match(/^\/api\/admin\/users\/(\d+)$/)
+      if (updateMatch && method === 'PUT') {
+        const id = Number(updateMatch[1])
+        const body = JSON.parse(init?.body as string) as {
+          displayName: string
+          role: string
+        }
+        requests.push({ method, url, body })
+        const target = users.find((user) => user.id === id)
+        if (target == null) return json({ code: 'not.found' }, 404)
+        if (body.displayName === 'taken') {
+          return json(
+            { code: 'request.invalid', errors: { displayName: ['Invalid.'] } },
+            400,
+          )
+        }
+        target.displayName = body.displayName
+        target.roles = [body.role]
+        return json({ ...target, avatarUrl: null })
+      }
+
       const actionMatch = url.match(
         /^\/api\/admin\/users\/(\d+)\/(activate|deactivate|password)$/,
       )
@@ -236,6 +257,67 @@ describe('administrative user management', () => {
         (request) => request.method === 'POST' && request.url === '/api/admin/users',
       ),
     ).toBe(true)
+  })
+
+  it('edits a member display name and role and reflects it in the list', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({ userCount: 3 })
+    render(<App />)
+
+    await screen.findByText('Member 01')
+    const card = screen.getByText('Member 03').closest('.seg-ucard') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: 'Edit' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit user' })
+    const nameField = within(dialog).getByLabelText('Display name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Renamed Member')
+    await user.selectOptions(within(dialog).getByLabelText('Role'), 'Admin')
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument()
+    expect(await screen.findByText('Renamed Member')).toBeInTheDocument()
+    const update = requests.find(
+      (request) => request.method === 'PUT' && request.url === '/api/admin/users/3',
+    )
+    expect(update?.body).toEqual({ displayName: 'Renamed Member', role: 'Admin' })
+  })
+
+  it('maps a backend validation error to the edit form', async () => {
+    const user = userEvent.setup()
+    mockBackend({ userCount: 3 })
+    render(<App />)
+
+    await screen.findByText('Member 01')
+    const card = screen.getByText('Member 03').closest('.seg-ucard') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: 'Edit' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit user' })
+    const nameField = within(dialog).getByLabelText('Display name')
+    await user.clear(nameField)
+    await user.type(nameField, 'taken')
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    expect(
+      await within(dialog).findByText('Choose a valid display name.'),
+    ).toBeInTheDocument()
+  })
+
+  it('locks the role selector when an administrator edits themselves', async () => {
+    const user = userEvent.setup()
+    mockBackend({ userCount: 3 })
+    render(<App />)
+
+    await screen.findByText('Member 01')
+    // Member 01 is the signed-in administrator (session userId 1).
+    const card = screen.getByText('Member 01').closest('.seg-ucard') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: 'Edit' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit user' })
+    expect(within(dialog).getByLabelText('Role')).toBeDisabled()
+    expect(
+      within(dialog).getByText('You cannot change your own role. Ask another administrator.'),
+    ).toBeInTheDocument()
   })
 
   it('resets a password for a member', async () => {

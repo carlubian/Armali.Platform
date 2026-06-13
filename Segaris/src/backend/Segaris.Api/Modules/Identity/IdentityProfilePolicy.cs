@@ -40,6 +40,18 @@ internal static class IdentityProfilePolicy
         return new(normalizedDisplayName, language!);
     }
 
+    /// <summary>
+    /// Applies the shared display-name rule (trimmed, 1 to
+    /// <see cref="MaximumDisplayNameLength"/> characters) without binding it to a
+    /// language, so administrative editing reuses the same policy as the
+    /// self-service profile.
+    /// </summary>
+    public static bool TryNormalizeDisplayName(string? displayName, out string normalized)
+    {
+        normalized = displayName?.Trim() ?? string.Empty;
+        return normalized.Length is > 0 and <= MaximumDisplayNameLength;
+    }
+
     public static void ValidateAvatar(string contentType)
     {
         var normalized = contentType.Split(';', 2)[0].Trim();

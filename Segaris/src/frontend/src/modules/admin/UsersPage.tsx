@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Clock,
   KeyRound,
+  Pencil,
   UserCheck,
   UserPlus,
   UserX,
@@ -69,6 +70,7 @@ export function UsersPage() {
   const [page, setPage] = useState(1)
   const [sortOption, setSortOption] = useState<SortOption>('newest')
   const [createOpen, setCreateOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null)
   const [resetTarget, setResetTarget] = useState<AdminUser | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -93,6 +95,10 @@ export function UsersPage() {
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema(t)),
     defaultValues: { userName: '', role: 'User', password: '' },
+  })
+  const editForm = useForm<EditValues>({
+    resolver: zodResolver(editSchema(t)),
+    defaultValues: { displayName: '', role: 'User' },
   })
   const resetForm = useForm<ResetValues>({
     resolver: zodResolver(resetSchema(t)),
@@ -132,6 +138,33 @@ export function UsersPage() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: number; values: EditValues }) =>
+      adminUsersApi.update(id, {
+        displayName: values.displayName.trim(),
+        role: values.role,
+      }),
+    onSuccess: async (updated) => {
+      await invalidateUsers()
+      setEditTarget(null)
+      editForm.reset()
+      setToast({
+        title: t('admin.users.edit.successTitle'),
+        body: t('admin.users.edit.successBody', { name: updated.displayName }),
+      })
+    },
+    onError: (error) => {
+      if (hasProblem(error, 'displayName')) {
+        editForm.setError('displayName', {
+          message: t('admin.users.edit.displayNameInvalid'),
+        })
+      }
+      if (hasProblem(error, 'role')) {
+        editForm.setError('role', { message: t('admin.users.edit.roleError') })
+      }
+    },
+  })
+
   const resetMutation = useMutation({
     mutationFn: ({ id, newPassword }: { id: number; newPassword: string }) =>
       adminUsersApi.resetPassword(id, newPassword),
@@ -163,6 +196,18 @@ export function UsersPage() {
   const submitCreate = createForm.handleSubmit((values) =>
     createMutation.mutate(values),
   )
+  const submitEdit = editForm.handleSubmit((values) => {
+    if (editTarget == null) return
+    updateMutation.mutate({ id: editTarget.id, values })
+  })
+  const openEdit = (user: AdminUser) => {
+    editForm.reset({
+      displayName: user.displayName,
+      role: user.roles.includes('Admin') ? 'Admin' : 'User',
+    })
+    setEditTarget(user)
+  }
+  const editingSelf = editTarget != null && editTarget.id === session?.userId
   const submitReset = resetForm.handleSubmit((values) => {
     if (resetTarget == null) return
     resetMutation.mutate({ id: resetTarget.id, newPassword: values.newPassword })
@@ -299,6 +344,14 @@ export function UsersPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    iconLeft={<Pencil size={15} />}
+                    onClick={() => openEdit(user)}
+                  >
+                    {t('admin.users.edit.action')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     iconLeft={<KeyRound size={15} />}
                     onClick={() => {
                       resetForm.reset()
@@ -431,6 +484,77 @@ export function UsersPage() {
       </Dialog>
 
       <Dialog
+        open={editTarget != null}
+        title={t('admin.users.edit.title')}
+        description={t('admin.users.edit.subtitle', {
+          name: editTarget?.displayName ?? '',
+        })}
+        closeLabel={t('common.close')}
+        width={460}
+        onClose={() => setEditTarget(null)}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditTarget(null)}>
+              {t('admin.users.edit.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              iconLeft={<Pencil size={16} />}
+              disabled={updateMutation.isPending}
+              onClick={() => void submitEdit()}
+            >
+              {updateMutation.isPending
+                ? t('admin.users.edit.submitting')
+                : t('admin.users.edit.submit')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="seg-edit-user"
+          className="seg-users__form"
+          noValidate
+          onSubmit={(event) => void submitEdit(event)}
+        >
+          {updateMutation.isError &&
+            !hasProblem(updateMutation.error, 'displayName') &&
+            !hasProblem(updateMutation.error, 'role') && (
+              <div className="seg-users__error" role="alert">
+                {t('admin.users.edit.error')}
+              </div>
+            )}
+          <Input
+            label={t('admin.users.edit.displayName')}
+            autoComplete="off"
+            error={editForm.formState.errors.displayName?.message}
+            {...editForm.register('displayName')}
+          />
+          <div className="seg-users__field">
+            <span>{t('admin.users.edit.role')}</span>
+            <Select
+              aria-label={t('admin.users.edit.role')}
+              options={[
+                { value: 'User', label: t('admin.users.roleUser') },
+                { value: 'Admin', label: t('admin.users.roleAdmin') },
+              ]}
+              disabled={editingSelf}
+              {...editForm.register('role')}
+            />
+            {editingSelf && (
+              <span className="arm-field__hint">
+                {t('admin.users.edit.ownRoleLocked')}
+              </span>
+            )}
+            {editForm.formState.errors.role?.message != null && (
+              <span className="arm-field__hint arm-field__hint--error">
+                {editForm.formState.errors.role.message}
+              </span>
+            )}
+          </div>
+        </form>
+      </Dialog>
+
+      <Dialog
         open={resetTarget != null}
         title={t('admin.users.reset.title')}
         description={t('admin.users.reset.subtitle', {
@@ -538,6 +662,19 @@ function createSchema(t: TFunc) {
 }
 
 type CreateValues = z.infer<ReturnType<typeof createSchema>>
+
+function editSchema(t: TFunc) {
+  return z.object({
+    displayName: z
+      .string()
+      .trim()
+      .min(1, t('admin.users.edit.displayNameRequired'))
+      .max(200, t('admin.users.edit.displayNameTooLong')),
+    role: z.enum(['User', 'Admin']),
+  })
+}
+
+type EditValues = z.infer<ReturnType<typeof editSchema>>
 
 interface ResetValues {
   newPassword: string

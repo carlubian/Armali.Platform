@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity.Security;
@@ -25,6 +26,10 @@ internal static class AdminUserEndpoints
         group.MapPost("", CreateAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithSummary("Creates a household account");
+
+        group.MapPut("/{id:int}", UpdateAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithSummary("Updates an account's display name and role");
 
         group.MapPost("/{id:int}/activate", (int id, UserManager<SegarisUser> userManager) =>
             SetActiveAsync(id, true, userManager))
@@ -106,6 +111,86 @@ internal static class AdminUserEndpoints
 
         var response = ToResponse(user, [role.ToString()], hasAvatar: false);
         return TypedResults.Created($"/api/admin/users/{user.Id}", response);
+    }
+
+    private static async Task<IResult> UpdateAsync(
+        int id,
+        UpdateUserRequest request,
+        ClaimsPrincipal principal,
+        UserManager<SegarisUser> userManager,
+        IAttachmentService attachments,
+        CancellationToken cancellationToken)
+    {
+        var (displayName, role) = ValidateUpdate(request);
+
+        var user = await userManager.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (user is null)
+        {
+            throw ApiProblemException.NotFound();
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+        var currentRole = roles.Contains(PlatformRole.Admin.ToString())
+            ? PlatformRole.Admin
+            : PlatformRole.User;
+        var roleChanged = role != currentRole;
+
+        if (roleChanged)
+        {
+            // Administrators cannot change their own role; a different administrator
+            // must do it. This also prevents an administrator from accidentally
+            // demoting themselves out of administration.
+            if (string.Equals(
+                    userManager.GetUserId(principal),
+                    user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    StringComparison.Ordinal))
+            {
+                throw RoleProblem("Administrators cannot change their own role.");
+            }
+
+            // Keep at least one administrator so the household cannot lock itself out.
+            if (currentRole == PlatformRole.Admin
+                && await IsLastAdministratorAsync(userManager, cancellationToken))
+            {
+                throw RoleProblem("At least one administrator must remain.");
+            }
+        }
+
+        user.DisplayName = displayName;
+        var updated = await userManager.UpdateAsync(user);
+        if (!updated.Succeeded)
+        {
+            throw IdentityProblem.FromResult(updated, "displayName");
+        }
+
+        if (roleChanged)
+        {
+            var removed = await userManager.RemoveFromRolesAsync(user, roles);
+            if (!removed.Succeeded)
+            {
+                throw IdentityProblem.FromResult(removed, "role");
+            }
+
+            var assigned = await userManager.AddToRoleAsync(user, role.ToString());
+            if (!assigned.Succeeded)
+            {
+                throw IdentityProblem.FromResult(assigned, "role");
+            }
+        }
+
+        var avatar = await attachments.FindByOwnerAsync(
+            IdentityProfilePolicy.AvatarOwner(user.Id),
+            cancellationToken);
+        return TypedResults.Ok(ToResponse(user, [role.ToString()], avatar is not null));
+    }
+
+    private static async Task<bool> IsLastAdministratorAsync(
+        UserManager<SegarisUser> userManager,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var admins = await userManager.GetUsersInRoleAsync(PlatformRole.Admin.ToString());
+        return admins.Count <= 1;
     }
 
     private static async Task<IResult> SetActiveAsync(
@@ -198,6 +283,45 @@ internal static class AdminUserEndpoints
         return role;
     }
 
+    private static (string DisplayName, PlatformRole Role) ValidateUpdate(UpdateUserRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        if (!IdentityProfilePolicy.TryNormalizeDisplayName(request.DisplayName, out var displayName))
+        {
+            errors["displayName"] =
+                [$"Display name must contain between 1 and {IdentityProfilePolicy.MaximumDisplayNameLength} characters."];
+        }
+
+        PlatformRole role = default;
+        if (string.IsNullOrWhiteSpace(request.Role)
+            || !Enum.TryParse(request.Role, ignoreCase: true, out role)
+            || !Enum.IsDefined(role))
+        {
+            errors["role"] = ["Role must be 'User' or 'Admin'."];
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new ApiProblemException(
+                StatusCodes.Status400BadRequest,
+                ApiErrorCodes.BadRequest,
+                "One or more request values are invalid.",
+                errors: errors);
+        }
+
+        return (displayName, role);
+    }
+
+    private static ApiProblemException RoleProblem(string message) => new(
+        StatusCodes.Status400BadRequest,
+        ApiErrorCodes.BadRequest,
+        "One or more request values are invalid.",
+        errors: new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["role"] = [message],
+        });
+
     private static SortRequest ParseSort(string? sort, string? direction)
     {
         try
@@ -250,6 +374,8 @@ internal static class AdminUserEndpoints
         hasAvatar ? IdentityProfilePolicy.AvatarUrl(user.Id) : null);
 
     internal sealed record CreateUserRequest(string? UserName, string? Password, string? Role);
+
+    internal sealed record UpdateUserRequest(string? DisplayName, string? Role);
 
     internal sealed record SetPasswordRequest(string? NewPassword);
 

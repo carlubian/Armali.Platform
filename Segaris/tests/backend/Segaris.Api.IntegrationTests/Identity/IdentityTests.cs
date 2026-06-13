@@ -392,6 +392,120 @@ public sealed class IdentityTests
         Assert.Equal(HttpStatusCode.NoContent, newAttempt.StatusCode);
     }
 
+    [Fact]
+    public async Task Administrators_edit_a_member_display_name_and_role()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var memberId = await CreateUserAsync(admin, "member", "MemberPass123!", "User");
+
+        using var response = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Put,
+            $"/api/admin/users/{memberId}",
+            new { displayName = "Renamed Member", role = "Admin" });
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Renamed Member", body.GetProperty("displayName").GetString());
+        var roles = body.GetProperty("roles")
+            .EnumerateArray()
+            .Select(role => role.GetString())
+            .ToArray();
+        Assert.Contains("Admin", roles);
+        Assert.DoesNotContain("User", roles);
+    }
+
+    [Fact]
+    public async Task Administrators_can_edit_their_own_display_name_but_not_their_own_role()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+
+        var session = await admin.GetFromJsonAsync<JsonElement>("/api/session", CancellationToken.None);
+        var adminId = session.GetProperty("userId").GetInt32();
+
+        // Renaming yourself while keeping your role is allowed.
+        using var rename = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Put,
+            $"/api/admin/users/{adminId}",
+            new { displayName = "Household Admin", role = "Admin" });
+        var renamed = await rename.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        // Changing your own role is rejected, so the household cannot lock itself out.
+        using var demote = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Put,
+            $"/api/admin/users/{adminId}",
+            new { displayName = "Household Admin", role = "User" });
+        var problem = await demote.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
+        Assert.Equal("Household Admin", renamed.GetProperty("displayName").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, demote.StatusCode);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("role", out _));
+    }
+
+    [Fact]
+    public async Task Editing_a_user_rejects_a_blank_display_name()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var memberId = await CreateUserAsync(admin, "member", "MemberPass123!", "User");
+
+        using var response = await SendWithCsrfAsync(
+            admin,
+            HttpMethod.Put,
+            $"/api/admin/users/{memberId}",
+            new { displayName = "   ", role = "User" });
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("displayName", out _));
+    }
+
+    [Fact]
+    public async Task Updating_a_user_is_rejected_without_an_antiforgery_token()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var memberId = await CreateUserAsync(admin, "member", "MemberPass123!", "User");
+
+        using var response = await admin.PutAsJsonAsync(
+            $"/api/admin/users/{memberId}",
+            new { displayName = "Renamed", role = "Admin" },
+            CancellationToken.None);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("request.invalid", problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Non_administrators_cannot_update_users()
+    {
+        using var server = new IdentityTestServer();
+        using var admin = server.CreateClient();
+        await IdentityTestServer.LoginAsync(admin, IdentityTestServer.AdminUserName, IdentityTestServer.AdminPassword);
+        var memberId = await CreateUserAsync(admin, "member", "MemberPass123!", "User");
+
+        using var member = server.CreateClient();
+        await IdentityTestServer.LoginAsync(member, "member", "MemberPass123!");
+
+        using var response = await SendWithCsrfAsync(
+            member,
+            HttpMethod.Put,
+            $"/api/admin/users/{memberId}",
+            new { displayName = "Renamed", role = "Admin" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static async Task<int> CreateUserAsync(
         HttpClient admin,
         string userName,

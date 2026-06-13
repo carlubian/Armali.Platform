@@ -13,7 +13,7 @@ $envFile = Join-Path $composeDir ".env"
 $exampleFile = Join-Path $composeDir ".env.example"
 
 # Build (unless -NoBuild) and start the full container stack locally: PostgreSQL,
-# backend, frontend placeholder, and Caddy ingress. Browse to
+# backend, the real frontend SPA, and Caddy ingress. Browse to
 # http://localhost:5525/ (default).
 if (-not (Test-Path $envFile)) {
     Copy-Item $exampleFile $envFile
@@ -23,6 +23,16 @@ if (-not (Test-Path $envFile)) {
         | Set-Content $envFile
     Write-Host "Created $envFile from the example with a local development password."
     Write-Host "Review it before any non-local use; never commit it."
+}
+
+# Migrate local configuration created before the real frontend image replaced
+# the temporary placeholder. Preserve every other user-owned setting.
+$envContent = Get-Content $envFile
+$migratedEnvContent = $envContent `
+    -replace '^SEGARIS_FRONTEND_IMAGE=segaris-frontend-placeholder:local$', 'SEGARIS_FRONTEND_IMAGE=segaris-frontend:local'
+if (Compare-Object $envContent $migratedEnvContent) {
+    $migratedEnvContent | Set-Content $envFile
+    Write-Host "Updated the local Compose configuration to use segaris-frontend:local."
 }
 
 $arguments = @("compose", "--env-file", $envFile, "-f", $baseFile, "-f", $localFile)

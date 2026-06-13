@@ -68,11 +68,18 @@ echo "Backend is healthy."
 base="http://localhost:${HTTP_PORT}"
 
 echo "--- Checking frontend routing ( / ) ---"
-if ! curl -fsS "${base}/" | grep -q "Segaris frontend placeholder"; then
-  echo "Frontend placeholder was not served through Caddy." >&2
+if ! curl -fsS "${base}/" | grep -q '<title>Segaris</title>'; then
+  echo "The Segaris frontend was not served through Caddy." >&2
   exit 1
 fi
 echo "Frontend routing OK."
+
+echo "--- Checking frontend SPA fallback ---"
+if ! curl -fsS "${base}/login" | grep -q '<title>Segaris</title>'; then
+  echo "The frontend did not serve index.html for a client-side route." >&2
+  exit 1
+fi
+echo "Frontend SPA fallback OK."
 
 echo "--- Checking backend routing ( /api/session ) ---"
 # An unauthenticated current-session request must reach the backend. Any HTTP

@@ -9,7 +9,7 @@ steps are recorded in `docs/planning/BACKEND_DEPLOYMENT_DECISIONS.md`.
 | Service | Image | Role | Host port |
 | --- | --- | --- | --- |
 | `caddy` | `segaris-caddy` | Ingress; routes `/api/*` to backend, rest to frontend | `SEGARIS_HTTP_PORT` (default 5525) |
-| `frontend` | `segaris-frontend-placeholder` (temporary) | Static web app | internal only |
+| `frontend` | `segaris-frontend` | React SPA served as static assets | internal only |
 | `backend` | `segaris-backend` | ASP.NET Core REST API | internal only (8080) |
 | `postgres` | `postgres:17` | Database | internal only |
 
@@ -30,8 +30,8 @@ For validating the complete runtime on a developer machine.
    the script uses Docker-managed volumes for backend storage so the container's
    non-root user can write to them; Linux deployments retain the configured host
    bind mounts.
-3. Open `http://localhost:5525/`. The placeholder page confirms frontend routing;
-   `http://localhost:5525/api/session` confirms backend routing.
+3. Open `http://localhost:5525/`. The Segaris application confirms frontend
+   routing; `http://localhost:5525/api/session` confirms backend routing.
 4. Tear down with `./scripts/compose-down.ps1` (add `-Volumes` to drop data).
 
 The infrastructure-only stack (`./scripts/infra-up.ps1`) is the alternative when
