@@ -8,9 +8,24 @@ export const platform = {
     returnToLauncher: 'Return to launcher',
   },
   auth: {
-    loginTitle: 'Sign in to Segaris',
-    loginPending: 'The sign-in form arrives in the next implementation wave.',
     signOut: 'Sign out',
+    login: {
+      title: 'Welcome home',
+      subtitle: 'Sign in to your household to open Segaris.',
+      usernameLabel: 'Username',
+      usernamePlaceholder: 'Your username',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Your password',
+      submit: 'Sign in',
+      submitting: 'Signing in…',
+      footer: 'Accounts are created by your household administrator.',
+      usernameRequired: 'Enter your username.',
+      passwordRequired: 'Enter your password.',
+      errorInvalid:
+        'We could not sign you in. Check your username and password and try again.',
+      errorRateLimited: 'Too many sign-in attempts. Wait a moment before trying again.',
+      errorGeneric: 'Something went wrong while signing in. Please try again.',
+    },
   },
   launcher: {
     eyebrow: 'Household platform',

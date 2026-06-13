@@ -229,7 +229,7 @@ the shell top bar are implemented with focused Vitest coverage.
 
 ### Wave 5: Login
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -250,6 +250,23 @@ Tests:
 Exit criteria:
 
 - A user can sign in through the real interface against the running backend and land on the launcher shell.
+
+Resolution: the centered-card `LoginPage` (`src/frontend/src/modules/auth/`)
+replaces the Wave 4 placeholder, rendering the aurora background and the Armali
+logo brand mark over a glass card. The form uses React Hook Form with a Zod
+presence schema (`react-hook-form`, `zod`, and `@hookform/resolvers` were added,
+exactly pinned) and submits through a TanStack Query mutation against
+`POST /api/session`; on success it refreshes the session context and navigates
+to the launcher. A failed sign-in is reported as a single generic, non-revealing
+form-level alert, with rate limiting (`429`) given a distinct message and other
+failures a generic one. To keep a login `401` local to the form, `apiRequest`
+gained a `suppressSessionExpired` option that the new `sessionApi.signIn` sets,
+so an invalid credential no longer triggers the global session-expired redirect.
+The submit action is disabled while pending and focus returns to the first field
+after a failure. Login strings live under `platform.auth.login` (`en-GB`).
+Component/accessibility Vitest coverage and an env-driven full-stack Playwright
+sign-in journey (skipped without seeded credentials, replacing the placeholder
+smoke spec) accompany the screen.
 
 ### Wave 6: Self-Service Profile, Including Avatar
 

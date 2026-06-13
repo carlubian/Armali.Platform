@@ -35,6 +35,15 @@ function isMutation(method: string): boolean {
   return !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())
 }
 
+export interface ApiRequestOptions extends RequestInit {
+  /**
+   * When true, a `401` response does not dispatch the global session-expired
+   * event. The sign-in request uses this because a `401` there means invalid
+   * credentials, not an expired session, and must surface as a form error.
+   */
+  suppressSessionExpired?: boolean
+}
+
 async function parseProblem(response: Response): Promise<ProblemDetails | undefined> {
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('json')) return undefined
@@ -74,26 +83,30 @@ async function getCsrfToken(signal?: AbortSignal): Promise<string> {
   return csrfToken
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const method = init.method ?? 'GET'
-  const headers = new Headers(init.headers)
+export async function apiRequest<T>(
+  path: string,
+  init: ApiRequestOptions = {},
+): Promise<T> {
+  const { suppressSessionExpired = false, ...requestInit } = init
+  const method = requestInit.method ?? 'GET'
+  const headers = new Headers(requestInit.headers)
 
   if (
-    init.body != null &&
-    !(init.body instanceof FormData) &&
+    requestInit.body != null &&
+    !(requestInit.body instanceof FormData) &&
     !headers.has('Content-Type')
   ) {
     headers.set('Content-Type', 'application/json')
   }
 
   if (isMutation(method)) {
-    headers.set('X-CSRF-TOKEN', await getCsrfToken(init.signal ?? undefined))
+    headers.set('X-CSRF-TOKEN', await getCsrfToken(requestInit.signal ?? undefined))
   }
 
   let response: Response
   try {
     response = await fetchWithTimeout(path, {
-      ...init,
+      ...requestInit,
       method,
       headers,
       credentials: 'same-origin',
@@ -110,7 +123,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       response.status,
       await parseProblem(response),
     )
-    if (apiError.kind === 'authentication-expired') {
+    if (apiError.kind === 'authentication-expired' && !suppressSessionExpired) {
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     }
     throw apiError

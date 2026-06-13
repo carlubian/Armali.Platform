@@ -5,8 +5,8 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * Specs live under the repository's `tests/frontend/e2e/` directory because they
  * validate the deployed frontend boundary rather than one frontend module. The
- * placeholder spec only starts the Vite application and confirms it renders;
- * later waves add login, profile, and admin journeys against the full stack.
+ * sign-in journey runs against the full stack and is skipped without seeded
+ * credentials; profile and admin journeys are added in later waves.
  */
 const port = 4173
 const host = '127.0.0.1'

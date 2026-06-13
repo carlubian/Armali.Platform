@@ -54,7 +54,7 @@ describe('application routing and session', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({}, 401))
     render(<App />)
     expect(
-      await screen.findByRole('heading', { name: 'Sign in to Segaris' }),
+      await screen.findByRole('heading', { name: 'Welcome home' }),
     ).toBeInTheDocument()
     expect(window.location.pathname).toBe('/login')
   })
@@ -90,7 +90,7 @@ describe('application routing and session', () => {
     await screen.findByRole('heading', { name: 'Choose a module' })
     window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     expect(
-      await screen.findByRole('heading', { name: 'Sign in to Segaris' }),
+      await screen.findByRole('heading', { name: 'Welcome home' }),
     ).toBeInTheDocument()
   })
 
@@ -99,7 +99,7 @@ describe('application routing and session', () => {
     render(<App />)
     const signOut = await screen.findByRole('button', { name: 'Sign out' })
     fireEvent.click(signOut)
-    await screen.findByRole('heading', { name: 'Sign in to Segaris' })
+    await screen.findByRole('heading', { name: 'Welcome home' })
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/session',
       expect.objectContaining({ method: 'DELETE' }),

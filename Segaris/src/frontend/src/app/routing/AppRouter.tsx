@@ -6,7 +6,7 @@ import { useSession } from '@/app/session/SessionContext'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { NotFound, ServiceUnavailable } from '@/components/feedback/SystemScreens'
 import { AppShell } from '@/components/shell/AppShell'
-import { LoginPlaceholder } from '@/modules/auth/LoginPlaceholder'
+import { LoginPage } from '@/modules/auth/LoginPage'
 import { LauncherPage } from '@/modules/launcher/LauncherPage'
 import { ProfilePlaceholder } from '@/modules/profile/ProfilePlaceholder'
 
@@ -31,7 +31,7 @@ function ModuleBoundary({ children }: { children: ReactNode }) {
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPlaceholder />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoutes />}>
         <Route
           index
