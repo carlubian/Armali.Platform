@@ -1,0 +1,61 @@
+.arm-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+.arm-tooltip__bubble {
+  position: absolute;
+  z-index: 50;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(4px);
+  background: var(--surface-overlay);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.5em 0.75em;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  box-shadow: var(--glow-soft);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+.arm-tooltip__bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 9px;
+  height: 9px;
+  margin-top: -5px;
+  background: var(--surface-overlay);
+  border-right: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-glass);
+}
+.arm-tooltip:hover .arm-tooltip__bubble,
+.arm-tooltip:focus-within .arm-tooltip__bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.arm-tooltip--bottom .arm-tooltip__bubble {
+  bottom: auto;
+  top: calc(100% + 10px);
+  transform: translateX(-50%) translateY(-4px);
+}
+.arm-tooltip--bottom .arm-tooltip__bubble::after {
+  top: -5px;
+  border: none;
+  border-left: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass);
+}
+.arm-tooltip--bottom:hover .arm-tooltip__bubble {
+  transform: translateX(-50%) translateY(0);
+}

@@ -1,0 +1,51 @@
+/* ============================================================
+   Project Armali — Typography tokens
+   Display: League Spartan 600 (titles, table headers, captions,
+            primary buttons). Geometric, wide, needs slightly
+            tightened tracking at large sizes.
+   Body:    Nunito 500 (content, hints), 600 for emphasis.
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-display: 'League Spartan', 'Trebuchet MS', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Weights — never exceed 600 for UI */
+  --weight-body: 500;
+  --weight-medium: 500;
+  --weight-emphasis: 600;
+  --weight-display: 600;
+
+  /* Type scale — generous, premium-desktop rhythm */
+  --text-xs: 0.75rem; /* 12px — micro labels, table meta */
+  --text-sm: 0.8125rem; /* 13px — hints, captions */
+  --text-base: 0.9375rem; /* 15px — default body */
+  --text-md: 1rem; /* 16px — comfortable body */
+  --text-lg: 1.125rem; /* 18px — lead text */
+  --text-xl: 1.375rem; /* 22px — card titles */
+  --text-2xl: 1.75rem; /* 28px — section titles */
+  --text-3xl: 2.25rem; /* 36px — page titles */
+  --text-4xl: 3rem; /* 48px — hero */
+  --text-5xl: 4rem; /* 64px — display */
+
+  /* Line heights */
+  --leading-tight: 1.12;
+  --leading-snug: 1.28;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* Letter-spacing — League Spartan tightens up large, opens up
+     for small uppercase eyebrows / table headers. */
+  --tracking-display: -0.02em;
+  --tracking-title: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-eyebrow: 0.14em; /* uppercase labels */
+
+  /* Semantic roles */
+  --title-font: var(--font-display);
+  --title-weight: var(--weight-display);
+  --body-font: var(--font-body);
+  --body-weight: var(--weight-body);
+}

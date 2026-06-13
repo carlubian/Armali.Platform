@@ -1,0 +1,123 @@
+/* ============================================================
+   Project Armali — Effects: radii, glass/acrylic, colored glow,
+   motion. Rounded corners everywhere. Prefer warm colored glow
+   over gray/black drop shadow.
+   ============================================================ */
+
+:root {
+  /* ---- Corner radii — everything is rounded ---------------- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+  --radius-card: 20px;
+  --radius-control: 12px;
+
+  /* ---- Acrylic / glass ------------------------------------- */
+  --blur-glass: blur(18px) saturate(135%);
+  --blur-strong: blur(28px) saturate(140%);
+  --blur-chip: blur(10px) saturate(130%);
+
+  /* ---- Colored glow / halo (replaces gray shadow) ---------- */
+  /* Soft warm ambient — the default "lift" for cards.          */
+  --glow-soft:
+    0 1px 1px rgba(124, 110, 86, 0.06), 0 8px 24px -12px rgba(124, 110, 86, 0.28),
+    0 2px 8px -4px rgba(124, 110, 86, 0.12);
+
+  --glow-card:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 18px 48px -22px rgba(86, 74, 54, 0.34),
+    0 4px 14px -8px rgba(86, 74, 54, 0.16);
+
+  /* Accent halos — for hover / focus / active / notifications  */
+  --glow-aqua:
+    0 0 0 1px rgba(22, 166, 166, 0.3), 0 8px 28px -8px rgba(22, 166, 166, 0.55);
+  --glow-gold:
+    0 0 0 1px rgba(219, 166, 62, 0.32), 0 8px 28px -8px rgba(219, 166, 62, 0.55);
+  --glow-azure:
+    0 0 0 1px rgba(58, 124, 165, 0.3), 0 8px 28px -8px rgba(58, 124, 165, 0.5);
+  --glow-sea:
+    0 0 0 1px rgba(81, 155, 121, 0.3), 0 8px 28px -8px rgba(81, 155, 121, 0.5);
+  --glow-danger:
+    0 0 0 1px rgba(203, 87, 66, 0.3), 0 8px 28px -8px rgba(203, 87, 66, 0.5);
+
+  /* Focus ring */
+  --ring: 0 0 0 3px rgba(69, 188, 184, 0.4);
+
+  /* ---- Motion --------------------------------------------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  /* infinite ambient loops */
+  --dur-breathe: 4200ms;
+}
+
+/* ============================================================
+   Shared keyframes — ambient, infinite, subtle.
+   ============================================================ */
+
+/* Slow drift for aurora background blobs */
+@keyframes armali-aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(3%, -4%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-3%, 3%, 0) scale(0.96);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Gentle breathing glow for notifications / live elements */
+@keyframes armali-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(22, 166, 166, 0),
+      var(--glow-soft);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(22, 166, 166, 0.12),
+      var(--glow-aqua);
+  }
+}
+
+/* Soft pulse dot for status / notification badges */
+@keyframes armali-pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(203, 87, 66, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(203, 87, 66, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(203, 87, 66, 0);
+  }
+}
+
+/* Shimmer sweep for loading / skeleton */
+@keyframes armali-shimmer {
+  0% {
+    background-position: -160% 0;
+  }
+  100% {
+    background-position: 160% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

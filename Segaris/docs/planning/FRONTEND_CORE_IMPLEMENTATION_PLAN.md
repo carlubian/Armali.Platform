@@ -161,7 +161,7 @@ versions and the ESLint 9 pin are recorded in
 
 ### Wave 3: Design-System Token And Component Port
 
-Status: **Not started**.
+Status: **Completed**.
 
 Tasks:
 
@@ -179,6 +179,19 @@ Tests:
 Exit criteria:
 
 - All listed components are available as typed, framework-native components with consistent variants, sizes, and states, independent of the prototype's runtime dependencies.
+
+Resolution: the Project Armali tokens were ported to
+`src/frontend/src/styles/tokens/*.css` (self-hosting the four woff2 fonts under
+`src/assets/fonts`, dropping `--sidebar-w`) and chained from `global.css`. The
+fourteen components are reimplemented as typed React components under
+`src/components/ui/` with co-located CSS imported statically by Vite, preserving
+the `arm-*` class names and replacing the prototype's `ensureStyle()`/`window`
+runtime pattern. Form controls forward their `ref` for React Hook Form, the icon
+strategy uses the `lucide-react` package (pinned `1.17.0`), and the Armali logo
+is added at `src/assets/armali-logo.png`. The `IconButton` label is mandatory,
+and the `Dialog` adds Escape-to-close and panel focus management over the
+prototype. Component render/interaction tests and a token test accompany the
+port.
 
 ### Wave 4: Application Shell, Routing, Session, Query, And Error Handling
 

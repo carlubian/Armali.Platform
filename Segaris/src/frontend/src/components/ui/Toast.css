@@ -1,0 +1,100 @@
+.arm-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75em;
+  min-width: 280px;
+  max-width: 380px;
+  padding: 0.95em 1.05em;
+  background: var(--surface-overlay);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glow-card);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+.arm-toast::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+}
+.arm-toast--success::before {
+  background: var(--success);
+}
+.arm-toast--danger::before {
+  background: var(--danger);
+}
+.arm-toast--gold::before {
+  background: var(--accent-secondary);
+}
+.arm-toast__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.arm-toast--success .arm-toast__icon {
+  color: var(--success);
+}
+.arm-toast--danger .arm-toast__icon {
+  color: var(--danger);
+}
+.arm-toast--gold .arm-toast__icon {
+  color: var(--gold-600);
+}
+.arm-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+.arm-toast__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+.arm-toast__msg {
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: var(--leading-snug);
+}
+.arm-toast__close {
+  flex: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.arm-toast__close:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-900);
+}
+.arm-toast--enter {
+  animation: arm-toast-in var(--dur-slow) var(--ease-spring);
+}
+@keyframes arm-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

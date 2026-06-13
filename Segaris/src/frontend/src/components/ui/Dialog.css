@@ -1,0 +1,93 @@
+.arm-dialog__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: arm-scrim-in var(--dur-base) var(--ease-soft);
+}
+@keyframes arm-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.arm-dialog {
+  position: relative;
+  width: 100%;
+  max-width: var(--_w, 460px);
+  background: var(--surface-overlay);
+  -webkit-backdrop-filter: var(--blur-strong);
+  backdrop-filter: var(--blur-strong);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    var(--glow-card),
+    0 40px 80px -40px rgba(44, 40, 35, 0.5);
+  padding: var(--space-8);
+  font-family: var(--font-body);
+  animation: arm-dialog-in var(--dur-slow) var(--ease-spring);
+}
+@keyframes arm-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.arm-dialog__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--surface-frost);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.arm-dialog__close:hover {
+  background: var(--accent-soft);
+  color: var(--accent-press);
+}
+.arm-dialog__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-title);
+  padding-right: 32px;
+}
+.arm-dialog__desc {
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-top: 0.6em;
+}
+.arm-dialog__body {
+  margin-top: 1.25em;
+}
+.arm-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7em;
+  margin-top: var(--space-7);
+}
