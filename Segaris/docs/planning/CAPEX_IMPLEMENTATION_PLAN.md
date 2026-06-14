@@ -510,7 +510,21 @@ Exit criteria:
 
 ### Wave 8: Hardening, Documentation, And Acceptance
 
-Status: **Not started**.
+Status: **Complete**. Executed as a focused documentation and acceptance pass,
+relying on the Wave 1-7 automated suites and the required CI checks for live
+behaviour rather than re-running every suite locally. The OpenAPI surface for all
+new Capex, Configuration, and Launcher routes was reviewed statically (typed
+`Produces`/`ProducesProblem` metadata, antiforgery on writes, the upload
+request-body limit, and shared not-found privacy). PostgreSQL index verification
+was kept light: the recommended Wave 2 indexes exist identically in both provider
+migrations and match the database-level query shapes in `CapexReadService` and
+`CapexAttentionContributor`; a representative-volume `EXPLAIN ANALYZE` benchmark
+was deferred. The thirteen requirement acceptance criteria were mapped to their
+covering code and tests in `docs/planning/CAPEX_ACCEPTANCE.md`. `README.md` needed
+no change (no repository-wide command or setup change). Two intentionally deferred
+items were recorded in `ROADMAP.md`: the second-user browser privacy journey
+(covered at the API level, pending multi-account E2E infrastructure) and the
+PostgreSQL representative-volume query-plan benchmark.
 
 Tasks:
 

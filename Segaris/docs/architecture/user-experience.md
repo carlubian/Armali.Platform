@@ -43,6 +43,8 @@ The indicator on a module card communicates that the module currently requires t
 
 The launcher exposes no reason, count, record detail, or action beyond entering the module. Each module defines during functional planning which conditions activate and clear its current-user indicator.
 
+The backend contract is implemented as a per-module attention-contributor: each module registers an `ILauncherAttentionContributor` that calculates its own boolean current-user state, and the Launcher module aggregates the contributors behind `GET /api/launcher/attention` without querying or interpreting domain entities. New modules participate by registering a contributor; the Capex implementation is the first consumer.
+
 ### Toast Messages
 
 Toast messages provide short-lived feedback about an action or background process while the user is using the application. They slide in from a screen edge, remain visible for a few seconds, and then disappear.
@@ -114,7 +116,6 @@ The additional navigation step is intentional. The launcher should make that ste
 
 - Define how modules are ordered, grouped, hidden, or personalized.
 - Define the visual treatment and accessibility semantics of the module attention indicator.
-- Define the API contract through which each module exposes its current-user attention state to the launcher.
 - Define shared toast behavior with the future design system, including duration, severity, accessibility, and treatment of background-process results.
 - Define which module or application section owns the calendar and which domain events and due dates it includes.
 - Define whether modules may have distinct themes and how much visual variation the design system in `docs/architecture/design-system.md` permits.

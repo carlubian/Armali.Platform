@@ -2,8 +2,9 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 2 - Functional Definition**, with Capex requirements
-resolved and ready for implementation.
+Current phase: **Phase 2 - Functional Definition**. Capex is implemented and
+accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`); the remaining business modules
+are still in functional definition.
 
 ## Status Legend
 
@@ -103,6 +104,9 @@ Module purpose: Atomic income or expense, like buying furniture or appliances, e
 | --- | --- | --- |
 | Resolved | Entities and properties | Entry, item, lifecycle, amount, category, shared catalog, privacy, attachment, deletion, and attention rules are defined in `docs/requirements/CAPEX_REQUIREMENTS.md`. |
 | Resolved | User workflow | Capex opens on a paginated Entries table and uses a URL-aware popup editor that preserves table state. Initial and deferred behaviors are defined in `docs/requirements/CAPEX_REQUIREMENTS.md`. |
+| Resolved | Implementation and acceptance | The Capex implementation plan is delivered through Wave 8. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/CAPEX_ACCEPTANCE.md`. |
+| Deferred | Second-user Capex privacy E2E journey | Public-collaboration and private-isolation behavior is covered by API integration tests (`CapexEntryAuthorizationTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
 ### Opex
 
