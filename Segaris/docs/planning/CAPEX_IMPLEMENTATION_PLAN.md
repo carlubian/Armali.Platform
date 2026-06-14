@@ -398,7 +398,29 @@ Exit criteria:
 
 ### Wave 6: Entry Dialog And Item Editing
 
-Status: **Not started**.
+Status: **Complete**. The editor is a single large, scrollable `Dialog` (the shared
+`Dialog` gained an opt-in `scrollable` mode that pins the title/footer and scrolls
+the body) opened through `new=true`/`entryId`, preserving all unrelated list state
+via `useEntryDialog`; table rows and a "New entry" action open it. `EntryDialog`
+resolves the seeded catalogs (and, when editing, the entry) before mounting the
+React Hook Form + Zod form so defaults and dirty tracking start correct; the Zod
+schema mirrors the backend rules (title ≤ 200, notes ≤ 4000, 1–100 items,
+description ≤ 300, positive quantity, nonnegative unit amount, two decimals).
+Numeric fields are kept as strings in the form and parsed on submit. The simplified
+single-item experience shows only the title and a single amount; the title is the
+item description (synced on submit, never during typing) and "Add item" itemises,
+seeding the first line's description from the title and from then on letting each
+line diverge. Item management adds/removes/reorders with up/down buttons (no
+drag-and-drop dependency) within 1–100 bounds, with isolated live line/total
+previews so typing never re-renders the inputs; server totals stay authoritative.
+Closing a dirty editor confirms before discarding (dirtiness tracked via the
+form's change event to avoid a per-keystroke `formState` subscription that broke
+typing under the field array), duplicate submission is disabled, input is retained
+on server errors (mapped from the frozen Capex error codes), and a success toast
+plus list invalidation follow a save without a full reload. Attachments and entry
+deletion remain Wave 7. The shared `Input` required marker moved to a CSS
+pseudo-element and now sets `required`/`aria-required`, keeping the accessible name
+clean.
 
 Tasks:
 
@@ -434,7 +456,30 @@ Exit criteria:
 
 ### Wave 7: Attachments, Deletion, And End-To-End Integration
 
-Status: **Not started**.
+Status: **Complete**. The editor gained an attachments section: in edit mode an
+`EntryAttachments` component lists the entry's attachments and uploads new files
+as independent per-file tasks (uploading/error state with retry and dismiss),
+offers authenticated `download`-anchor downloads, and removes attachments, all
+against the existing entry. In create mode files are staged locally and, after a
+successful create, the dialog switches to a post-create upload panel that
+auto-uploads the staged files against the new entry so partial failures never
+discard the created entry or successful uploads. Client guards mirror the backend
+`AttachmentPolicy` (allowed extensions, 25 MB limit) for immediate feedback, and
+the shared API client gained an opt-in `timeoutMs` so uploads use a 60s window
+instead of the short default. Irreversible entry deletion lives behind a footer
+action and a dedicated confirmation dialog; on success the list and launcher
+attention are invalidated, a toast shows, and the out-of-range-page correction
+restores valid list state. `launcherKeys` moved next to `launcherApi` so the
+launcher reads per-module attention and Capex mutations invalidate it without a
+cross-module dependency; the Capex card shows the attention indicator when the
+backend reports overdue `Planning` entries. Coverage adds component tests for
+attachment list/upload/remove, failed-upload retry, staged-create upload,
+destructive deletion, the launcher attention indicator, and a `rejectionFor`
+unit; a guarded single-user Playwright journey (login → open → filter → create →
+itemise → attach → attention → delete → return) lives at
+`tests/frontend/e2e/capex.spec.ts`. The second-user privacy journey is
+intentionally deferred until multi-account E2E infrastructure exists (to be
+recorded in `ROADMAP.md` during Wave 8 acceptance).
 
 Tasks:
 

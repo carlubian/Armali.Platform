@@ -1,0 +1,340 @@
+.seg-capex-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.seg-capex-editor__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  color: var(--text-secondary);
+  font-weight: var(--weight-emphasis);
+}
+
+.seg-capex-editor__error {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: var(--weight-emphasis);
+}
+
+.seg-capex-editor__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.seg-capex-editor__section h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+.seg-capex-editor__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.seg-capex-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.seg-capex-editor__field {
+  display: grid;
+  gap: var(--space-2);
+}
+.seg-capex-editor__field-control {
+  display: grid;
+  gap: var(--space-2);
+}
+.seg-capex-editor__field-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+}
+.seg-capex-editor__field-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.seg-capex-editor__field-hint--error,
+.seg-capex-editor__field-error {
+  color: var(--danger);
+}
+.seg-capex-editor__field-error {
+  font-size: var(--text-xs);
+}
+
+/* ---- Items ------------------------------------------------------ */
+.seg-capex-editor__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.seg-capex-editor__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-sunken);
+}
+.seg-capex-editor__item-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+.seg-capex-editor__item-desc {
+  min-width: 0;
+}
+.seg-capex-editor__line-total {
+  display: grid;
+  gap: 2px;
+  padding-bottom: var(--space-2);
+  text-align: right;
+  white-space: nowrap;
+}
+.seg-capex-editor__line-total span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.seg-capex-editor__line-total strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.seg-capex-editor__item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 22px;
+}
+.seg-capex-editor__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-frost);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.seg-capex-editor__icon:hover:not(:disabled) {
+  border-color: var(--terracotta-400);
+  color: var(--text-primary);
+}
+.seg-capex-editor__icon--danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.seg-capex-editor__icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.seg-capex-editor__items-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.seg-capex-editor__total {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.seg-capex-editor__total strong {
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.seg-capex-editor__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---- Notes ------------------------------------------------------ */
+.seg-capex-editor__notes {
+  display: grid;
+  gap: var(--space-2);
+}
+.seg-capex-editor__notes-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+}
+.seg-capex-editor__textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-frost);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  resize: vertical;
+}
+.seg-capex-editor__textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- Footer delete action --------------------------------------- */
+.seg-capex-editor__delete {
+  /* Push the destructive action away from the primary footer buttons. */
+  margin-right: auto;
+  color: var(--danger);
+}
+.seg-capex-editor__delete:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+/* ---- Attachments ------------------------------------------------- */
+.seg-capex-attach {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.seg-capex-attach__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.seg-capex-attach__input {
+  /* The visible trigger is the styled button; the input stays out of the flow
+     but remains reachable for its accessible label. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.seg-capex-attach__status {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+}
+.seg-capex-attach__empty,
+.seg-capex-attach__error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.seg-capex-attach__error {
+  color: var(--danger);
+}
+.seg-capex-attach__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.seg-capex-attach__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-sunken);
+}
+.seg-capex-attach__item--error {
+  border-color: var(--danger);
+}
+.seg-capex-attach__icon {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.seg-capex-attach__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.seg-capex-attach__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: var(--weight-emphasis);
+}
+.seg-capex-attach__size {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.seg-capex-attach__item--error .seg-capex-attach__size {
+  color: var(--danger);
+}
+.seg-capex-attach__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-frost);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.seg-capex-attach__action:hover:not(:disabled) {
+  border-color: var(--terracotta-400);
+  color: var(--text-primary);
+}
+.seg-capex-attach__action--danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.seg-capex-attach__action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .seg-capex-editor__item {
+    flex-direction: column;
+  }
+  .seg-capex-editor__item-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .seg-capex-editor__item-desc {
+    grid-column: 1 / -1;
+  }
+  .seg-capex-editor__item-actions {
+    flex-direction: row;
+    padding-top: 0;
+    align-self: flex-end;
+  }
+}

@@ -217,6 +217,9 @@ export const capexApi = {
       method: 'POST',
       body,
       signal,
+      // Uploads carry up to 25 MB, so they need a longer window than the
+      // default short request timeout.
+      timeoutMs: 60_000,
     })
   },
   attachmentDownloadUrl: (entryId: number, attachmentId: string) =>

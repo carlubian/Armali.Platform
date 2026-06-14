@@ -1,28 +1,67 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect } from 'react'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { capexApi, capexPageSizes, type CapexPageSize } from '@/app/api/capex'
+import {
+  capexApi,
+  capexPageSizes,
+  type CapexEntry,
+  type CapexPageSize,
+} from '@/app/api/capex'
 import { isApiError } from '@/app/api/errors'
+import { launcherKeys } from '@/app/api/launcher'
 import { useSession } from '@/app/session/SessionContext'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
-import { Badge, Button, Select, Spinner } from '@/components/ui'
+import { Badge, Button, Select, Spinner, Toast } from '@/components/ui'
 
 import { EntriesFilters } from './EntriesFilters'
 import { EntriesTable } from './EntriesTable'
-import { activeFilterCount, useEntriesState } from './entriesState'
+import { EntryDialog } from './EntryDialog'
+import { activeFilterCount, useEntriesState, useEntryDialog } from './entriesState'
 import { capexKeys } from './queries'
 
 import './CapexPage.css'
 
+type SavedToastMode = 'create' | 'edit' | 'delete'
+
+interface SavedToast {
+  mode: SavedToastMode
+  title: string
+}
+
+const toastKeys: Record<SavedToastMode, { title: string; body: string }> = {
+  create: { title: 'editor.toast.created', body: 'editor.toast.createdBody' },
+  edit: { title: 'editor.toast.updated', body: 'editor.toast.updatedBody' },
+  delete: { title: 'editor.toast.deleted', body: 'editor.toast.deletedBody' },
+}
+
 export function CapexPage() {
   const { t, i18n } = useTranslation('capex')
   const { session } = useSession()
+  const queryClient = useQueryClient()
   const currentUserId = session?.userId ?? null
 
   const { state, listQuery, setFilters, setSort, setPage, setPageSize, clearFilters } =
     useEntriesState(currentUserId)
+  const { dialog, openCreate, openEntry, close } = useEntryDialog()
+  const [savedToast, setSavedToast] = useState<SavedToast | null>(null)
+
+  const handleSaved = (entry: CapexEntry, mode: 'create' | 'edit') => {
+    void queryClient.invalidateQueries({ queryKey: capexKeys.entries() })
+    void queryClient.invalidateQueries({ queryKey: capexKeys.entry(entry.id) })
+    // A new or changed entry can flip overdue-planning attention either way.
+    void queryClient.invalidateQueries({ queryKey: launcherKeys.attention() })
+    setSavedToast({ mode, title: entry.title })
+    close()
+  }
+
+  const handleDeleted = (entry: CapexEntry) => {
+    void queryClient.invalidateQueries({ queryKey: capexKeys.entries() })
+    void queryClient.invalidateQueries({ queryKey: launcherKeys.attention() })
+    setSavedToast({ mode: 'delete', title: entry.title })
+    close()
+  }
 
   const entriesQuery = useQuery({
     queryKey: capexKeys.entryList(listQuery),
@@ -61,7 +100,12 @@ export function CapexPage() {
           <h1>{t('entries.title')}</h1>
           <p>{t('entries.description')}</p>
         </div>
-        <Badge tone="neutral">{t('entries.count', { count: totalCount })}</Badge>
+        <div className="seg-capex__head-actions">
+          <Badge tone="neutral">{t('entries.count', { count: totalCount })}</Badge>
+          <Button iconLeft={<Plus size={16} />} onClick={openCreate}>
+            {t('entries.newEntry')}
+          </Button>
+        </div>
       </section>
 
       <EntriesFilters
@@ -89,6 +133,7 @@ export function CapexPage() {
           state={state}
           language={i18n.language}
           onSort={setSort}
+          onOpen={openEntry}
           busy={isRefetching}
         />
       )}
@@ -131,6 +176,30 @@ export function CapexPage() {
           </Button>
         </div>
       </nav>
+
+      {dialog.mode !== 'closed' && (
+        <EntryDialog
+          mode={dialog.mode}
+          entryId={dialog.mode === 'edit' ? dialog.entryId : undefined}
+          currentUserId={currentUserId}
+          onClose={close}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
+      )}
+
+      {savedToast != null && (
+        <div className="seg-capex__toast">
+          <Toast
+            tone="success"
+            title={t(toastKeys[savedToast.mode].title)}
+            onClose={() => setSavedToast(null)}
+            closeLabel={t('editor.actions.cancel')}
+          >
+            {t(toastKeys[savedToast.mode].body, { title: savedToast.title })}
+          </Toast>
+        </div>
+      )}
     </main>
   )
 }

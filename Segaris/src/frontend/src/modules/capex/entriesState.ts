@@ -271,6 +271,67 @@ const LIST_PARAMS = new Set([
   'pageSize',
 ])
 
+/** The editor dialog's URL-driven mode, derived from `new` and `entryId`. */
+export type EntryDialogState =
+  | { mode: 'closed' }
+  | { mode: 'create' }
+  | { mode: 'edit'; entryId: number }
+
+export interface UseEntryDialog {
+  dialog: EntryDialogState
+  openCreate: () => void
+  openEntry: (entryId: number) => void
+  close: () => void
+}
+
+/**
+ * Reads and writes the editor dialog through the `new`/`entryId` search params,
+ * always preserving the Entries list state so opening and closing the dialog
+ * returns to the same table page, filters, sort, and search.
+ */
+export function useEntryDialog(): UseEntryDialog {
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const dialog = useMemo<EntryDialogState>(() => {
+    if (searchParams.get('new') === 'true') return { mode: 'create' }
+    const entryId = Number.parseInt(searchParams.get('entryId') ?? '', 10)
+    if (Number.isFinite(entryId) && entryId > 0) return { mode: 'edit', entryId }
+    return { mode: 'closed' }
+  }, [searchParams])
+
+  const openCreate = useCallback(() => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('entryId')
+      next.set('new', 'true')
+      return next
+    })
+  }, [setSearchParams])
+
+  const openEntry = useCallback(
+    (entryId: number) => {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        next.delete('new')
+        next.set('entryId', String(entryId))
+        return next
+      })
+    },
+    [setSearchParams],
+  )
+
+  const close = useCallback(() => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('new')
+      next.delete('entryId')
+      return next
+    })
+  }, [setSearchParams])
+
+  return { dialog, openCreate, openEntry, close }
+}
+
 /** Count of filters that are currently narrowing the result set. */
 export function activeFilterCount(state: EntriesState): number {
   let count = 0

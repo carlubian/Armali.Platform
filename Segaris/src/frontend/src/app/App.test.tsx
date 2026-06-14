@@ -174,6 +174,8 @@ describe('application routing and session', () => {
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(json(session))
       .mockResolvedValueOnce(json(profile))
+      // The launcher additionally requests per-module attention on render.
+      .mockResolvedValueOnce(json({ modules: [] }))
     render(<App />)
     const retry = await screen.findByRole('button', { name: 'Try again' })
     fireEvent.click(retry)
@@ -182,7 +184,7 @@ describe('application routing and session', () => {
         screen.getByRole('heading', { name: 'Choose a module' }),
       ).toBeInTheDocument(),
     )
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
   })
 
   it('treats exhausted startup server failures as unavailable', async () => {

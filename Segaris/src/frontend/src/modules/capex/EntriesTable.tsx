@@ -58,6 +58,7 @@ interface EntriesTableProps {
   state: EntriesState
   language: string
   onSort: (field: CapexEntrySortField) => void
+  onOpen: (entryId: number) => void
   busy: boolean
 }
 
@@ -66,6 +67,7 @@ export function EntriesTable({
   state,
   language,
   onSort,
+  onOpen,
   busy,
 }: EntriesTableProps) {
   const { t } = useTranslation('capex')
@@ -113,8 +115,26 @@ export function EntriesTable({
         </thead>
         <tbody>
           {entries.map((entry) => (
-            <tr key={entry.id}>
-              <td className="seg-capex__title">{entry.title}</td>
+            // The title button is the keyboard-accessible control; the row click
+            // is a pointer convenience that opens the same editor.
+            <tr
+              key={entry.id}
+              className="seg-capex__row"
+              onClick={() => onOpen(entry.id)}
+            >
+              <td className="seg-capex__title">
+                <button
+                  type="button"
+                  className="seg-capex__row-open"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpen(entry.id)
+                  }}
+                  aria-label={t('entries.openRow', { title: entry.title })}
+                >
+                  {entry.title}
+                </button>
+              </td>
               <td>
                 <Badge tone={typeTone[entry.movementType]}>
                   {t(`entries.type.${entry.movementType}`)}

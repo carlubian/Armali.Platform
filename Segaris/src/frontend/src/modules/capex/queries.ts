@@ -31,11 +31,6 @@ export const configurationKeys = {
   currencies: () => [...configurationKeys.all, 'currencies'] as const,
 }
 
-export const launcherKeys = {
-  all: ['launcher'] as const,
-  attention: () => [...launcherKeys.all, 'attention'] as const,
-}
-
 // Seeded reference data is effectively static for the lifetime of a session.
 const catalogStaleTime = 60 * 60 * 1000
 
