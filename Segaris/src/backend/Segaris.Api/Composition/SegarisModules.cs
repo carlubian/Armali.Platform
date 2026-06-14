@@ -1,4 +1,7 @@
+using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Launcher;
 using Segaris.Api.Platform;
 
 namespace Segaris.Api.Composition;
@@ -9,7 +12,17 @@ internal static class SegarisModules
     [
         new PlatformModule(),
         new IdentityModule(),
+        new ConfigurationModule(),
+        new CapexModule(),
+        new LauncherModule(),
     ];
+
+    /// <summary>
+    /// The registered module names in registration order. Exposed for tests that
+    /// assert deterministic, duplicate-free module composition.
+    /// </summary>
+    public static IReadOnlyList<string> ModuleNames =>
+        RegisteredModules.Select(module => module.Name).ToArray();
 
     public static IServiceCollection AddSegarisModules(
         this IServiceCollection services,

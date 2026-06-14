@@ -11,9 +11,12 @@
   color: var(--text-primary);
   letter-spacing: 0.005em;
 }
-.arm-field__req {
-  color: var(--danger);
+/* The required marker is purely presentational so it stays out of the field's
+   accessible name; `required`/`aria-required` on the input convey the state. */
+.arm-field__label--req::after {
+  content: '*';
   margin-left: 2px;
+  color: var(--danger);
 }
 .arm-input-wrap {
   display: flex;

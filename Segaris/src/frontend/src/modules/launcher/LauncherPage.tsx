@@ -1,8 +1,10 @@
-import { UserRound, Users } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { UserRound, Users, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
+import { launcherApi, launcherKeys } from '@/app/api/launcher'
 import { useSession } from '@/app/session/SessionContext'
 import { Badge } from '@/components/ui'
 
@@ -11,12 +13,35 @@ import { ModuleCard, type ModuleCardModel } from './ModuleCard'
 import './LauncherPage.css'
 
 export function LauncherPage() {
-  const { t } = useTranslation('platform')
+  const { t } = useTranslation()
   const { session } = useSession()
   const navigate = useNavigate()
   const roles = session?.roles ?? []
-  const modules = useMemo<ModuleCardModel[]>(
-    () => [
+
+  // Per-module attention. A failed or pending request simply shows no indicator;
+  // attention is advisory and must never block reaching a module.
+  const attention = useQuery({
+    queryKey: launcherKeys.attention(),
+    queryFn: ({ signal }) => launcherApi.attention(signal),
+  })
+  const attentionModules = attention.data?.modules
+
+  const modules = useMemo<ModuleCardModel[]>(() => {
+    const requiresAttention = (key: string) =>
+      attentionModules?.find((module) => module.module === key)?.requiresAttention ??
+      false
+    return [
+      {
+        key: 'capex',
+        title: t('capex:launcher.title'),
+        description: t('capex:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/capex',
+        icon: Wallet,
+        tone: 'azure',
+        attention: requiresAttention('capex'),
+        attentionLabel: t('capex:launcher.attention'),
+      },
       {
         key: 'profile',
         title: t('launcher.modules.profile.title'),
@@ -36,9 +61,8 @@ export function LauncherPage() {
         tone: 'gold',
         requiresRole: 'Admin',
       },
-    ],
-    [t],
-  )
+    ]
+  }, [t, attentionModules])
   const visibleModules = modules.filter(
     (module) => module.requiresRole == null || roles.includes(module.requiresRole),
   )

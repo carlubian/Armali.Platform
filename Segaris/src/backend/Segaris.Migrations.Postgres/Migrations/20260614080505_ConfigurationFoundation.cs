@@ -1,0 +1,100 @@
+using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace Segaris.Migrations.Postgres.Migrations;
+
+/// <inheritdoc />
+public partial class ConfigurationFoundation : Migration
+{
+    /// <inheritdoc />
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.CreateTable(
+            name: "configuration_cost_centers",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "integer", nullable: false)
+                    .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                Code = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
+                Name = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: false),
+                CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                CreatedBy = table.Column<int>(type: "integer", nullable: true),
+                UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                UpdatedBy = table.Column<int>(type: "integer", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_configuration_cost_centers", x => x.Id);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "configuration_currencies",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "integer", nullable: false)
+                    .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                Code = table.Column<string>(type: "character(3)", fixedLength: true, maxLength: 3, nullable: false),
+                Name = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: false),
+                CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                CreatedBy = table.Column<int>(type: "integer", nullable: true),
+                UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                UpdatedBy = table.Column<int>(type: "integer", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_configuration_currencies", x => x.Id);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "configuration_suppliers",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "integer", nullable: false)
+                    .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                Code = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
+                Name = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: false),
+                CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                CreatedBy = table.Column<int>(type: "integer", nullable: true),
+                UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                UpdatedBy = table.Column<int>(type: "integer", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_configuration_suppliers", x => x.Id);
+            });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_configuration_cost_centers_Code",
+            table: "configuration_cost_centers",
+            column: "Code",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_configuration_currencies_Code",
+            table: "configuration_currencies",
+            column: "Code",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_configuration_suppliers_Code",
+            table: "configuration_suppliers",
+            column: "Code",
+            unique: true);
+    }
+
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropTable(
+            name: "configuration_cost_centers");
+
+        migrationBuilder.DropTable(
+            name: "configuration_currencies");
+
+        migrationBuilder.DropTable(
+            name: "configuration_suppliers");
+    }
+}

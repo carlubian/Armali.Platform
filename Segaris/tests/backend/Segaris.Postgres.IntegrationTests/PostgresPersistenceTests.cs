@@ -13,9 +13,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Configuration;
+using Segaris.Api.Modules.Configuration.Persistence;
+using Segaris.Api.Modules.Identity;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
+using Segaris.Shared.Authorization;
+using Segaris.Shared.Identity;
 using Testcontainers.PostgreSql;
 
 namespace Segaris.Postgres.IntegrationTests;
@@ -131,6 +138,272 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_seeds_and_serves_the_configuration_catalogs()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string adminUserName = "pg-configuration-admin";
+        const string adminPassword = "PgConfigurationPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", adminUserName),
+            new("Segaris:Identity:Bootstrap:Password", adminPassword));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName = adminUserName, password = adminPassword },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var suppliers = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/suppliers",
+            CancellationToken.None);
+        var costCenters = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/cost-centers",
+            CancellationToken.None);
+        var currencies = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/currencies",
+            CancellationToken.None);
+
+        Assert.Equal(6, suppliers!.Length);
+        Assert.Equal(5, costCenters!.Length);
+        Assert.Equal(3, currencies!.Length);
+        Assert.Contains(currencies, item => item.GetProperty("code").GetString() == "EUR");
+    }
+
+    [Fact]
+    public async Task Postgres_persists_capex_decimals_order_and_rounded_total()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-admin";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgCapexPass123!"));
+        using var client = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var categoryId = await database.Set<CapexCategory>()
+            .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+        var entry = CapexEntry.Create(
+            new("Postgres entry", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                new DateOnly(2026, 6, 14), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+            [new("Rounded", 0.01m, 0.50m), new("Normal", 3m, 2.25m)],
+            new UserId(userId), now);
+        database.Add(entry);
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var stored = await database.Set<CapexEntry>().Include(value => value.Items)
+            .SingleAsync(value => value.Title == "Postgres entry");
+
+        Assert.Equal(6.76m, stored.TotalAmount);
+        Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
+        Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
+    public async Task Postgres_replaces_capex_items_and_cascades_entry_deletion_through_the_api()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-writer";
+        const string password = "PgCapexWritePass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/session/antiforgery", CancellationToken.None);
+        var csrf = token.GetProperty("csrfToken").GetString()!;
+
+        int categoryId;
+        int currencyId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        }
+
+        var createBody = new
+        {
+            title = "PG original",
+            movementType = "Expense",
+            status = "Planning",
+            dueDate = "2026-06-14",
+            categoryId,
+            supplierId = (int?)null,
+            costCenterId = (int?)null,
+            currencyId,
+            notes = (string?)null,
+            visibility = "Public",
+            items = new[] { new { description = "Old line", quantity = 1m, unitAmount = 10m } },
+        };
+        var entryId = (await SendJsonAsync(client, HttpMethod.Post, "/api/capex/entries", createBody, csrf))
+            .GetProperty("id").GetInt32();
+
+        // Replacing the ordered collection reuses positions 0 and 1, which exercises
+        // the unique (EntryId, Position) index under PostgreSQL's per-statement
+        // constraint checking during a single transactional save.
+        var updateBody = new
+        {
+            title = "PG revised",
+            movementType = "Income",
+            status = "Completed",
+            dueDate = "2026-06-14",
+            categoryId,
+            supplierId = (int?)null,
+            costCenterId = (int?)null,
+            currencyId,
+            notes = (string?)null,
+            visibility = "Public",
+            items = new[]
+            {
+                new { description = "Second", quantity = 1m, unitAmount = 5m },
+                new { description = "First", quantity = 2m, unitAmount = 10m },
+            },
+        };
+        var updated = await SendJsonAsync(client, HttpMethod.Put, $"/api/capex/entries/{entryId}", updateBody, csrf);
+        Assert.Equal(25.00m, updated.GetProperty("totalAmount").GetDecimal());
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var stored = await database.Set<CapexEntry>().AsNoTracking().Include(value => value.Items)
+                .SingleAsync(value => value.Id == entryId);
+            Assert.Equal(
+                ["Second", "First"],
+                stored.Items.OrderBy(item => item.Position).Select(item => item.Description));
+            Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
+        }
+
+        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"/api/capex/entries/{entryId}");
+        delete.Headers.Add("X-CSRF-TOKEN", csrf);
+        using var deleteResponse = await client.SendAsync(delete, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            Assert.False(await database.Set<CapexEntry>().AnyAsync(entry => entry.Id == entryId));
+            // The database-level cascade removes the dependent items.
+            Assert.Equal(0, await database.Set<CapexItem>().CountAsync(item => item.EntryId == entryId));
+        }
+    }
+
+    private static async Task<JsonElement> SendJsonAsync<T>(
+        HttpClient client,
+        HttpMethod method,
+        string route,
+        T body,
+        string csrf)
+    {
+        using var request = new HttpRequestMessage(method, route)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add("X-CSRF-TOKEN", csrf);
+        using var response = await client.SendAsync(request, CancellationToken.None);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Postgres_serves_searched_filtered_and_attention_capex_reads()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-reader";
+        const string password = "PgCapexReadPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var madrid = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, madrid).Date);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            var currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+            var supplierId = await database.Set<SegarisSupplier>()
+                .Where(supplier => supplier.Code == ConfigurationCatalog.SupplierCodes.Amazon).Select(supplier => supplier.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+            // A planning entry due today, matched by an upper-case search term to
+            // prove the production case-insensitive search, with a supplier.
+            database.Add(CapexEntry.Create(
+                new("WIDGET purchase", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    today, categoryId, supplierId, null, currencyId, null, RecordVisibility.Public),
+                [new("A widget", 1m, 10m)],
+                new UserId(userId), now));
+            // Matched only through an item description, with no supplier.
+            database.Add(CapexEntry.Create(
+                new("Office order", CapexMovementType.Expense, CapexEntryStatus.Completed,
+                    today.AddDays(-2), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+                [new("Spare widget", 1m, 5m)],
+                new UserId(userId), now));
+            // Unrelated and not overdue.
+            database.Add(CapexEntry.Create(
+                new("Stationery", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    today.AddDays(5), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+                [new("Pens", 1m, 1m)],
+                new UserId(userId), now));
+            await database.SaveChangesAsync();
+        }
+
+        var searched = await client.GetFromJsonAsync<JsonElement>(
+            "/api/capex/entries?search=widget", CancellationToken.None);
+        var sortedBySupplier = await client.GetFromJsonAsync<JsonElement>(
+            "/api/capex/entries?sort=supplier&sortDirection=asc", CancellationToken.None);
+        var attention = await client.GetFromJsonAsync<JsonElement>(
+            "/api/launcher/attention", CancellationToken.None);
+
+        // Case-insensitive partial search across title and item descriptions.
+        Assert.Equal(2, searched.GetProperty("totalCount").GetInt32());
+        // Supplier ascending places the only supplier-bearing entry first and nulls last.
+        Assert.Equal(
+            "WIDGET purchase",
+            sortedBySupplier.GetProperty("items")[0].GetProperty("title").GetString());
+        // A planning entry due today activates the launcher attention.
+        var capex = attention.GetProperty("modules").EnumerateArray()
+            .Single(module => module.GetProperty("module").GetString() == "capex");
+        Assert.True(capex.GetProperty("requiresAttention").GetBoolean());
+    }
+
+    [Fact]
     public async Task Postgres_supports_attachment_metadata_lifecycle()
     {
         if (postgres is null)
@@ -218,18 +491,21 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             connectionString,
         ]);
         var previousMigration = database.Database.GetMigrations()
-            .Single(migration => migration.EndsWith("_BackgroundJobs", StringComparison.Ordinal));
+            .Single(migration => migration.EndsWith("_ConfigurationFoundation", StringComparison.Ordinal));
         var migrator = database.GetService<IMigrator>();
 
         await migrator.MigrateAsync(previousMigration);
         await migrator.MigrateAsync();
 
         var applied = await database.Database.GetAppliedMigrationsAsync();
-        Assert.Contains(applied, migration => migration.EndsWith("_IdentityProfile"));
+        Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
+        Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
-        countCommand.CommandText = "SELECT COUNT(*) FROM identity_users WHERE \"Language\" = 'en-GB'";
-        Assert.Equal(0L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'configuration_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'capex_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]

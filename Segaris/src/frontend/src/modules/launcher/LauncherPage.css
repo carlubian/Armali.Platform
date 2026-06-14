@@ -68,6 +68,10 @@
   background: var(--gold-100);
   color: var(--gold-600);
 }
+.seg-mod--azure .seg-mod__icon {
+  background: var(--azure-100);
+  color: var(--azure-600);
+}
 .seg-mod__name {
   font-family: var(--font-display);
   font-size: var(--text-xl);

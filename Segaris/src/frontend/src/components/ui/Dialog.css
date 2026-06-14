@@ -45,6 +45,23 @@
     transform: none;
   }
 }
+/* Large editors cap their height to the viewport and scroll the body, keeping
+   the title and footer pinned. Short confirmation dialogs are unaffected. */
+.arm-dialog--scrollable {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+.arm-dialog--scrollable .arm-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focus ring and to keep content clear of the close button. */
+  padding-right: 4px;
+}
+.arm-dialog--scrollable .arm-dialog__footer {
+  flex: 0 0 auto;
+}
 .arm-dialog__close {
   position: absolute;
   top: 18px;

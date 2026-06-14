@@ -2,7 +2,9 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 1 - Architecture, Structure, And Core**.
+Current phase: **Phase 2 - Functional Definition**. Capex is implemented and
+accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`); the remaining business modules
+are still in functional definition.
 
 ## Status Legend
 
@@ -88,6 +90,7 @@ Current phase: **Phase 1 - Architecture, Structure, And Core**.
 | Resolved | Required CI checks | `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` are required checks for `main`; branches must be current, review conversations resolved, and force pushes/deletion blocked. No approval is required while the repository has one regular maintainer. See `docs/planning/BACKEND_CI_DECISIONS.md`. |
 | Resolved | Frontend core implementation plan | A dependency-ordered, wave-based plan covering the frontend scaffold, design-system port, shared shell, login, self-service profile (including avatar), administrative user management, a minimal launcher, a scoped backend Identity-profile extension, and the container/Compose/CI changes needed to serve the real frontend image. See `docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Frontend foundation conventions | Node 24.16.0 and pnpm 11.6.0 are pinned at repository level. ESLint/Prettier/TypeScript, Vitest/Testing Library, and Playwright have explicit ownership and placement conventions; local API access uses a same-origin Vite `/api` proxy; public build-time environment values and the module-oriented source tree are fixed for the Wave 2 scaffold. See `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`. |
+| Resolved | Capex implementation plan | A dependency-ordered plan covers Configuration catalogs, Capex persistence and APIs, Launcher attention aggregation, the Entries table and popup editor, attachments, migrations, and end-to-end acceptance. See `docs/planning/CAPEX_IMPLEMENTATION_PLAN.md`. |
 
 ## Phase 2: Functional Definition Backlog
 
@@ -99,8 +102,11 @@ Module purpose: Atomic income or expense, like buying furniture or appliances, e
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, income/expense discrimination. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | Entry, item, lifecycle, amount, category, shared catalog, privacy, attachment, deletion, and attention rules are defined in `docs/requirements/CAPEX_REQUIREMENTS.md`. |
+| Resolved | User workflow | Capex opens on a paginated Entries table and uses a URL-aware popup editor that preserves table state. Initial and deferred behaviors are defined in `docs/requirements/CAPEX_REQUIREMENTS.md`. |
+| Resolved | Implementation and acceptance | The Capex implementation plan is delivered through Wave 8. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/CAPEX_ACCEPTANCE.md`. |
+| Deferred | Second-user Capex privacy E2E journey | Public-collaboration and private-isolation behavior is covered by API integration tests (`CapexEntryAuthorizationTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
 ### Opex
 
@@ -219,6 +225,7 @@ Module purpose: Module to see aggregated trends of the financial modules.
 | Open | Attachments | Common attachment model across all domains. |
 | Open | Notes and comments | Whether records support notes, comments, or activity timelines. |
 | Open | Search and filters | What global and per-domain search should support. |
+| Resolved | Shared configuration catalogs | The platform Configuration module owns Supplier, CostCenter, and Currency persistence, seed data, and read contracts. Initial APIs are read-only; future App Configuration mutations require reference migration before deletion. See `docs/architecture/domain-organization.md` and `docs/requirements/CAPEX_REQUIREMENTS.md`. |
 
 ## Phase 3: Version Planning Backlog
 

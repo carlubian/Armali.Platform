@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
+import { capex } from '@/modules/capex/i18n/resources'
+
 import { i18n } from './i18n'
 import { platform } from './resources'
+
+// Namespaces a bare `t('...')` literal may resolve against. Keys prefixed with a
+// namespace (for example `capex:launcher.title`) resolve directly via i18next.
+const namespaces = ['platform', 'capex'] as const
 
 function leafKeys(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {
@@ -17,12 +23,18 @@ describe('platform translations', () => {
     }
   })
 
+  it('registers every capex resource key', () => {
+    for (const key of leafKeys(capex)) {
+      expect(i18n.exists(key, { ns: 'capex', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
   it('falls back to en-GB for unsupported languages', async () => {
     await i18n.changeLanguage('es-ES')
     expect(i18n.t('common.tryAgain', { ns: 'platform' })).toBe('Try again')
   })
 
-  it('contains every literal platform key used by the application', () => {
+  it('contains every literal translation key used by the application', () => {
     const sourceFiles = import.meta.glob<string>('../../**/*.{ts,tsx}', {
       eager: true,
       import: 'default',
@@ -36,11 +48,12 @@ describe('platform translations', () => {
       for (const match of source.matchAll(keyPattern)) usedKeys.add(match[1])
     }
 
+    const existsInAny = (key: string) =>
+      namespaces.some((ns) => i18n.exists(key, { ns, lng: 'en-GB' }))
+
     for (const key of usedKeys) {
-      const exists = i18n.exists(key, { ns: 'platform', lng: 'en-GB' })
-      const hasPluralForms =
-        i18n.exists(`${key}_one`, { ns: 'platform', lng: 'en-GB' }) &&
-        i18n.exists(`${key}_other`, { ns: 'platform', lng: 'en-GB' })
+      const exists = existsInAny(key)
+      const hasPluralForms = existsInAny(`${key}_one`) && existsInAny(`${key}_other`)
       expect(exists || hasPluralForms, key).toBe(true)
     }
   })

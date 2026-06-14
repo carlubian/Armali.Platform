@@ -1,0 +1,34 @@
+using Segaris.Api.Composition;
+
+namespace Segaris.UnitTests;
+
+public sealed class ModuleRegistrationTests
+{
+    [Fact]
+    public void Registered_module_names_are_unique()
+    {
+        var names = SegarisModules.ModuleNames;
+
+        Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void Capex_modules_are_registered()
+    {
+        var names = SegarisModules.ModuleNames;
+
+        Assert.Contains("Configuration", names);
+        Assert.Contains("Capex", names);
+        Assert.Contains("Launcher", names);
+    }
+
+    [Fact]
+    public void Configuration_is_registered_before_capex_that_consumes_it()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Configuration") < names.IndexOf("Capex"),
+            "Configuration must be registered before Capex.");
+    }
+}

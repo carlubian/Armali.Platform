@@ -102,6 +102,25 @@ internal sealed class FileSystemAttachmentService(
         return record is null ? null : ToDescriptor(record);
     }
 
+    public async Task<IReadOnlyList<AttachmentDescriptor>> ListByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken)
+    {
+        ValidateOwner(owner);
+        var module = AttachmentStoragePaths.NormalizeModule(owner.Module);
+        var records = await dbContext.Set<AttachmentRecord>()
+            .AsNoTracking()
+            .Where(attachment => attachment.Module == module
+                && attachment.EntityType == owner.EntityType
+                && attachment.EntityId == owner.EntityId)
+            // The auto-increment identifier is monotonic with creation, so ordering
+            // by it reproduces upload order while avoiding SQLite's lack of ORDER BY
+            // support for DateTimeOffset.
+            .OrderBy(attachment => attachment.Id)
+            .ToListAsync(cancellationToken);
+        return records.Select(ToDescriptor).ToArray();
+    }
+
     public async Task<AttachmentDownload?> OpenReadByOwnerAsync(
         AttachmentOwner owner,
         CancellationToken cancellationToken)

@@ -16,6 +16,12 @@ export interface DialogProps extends Omit<ComponentPropsWithRef<'div'>, 'title'>
   width?: number | string
   /** Accessible label for the close button. */
   closeLabel?: string
+  /**
+   * Caps the panel height to the viewport and scrolls the body, keeping the
+   * title and footer pinned. Used by large editors such as the Capex entry
+   * dialog; short confirmation dialogs leave it off.
+   */
+  scrollable?: boolean
 }
 
 /**
@@ -34,6 +40,7 @@ export function Dialog({
   width,
   className = '',
   closeLabel = 'Close',
+  scrollable = false,
   children,
   ...rest
 }: DialogProps) {
@@ -72,7 +79,9 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={title != null ? labelId : undefined}
         tabIndex={-1}
-        className={['arm-dialog', className].filter(Boolean).join(' ')}
+        className={['arm-dialog', scrollable ? 'arm-dialog--scrollable' : '', className]
+          .filter(Boolean)
+          .join(' ')}
         style={
           width != null
             ? ({

@@ -40,9 +40,13 @@ export function Input({
   return (
     <div className={['arm-field', className].filter(Boolean).join(' ')}>
       {label != null && (
-        <label className="arm-field__label" htmlFor={fieldId}>
+        <label
+          className={['arm-field__label', required ? 'arm-field__label--req' : '']
+            .filter(Boolean)
+            .join(' ')}
+          htmlFor={fieldId}
+        >
           {label}
-          {required && <span className="arm-field__req">*</span>}
         </label>
       )}
       <div
@@ -59,6 +63,8 @@ export function Input({
           id={fieldId}
           className="arm-input"
           disabled={disabled}
+          required={required}
+          aria-required={required || undefined}
           aria-invalid={error != null}
           aria-describedby={msgId}
           {...rest}

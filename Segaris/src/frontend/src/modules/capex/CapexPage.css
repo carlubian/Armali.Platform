@@ -1,0 +1,282 @@
+.seg-capex {
+  min-height: calc(100vh - var(--topbar-h));
+  padding: var(--space-8);
+}
+.seg-capex > * {
+  position: relative;
+  z-index: 1;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+.seg-capex__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.seg-capex__head h1 {
+  margin-top: var(--space-2);
+  font-size: var(--text-3xl);
+}
+.seg-capex__head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.seg-capex__head p {
+  margin-top: 4px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+/* ---- Filters ---------------------------------------------------- */
+.seg-capex__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card-solid);
+  box-shadow: var(--glow-soft);
+}
+.seg-capex__filters-primary,
+.seg-capex__filters-secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+}
+.seg-capex__filters-secondary {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.seg-capex__search {
+  grid-column: 1 / -1;
+}
+.seg-capex__field {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+.seg-capex__filters-primary > .seg-capex__field:last-of-type,
+.seg-capex__filters-primary > button {
+  align-self: end;
+}
+.seg-capex__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+
+.seg-capex__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.seg-capex__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-frost);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+.seg-capex__chip:hover {
+  border-color: var(--terracotta-400);
+  color: var(--text-primary);
+}
+.seg-capex__chip-clear {
+  padding: 4px var(--space-3);
+  border: none;
+  background: none;
+  color: var(--text-link);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+}
+.seg-capex__chip-clear:hover {
+  text-decoration: underline;
+}
+
+/* ---- Table ------------------------------------------------------ */
+.seg-capex__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card-solid);
+  box-shadow: var(--glow-card);
+}
+.seg-capex__table-wrap[aria-busy='true'] {
+  opacity: 0.7;
+}
+.seg-capex__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.seg-capex__table thead th {
+  text-align: left;
+  padding: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-sunken);
+  white-space: nowrap;
+}
+.seg-capex__table th.seg-capex__num {
+  text-align: right;
+}
+.seg-capex__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.seg-capex__num .seg-capex__sort {
+  justify-content: flex-end;
+}
+.seg-capex__sort:hover {
+  color: var(--text-primary);
+}
+.seg-capex__sort.is-active {
+  color: var(--accent);
+}
+.seg-capex__sort svg {
+  opacity: 0.5;
+}
+.seg-capex__sort.is-active svg {
+  opacity: 1;
+}
+.seg-capex__table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.seg-capex__table tbody tr:last-child td {
+  border-bottom: none;
+}
+.seg-capex__table tbody tr:hover td {
+  background: var(--bone-50);
+}
+.seg-capex__row {
+  cursor: pointer;
+}
+.seg-capex__title {
+  font-weight: 600;
+}
+.seg-capex__row-open {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-link);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.seg-capex__row-open:hover {
+  text-decoration: underline;
+}
+.seg-capex__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.seg-capex__loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8);
+}
+.seg-capex__empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: var(--weight-emphasis);
+}
+.seg-capex__error {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-card);
+  font-weight: var(--weight-emphasis);
+}
+
+/* ---- Pagination ------------------------------------------------- */
+.seg-capex__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.seg-capex__rows {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+}
+.seg-capex__pager-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.seg-capex__page {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.seg-capex__toast {
+  position: fixed;
+  z-index: 110;
+  right: var(--space-6);
+  bottom: var(--space-6);
+}
+
+@media (max-width: 780px) {
+  .seg-capex {
+    padding: var(--space-5);
+  }
+  .seg-capex__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .seg-capex__pager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .seg-capex__pager-nav {
+    justify-content: space-between;
+  }
+}

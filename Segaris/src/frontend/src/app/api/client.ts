@@ -8,6 +8,7 @@ const requestTimeoutMs = 8_000
 async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
+  timeoutMs: number = requestTimeoutMs,
 ): Promise<Response> {
   const controller = new AbortController()
   const signal =
@@ -23,7 +24,7 @@ async function fetchWithTimeout(
         timeoutId = setTimeout(() => {
           controller.abort()
           reject(new DOMException('The request timed out.', 'TimeoutError'))
-        }, requestTimeoutMs)
+        }, timeoutMs)
       }),
     ])
   } finally {
@@ -42,6 +43,12 @@ export interface ApiRequestOptions extends RequestInit {
    * credentials, not an expired session, and must surface as a form error.
    */
   suppressSessionExpired?: boolean
+  /**
+   * Overrides the default request timeout. Attachment uploads use a longer
+   * window because a multi-megabyte body can legitimately exceed the short
+   * default on a slow connection.
+   */
+  timeoutMs?: number
 }
 
 async function parseProblem(response: Response): Promise<ProblemDetails | undefined> {
@@ -87,7 +94,7 @@ export async function apiRequest<T>(
   path: string,
   init: ApiRequestOptions = {},
 ): Promise<T> {
-  const { suppressSessionExpired = false, ...requestInit } = init
+  const { suppressSessionExpired = false, timeoutMs, ...requestInit } = init
   const method = requestInit.method ?? 'GET'
   const headers = new Headers(requestInit.headers)
 
@@ -105,12 +112,16 @@ export async function apiRequest<T>(
 
   let response: Response
   try {
-    response = await fetchWithTimeout(path, {
-      ...requestInit,
-      method,
-      headers,
-      credentials: 'same-origin',
-    })
+    response = await fetchWithTimeout(
+      path,
+      {
+        ...requestInit,
+        method,
+        headers,
+        credentials: 'same-origin',
+      },
+      timeoutMs,
+    )
   } catch (error) {
     throw new ApiError('unavailable', null, {
       detail: error instanceof Error ? error.message : undefined,
