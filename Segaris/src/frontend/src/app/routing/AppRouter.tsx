@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 
 import { AppErrorBoundary } from '@/app/errors/AppErrorBoundary'
 import { useSession } from '@/app/session/SessionContext'
@@ -10,6 +10,12 @@ import { UsersPage } from '@/modules/admin/UsersPage'
 import { LoginPage } from '@/modules/auth/LoginPage'
 import { LauncherPage } from '@/modules/launcher/LauncherPage'
 import { ProfilePage } from '@/modules/profile/ProfilePage'
+
+// The Capex module is the first business module and is loaded lazily so its
+// table, filters, and editor do not weigh down the initial platform bundle.
+const CapexPage = lazy(() =>
+  import('@/modules/capex/CapexPage').then((module) => ({ default: module.CapexPage })),
+)
 
 function ProtectedRoutes() {
   const { status, refresh } = useSession()
@@ -55,6 +61,16 @@ export function AppRouter() {
           element={
             <ModuleBoundary>
               <UsersPage />
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="capex"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <CapexPage />
+              </Suspense>
             </ModuleBoundary>
           }
         />

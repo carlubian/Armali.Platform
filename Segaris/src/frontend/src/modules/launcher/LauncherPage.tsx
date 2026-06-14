@@ -1,4 +1,4 @@
-import { UserRound, Users } from 'lucide-react'
+import { UserRound, Users, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -11,12 +11,21 @@ import { ModuleCard, type ModuleCardModel } from './ModuleCard'
 import './LauncherPage.css'
 
 export function LauncherPage() {
-  const { t } = useTranslation('platform')
+  const { t } = useTranslation()
   const { session } = useSession()
   const navigate = useNavigate()
   const roles = session?.roles ?? []
   const modules = useMemo<ModuleCardModel[]>(
     () => [
+      {
+        key: 'capex',
+        title: t('capex:launcher.title'),
+        description: t('capex:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/capex',
+        icon: Wallet,
+        tone: 'azure',
+      },
       {
         key: 'profile',
         title: t('launcher.modules.profile.title'),

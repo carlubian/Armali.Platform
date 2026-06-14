@@ -342,7 +342,25 @@ Exit criteria:
 
 ### Wave 5: Frontend Module And Entries Table
 
-Status: **Not started**.
+Status: **Complete**. The `/capex` route is lazily loaded behind the shared module
+error boundary, with a dedicated `capex` i18n namespace registered alongside
+`platform`; the existing app shell provides return-to-launcher. Typed API clients
+cover the Configuration catalogs, Capex categories, entry list/detail, mutations,
+attachments, and launcher attention, with stable `capexKeys`/`configurationKeys`
+query-key factories (catalogs cached aggressively as effectively static seeds).
+The launcher card uses the `azure` tone with the `Wallet` icon; live attention
+wiring is deferred to Wave 7. The Entries table renders all required columns with
+sortable headers, loading/empty/filtered-empty/error/unavailable states, and
+per-row currency formatting with no cross-currency aggregation. List state
+(search, date range, type, status, category, supplier, cost center, currency,
+visibility, creator, sort, page, page size) is URL-backed through
+`useEntriesState`, preserving unrelated params for the future editor dialog;
+filter changes reset to page 1, search uses a local input value with history
+replacement, and an out-of-range page is corrected after the result set shrinks.
+The creator filter is exposed as a "My entries" toggle (`creator=currentUser`)
+because no non-admin user-listing endpoint exists; a full creator picker remains a
+later option. Primary filters (search, dates, type, status) stay visible with
+secondary filters behind a "More filters" toggle and removable active-filter chips.
 
 Tasks:
 
