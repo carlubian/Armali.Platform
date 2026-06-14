@@ -23,7 +23,15 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_InitialPersistenceFoundation"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_ConfigurationFoundation"));
                 Assert.True(File.Exists(databasePath));
+
+                await database.Database.OpenConnectionAsync();
+                await using var command = database.Database.GetDbConnection().CreateCommand();
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
+                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -48,6 +56,7 @@ public sealed class MigrationTests
         Assert.Contains("InitialPersistenceFoundation", sqliteNames);
         Assert.Contains("AttachmentStorage", sqliteNames);
         Assert.Contains("IdentityProfile", sqliteNames);
+        Assert.Contains("ConfigurationFoundation", sqliteNames);
     }
 
     [Fact]
@@ -58,18 +67,18 @@ public sealed class MigrationTests
         {
             await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
             var previousMigration = database.Database.GetMigrations()
-                .Single(migration => migration.EndsWith("_BackgroundJobs", StringComparison.Ordinal));
+                .Single(migration => migration.EndsWith("_IdentityProfile", StringComparison.Ordinal));
             var migrator = database.GetService<IMigrator>();
 
             await migrator.MigrateAsync(previousMigration);
             await migrator.MigrateAsync();
 
             var applied = await database.Database.GetAppliedMigrationsAsync();
-            Assert.Contains(applied, migration => migration.EndsWith("_IdentityProfile"));
+            Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM identity_users WHERE Language = 'en-GB'";
-            Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
+            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {

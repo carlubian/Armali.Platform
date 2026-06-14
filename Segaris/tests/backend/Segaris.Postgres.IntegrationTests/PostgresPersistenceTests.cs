@@ -131,6 +131,42 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_seeds_and_serves_the_configuration_catalogs()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string adminUserName = "pg-configuration-admin";
+        const string adminPassword = "PgConfigurationPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", adminUserName),
+            new("Segaris:Identity:Bootstrap:Password", adminPassword));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName = adminUserName, password = adminPassword },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var suppliers = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/suppliers",
+            CancellationToken.None);
+        var costCenters = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/cost-centers",
+            CancellationToken.None);
+        var currencies = await client.GetFromJsonAsync<JsonElement[]>(
+            "/api/configuration/currencies",
+            CancellationToken.None);
+
+        Assert.Equal(6, suppliers!.Length);
+        Assert.Equal(5, costCenters!.Length);
+        Assert.Equal(3, currencies!.Length);
+        Assert.Contains(currencies, item => item.GetProperty("code").GetString() == "EUR");
+    }
+
+    [Fact]
     public async Task Postgres_supports_attachment_metadata_lifecycle()
     {
         if (postgres is null)
@@ -218,18 +254,18 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             connectionString,
         ]);
         var previousMigration = database.Database.GetMigrations()
-            .Single(migration => migration.EndsWith("_BackgroundJobs", StringComparison.Ordinal));
+            .Single(migration => migration.EndsWith("_IdentityProfile", StringComparison.Ordinal));
         var migrator = database.GetService<IMigrator>();
 
         await migrator.MigrateAsync(previousMigration);
         await migrator.MigrateAsync();
 
         var applied = await database.Database.GetAppliedMigrationsAsync();
-        Assert.Contains(applied, migration => migration.EndsWith("_IdentityProfile"));
+        Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
-        countCommand.CommandText = "SELECT COUNT(*) FROM identity_users WHERE \"Language\" = 'en-GB'";
-        Assert.Equal(0L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'configuration_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]

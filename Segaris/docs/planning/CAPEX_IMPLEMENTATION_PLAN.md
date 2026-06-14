@@ -189,7 +189,7 @@ Exit criteria:
 
 ### Wave 1: Configuration Backend Foundation
 
-Status: **Not started**.
+Status: **Complete**.
 
 Tasks:
 
