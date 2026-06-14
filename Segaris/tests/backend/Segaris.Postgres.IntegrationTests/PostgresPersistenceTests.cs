@@ -212,6 +212,82 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_serves_searched_filtered_and_attention_capex_reads()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-reader";
+        const string password = "PgCapexReadPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var madrid = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, madrid).Date);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            var currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+            var supplierId = await database.Set<SegarisSupplier>()
+                .Where(supplier => supplier.Code == ConfigurationCatalog.SupplierCodes.Amazon).Select(supplier => supplier.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+            // A planning entry due today, matched by an upper-case search term to
+            // prove the production case-insensitive search, with a supplier.
+            database.Add(CapexEntry.Create(
+                new("WIDGET purchase", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    today, categoryId, supplierId, null, currencyId, null, RecordVisibility.Public),
+                [new("A widget", 1m, 10m)],
+                new UserId(userId), now));
+            // Matched only through an item description, with no supplier.
+            database.Add(CapexEntry.Create(
+                new("Office order", CapexMovementType.Expense, CapexEntryStatus.Completed,
+                    today.AddDays(-2), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+                [new("Spare widget", 1m, 5m)],
+                new UserId(userId), now));
+            // Unrelated and not overdue.
+            database.Add(CapexEntry.Create(
+                new("Stationery", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    today.AddDays(5), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+                [new("Pens", 1m, 1m)],
+                new UserId(userId), now));
+            await database.SaveChangesAsync();
+        }
+
+        var searched = await client.GetFromJsonAsync<JsonElement>(
+            "/api/capex/entries?search=widget", CancellationToken.None);
+        var sortedBySupplier = await client.GetFromJsonAsync<JsonElement>(
+            "/api/capex/entries?sort=supplier&sortDirection=asc", CancellationToken.None);
+        var attention = await client.GetFromJsonAsync<JsonElement>(
+            "/api/launcher/attention", CancellationToken.None);
+
+        // Case-insensitive partial search across title and item descriptions.
+        Assert.Equal(2, searched.GetProperty("totalCount").GetInt32());
+        // Supplier ascending places the only supplier-bearing entry first and nulls last.
+        Assert.Equal(
+            "WIDGET purchase",
+            sortedBySupplier.GetProperty("items")[0].GetProperty("title").GetString());
+        // A planning entry due today activates the launcher attention.
+        var capex = attention.GetProperty("modules").EnumerateArray()
+            .Single(module => module.GetProperty("module").GetString() == "capex");
+        Assert.True(capex.GetProperty("requiresAttention").GetBoolean());
+    }
+
+    [Fact]
     public async Task Postgres_supports_attachment_metadata_lifecycle()
     {
         if (postgres is null)

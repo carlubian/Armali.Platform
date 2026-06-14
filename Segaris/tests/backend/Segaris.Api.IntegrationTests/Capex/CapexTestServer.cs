@@ -1,9 +1,15 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Segaris.Api.Modules.Identity;
+using Segaris.Persistence;
+using Segaris.Shared.Time;
 
 namespace Segaris.Api.IntegrationTests.Capex;
 
@@ -52,6 +58,48 @@ internal sealed class CapexTestServer : IDisposable
     public string KeysPath { get; }
 
     public string AttachmentsPath { get; }
+
+    public IServiceProvider Services => _factory.Services;
+
+    public async Task<int> GetUserIdAsync(string userName)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<SegarisUser>()
+            .Where(user => user.UserName == userName)
+            .Select(user => user.Id)
+            .SingleAsync();
+    }
+
+    public async Task<int> CreateUserAsync(string userName, string password)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<SegarisUser>>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var user = new SegarisUser
+        {
+            UserName = userName,
+            DisplayName = userName,
+            IsActive = true,
+            CreatedAt = clock.UtcNow,
+        };
+
+        var created = await userManager.CreateAsync(user, password);
+        if (!created.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not create test user '{userName}': {string.Join(", ", created.Errors.Select(error => error.Description))}");
+        }
+
+        var assigned = await userManager.AddToRoleAsync(user, "User");
+        if (!assigned.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not assign the role to test user '{userName}': {string.Join(", ", assigned.Errors.Select(error => error.Description))}");
+        }
+
+        return user.Id;
+    }
 
     public HttpClient CreateClient(bool handleCookies = true) =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });

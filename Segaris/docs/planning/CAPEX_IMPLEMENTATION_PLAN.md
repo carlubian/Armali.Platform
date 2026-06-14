@@ -257,7 +257,12 @@ Exit criteria:
 
 ### Wave 3: Read APIs, Filtering, And Launcher Attention
 
-Status: **Not started**.
+Status: **Complete**. Related catalog and audit display names are resolved
+through correlated sub-queries against the shared Configuration and Identity
+entities so pagination and name-based sorting run at the database level; optional
+supplier and cost-center sorts place nulls last in both directions. The platform
+`IAttachmentService` gained a `ListByOwnerAsync` used by entry detail (and reused
+by the Wave 4 attachment list route).
 
 Tasks:
 

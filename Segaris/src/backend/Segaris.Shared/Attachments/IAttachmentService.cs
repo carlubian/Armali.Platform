@@ -18,6 +18,10 @@ public interface IAttachmentService
         AttachmentOwner owner,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AttachmentDescriptor>> ListByOwnerAsync(
+        AttachmentOwner owner,
+        CancellationToken cancellationToken);
+
     Task<AttachmentDownload?> OpenReadAsync(
         AttachmentId id,
         AttachmentOwner owner,
