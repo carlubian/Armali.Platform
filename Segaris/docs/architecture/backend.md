@@ -22,6 +22,8 @@ src/backend/
 |   |-- Platform/
 |   |-- Modules/
 |   |   |-- Identity/
+|   |   |-- Configuration/
+|   |   |-- Launcher/
 |   |   |-- Capex/
 |   |   |-- Opex/
 |   |   |-- Inventory/

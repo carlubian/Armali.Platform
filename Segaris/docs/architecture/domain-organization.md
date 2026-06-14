@@ -50,6 +50,31 @@ Segaris does not initially create a `Household` aggregate or tenant identifier. 
 
 Administration must not become the owner of every classification or configuration screen. Module-specific categories, statuses, and rules remain owned by their domain even when only administrators may manage them.
 
+### Configuration
+
+Configuration owns reference catalogs whose semantics and lifecycle are
+intentionally shared by several business modules. The initial catalogs are:
+
+- Suppliers.
+- Cost centers.
+- Currencies.
+
+Configuration publishes narrow read and validation contracts to business
+modules. Consumers store stable catalog identifiers and may use database
+foreign keys where the catalog lifecycle guarantees that referenced values are
+not removed. They do not access Configuration's EF Core entities or tables
+directly.
+
+The initial Configuration module contains persistence, deterministic seed data,
+read contracts, and read-only API queries. It has no launcher card or
+administrative mutation experience. A future App Configuration experience may
+add administrator-only management over these same catalogs, including a
+mandatory reference-migration workflow before deleting an in-use value.
+
+Configuration owns only catalogs with demonstrated cross-module semantics.
+Module-specific classifications such as `CapexCategory` remain in their
+business module.
+
 ### Launcher
 
 Launcher owns:
@@ -121,6 +146,7 @@ graph LR
     Attachments["Attachments"]
     Jobs["Jobs"]
     Administration["Administration"]
+    Configuration["Configuration"]
     Launcher["Launcher"]
     Domains["Business modules"]
     Analytics["Analytics"]
@@ -130,6 +156,7 @@ graph LR
     Domains --> Attachments
     Domains --> Jobs
     Domains --> Administration
+    Domains --> Configuration
     Launcher --> Domains
     Analytics --> Domains
     Calendar --> Domains
