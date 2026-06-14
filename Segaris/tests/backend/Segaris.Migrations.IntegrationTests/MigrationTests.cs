@@ -26,11 +26,16 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_ConfigurationFoundation"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_CapexDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
                 await using var command = database.Database.GetDbConnection().CreateCommand();
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
+                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
                 Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
@@ -57,6 +62,7 @@ public sealed class MigrationTests
         Assert.Contains("AttachmentStorage", sqliteNames);
         Assert.Contains("IdentityProfile", sqliteNames);
         Assert.Contains("ConfigurationFoundation", sqliteNames);
+        Assert.Contains("CapexDomainPersistence", sqliteNames);
     }
 
     [Fact]
@@ -67,7 +73,7 @@ public sealed class MigrationTests
         {
             await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
             var previousMigration = database.Database.GetMigrations()
-                .Single(migration => migration.EndsWith("_IdentityProfile", StringComparison.Ordinal));
+                .Single(migration => migration.EndsWith("_ConfigurationFoundation", StringComparison.Ordinal));
             var migrator = database.GetService<IMigrator>();
 
             await migrator.MigrateAsync(previousMigration);
@@ -75,9 +81,12 @@ public sealed class MigrationTests
 
             var applied = await database.Database.GetAppliedMigrationsAsync();
             Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
+            Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
+            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally

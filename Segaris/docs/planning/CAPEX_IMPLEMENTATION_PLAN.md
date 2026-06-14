@@ -218,7 +218,7 @@ Exit criteria:
 
 ### Wave 2: Capex Domain And Persistence
 
-Status: **Not started**.
+Status: **Complete**.
 
 Tasks:
 

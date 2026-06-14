@@ -135,6 +135,185 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.ToTable("identity_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("capex_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CostCenterId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<int?>("SupplierId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CostCenterId");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("DueDate", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.HasIndex("Status", "DueDate", "Id");
+
+                    b.ToTable("capex_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_capex_entries_movement_type", "\"MovementType\" IN ('Income', 'Expense')");
+
+                            t.HasCheckConstraint("CK_capex_entries_status", "\"Status\" IN ('Planning', 'Completed', 'Canceled')");
+
+                            t.HasCheckConstraint("CK_capex_entries_total_amount", "\"TotalAmount\" >= 0");
+
+                            t.HasCheckConstraint("CK_capex_entries_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("EntryId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("LineAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("UnitAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("capex_items", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_capex_items_line_amount", "\"LineAmount\" >= 0");
+
+                            t.HasCheckConstraint("CK_capex_items_position", "\"Position\" >= 0");
+
+                            t.HasCheckConstraint("CK_capex_items_quantity", "\"Quantity\" > 0");
+
+                            t.HasCheckConstraint("CK_capex_items_unit_amount", "\"UnitAmount\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Configuration.Persistence.SegarisCostCenter", b =>
                 {
                     b.Property<int>("Id")
@@ -590,6 +769,57 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Capex.Domain.CapexCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisCostCenter", null)
+                        .WithMany()
+                        .HasForeignKey("CostCenterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisCurrency", null)
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisSupplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexItem", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Capex.Domain.CapexEntry", null)
+                        .WithMany("Items")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,4 +1,8 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Capex.Persistence;
+using Segaris.Api.Modules.Capex.Seeding;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Capex;
 
@@ -14,8 +18,9 @@ internal sealed class CapexModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Wave 2 registers the model contributor and category seed; Wave 3
-        // registers the launcher attention contributor here.
+        services.AddSingleton<ISegarisModelContributor, CapexModelContributor>();
+        services.AddScoped<CapexSeeder>();
+        services.AddScoped<CapexCatalogValidator>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

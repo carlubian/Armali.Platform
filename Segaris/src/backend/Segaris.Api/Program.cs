@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using Segaris.Api.Composition;
 using Segaris.Api.Configuration;
+using Segaris.Api.Modules.Capex.Seeding;
 using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Persistence;
@@ -32,6 +33,7 @@ if (databaseCommand is not null)
 await app.Services.MigrateSegarisDatabaseAsync();
 await app.Services.SeedIdentityAsync();
 await app.Services.SeedConfigurationAsync();
+await app.Services.SeedCapexAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>

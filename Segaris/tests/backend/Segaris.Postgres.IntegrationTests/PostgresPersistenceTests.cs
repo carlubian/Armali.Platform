@@ -13,9 +13,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Configuration;
+using Segaris.Api.Modules.Configuration.Persistence;
+using Segaris.Api.Modules.Identity;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
+using Segaris.Shared.Authorization;
+using Segaris.Shared.Identity;
 using Testcontainers.PostgreSql;
 
 namespace Segaris.Postgres.IntegrationTests;
@@ -167,6 +174,44 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_persists_capex_decimals_order_and_rounded_total()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-admin";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgCapexPass123!"));
+        using var client = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var categoryId = await database.Set<CapexCategory>()
+            .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+        var entry = CapexEntry.Create(
+            new("Postgres entry", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                new DateOnly(2026, 6, 14), categoryId, null, null, currencyId, null, RecordVisibility.Public),
+            [new("Rounded", 0.01m, 0.50m), new("Normal", 3m, 2.25m)],
+            new UserId(userId), now);
+        database.Add(entry);
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var stored = await database.Set<CapexEntry>().Include(value => value.Items)
+            .SingleAsync(value => value.Title == "Postgres entry");
+
+        Assert.Equal(6.76m, stored.TotalAmount);
+        Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
+        Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
     public async Task Postgres_supports_attachment_metadata_lifecycle()
     {
         if (postgres is null)
@@ -254,7 +299,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             connectionString,
         ]);
         var previousMigration = database.Database.GetMigrations()
-            .Single(migration => migration.EndsWith("_IdentityProfile", StringComparison.Ordinal));
+            .Single(migration => migration.EndsWith("_ConfigurationFoundation", StringComparison.Ordinal));
         var migrator = database.GetService<IMigrator>();
 
         await migrator.MigrateAsync(previousMigration);
@@ -262,9 +307,12 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
 
         var applied = await database.Database.GetAppliedMigrationsAsync();
         Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
+        Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'configuration_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'capex_%'";
         Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
