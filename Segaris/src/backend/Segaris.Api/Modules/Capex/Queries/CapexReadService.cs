@@ -75,6 +75,20 @@ internal sealed class CapexReadService(SegarisDbContext database, IAttachmentSer
         return PaginatedResponse<CapexEntrySummaryResponse>.Create(items, pagination, totalCount);
     }
 
+    /// <summary>
+    /// Returns whether the entry exists and is accessible to the user. Attachment
+    /// operations inherit the entry's visibility, so every attachment route checks
+    /// this before touching the platform attachment service.
+    /// </summary>
+    public Task<bool> EntryAccessibleAsync(
+        int entryId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        database.Set<CapexEntry>()
+            .AsNoTracking()
+            .Where(CapexEntryPolicies.AccessibleTo(userId))
+            .AnyAsync(entry => entry.Id == entryId, cancellationToken);
+
     public async Task<CapexEntryResponse?> GetEntryAsync(
         int entryId,
         UserId userId,

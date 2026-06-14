@@ -1,6 +1,7 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Capex.Attention;
 using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Capex.Mutations;
 using Segaris.Api.Modules.Capex.Persistence;
 using Segaris.Api.Modules.Capex.Queries;
 using Segaris.Api.Modules.Capex.Seeding;
@@ -10,10 +11,10 @@ using Segaris.Persistence;
 namespace Segaris.Api.Modules.Capex;
 
 /// <summary>
-/// Business module recording atomic income and expense movements. Wave 3 adds the
-/// read APIs (categories, paginated entries, and entry detail) and registers the
-/// launcher attention contributor; the mutation and attachment endpoints frozen
-/// in <see cref="CapexApiRoutes"/> are added in Wave 4.
+/// Business module recording atomic income and expense movements. It exposes the
+/// read APIs (categories, paginated entries, and entry detail), the Wave 4 entry
+/// mutation, deletion, and attachment endpoints, and registers the launcher
+/// attention contributor.
 /// </summary>
 internal sealed class CapexModule : ISegarisModule
 {
@@ -25,14 +26,12 @@ internal sealed class CapexModule : ISegarisModule
         services.AddScoped<CapexSeeder>();
         services.AddScoped<CapexCatalogValidator>();
         services.AddScoped<CapexReadService>();
+        services.AddScoped<CapexEntryWriteService>();
         services.AddScoped<ILauncherAttentionContributor, CapexAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapCapexEndpoints();
-
-        // Wave 4 maps the entry mutation and attachment endpoints described by
-        // CapexApiRoutes here.
     }
 }

@@ -113,7 +113,9 @@ internal sealed class CapexEntry
 
         if (!isCreation && values.Visibility != Visibility && actorId.Value != CreatedBy)
         {
-            throw new CapexValidationException("Only the creator may change entry visibility.");
+            throw new CapexValidationException(
+                "Only the creator may change entry visibility.",
+                CapexValidationReason.VisibilityForbidden);
         }
 
         var replacement = itemValues.Select((item, position) =>

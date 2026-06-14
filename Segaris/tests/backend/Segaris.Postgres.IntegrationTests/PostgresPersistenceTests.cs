@@ -212,6 +212,122 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_replaces_capex_items_and_cascades_entry_deletion_through_the_api()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-capex-writer";
+        const string password = "PgCapexWritePass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/session/antiforgery", CancellationToken.None);
+        var csrf = token.GetProperty("csrfToken").GetString()!;
+
+        int categoryId;
+        int currencyId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        }
+
+        var createBody = new
+        {
+            title = "PG original",
+            movementType = "Expense",
+            status = "Planning",
+            dueDate = "2026-06-14",
+            categoryId,
+            supplierId = (int?)null,
+            costCenterId = (int?)null,
+            currencyId,
+            notes = (string?)null,
+            visibility = "Public",
+            items = new[] { new { description = "Old line", quantity = 1m, unitAmount = 10m } },
+        };
+        var entryId = (await SendJsonAsync(client, HttpMethod.Post, "/api/capex/entries", createBody, csrf))
+            .GetProperty("id").GetInt32();
+
+        // Replacing the ordered collection reuses positions 0 and 1, which exercises
+        // the unique (EntryId, Position) index under PostgreSQL's per-statement
+        // constraint checking during a single transactional save.
+        var updateBody = new
+        {
+            title = "PG revised",
+            movementType = "Income",
+            status = "Completed",
+            dueDate = "2026-06-14",
+            categoryId,
+            supplierId = (int?)null,
+            costCenterId = (int?)null,
+            currencyId,
+            notes = (string?)null,
+            visibility = "Public",
+            items = new[]
+            {
+                new { description = "Second", quantity = 1m, unitAmount = 5m },
+                new { description = "First", quantity = 2m, unitAmount = 10m },
+            },
+        };
+        var updated = await SendJsonAsync(client, HttpMethod.Put, $"/api/capex/entries/{entryId}", updateBody, csrf);
+        Assert.Equal(25.00m, updated.GetProperty("totalAmount").GetDecimal());
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var stored = await database.Set<CapexEntry>().AsNoTracking().Include(value => value.Items)
+                .SingleAsync(value => value.Id == entryId);
+            Assert.Equal(
+                ["Second", "First"],
+                stored.Items.OrderBy(item => item.Position).Select(item => item.Description));
+            Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
+        }
+
+        using var delete = new HttpRequestMessage(HttpMethod.Delete, $"/api/capex/entries/{entryId}");
+        delete.Headers.Add("X-CSRF-TOKEN", csrf);
+        using var deleteResponse = await client.SendAsync(delete, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            Assert.False(await database.Set<CapexEntry>().AnyAsync(entry => entry.Id == entryId));
+            // The database-level cascade removes the dependent items.
+            Assert.Equal(0, await database.Set<CapexItem>().CountAsync(item => item.EntryId == entryId));
+        }
+    }
+
+    private static async Task<JsonElement> SendJsonAsync<T>(
+        HttpClient client,
+        HttpMethod method,
+        string route,
+        T body,
+        string csrf)
+    {
+        using var request = new HttpRequestMessage(method, route)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add("X-CSRF-TOKEN", csrf);
+        using var response = await client.SendAsync(request, CancellationToken.None);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Postgres_serves_searched_filtered_and_attention_capex_reads()
     {
         if (postgres is null)

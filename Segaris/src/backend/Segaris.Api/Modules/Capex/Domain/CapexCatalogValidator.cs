@@ -19,7 +19,9 @@ internal sealed class CapexCatalogValidator(
             || values.CostCenterId is { } costCenterId
                 && !await configurationCatalog.CostCenterExistsAsync(costCenterId, cancellationToken))
         {
-            throw new CapexValidationException("One or more shared catalog references are unknown.");
+            throw new CapexValidationException(
+                "One or more shared catalog references are unknown.",
+                CapexValidationReason.CatalogReference);
         }
     }
 }

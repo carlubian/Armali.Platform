@@ -294,7 +294,18 @@ Exit criteria:
 
 ### Wave 4: Mutations, Deletion, And Attachments
 
-Status: **Not started**.
+Status: **Complete**. Create/update/delete run through `CapexEntryWriteService` in a
+single EF `SaveChangesAsync` transaction; update loads the entry with its items
+tracked and replaces the ordered collection atomically, recomputing totals in the
+domain. `CapexValidationException` carries a `CapexValidationReason` so the HTTP
+surface maps failures to the frozen codes (`entry.validation` 400,
+`catalog.unknown_reference` 400, `entry.visibility_forbidden` 403). Attachments use
+single-file-per-request multipart uploads (owner `("Capex", "Entry", entryId)`),
+authorize against the owning entry before the platform service, and translate the
+platform's 400 file-validation problem into `capex.attachment.invalid`. Deletion is
+physical (DB cascade to items) followed by best-effort attachment compensation.
+PostgreSQL coverage exercises the item-replacement unique-index path and delete
+cascade through the API.
 
 Tasks:
 
