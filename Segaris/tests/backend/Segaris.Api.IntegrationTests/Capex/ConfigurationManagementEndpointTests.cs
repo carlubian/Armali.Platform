@@ -1,7 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Segaris.Api.Modules.Capex.Contracts;
+using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration.Contracts;
+using Segaris.Api.Modules.Configuration.Persistence;
+using Segaris.Persistence;
+using Segaris.Shared.Authorization;
 
 namespace Segaris.Api.IntegrationTests.Capex;
 
@@ -130,6 +136,99 @@ public sealed class ConfigurationManagementEndpointTests
         var problem = await finalDelete.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
         Assert.Equal(HttpStatusCode.Conflict, finalDelete.StatusCode);
         Assert.Equal("configuration.catalog.required_not_empty", problem!.Code);
+    }
+
+    [Fact]
+    public async Task Supplier_replacement_migrates_public_and_private_entries_and_audits_the_admin()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var memberId = await server.CreateUserAsync("private-owner", "MemberPass123!");
+        var publicEntryId = await CapexTestData.SeedEntryAsync(server.Services, adminId, title: "Public supplier", supplierName: "Amazon");
+        var privateEntryId = await CapexTestData.SeedEntryAsync(server.Services, memberId, title: "Private supplier", supplierName: "Amazon", visibility: RecordVisibility.Private);
+        var sourceId = await CapexTestData.SupplierIdAsync(server.Services, "Amazon");
+        var replacementId = await CapexTestData.SupplierIdAsync(server.Services, "IKEA");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/configuration/suppliers/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(replacementId, ClearReferences: false, ExchangeRate: null),
+            csrf);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(0, response.Content.Headers.ContentLength ?? 0);
+        await using var scope = server.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var entries = await database.Set<CapexEntry>()
+            .Where(entry => entry.Id == publicEntryId || entry.Id == privateEntryId)
+            .OrderBy(entry => entry.Id)
+            .ToArrayAsync();
+        Assert.All(entries, entry =>
+        {
+            Assert.Equal(replacementId, entry.SupplierId);
+            Assert.Equal(adminId, entry.UpdatedBy);
+            Assert.Equal(TimeSpan.Zero, entry.UpdatedAt.Offset);
+        });
+        Assert.False(await database.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Cost_center_references_can_be_cleared_without_disclosing_entries()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var memberId = await server.CreateUserAsync("private-cost-owner", "MemberPass123!");
+        var publicEntryId = await CapexTestData.SeedEntryAsync(server.Services, adminId, title: "Public cost", costCenterName: "Household");
+        var privateEntryId = await CapexTestData.SeedEntryAsync(server.Services, memberId, title: "Private cost", costCenterName: "Household", visibility: RecordVisibility.Private);
+        var sourceId = await CapexTestData.CostCenterIdAsync(server.Services, "Household");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/configuration/cost-centers/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(ReplacementId: null, ClearReferences: true, ExchangeRate: null),
+            csrf);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var scope = server.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var entries = await database.Set<CapexEntry>()
+            .Where(entry => entry.Id == publicEntryId || entry.Id == privateEntryId)
+            .ToArrayAsync();
+        Assert.All(entries, entry =>
+        {
+            Assert.Null(entry.CostCenterId);
+            Assert.Equal(adminId, entry.UpdatedBy);
+        });
+    }
+
+    [Fact]
+    public async Task Category_replacement_migrates_references_and_deletes_the_source()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var entryId = await CapexTestData.SeedEntryAsync(server.Services, adminId, title: "Other purchase", categoryName: "Other");
+        var sourceId = await CapexTestData.CategoryIdAsync(server.Services, "Other");
+        var replacementId = await CapexTestData.CategoryIdAsync(server.Services, "Home");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/capex/categories/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(replacementId, ClearReferences: false, ExchangeRate: null),
+            csrf);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var scope = server.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var entry = await database.Set<CapexEntry>().SingleAsync(value => value.Id == entryId);
+        Assert.Equal(replacementId, entry.CategoryId);
+        Assert.Equal(adminId, entry.UpdatedBy);
+        Assert.False(await database.Set<CapexCategory>().AnyAsync(value => value.Id == sourceId));
     }
 
     private sealed record ProblemPayload(string? Code);

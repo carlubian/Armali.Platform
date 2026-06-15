@@ -2,13 +2,16 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Capex.Mutations;
 using Segaris.Api.Modules.Capex.Persistence;
 using Segaris.Api.Modules.Capex.Seeding;
 using Segaris.Api.Modules.Configuration;
+using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Persistence;
+using Segaris.Api.Platform.Api;
 using Segaris.Persistence;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
@@ -147,6 +150,49 @@ public sealed class CapexDomainTests
         Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
     }
 
+    [Fact]
+    public async Task Reference_migration_rolls_back_when_a_later_consumer_fails()
+    {
+        await using var fixture = await CapexFixture.CreateAsync();
+        await new CapexSeeder(fixture.Database, new CatalogInitializer(fixture.Database, fixture.Clock))
+            .SeedAsync(CancellationToken.None);
+        var sourceId = await fixture.Database.Set<SegarisSupplier>()
+            .Where(value => value.Name == "Amazon").Select(value => value.Id).SingleAsync();
+        var replacementId = await fixture.Database.Set<SegarisSupplier>()
+            .Where(value => value.Name == "IKEA").Select(value => value.Id).SingleAsync();
+        var categoryId = await fixture.Database.Set<CapexCategory>()
+            .Where(value => value.Name == "Other").Select(value => value.Id).SingleAsync();
+        var currencyId = await fixture.Database.Set<SegarisCurrency>()
+            .Where(value => value.Code == ConfigurationCatalog.CurrencyCodes.Default)
+            .Select(value => value.Id).SingleAsync();
+        var entry = CapexEntry.Create(
+            Values() with { CategoryId = categoryId, SupplierId = sourceId, CurrencyId = currencyId },
+            [new("Rollback", 1m, 1m)],
+            new UserId(1),
+            Now);
+        fixture.Database.Add(entry);
+        await fixture.Database.SaveChangesAsync();
+
+        ICatalogReferenceHandler[] handlers =
+        [
+            new CapexCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Suppliers),
+            new FailingReferenceHandler(),
+        ];
+        var service = new ConfigurationCatalogManagementService(fixture.Database, handlers, fixture.Clock);
+
+        var exception = await Assert.ThrowsAsync<ApiProblemException>(() => service.ReplaceAndDeleteSupplierAsync(
+            sourceId,
+            new CatalogReplacementRequest(replacementId, ClearReferences: false, ExchangeRate: null),
+            new UserId(1),
+            CancellationToken.None));
+
+        Assert.Equal(ConfigurationErrorCodes.CatalogMigrationFailed, exception.Code);
+        fixture.Database.ChangeTracker.Clear();
+        var stored = await fixture.Database.Set<CapexEntry>().SingleAsync(value => value.Id == entry.Id);
+        Assert.Equal(sourceId, stored.SupplierId);
+        Assert.True(await fixture.Database.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
+    }
+
     private static CapexEntry CreateEntry(IReadOnlyList<CapexItemValues> items) =>
         CapexEntry.Create(Values(), items, new UserId(1), Now);
 
@@ -204,5 +250,16 @@ public sealed class CapexDomainTests
     private sealed class MutableClock : IClock
     {
         public DateTimeOffset UtcNow { get; set; }
+    }
+
+    private sealed class FailingReferenceHandler : ICatalogReferenceHandler
+    {
+        public ConfigurationCatalogKind Kind => ConfigurationCatalogKind.Suppliers;
+
+        public Task<bool> HasReferencesAsync(int catalogId, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
+        public Task MigrateReferencesAsync(CatalogReferenceMigration migration, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Injected consumer failure.");
     }
 }

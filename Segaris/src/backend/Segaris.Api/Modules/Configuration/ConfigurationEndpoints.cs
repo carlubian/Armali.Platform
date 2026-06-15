@@ -28,8 +28,8 @@ internal static class ConfigurationEndpoints
             .WithSummary("Returns the shared currency catalog")
             .Produces<IReadOnlyList<CurrencyResponse>>();
 
-        MapManagement<SupplierResponse>(group, "/suppliers", "Supplier", CreateSupplierAsync, UpdateSupplierAsync, MoveSupplierAsync, SupplierImpactAsync, DeleteSupplierAsync);
-        MapManagement<CostCenterResponse>(group, "/cost-centers", "CostCenter", CreateCostCenterAsync, UpdateCostCenterAsync, MoveCostCenterAsync, CostCenterImpactAsync, DeleteCostCenterAsync);
+        MapManagement<SupplierResponse>(group, "/suppliers", "Supplier", CreateSupplierAsync, UpdateSupplierAsync, MoveSupplierAsync, SupplierImpactAsync, DeleteSupplierAsync, ReplaceAndDeleteSupplierAsync);
+        MapManagement<CostCenterResponse>(group, "/cost-centers", "CostCenter", CreateCostCenterAsync, UpdateCostCenterAsync, MoveCostCenterAsync, CostCenterImpactAsync, DeleteCostCenterAsync, ReplaceAndDeleteCostCenterAsync);
 
         var currencies = group.MapGroup("/currencies").RequireAuthorization(IdentityPolicies.Admin);
         currencies.MapPost("", CreateCurrencyAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateConfigurationCurrency").WithSummary("Creates a currency at the end of the catalog").Produces<CurrencyResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
@@ -47,7 +47,8 @@ internal static class ConfigurationEndpoints
         Delegate update,
         Delegate move,
         Delegate impact,
-        Delegate delete)
+        Delegate delete,
+        Delegate replaceAndDelete)
     {
         var group = root.MapGroup(path).RequireAuthorization(IdentityPolicies.Admin);
         group.MapPost("", create).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName($"CreateConfiguration{operationName}").WithSummary($"Creates a {operationName} value at the end of the catalog").Produces<TResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
@@ -55,6 +56,7 @@ internal static class ConfigurationEndpoints
         group.MapPost(ConfigurationApiRoutes.Move, move).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName($"MoveConfiguration{operationName}").WithSummary($"Moves a {operationName} value one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet(ConfigurationApiRoutes.DeletionImpact, impact).WithName($"GetConfiguration{operationName}DeletionImpact").WithSummary($"Returns privacy-neutral {operationName} deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         group.MapDelete(ConfigurationApiRoutes.ById, delete).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName($"DeleteConfiguration{operationName}").WithSummary($"Deletes an unreferenced {operationName} value").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost(ConfigurationApiRoutes.ReplaceAndDelete, replaceAndDelete).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName($"ReplaceAndDeleteConfiguration{operationName}").WithSummary($"Migrates references and deletes a {operationName} value atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static UserId Actor(ICurrentUser currentUser) => currentUser.UserId ?? throw ConfigurationProblem.NotFound();
@@ -65,12 +67,14 @@ internal static class ConfigurationEndpoints
     private static async Task<IResult> MoveSupplierAsync(int id, CatalogMoveRequest request, ConfigurationCatalogManagementService service, CancellationToken token) { await service.MoveSupplierAsync(id, Direction(request), token); return TypedResults.NoContent(); }
     private static async Task<IResult> SupplierImpactAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) => TypedResults.Ok(await service.SupplierImpactAsync(id, token));
     private static async Task<IResult> DeleteSupplierAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) { await service.DeleteSupplierAsync(id, token); return TypedResults.NoContent(); }
+    private static async Task<IResult> ReplaceAndDeleteSupplierAsync(int id, CatalogReplacementRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) { await service.ReplaceAndDeleteSupplierAsync(id, request, Actor(user), token); return TypedResults.NoContent(); }
 
     private static async Task<IResult> CreateCostCenterAsync(CatalogItemRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) { var value = await service.CreateCostCenterAsync(request, Actor(user), token); return TypedResults.Created($"/api/configuration/cost-centers/{value.Id}", value); }
     private static async Task<IResult> UpdateCostCenterAsync(int id, CatalogItemRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) => TypedResults.Ok(await service.UpdateCostCenterAsync(id, request, Actor(user), token));
     private static async Task<IResult> MoveCostCenterAsync(int id, CatalogMoveRequest request, ConfigurationCatalogManagementService service, CancellationToken token) { await service.MoveCostCenterAsync(id, Direction(request), token); return TypedResults.NoContent(); }
     private static async Task<IResult> CostCenterImpactAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) => TypedResults.Ok(await service.CostCenterImpactAsync(id, token));
     private static async Task<IResult> DeleteCostCenterAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) { await service.DeleteCostCenterAsync(id, token); return TypedResults.NoContent(); }
+    private static async Task<IResult> ReplaceAndDeleteCostCenterAsync(int id, CatalogReplacementRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) { await service.ReplaceAndDeleteCostCenterAsync(id, request, Actor(user), token); return TypedResults.NoContent(); }
 
     private static async Task<IResult> CreateCurrencyAsync(CurrencyItemRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) { var value = await service.CreateCurrencyAsync(request, Actor(user), token); return TypedResults.Created($"/api/configuration/currencies/{value.Id}", value); }
     private static async Task<IResult> UpdateCurrencyAsync(int id, CurrencyItemRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) => TypedResults.Ok(await service.UpdateCurrencyAsync(id, request, Actor(user), token));

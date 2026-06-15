@@ -9,4 +9,6 @@ internal static class CapexCategoryProblem
     public static ApiProblemException DuplicateName() => new(StatusCodes.Status409Conflict, CapexErrorCodes.CategoryDuplicateName, "Category name already exists.");
     public static ApiProblemException RequiredNotEmpty() => new(StatusCodes.Status409Conflict, CapexErrorCodes.CategoryRequiredNotEmpty, "The category catalog cannot be empty.");
     public static ApiProblemException Referenced() => new(StatusCodes.Status409Conflict, CapexErrorCodes.CategoryReferenced, "The category is referenced.");
+    public static ApiProblemException InvalidReplacement() => new(StatusCodes.Status400BadRequest, CapexErrorCodes.CategoryInvalidReplacement, "The replacement category is invalid.");
+    public static ApiProblemException MigrationConflict() => new(StatusCodes.Status409Conflict, CapexErrorCodes.CategoryMigrationConflict, "The category migration conflicted with a concurrent change.");
 }

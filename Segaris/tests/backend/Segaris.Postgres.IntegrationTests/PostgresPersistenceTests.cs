@@ -212,6 +212,89 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_replaces_supplier_references_and_deletes_the_source_atomically()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-configuration-migration";
+        const string password = "PgConfigurationMigration123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        int entryId;
+        int sourceId;
+        int replacementId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            var currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
+                .Select(currency => currency.Id).SingleAsync();
+            var nextSortOrder = (await database.Set<SegarisSupplier>()
+                .Select(value => (int?)value.SortOrder).MaxAsync() ?? -1) + 1;
+            var catalogNow = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+            var source = new SegarisSupplier
+            {
+                Name = "Postgres migration source",
+                NormalizedName = CatalogNormalization.Normalize("Postgres migration source"),
+                SortOrder = nextSortOrder,
+                CreatedAt = catalogNow,
+                CreatedBy = userId,
+                UpdatedAt = catalogNow,
+                UpdatedBy = userId,
+            };
+            var replacement = new SegarisSupplier
+            {
+                Name = "Postgres migration target",
+                NormalizedName = CatalogNormalization.Normalize("Postgres migration target"),
+                SortOrder = nextSortOrder + 1,
+                CreatedAt = catalogNow,
+                CreatedBy = userId,
+                UpdatedAt = catalogNow,
+                UpdatedBy = userId,
+            };
+            database.AddRange(source, replacement);
+            await database.SaveChangesAsync();
+            sourceId = source.Id;
+            replacementId = replacement.Id;
+            var entry = CapexEntry.Create(
+                new("Postgres migration", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    new DateOnly(2026, 6, 14), categoryId, sourceId, null, currencyId, null, RecordVisibility.Private),
+                [new("Migrated", 1m, 1m)],
+                new UserId(userId),
+                new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero));
+            database.Add(entry);
+            await database.SaveChangesAsync();
+            entryId = entry.Id;
+        }
+
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        using var migrated = await PostWithCsrfAsync(
+            client,
+            $"/api/configuration/suppliers/{sourceId}/replace-and-delete",
+            new { replacementId, clearReferences = false, exchangeRate = (decimal?)null });
+
+        Assert.Equal(HttpStatusCode.NoContent, migrated.StatusCode);
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDatabase = verificationScope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var stored = await verificationDatabase.Set<CapexEntry>().SingleAsync(value => value.Id == entryId);
+        Assert.Equal(replacementId, stored.SupplierId);
+        Assert.False(await verificationDatabase.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
     public async Task Postgres_replaces_capex_items_and_cascades_entry_deletion_through_the_api()
     {
         if (postgres is null)

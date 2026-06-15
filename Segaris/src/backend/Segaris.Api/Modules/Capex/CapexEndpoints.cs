@@ -39,6 +39,7 @@ internal static class CapexEndpoints
         categories.MapPost(CapexApiRoutes.CategoryMove, MoveCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveCapexCategory").WithSummary("Moves a Capex category one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
         categories.MapGet(CapexApiRoutes.CategoryDeletionImpact, CategoryImpactAsync).WithName("GetCapexCategoryDeletionImpact").WithSummary("Returns privacy-neutral category deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         categories.MapDelete(CapexApiRoutes.CategoryById, DeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteCapexCategory").WithSummary("Deletes an unreferenced Capex category").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPost(CapexApiRoutes.CategoryReplaceAndDelete, ReplaceAndDeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteCapexCategory").WithSummary("Migrates references and deletes a Capex category atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapGet("/entries", ListEntriesAsync)
             .WithName("ListCapexEntries")
@@ -138,6 +139,12 @@ internal static class CapexEndpoints
     private static async Task<IResult> DeleteCategoryAsync(int categoryId, CapexCategoryManagementService service, CancellationToken token)
     {
         await service.DeleteAsync(categoryId, token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReplaceAndDeleteCategoryAsync(int categoryId, CatalogReplacementRequest request, CapexCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(categoryId, request, CategoryActor(user), token);
         return TypedResults.NoContent();
     }
 

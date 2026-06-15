@@ -79,6 +79,12 @@ internal sealed class ConfigurationCatalogManagementService(
     public Task DeleteCostCenterAsync(int id, CancellationToken cancellationToken) => DeleteAsync<SegarisCostCenter>(id, ConfigurationCatalogKind.CostCenters, required: false, cancellationToken);
     public Task DeleteCurrencyAsync(int id, CancellationToken cancellationToken) => DeleteAsync<SegarisCurrency>(id, ConfigurationCatalogKind.Currencies, required: true, cancellationToken);
 
+    public Task ReplaceAndDeleteSupplierAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken cancellationToken) =>
+        ReplaceAndDeleteAsync<SegarisSupplier>(id, ConfigurationCatalogKind.Suppliers, request, actor, cancellationToken);
+
+    public Task ReplaceAndDeleteCostCenterAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken cancellationToken) =>
+        ReplaceAndDeleteAsync<SegarisCostCenter>(id, ConfigurationCatalogKind.CostCenters, request, actor, cancellationToken);
+
     private async Task<TResponse> CreateAsync<TEntity, TResponse>(CatalogItemRequest request, UserId actor, Func<TEntity, TResponse> response, CancellationToken cancellationToken)
         where TEntity : class, IConfigurationCatalogEntity, new()
     {
@@ -159,6 +165,79 @@ internal sealed class ConfigurationCatalogManagementService(
         catch (DbUpdateException)
         {
             throw ConfigurationProblem.Referenced();
+        }
+    }
+
+    private async Task ReplaceAndDeleteAsync<TEntity>(
+        int id,
+        ConfigurationCatalogKind kind,
+        CatalogReplacementRequest request,
+        UserId actor,
+        CancellationToken cancellationToken)
+        where TEntity : class, IConfigurationCatalogEntity
+    {
+        ValidateOptionalReplacement(id, request);
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var source = await database.Set<TEntity>().SingleOrDefaultAsync(value => value.Id == id, cancellationToken)
+            ?? throw ConfigurationProblem.NotFound();
+
+        if (request.ReplacementId is { } replacementId
+            && !await database.Set<TEntity>().AnyAsync(value => value.Id == replacementId, cancellationToken))
+        {
+            throw ConfigurationProblem.InvalidReplacement();
+        }
+
+        var migration = new CatalogReferenceMigration(
+            kind,
+            id,
+            request.ReplacementId,
+            request.ClearReferences,
+            ExchangeRate: null,
+            actor,
+            clock.UtcNow);
+
+        try
+        {
+            foreach (var handler in referenceHandlers.Where(value => value.Kind == kind))
+            {
+                await handler.MigrateReferencesAsync(migration, cancellationToken);
+            }
+
+            database.Remove(source);
+            var remaining = await database.Set<TEntity>()
+                .Where(value => value.Id != id)
+                .OrderBy(value => value.SortOrder)
+                .ThenBy(value => value.Id)
+                .ToListAsync(cancellationToken);
+            for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
+
+            await database.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw ConfigurationProblem.MigrationConflict();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            throw ConfigurationProblem.MigrationFailed();
+        }
+    }
+
+    private static void ValidateOptionalReplacement(int sourceId, CatalogReplacementRequest request)
+    {
+        var hasReplacement = request.ReplacementId is not null;
+        if (request.ExchangeRate is not null
+            || hasReplacement == request.ClearReferences
+            || request.ReplacementId == sourceId
+            || request.ReplacementId is <= 0)
+        {
+            throw ConfigurationProblem.InvalidReplacement();
         }
     }
 

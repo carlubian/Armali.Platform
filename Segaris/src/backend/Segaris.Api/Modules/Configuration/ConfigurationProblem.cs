@@ -11,4 +11,7 @@ internal static class ConfigurationProblem
     public static ApiProblemException InvalidCode() => new(StatusCodes.Status400BadRequest, ConfigurationErrorCodes.CurrencyInvalidCode, "Currency code is invalid.", errors: new Dictionary<string, string[]> { ["code"] = ["Code must contain exactly three letters."] });
     public static ApiProblemException RequiredNotEmpty() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogRequiredNotEmpty, "The required catalog cannot be empty.");
     public static ApiProblemException Referenced() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogReferenced, "The catalog value is referenced.");
+    public static ApiProblemException InvalidReplacement() => new(StatusCodes.Status400BadRequest, ConfigurationErrorCodes.CatalogInvalidReplacement, "The replacement request is invalid.");
+    public static ApiProblemException MigrationConflict() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogMigrationConflict, "The catalog migration conflicted with a concurrent change.");
+    public static ApiProblemException MigrationFailed() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogMigrationFailed, "A catalog consumer could not migrate its references.");
 }

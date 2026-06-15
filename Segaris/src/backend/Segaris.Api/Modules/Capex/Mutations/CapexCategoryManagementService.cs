@@ -70,6 +70,57 @@ internal sealed class CapexCategoryManagementService(SegarisDbContext database, 
         catch (DbUpdateException) { throw CapexCategoryProblem.Referenced(); }
     }
 
+    public async Task ReplaceAndDeleteAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken token)
+    {
+        if (request.ClearReferences
+            || request.ExchangeRate is not null
+            || request.ReplacementId is not { } replacementId
+            || replacementId <= 0
+            || replacementId == id)
+        {
+            throw CapexCategoryProblem.InvalidReplacement();
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(token);
+        var source = await FindAsync(id, token);
+        if (!await database.Set<CapexCategory>().AnyAsync(value => value.Id == replacementId, token))
+        {
+            throw CapexCategoryProblem.InvalidReplacement();
+        }
+
+        if (await database.Set<CapexCategory>().CountAsync(token) <= 1)
+        {
+            throw CapexCategoryProblem.RequiredNotEmpty();
+        }
+
+        try
+        {
+            var entries = await database.Set<CapexEntry>()
+                .Where(entry => entry.CategoryId == id)
+                .ToListAsync(token);
+            var occurredAt = clock.UtcNow;
+            foreach (var entry in entries)
+            {
+                entry.ReplaceCategory(replacementId, actor, occurredAt);
+            }
+
+            database.Remove(source);
+            var remaining = await database.Set<CapexCategory>()
+                .Where(value => value.Id != id)
+                .OrderBy(value => value.SortOrder)
+                .ThenBy(value => value.Id)
+                .ToListAsync(token);
+            for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
+
+            await database.SaveChangesAsync(token);
+            await transaction.CommitAsync(token);
+        }
+        catch (DbUpdateException)
+        {
+            throw CapexCategoryProblem.MigrationConflict();
+        }
+    }
+
     private async Task<CapexCategory> FindAsync(int id, CancellationToken token, bool tracked = true)
     {
         IQueryable<CapexCategory> query = database.Set<CapexCategory>();
