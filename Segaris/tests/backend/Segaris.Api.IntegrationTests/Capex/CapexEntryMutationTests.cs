@@ -186,7 +186,7 @@ public sealed class CapexEntryMutationTests
 
     internal static async Task<CapexEntryRequestBuilder> DefaultBuilderAsync(CapexTestServer server)
     {
-        var categoryId = await CapexTestData.CategoryIdAsync(server.Services, CapexCategoryCatalog.Codes.Other);
+        var categoryId = await CapexTestData.CategoryIdAsync(server.Services, "Other");
         var currencyId = await CapexTestData.CurrencyIdAsync(server.Services, ConfigurationCatalog.CurrencyCodes.Default);
         return CapexEntryRequestBuilder.Default()
             .WithCategory(categoryId)

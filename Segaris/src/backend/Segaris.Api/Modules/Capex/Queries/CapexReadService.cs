@@ -25,9 +25,9 @@ internal sealed class CapexReadService(SegarisDbContext database, IAttachmentSer
         CancellationToken cancellationToken) =>
         await database.Set<CapexCategory>()
             .AsNoTracking()
-            .OrderBy(category => category.Name)
+            .OrderBy(category => category.SortOrder)
             .ThenBy(category => category.Id)
-            .Select(category => new CapexCategoryResponse(category.Id, category.Code, category.Name))
+            .Select(category => new CapexCategoryResponse(category.Id, category.Name, category.SortOrder))
             .ToArrayAsync(cancellationToken);
 
     public async Task<PaginatedResponse<CapexEntrySummaryResponse>> ListEntriesAsync(

@@ -11,6 +11,18 @@ internal static class CapexApiRoutes
 
     public const string Categories = "capex/categories";
 
+    /// <summary>Update path relative to the category collection.</summary>
+    public const string CategoryById = "/{categoryId:int}";
+
+    /// <summary>Move-up/move-down path relative to the category collection.</summary>
+    public const string CategoryMove = "/{categoryId:int}/move";
+
+    /// <summary>Privacy-neutral deletion-impact path relative to the category collection.</summary>
+    public const string CategoryDeletionImpact = "/{categoryId:int}/deletion-impact";
+
+    /// <summary>Replace-and-delete path relative to the category collection.</summary>
+    public const string CategoryReplaceAndDelete = "/{categoryId:int}/replace-and-delete";
+
     public const string Entries = "capex/entries";
 
     public const string EntryById = "/{entryId:int}";

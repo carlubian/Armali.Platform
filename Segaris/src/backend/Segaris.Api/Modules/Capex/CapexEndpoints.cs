@@ -3,6 +3,8 @@ using Segaris.Api.Modules.Capex.Contracts;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Capex.Mutations;
 using Segaris.Api.Modules.Capex.Queries;
+using Segaris.Api.Modules.Configuration.Contracts;
+using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
 using Segaris.Api.Platform.Attachments;
@@ -30,6 +32,14 @@ internal static class CapexEndpoints
             .WithName("ListCapexCategories")
             .WithSummary("Returns the Capex category catalog")
             .Produces<IReadOnlyList<CapexCategoryResponse>>();
+
+        var categories = group.MapGroup("/categories").RequireAuthorization(IdentityPolicies.Admin);
+        categories.MapPost("", CreateCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateCapexCategory").WithSummary("Creates a category at the end of the catalog").Produces<CapexCategoryResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPut(CapexApiRoutes.CategoryById, UpdateCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("UpdateCapexCategory").WithSummary("Updates a Capex category").Produces<CapexCategoryResponse>().ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPost(CapexApiRoutes.CategoryMove, MoveCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveCapexCategory").WithSummary("Moves a Capex category one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
+        categories.MapGet(CapexApiRoutes.CategoryDeletionImpact, CategoryImpactAsync).WithName("GetCapexCategoryDeletionImpact").WithSummary("Returns privacy-neutral category deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        categories.MapDelete(CapexApiRoutes.CategoryById, DeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteCapexCategory").WithSummary("Deletes an unreferenced Capex category").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPost(CapexApiRoutes.CategoryReplaceAndDelete, ReplaceAndDeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteCapexCategory").WithSummary("Migrates references and deletes a Capex category atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapGet("/entries", ListEntriesAsync)
             .WithName("ListCapexEntries")
@@ -99,6 +109,43 @@ internal static class CapexEndpoints
     {
         var categories = await read.ListCategoriesAsync(cancellationToken);
         return TypedResults.Ok(categories);
+    }
+
+    private static UserId CategoryActor(ICurrentUser currentUser) => currentUser.UserId ?? throw CapexCategoryProblem.NotFound();
+
+    private static CatalogMoveDirection CategoryDirection(CatalogMoveRequest request) =>
+        CatalogMoveDirections.TryParse(request.Direction, out var direction)
+            ? direction
+            : throw CapexCategoryProblem.Validation("direction", "Direction must be 'up' or 'down'.");
+
+    private static async Task<IResult> CreateCategoryAsync(CatalogItemRequest request, CapexCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        var value = await service.CreateAsync(request, CategoryActor(user), token);
+        return TypedResults.Created($"/api/capex/categories/{value.Id}", value);
+    }
+
+    private static async Task<IResult> UpdateCategoryAsync(int categoryId, CatalogItemRequest request, CapexCategoryManagementService service, ICurrentUser user, CancellationToken token) =>
+        TypedResults.Ok(await service.UpdateAsync(categoryId, request, CategoryActor(user), token));
+
+    private static async Task<IResult> MoveCategoryAsync(int categoryId, CatalogMoveRequest request, CapexCategoryManagementService service, CancellationToken token)
+    {
+        await service.MoveAsync(categoryId, CategoryDirection(request), token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> CategoryImpactAsync(int categoryId, CapexCategoryManagementService service, CancellationToken token) =>
+        TypedResults.Ok(await service.ImpactAsync(categoryId, token));
+
+    private static async Task<IResult> DeleteCategoryAsync(int categoryId, CapexCategoryManagementService service, CancellationToken token)
+    {
+        await service.DeleteAsync(categoryId, token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReplaceAndDeleteCategoryAsync(int categoryId, CatalogReplacementRequest request, CapexCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(categoryId, request, CategoryActor(user), token);
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> ListEntriesAsync(

@@ -1,7 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, FileText, Paperclip, Plus, Trash2, X } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import {
+  ArrowDown,
+  ArrowUp,
+  FileText,
+  Globe,
+  Lock,
+  Paperclip,
+  Plus,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   useFieldArray,
   useForm,
@@ -23,7 +35,15 @@ import {
 import type { CostCenter, Currency, Supplier } from '@/app/api/configuration'
 import { isApiError } from '@/app/api/errors'
 import { formatCurrency } from '@/app/i18n/formatters'
-import { Button, Dialog, Input, Select, Spinner } from '@/components/ui'
+import {
+  Button,
+  Dialog,
+  Input,
+  SegmentedControl,
+  Select,
+  Spinner,
+  type SegmentTone,
+} from '@/components/ui'
 
 import { attachmentAccept, formatFileSize, rejectionFor } from './attachments'
 import { EntryAttachments } from './EntryAttachments'
@@ -140,8 +160,8 @@ export function EntryDialog({
     entry != null
       ? fromEntry(entry)
       : buildDefaults({
-          categoryId: defaultCatalogId(categories.data, 'OTHER'),
-          currencyId: defaultCatalogId(currencies.data, 'EUR'),
+          categoryId: firstCatalogId(categories.data),
+          currencyId: firstCatalogId(currencies.data),
         })
 
   // Only the creator may change visibility; everyone with access may edit a
@@ -169,12 +189,12 @@ export function EntryDialog({
   )
 }
 
-function defaultCatalogId(
-  items: ReadonlyArray<{ id: number; code: string }> | undefined,
-  code: string,
-): string {
-  const match = items?.find((item) => item.code === code)
-  return match != null ? String(match.id) : ''
+// A business form's implicit catalog default is the first available row in
+// catalog order (SortOrder, then Id). The API already returns rows in that order,
+// so the first entry is the default.
+function firstCatalogId(items: ReadonlyArray<{ id: number }> | undefined): string {
+  const first = items?.[0]
+  return first != null ? String(first.id) : ''
 }
 
 interface EntryEditorFormProps {
@@ -198,6 +218,21 @@ interface EntryEditorFormProps {
 const movementTypes: CapexMovementType[] = ['Income', 'Expense']
 const statuses: CapexEntryStatus[] = ['Planning', 'Completed', 'Canceled']
 const visibilities: CapexVisibility[] = ['Public', 'Private']
+
+// Icon and active-colour cues so the segmented toggles read at a glance and stay
+// consistent with the entries table (income = positive/green).
+const movementTypeMeta: Record<
+  CapexMovementType,
+  { icon: ReactNode; tone: SegmentTone }
+> = {
+  Income: { icon: <TrendingUp size={15} />, tone: 'success' },
+  Expense: { icon: <TrendingDown size={15} />, tone: 'neutral' },
+}
+const visibilityMeta: Record<CapexVisibility, { icon: ReactNode; tone: SegmentTone }> =
+  {
+    Public: { icon: <Globe size={15} />, tone: 'accent' },
+    Private: { icon: <Lock size={15} />, tone: 'neutral' },
+  }
 
 function EntryEditorForm({
   mode,
@@ -437,15 +472,18 @@ function EntryEditorForm({
               {...register('title')}
             />
             <div className="seg-capex-editor__grid">
-              <Field label={t('editor.fields.type')}>
-                <Select
+              <ToggleField id="capex-field-type" label={t('editor.fields.type')}>
+                <SegmentedControl
+                  aria-labelledby="capex-field-type"
                   {...register('movementType')}
                   options={movementTypes.map((value) => ({
                     value,
                     label: t(`entries.type.${value}`),
+                    icon: movementTypeMeta[value].icon,
+                    tone: movementTypeMeta[value].tone,
                   }))}
                 />
-              </Field>
+              </ToggleField>
               <Field label={t('editor.fields.status')}>
                 <Select
                   {...register('status')}
@@ -490,21 +528,25 @@ function EntryEditorForm({
                   options={catalogOptions(currencies, true)}
                 />
               </Field>
-              <Field
+              <ToggleField
+                id="capex-field-visibility"
                 label={t('editor.fields.visibility')}
                 hint={
                   canChangeVisibility ? undefined : t('editor.visibilityHint.locked')
                 }
               >
-                <Select
-                  {...register('visibility')}
+                <SegmentedControl
+                  aria-labelledby="capex-field-visibility"
                   disabled={!canChangeVisibility}
+                  {...register('visibility')}
                   options={visibilities.map((value) => ({
                     value,
                     label: t(`entries.visibility.${value}`),
+                    icon: visibilityMeta[value].icon,
+                    tone: visibilityMeta[value].tone,
                   }))}
                 />
-              </Field>
+              </ToggleField>
             </div>
           </section>
 
@@ -790,6 +832,31 @@ function Field({ label, hint, error, children }: FieldProps) {
           {message}
         </span>
       )}
+    </div>
+  )
+}
+
+interface ToggleFieldProps {
+  /** Ids the group label so the radiogroup can reference it for its name. */
+  id: string
+  label: string
+  hint?: string
+  children: React.ReactNode
+}
+
+/**
+ * Field wrapper for a {@link SegmentedControl}. Unlike {@link Field} it is not a
+ * `<label>` element — wrapping a radio group in a label would steal clicks for
+ * the first option — so the label is a plain span linked via `aria-labelledby`.
+ */
+function ToggleField({ id, label, hint, children }: ToggleFieldProps) {
+  return (
+    <div className="seg-capex-editor__field">
+      <span className="seg-capex-editor__field-label" id={id}>
+        {label}
+      </span>
+      {children}
+      {hint != null && <span className="seg-capex-editor__field-hint">{hint}</span>}
     </div>
   )
 }

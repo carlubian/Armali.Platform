@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { UserRound, Users, Wallet } from 'lucide-react'
+import { SlidersHorizontal, UserRound, Users, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -59,6 +59,16 @@ export function LauncherPage() {
         href: '/users',
         icon: Users,
         tone: 'gold',
+        requiresRole: 'Admin',
+      },
+      {
+        key: 'configuration',
+        title: t('launcher.modules.configuration.title'),
+        description: t('launcher.modules.configuration.description'),
+        actionLabel: t('launcher.open'),
+        href: '/configuration',
+        icon: SlidersHorizontal,
+        tone: 'azure',
         requiresRole: 'Admin',
       },
     ]

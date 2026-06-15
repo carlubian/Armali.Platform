@@ -49,6 +49,10 @@ export const platform = {
         title: 'Household users',
         description: 'Create and manage the accounts that can access Segaris.',
       },
+      configuration: {
+        title: 'Configuration',
+        description: 'Manage shared catalogs used across household forms.',
+      },
     },
   },
   shell: {

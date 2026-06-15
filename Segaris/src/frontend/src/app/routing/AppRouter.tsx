@@ -17,6 +17,14 @@ const CapexPage = lazy(() =>
   import('@/modules/capex/CapexPage').then((module) => ({ default: module.CapexPage })),
 )
 
+// The administrative Configuration experience is admin-only and lazily loaded so
+// its catalog tables and dialogs stay out of the initial platform bundle.
+const ConfigurationPage = lazy(() =>
+  import('@/modules/configuration/ConfigurationPage').then((module) => ({
+    default: module.ConfigurationPage,
+  })),
+)
+
 function ProtectedRoutes() {
   const { status, refresh } = useSession()
   if (status === 'loading') return <LoadingScreen />
@@ -74,6 +82,19 @@ export function AppRouter() {
             </ModuleBoundary>
           }
         />
+        {['configuration', 'configuration/:section'].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ModuleBoundary>
+                <Suspense fallback={<LoadingScreen />}>
+                  <ConfigurationPage />
+                </Suspense>
+              </ModuleBoundary>
+            }
+          />
+        ))}
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

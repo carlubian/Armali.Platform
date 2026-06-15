@@ -17,8 +17,10 @@ internal sealed class ConfigurationModule : ISegarisModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISegarisModelContributor, ConfigurationModelContributor>();
+        services.AddScoped<CatalogInitializer>();
         services.AddScoped<ConfigurationSeeder>();
         services.AddScoped<IConfigurationCatalog, ConfigurationCatalogService>();
+        services.AddScoped<ConfigurationCatalogManagementService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

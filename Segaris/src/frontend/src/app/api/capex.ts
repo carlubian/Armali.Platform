@@ -1,3 +1,4 @@
+import { catalogManagementClient, type CatalogManagementClient } from './catalogs'
 import { apiRequest } from './client'
 import type { PaginatedResponse } from './adminUsers'
 
@@ -33,7 +34,13 @@ export type CapexPageSize = (typeof capexPageSizes)[number]
 /** Frozen Capex category catalog row from `GET /api/capex/categories`. */
 export interface CapexCategory {
   id: number
-  code: string
+  name: string
+  sortOrder: number
+}
+
+/** Create/update body for a Capex category. Categories are required and
+ * replace-only: clearing references and exchange rates are never valid. */
+export interface CapexCategoryRequest {
   name: string
 }
 
@@ -230,3 +237,15 @@ export const capexApi = {
       signal,
     }),
 }
+
+/**
+ * Administrator-only management client for the Capex category catalog. Reads stay
+ * on {@link capexApi.categories} because the entry editor consumes them; every
+ * method here requires `Admin` and is antiforgery-protected on the server.
+ */
+export const capexCategoriesManagementApi: CatalogManagementClient<
+  CapexCategory,
+  CapexCategoryRequest
+> = catalogManagementClient<CapexCategory, CapexCategoryRequest>(
+  '/api/capex/categories',
+)

@@ -118,9 +118,9 @@ public sealed class CapexEntryListTests
         using var server = new CapexTestServer();
         using var client = await server.CreateAuthenticatedClientAsync();
         var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
-        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "HasAmazon", supplierCode: ConfigurationCatalog.SupplierCodes.Amazon);
-        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "HasIkea", supplierCode: ConfigurationCatalog.SupplierCodes.Ikea);
-        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "NoSupplier", supplierCode: null);
+        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "HasAmazon", supplierName: "Amazon");
+        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "HasIkea", supplierName: "IKEA");
+        await CapexTestData.SeedEntryAsync(server.Services, founderId, title: "NoSupplier", supplierName: null);
 
         var ascending = await GetPageAsync(client, "/api/capex/entries?sort=supplier&sortDirection=asc");
         var descending = await GetPageAsync(client, "/api/capex/entries?sort=supplier&sortDirection=desc");
@@ -174,24 +174,24 @@ public sealed class CapexEntryListTests
             server.Services,
             founderId,
             title: "Full",
-            categoryCode: CapexCategoryCatalog.Codes.Other,
-            supplierCode: ConfigurationCatalog.SupplierCodes.Amazon,
-            costCenterCode: ConfigurationCatalog.CostCenterCodes.Household,
+            categoryName: "Other",
+            supplierName: "Amazon",
+            costCenterName: "Household",
             currencyCode: ConfigurationCatalog.CurrencyCodes.Euro,
             visibility: RecordVisibility.Public);
         await CapexTestData.SeedEntryAsync(
             server.Services,
             founderId,
             title: "Sparse",
-            categoryCode: CapexCategoryCatalog.Codes.Furniture,
-            supplierCode: null,
-            costCenterCode: null,
+            categoryName: "Furniture",
+            supplierName: null,
+            costCenterName: null,
             currencyCode: ConfigurationCatalog.CurrencyCodes.UsDollar,
             visibility: RecordVisibility.Private);
 
-        var furnitureId = await CapexTestData.CategoryIdAsync(server.Services, CapexCategoryCatalog.Codes.Furniture);
-        var amazonId = await CapexTestData.SupplierIdAsync(server.Services, ConfigurationCatalog.SupplierCodes.Amazon);
-        var householdId = await CapexTestData.CostCenterIdAsync(server.Services, ConfigurationCatalog.CostCenterCodes.Household);
+        var furnitureId = await CapexTestData.CategoryIdAsync(server.Services, "Furniture");
+        var amazonId = await CapexTestData.SupplierIdAsync(server.Services, "Amazon");
+        var householdId = await CapexTestData.CostCenterIdAsync(server.Services, "Household");
         var dollarId = await CapexTestData.CurrencyIdAsync(server.Services, ConfigurationCatalog.CurrencyCodes.UsDollar);
 
         Assert.Equal("Sparse", Assert.Single((await GetPageAsync(client, $"/api/capex/entries?category={furnitureId}")).Items).Title);

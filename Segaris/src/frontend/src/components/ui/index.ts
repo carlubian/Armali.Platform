@@ -29,6 +29,13 @@ export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './IconB
 export { Input } from './Input'
 export type { InputProps } from './Input'
 
+export { SegmentedControl } from './SegmentedControl'
+export type {
+  SegmentedControlProps,
+  SegmentOption,
+  SegmentTone,
+} from './SegmentedControl'
+
 export { Select } from './Select'
 export type { SelectOption, SelectProps } from './Select'
 

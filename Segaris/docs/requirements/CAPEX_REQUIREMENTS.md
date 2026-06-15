@@ -124,9 +124,12 @@ Supplier is selected from a reusable catalog rather than entered as arbitrary
 text. Cost center is also a catalog-backed string whose business meaning is
 known by the users; it does not represent a payment method or bank account.
 
-Category is required. Currency is required and defaults to `EUR`. Supplier and
-cost center are optional. The property remains named `Supplier` for both
-expenses and income, where it identifies the source of the money.
+Category is required. In the accepted initial Capex release, currency defaults
+to `EUR` and category defaults to `Other`. Once the separately planned
+Configuration management behavior is implemented, each defaults to the first
+available row by `SortOrder`, then `Id`. Supplier and cost center are optional.
+The property remains named `Supplier` for both expenses and income, where it
+identifies the source of the money.
 
 ## Classification Configuration
 
@@ -138,16 +141,16 @@ module and shared by several business modules, especially Capex, Opex, and
 Inventory. Their models and persisted names are domain-neutral, for example
 `SegarisSupplier`, rather than owned or named as Capex classifications.
 
-Administrators will eventually manage these catalogs through a future App
-Configuration module. Catalog management is not part of the initial Capex
-version. The first implementation provides persisted initial values but no
-administrative create, rename, migration, deactivation, or deletion workflow.
+Catalog management is not part of the accepted initial Capex version. Its
+administrator workflow is defined separately in
+`CONFIGURATION_REQUIREMENTS.md`, including creation, rename, ordering,
+reference migration, and deletion while preserving Capex ownership of
+`CapexCategory`.
 
-Configuration publishes read and validation contracts without exposing its EF
-Core entities to Capex. Stable integer identifiers are used as references, and
-the initial schema may enforce them with foreign keys because catalog deletion
-is not supported. Future management must migrate references to another value
-before a referenced catalog row can be removed.
+Configuration publishes read, validation, and narrow reference-management
+contracts without exposing its EF Core entities to Capex. Stable integer
+identifiers are used as references. Catalog management must migrate or, for an
+optional property, clear references before a referenced row can be removed.
 
 ## Amount Rules
 
@@ -217,10 +220,10 @@ confirmation before completing the destructive operation.
 
 ## Initial Catalog Availability
 
-The initial catalogs contain static seeded values available globally to all
-users. Capex does not provide different catalog options per user or role, and
-administrators have no catalog-management capabilities inside the initial
-module.
+The initial Capex release contains static seeded values available globally to
+all users and no catalog-management capabilities inside Capex. The later
+Configuration implementation turns these into administrator-managed catalogs
+without changing their integer references.
 
 The initial seeded values are:
 
@@ -406,6 +409,10 @@ A new entry starts with:
 - No cost center.
 - One item with quantity `1` and unit amount `0`.
 
+`EUR` and `Other` describe the accepted initial Capex release. The Configuration
+management plan supersedes those two fixed catalog defaults with the first
+available row by `SortOrder`, then `Id`, after that plan is implemented.
+
 The initial title and item description remain empty until supplied by the user.
 
 ### Item Ordering
@@ -555,7 +562,7 @@ The initial Capex definition is satisfied when:
 
 - Define the Analytics read contract when Analytics is planned.
 - Define import and export only if either capability enters a future scope.
-- Define administrator catalog mutation, deactivation, reference migration, and
-  deletion with the future App Configuration experience.
+- Implement the separately defined Configuration management plan; activation
+  and deactivation are explicitly outside that plan.
 - Define duplication and a dedicated "my entries" shortcut as optional follow-up
   improvements.

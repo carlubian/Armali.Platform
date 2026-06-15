@@ -1,34 +1,16 @@
 namespace Segaris.Api.Modules.Configuration;
 
 /// <summary>
-/// Frozen seed definitions for the shared Configuration catalogs.
+/// Frozen initial values for the shared Configuration catalogs, inserted only once
+/// by the one-time initialization service. Rows are assigned a database <c>Id</c>
+/// and a <c>SortOrder</c> following their declaration order here; display names are
+/// the canonical <c>en-GB</c> values and are localizable in the presentation layer.
 ///
-/// Catalog rows use a database-assigned auto-increment <c>Id</c>; the stable
-/// identity for idempotent seeding and lookup is the <see cref="CatalogSeed.Code"/>.
-/// Display names are the canonical <c>en-GB</c> values and are localizable in the
-/// presentation layer; they never serve as database identities or API references.
+/// Non-currency catalogs no longer carry a stable code: their identity is the
+/// generated <c>Id</c>. Currencies keep an editable three-letter display code.
 /// </summary>
 internal static class ConfigurationCatalog
 {
-    public static class SupplierCodes
-    {
-        public const string Amazon = "AMAZON";
-        public const string Ikea = "IKEA";
-        public const string Carrefour = "CARREFOUR";
-        public const string ElCorteIngles = "EL_CORTE_INGLES";
-        public const string LeroyMerlin = "LEROY_MERLIN";
-        public const string Other = "OTHER";
-    }
-
-    public static class CostCenterCodes
-    {
-        public const string Household = "HOUSEHOLD";
-        public const string Personal = "PERSONAL";
-        public const string Work = "WORK";
-        public const string Shared = "SHARED";
-        public const string Other = "OTHER";
-    }
-
     public static class CurrencyCodes
     {
         public const string Euro = "EUR";
@@ -40,24 +22,24 @@ internal static class ConfigurationCatalog
 
     public static readonly IReadOnlyList<CatalogSeed> Suppliers =
     [
-        new(SupplierCodes.Amazon, "Amazon"),
-        new(SupplierCodes.Ikea, "IKEA"),
-        new(SupplierCodes.Carrefour, "Carrefour"),
-        new(SupplierCodes.ElCorteIngles, "El Corte Inglés"),
-        new(SupplierCodes.LeroyMerlin, "Leroy Merlin"),
-        new(SupplierCodes.Other, "Other"),
+        new("Amazon"),
+        new("IKEA"),
+        new("Carrefour"),
+        new("El Corte Inglés"),
+        new("Leroy Merlin"),
+        new("Other"),
     ];
 
     public static readonly IReadOnlyList<CatalogSeed> CostCenters =
     [
-        new(CostCenterCodes.Household, "Household"),
-        new(CostCenterCodes.Personal, "Personal"),
-        new(CostCenterCodes.Work, "Work"),
-        new(CostCenterCodes.Shared, "Shared"),
-        new(CostCenterCodes.Other, "Other"),
+        new("Household"),
+        new("Personal"),
+        new("Work"),
+        new("Shared"),
+        new("Other"),
     ];
 
-    public static readonly IReadOnlyList<CatalogSeed> Currencies =
+    public static readonly IReadOnlyList<CurrencySeed> Currencies =
     [
         new(CurrencyCodes.Euro, "Euro"),
         new(CurrencyCodes.UsDollar, "US Dollar"),
@@ -66,7 +48,13 @@ internal static class ConfigurationCatalog
 }
 
 /// <summary>
-/// A single frozen catalog seed row: its stable <paramref name="Code"/> and the
-/// canonical display <paramref name="Name"/>.
+/// A single frozen catalog seed row identified only by its canonical display
+/// <paramref name="Name"/>; ordering follows declaration order.
 /// </summary>
-internal sealed record CatalogSeed(string Code, string Name);
+internal sealed record CatalogSeed(string Name);
+
+/// <summary>
+/// A single frozen currency seed row: its editable display <paramref name="Code"/>
+/// and canonical display <paramref name="Name"/>.
+/// </summary>
+internal sealed record CurrencySeed(string Code, string Name);

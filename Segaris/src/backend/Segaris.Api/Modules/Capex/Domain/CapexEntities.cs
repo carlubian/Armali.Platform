@@ -6,8 +6,9 @@ namespace Segaris.Api.Modules.Capex.Domain;
 internal sealed class CapexCategory
 {
     public int Id { get; set; }
-    public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string NormalizedName { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int? CreatedBy { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -81,6 +82,57 @@ internal sealed class CapexEntry
         Apply(values, itemValues, actorId, now, isCreation: false);
     }
 
+    internal void ReplaceSupplier(int? supplierId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        SupplierId = supplierId;
+        StampModification(actorId, now);
+    }
+
+    internal void ReplaceCostCenter(int? costCenterId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        CostCenterId = costCenterId;
+        StampModification(actorId, now);
+    }
+
+    internal void ReplaceCategory(int categoryId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        CategoryId = categoryId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Converts every item amount from the current currency to
+    /// <paramref name="targetCurrencyId"/> using <paramref name="exchangeRate"/>
+    /// (<c>1 source = exchangeRate target</c>), recalculates line and total amounts
+    /// with the established Capex routines, switches the currency, and stamps the
+    /// modification. Quantities are unchanged. The owning Configuration command
+    /// guarantees a positive rate with at most eight decimal places.
+    /// </summary>
+    internal void ConvertCurrency(int targetCurrencyId, decimal exchangeRate, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (targetCurrencyId <= 0)
+        {
+            throw new CapexValidationException("Catalog identifiers must be positive.");
+        }
+        if (exchangeRate <= 0)
+        {
+            throw new CapexValidationException("The exchange rate must be a positive value.");
+        }
+
+        foreach (var item in items)
+        {
+            item.Convert(exchangeRate);
+        }
+
+        CurrencyId = targetCurrencyId;
+        TotalAmount = CapexCalculations.CalculateTotal(items);
+        StampModification(actorId, now);
+    }
+
     private void Apply(
         CapexEntryValues values,
         IReadOnlyList<CapexItemValues> itemValues,
@@ -134,6 +186,11 @@ internal sealed class CapexEntry
         items.Clear();
         items.AddRange(replacement);
         TotalAmount = CapexCalculations.CalculateTotal(items);
+        StampModification(actorId, now);
+    }
+
+    private void StampModification(UserId actorId, DateTimeOffset now)
+    {
         UpdatedAt = now;
         UpdatedBy = actorId.Value;
     }
@@ -212,5 +269,17 @@ internal sealed class CapexItem
             UnitAmount = values.UnitAmount,
             LineAmount = CapexCalculations.CalculateLineAmount(values.Quantity, values.UnitAmount),
         };
+    }
+
+    /// <summary>
+    /// Applies a currency conversion to this item: the unit amount is multiplied by
+    /// <paramref name="exchangeRate"/> and rounded to two decimals away from zero,
+    /// then the line amount is recalculated. The quantity is preserved. A zero unit
+    /// amount stays zero.
+    /// </summary>
+    internal void Convert(decimal exchangeRate)
+    {
+        UnitAmount = decimal.Round(UnitAmount * exchangeRate, 2, MidpointRounding.AwayFromZero);
+        LineAmount = CapexCalculations.CalculateLineAmount(Quantity, UnitAmount);
     }
 }

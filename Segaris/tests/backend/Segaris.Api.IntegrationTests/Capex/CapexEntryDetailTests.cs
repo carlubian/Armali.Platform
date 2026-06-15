@@ -20,7 +20,7 @@ public sealed class CapexEntryDetailTests
             server.Services,
             founderId,
             title: "Detailed entry",
-            supplierCode: ConfigurationCatalog.SupplierCodes.Amazon,
+            supplierName: "Amazon",
             items: [new("First", 2m, 1.50m), new("Second", 1m, 0.99m)]);
 
         var entry = await client.GetFromJsonAsync<CapexEntryResponse>(

@@ -190,7 +190,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
         var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
         var categoryId = await database.Set<CapexCategory>()
-            .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
             .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
         var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
@@ -209,6 +209,150 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(6.76m, stored.TotalAmount);
         Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
         Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
+    public async Task Postgres_replaces_supplier_references_and_deletes_the_source_atomically()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-configuration-migration";
+        const string password = "PgConfigurationMigration123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        int entryId;
+        int sourceId;
+        int replacementId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            var currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
+                .Select(currency => currency.Id).SingleAsync();
+            var nextSortOrder = (await database.Set<SegarisSupplier>()
+                .Select(value => (int?)value.SortOrder).MaxAsync() ?? -1) + 1;
+            var catalogNow = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+            var source = new SegarisSupplier
+            {
+                Name = "Postgres migration source",
+                NormalizedName = CatalogNormalization.Normalize("Postgres migration source"),
+                SortOrder = nextSortOrder,
+                CreatedAt = catalogNow,
+                CreatedBy = userId,
+                UpdatedAt = catalogNow,
+                UpdatedBy = userId,
+            };
+            var replacement = new SegarisSupplier
+            {
+                Name = "Postgres migration target",
+                NormalizedName = CatalogNormalization.Normalize("Postgres migration target"),
+                SortOrder = nextSortOrder + 1,
+                CreatedAt = catalogNow,
+                CreatedBy = userId,
+                UpdatedAt = catalogNow,
+                UpdatedBy = userId,
+            };
+            database.AddRange(source, replacement);
+            await database.SaveChangesAsync();
+            sourceId = source.Id;
+            replacementId = replacement.Id;
+            var entry = CapexEntry.Create(
+                new("Postgres migration", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    new DateOnly(2026, 6, 14), categoryId, sourceId, null, currencyId, null, RecordVisibility.Private),
+                [new("Migrated", 1m, 1m)],
+                new UserId(userId),
+                new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero));
+            database.Add(entry);
+            await database.SaveChangesAsync();
+            entryId = entry.Id;
+        }
+
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        using var migrated = await PostWithCsrfAsync(
+            client,
+            $"/api/configuration/suppliers/{sourceId}/replace-and-delete",
+            new { replacementId, clearReferences = false, exchangeRate = (decimal?)null });
+
+        Assert.Equal(HttpStatusCode.NoContent, migrated.StatusCode);
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDatabase = verificationScope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var stored = await verificationDatabase.Set<CapexEntry>().SingleAsync(value => value.Id == entryId);
+        Assert.Equal(replacementId, stored.SupplierId);
+        Assert.False(await verificationDatabase.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Postgres_converts_currency_recalculates_decimals_and_deletes_the_source_atomically()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-currency-conversion";
+        const string password = "PgCurrencyConversion123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        int entryId;
+        int sourceId;
+        int targetId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<CapexCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            sourceId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == "EUR").Select(currency => currency.Id).SingleAsync();
+            targetId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == "USD").Select(currency => currency.Id).SingleAsync();
+            var entry = CapexEntry.Create(
+                new("Postgres conversion", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                    new DateOnly(2026, 6, 14), categoryId, null, null, sourceId, null, RecordVisibility.Private),
+                [new("Desks", 2m, 10.00m), new("Lamp", 1m, 5.55m)],
+                new UserId(userId),
+                new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero));
+            database.Add(entry);
+            await database.SaveChangesAsync();
+            entryId = entry.Id;
+        }
+
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        using var converted = await PostWithCsrfAsync(
+            client,
+            $"/api/configuration/currencies/{sourceId}/replace-and-delete",
+            new { replacementId = targetId, clearReferences = false, exchangeRate = (decimal?)1.20m });
+
+        Assert.Equal(HttpStatusCode.NoContent, converted.StatusCode);
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDatabase = verificationScope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var stored = await verificationDatabase.Set<CapexEntry>().Include(value => value.Items)
+            .SingleAsync(value => value.Id == entryId);
+        Assert.Equal(targetId, stored.CurrencyId);
+        Assert.Equal([12.00m, 6.66m], stored.Items.OrderBy(item => item.Position).Select(item => item.UnitAmount));
+        Assert.Equal([24.00m, 6.66m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+        Assert.Equal(30.66m, stored.TotalAmount);
+        Assert.False(await verificationDatabase.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
     }
 
     [Fact]
@@ -239,7 +383,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         {
             var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
             categoryId = await database.Set<CapexCategory>()
-                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
             currencyId = await database.Set<SegarisCurrency>()
                 .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
         }
@@ -355,11 +499,11 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
             var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
             var categoryId = await database.Set<CapexCategory>()
-                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
             var currencyId = await database.Set<SegarisCurrency>()
                 .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
             var supplierId = await database.Set<SegarisSupplier>()
-                .Where(supplier => supplier.Code == ConfigurationCatalog.SupplierCodes.Amazon).Select(supplier => supplier.Id).SingleAsync();
+                .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
             var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
             // A planning entry due today, matched by an upper-case search term to
@@ -500,10 +644,12 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var applied = await database.Database.GetAppliedMigrationsAsync();
         Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
         Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
+        // Three catalog tables plus the one-time initialization table.
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'configuration_%'";
-        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        Assert.Equal(4L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'capex_%'";
         Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }

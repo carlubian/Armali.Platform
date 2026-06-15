@@ -33,8 +33,9 @@ public sealed class MigrationTests
 
                 await database.Database.OpenConnectionAsync();
                 await using var command = database.Database.GetDbConnection().CreateCommand();
+                // Three catalog tables plus the one-time initialization table.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
-                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+                Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
                 Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
@@ -66,6 +67,99 @@ public sealed class MigrationTests
     }
 
     [Fact]
+    public void Catalog_model_upgrade_follows_the_capex_domain_baseline()
+    {
+        // The Wave 1 Configuration model upgrade (drop Code, add
+        // NormalizedName/SortOrder, initialization table) is the current tail and
+        // migrates from the CapexDomainPersistence baseline recorded in Wave 0.
+        using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
+        using var postgres = CreateContext(
+            "Postgres",
+            "Host=localhost;Database=segaris_test;Username=postgres;Password=postgres");
+
+        foreach (var migrations in new[]
+        {
+            sqlite.Database.GetMigrations().Select(LogicalName).ToArray(),
+            postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
+        })
+        {
+            Assert.Equal("CatalogModelAndInitialization", migrations[^1]);
+            Assert.Equal("CapexDomainPersistence", migrations[^2]);
+        }
+    }
+
+    [Fact]
+    public async Task Sqlite_upgrade_backfills_normalization_order_and_initialization_markers()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-upgrade-data-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
+            var baseline = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_CapexDomainPersistence", StringComparison.Ordinal));
+            var migrator = database.GetService<IMigrator>();
+
+            // Apply the pre-Wave-1 schema and insert catalog rows the old way, with
+            // codes and without normalized/order columns.
+            await migrator.MigrateAsync(baseline);
+            await database.Database.OpenConnectionAsync();
+            await ExecuteAsync(database,
+                "INSERT INTO configuration_suppliers (\"Code\", \"Name\", \"CreatedAt\", \"UpdatedAt\") " +
+                "VALUES ('AMAZON', 'Amazon', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00'), " +
+                "('CARREFOUR', 'Carrefour', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00');");
+            await ExecuteAsync(database,
+                "INSERT INTO configuration_cost_centers (\"Code\", \"Name\", \"CreatedAt\", \"UpdatedAt\") " +
+                "VALUES ('HOUSEHOLD', 'Household', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00');");
+            await ExecuteAsync(database,
+                "INSERT INTO configuration_currencies (\"Code\", \"Name\", \"CreatedAt\", \"UpdatedAt\") " +
+                "VALUES ('EUR', 'Euro', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00');");
+            await ExecuteAsync(database,
+                "INSERT INTO capex_categories (\"Code\", \"Name\", \"CreatedAt\", \"UpdatedAt\") " +
+                "VALUES ('FURNITURE', 'Furniture', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00');");
+
+            // Upgrade to the catalog model.
+            await migrator.MigrateAsync();
+
+            await using var command = database.Database.GetDbConnection().CreateCommand();
+
+            // Code columns are gone; normalized names and zero-based order are backfilled.
+            command.CommandText =
+                "SELECT \"NormalizedName\", \"SortOrder\" FROM configuration_suppliers ORDER BY \"Id\"";
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                Assert.True(await reader.ReadAsync());
+                Assert.Equal("AMAZON", reader.GetString(0));
+                Assert.Equal(0, reader.GetInt32(1));
+                Assert.True(await reader.ReadAsync());
+                Assert.Equal("CARREFOUR", reader.GetString(0));
+                Assert.Equal(1, reader.GetInt32(1));
+                Assert.False(await reader.ReadAsync());
+            }
+
+            command.CommandText = "SELECT \"NormalizedCode\" FROM configuration_currencies";
+            Assert.Equal("EUR", (string)(await command.ExecuteScalarAsync())!);
+
+            // Every populated catalog is marked initialized so startup never reseeds it.
+            command.CommandText = "SELECT COUNT(*) FROM configuration_catalog_initializations";
+            Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
+    }
+
+    private static async Task ExecuteAsync(
+        Segaris.Persistence.SegarisDbContext database,
+        string sql)
+    {
+        await using var command = database.Database.GetDbConnection().CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync();
+    }
+
+    [Fact]
     public async Task Sqlite_upgrades_from_the_current_schema()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-upgrade-{Guid.NewGuid():N}.db");
@@ -82,10 +176,12 @@ public sealed class MigrationTests
             var applied = await database.Database.GetAppliedMigrationsAsync();
             Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
             Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
+            // Three catalog tables plus the one-time initialization table.
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
-            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+            Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
