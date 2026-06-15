@@ -11,7 +11,7 @@ update rather than an incidental scaffold default.
 
 - Node.js `24.16.0` is the repository frontend runtime. Node 24 is the current
   LTS line and the exact version is pinned in `.node-version` and `.nvmrc`.
-- pnpm `11.6.0` is the package manager. The exact version is pinned through the
+- pnpm `11.7.0` is the package manager. The exact version is pinned through the
   root `package.json` `packageManager` and `engines` fields.
 - Corepack is the preferred package-manager launcher. Contributors may install
   the pinned pnpm release by another method, but committed lockfiles and CI use
