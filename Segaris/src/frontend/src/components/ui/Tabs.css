@@ -51,6 +51,7 @@
 }
 /* underline variant */
 .arm-tabs--line {
+  display: flex;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border-subtle);

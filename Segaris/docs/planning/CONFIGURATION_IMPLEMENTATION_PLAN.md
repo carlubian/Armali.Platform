@@ -292,6 +292,9 @@ Exit criteria:
 
 ### Wave 6: End-To-End Acceptance And Documentation
 
+Status: delivered. Acceptance evidence is recorded in
+`docs/planning/CONFIGURATION_ACCEPTANCE.md`.
+
 Tasks:
 
 1. Run backend format/build/unit/API/PostgreSQL/migration/architecture suites and

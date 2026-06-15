@@ -49,8 +49,8 @@ services:
       SEGARIS__STORAGE__DATAPROTECTIONKEYSPATH: /data/dataprotection-keys
       # First-administrator bootstrap. Leave empty after the first administrator
       # exists; the bootstrap is idempotent and only acts when no account matches.
-      SEGARIS__IDENTITY__BOOTSTRAP__USERNAME: ${SEGARIS_BOOTSTRAP_USERNAME:-}
-      SEGARIS__IDENTITY__BOOTSTRAP__PASSWORD: ${SEGARIS_BOOTSTRAP_PASSWORD:-}
+      SEGARIS__IDENTITY__BOOTSTRAP__USERNAME: ${SEGARIS_BOOTSTRAP_USERNAME:-armali}
+      SEGARIS__IDENTITY__BOOTSTRAP__PASSWORD: ${SEGARIS_BOOTSTRAP_PASSWORD:-armaliarmali}
       # Optional best-effort Seq delivery. Disabled by default.
       SEGARIS__OBSERVABILITY__SEQ__ENABLED: ${SEGARIS_SEQ_ENABLED:-false}
       SEGARIS__OBSERVABILITY__SEQ__SERVERURL: ${SEGARIS_SEQ_SERVERURL:-}

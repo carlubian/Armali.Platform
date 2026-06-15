@@ -109,6 +109,9 @@ module-owned classifications through one unified experience.
 | Resolved | Deletion and migration | Unreferenced values delete directly; referenced values are atomically replaced, optional Supplier/CostCenter references may be cleared, and private records are never disclosed. |
 | Resolved | Currency replacement | Referenced currencies require a manual source-to-target exchange rate and authoritative two-decimal Capex recalculation. Delivery is isolated in an advanced plan wave. |
 | Resolved | Implementation plan | Seven waves cover contracts, schema upgrade and one-time initialization, CRUD, reference migration, frontend delivery, currency conversion, and acceptance. See `docs/planning/CONFIGURATION_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Configuration plan is delivered through Wave 6. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/CONFIGURATION_ACCEPTANCE.md`. |
+| Deferred | Browser-level currency conversion E2E journey | Referenced-currency conversion and deletion are covered by API integration and PostgreSQL parity tests (`ConfigurationManagementEndpointTests`, `PostgresPersistenceTests`) and the conversion-dialog component tests. The administrator Playwright journey exercises the non-currency surface; the irreversible conversion journey is left out of the browser run to keep the seeded catalogs intact. |
+| Deferred | Non-administrator Configuration browser journey | Non-admin enforcement (hidden launcher card, Access Denied route, normal-user API rejection) is covered by router/component tests (`ConfigurationPage.test.tsx`) and API tests (`Management_routes_reject_normal_users`). The browser-level non-admin guard is authored in `configuration.spec.ts` but skipped until multi-account Playwright infrastructure seeds a second account. |
 
 ### Capex
 
