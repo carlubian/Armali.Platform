@@ -180,7 +180,23 @@ Exit criteria:
 
 ### Wave 2: Contract Read APIs
 
-Status: **Planned**.
+Status: **Complete**. The backend now serves `GET /api/opex/contracts` and
+`GET /api/opex/contracts/{contractId}` from `OpexReadService`. The list applies
+database-level privacy filtering (`OpexContractPolicies.AccessibleTo`) before the
+search across name and notes, the exact movement-type, status, category, supplier,
+cost-center, currency, frequency, visibility, and creator filters, bounded
+pagination, and deterministic sorting with a descending-id tie-breaker (optional
+supplier and annual-estimate sorts place their nulls last). The current-year
+realized amount is aggregated from each contract's occurrences using the
+`Europe/Madrid` natural-year boundaries and a coalesced decimal `SUM`, returning
+`0.00` for contracts without qualifying occurrences while preserving each
+contract's currency; it is also a sortable column. Catalog and audit display names
+are resolved through correlated sub-queries, and the detail projection returns the
+full contract with its attachments and a privacy-safe not-found for missing or
+inaccessible records. Coverage spans the list filters/sorting/pagination/search,
+privacy isolation, the current-year boundary and aggregation, detail and not-found
+behavior, and a representative PostgreSQL read/aggregation shape; no requirements
+deviation was needed.
 
 Deliver the contracts table query, detail query, catalogs, privacy filtering,
 and current-year realized aggregation.

@@ -18,6 +18,7 @@ using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
@@ -545,6 +546,95 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var capex = attention.GetProperty("modules").EnumerateArray()
             .Single(module => module.GetProperty("module").GetString() == "capex");
         Assert.True(capex.GetProperty("requiresAttention").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Postgres_serves_searched_filtered_and_aggregated_opex_reads()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-opex-reader";
+        const string password = "PgOpexReadPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var madrid = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+        var year = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, madrid).Year;
+        var yearStart = new DateOnly(year, 1, 1);
+        var yearEnd = new DateOnly(year, 12, 31);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<OpexCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            var currencyId = await database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+            var supplierId = await database.Set<SegarisSupplier>()
+                .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+            // Matched by an upper-case search term against the lower-case name, with a
+            // supplier and current-year occurrences spanning the natural-year boundary.
+            var widget = OpexContract.Create(
+                new("WIDGET subscription", OpexMovementType.Expense, OpexContractStatus.Active,
+                    null, null, null, OpexExpectedFrequency.Monthly, categoryId, supplierId, null, currencyId, null, RecordVisibility.Public),
+                new UserId(userId), now);
+            database.Add(widget);
+            await database.SaveChangesAsync();
+            database.Add(OpexOccurrence.Create(widget.Id, new(yearStart, 100.50m, null, null), new UserId(userId), now));
+            database.Add(OpexOccurrence.Create(widget.Id, new(yearEnd, 49.50m, null, null), new UserId(userId), now));
+            database.Add(OpexOccurrence.Create(widget.Id, new(yearStart.AddDays(-1), 1000m, null, null), new UserId(userId), now));
+            database.Add(OpexOccurrence.Create(widget.Id, new(yearEnd.AddDays(1), 2000m, null, null), new UserId(userId), now));
+
+            // Matched only through the notes, with no supplier and no occurrences.
+            var memo = OpexContract.Create(
+                new("Office lease", OpexMovementType.Expense, OpexContractStatus.Active,
+                    null, null, null, OpexExpectedFrequency.Annual, categoryId, null, null, currencyId, "Includes a widget clause", RecordVisibility.Public),
+                new UserId(userId), now);
+            database.Add(memo);
+
+            // Unrelated contract that must not match the search.
+            var unrelated = OpexContract.Create(
+                new("Cleaning service", OpexMovementType.Expense, OpexContractStatus.Active,
+                    null, null, null, OpexExpectedFrequency.Monthly, categoryId, null, null, currencyId, null, RecordVisibility.Public),
+                new UserId(userId), now);
+            database.Add(unrelated);
+            await database.SaveChangesAsync();
+        }
+
+        var searched = await client.GetFromJsonAsync<JsonElement>(
+            "/api/opex/contracts?search=widget", CancellationToken.None);
+        var sortedBySupplier = await client.GetFromJsonAsync<JsonElement>(
+            "/api/opex/contracts?sort=supplier&sortDirection=asc", CancellationToken.None);
+
+        // Case-insensitive partial search across the contract name and notes.
+        Assert.Equal(2, searched.GetProperty("totalCount").GetInt32());
+        // Supplier ascending places the only supplier-bearing contract first and nulls last.
+        Assert.Equal(
+            "WIDGET subscription",
+            sortedBySupplier.GetProperty("items")[0].GetProperty("name").GetString());
+        // The current-year realized amount sums only the two in-year occurrences, with the
+        // decimal SUM and the natural-year boundary evaluated entirely by PostgreSQL.
+        var widgetSummary = searched.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "WIDGET subscription");
+        Assert.Equal(150.00m, widgetSummary.GetProperty("realizedCurrentYearAmount").GetDecimal());
+
+        // A contract without qualifying occurrences reports a preserved zero.
+        var memoSummary = searched.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "Office lease");
+        Assert.Equal(0m, memoSummary.GetProperty("realizedCurrentYearAmount").GetDecimal());
     }
 
     [Fact]
