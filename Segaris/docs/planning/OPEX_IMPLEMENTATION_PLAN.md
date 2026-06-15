@@ -98,7 +98,13 @@ estimates, occurrence amounts, and modification metadata atomically.
 
 ### Wave 0: Contracts And Test Skeleton
 
-Status: **Planned**.
+Status: **Complete**. The backend now freezes Opex routes, fixed vocabularies,
+creation defaults, DTOs, pagination and sorting contracts, stable error codes,
+attachment owner kinds, Configuration reference dependencies, normalization,
+validation, and currency-rounding rules. Opex is registered in module
+composition with architecture coverage. The frontend provides typed API,
+validation-schema, route, pagination, and TanStack Query-key contracts without
+introducing the deferred user interface. No requirements deviation was needed.
 
 Establish stable transport, domain, route, error, query, and frontend contracts
 before provider migrations or user-facing implementation.
