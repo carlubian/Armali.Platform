@@ -33,8 +33,8 @@ export type CapexPageSize = (typeof capexPageSizes)[number]
 /** Frozen Capex category catalog row from `GET /api/capex/categories`. */
 export interface CapexCategory {
   id: number
-  code: string
   name: string
+  sortOrder: number
 }
 
 /** A single row of the paginated Entries list. Amounts and currency stay separate. */

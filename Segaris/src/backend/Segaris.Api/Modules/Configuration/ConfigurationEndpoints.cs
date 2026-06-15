@@ -32,7 +32,7 @@ internal static class ConfigurationEndpoints
     {
         var values = await catalog.ListSuppliersAsync(cancellationToken);
         return TypedResults.Ok(values
-            .Select(value => new SupplierResponse(value.Id, value.Code, value.Name))
+            .Select(value => new SupplierResponse(value.Id, value.Name, value.SortOrder))
             .ToArray());
     }
 
@@ -42,7 +42,7 @@ internal static class ConfigurationEndpoints
     {
         var values = await catalog.ListCostCentersAsync(cancellationToken);
         return TypedResults.Ok(values
-            .Select(value => new CostCenterResponse(value.Id, value.Code, value.Name))
+            .Select(value => new CostCenterResponse(value.Id, value.Name, value.SortOrder))
             .ToArray());
     }
 
@@ -52,7 +52,7 @@ internal static class ConfigurationEndpoints
     {
         var values = await catalog.ListCurrenciesAsync(cancellationToken);
         return TypedResults.Ok(values
-            .Select(value => new CurrencyResponse(value.Id, value.Code, value.Name))
+            .Select(value => new CurrencyResponse(value.Id, value.Code, value.Name, value.SortOrder))
             .ToArray());
     }
 }

@@ -14,23 +14,21 @@ namespace Segaris.UnitTests;
 public sealed class CapexContractTests
 {
     [Fact]
-    public void Configuration_supplier_codes_are_frozen_and_unique()
+    public void Configuration_supplier_initial_values_are_frozen_in_order()
     {
-        var codes = ConfigurationCatalog.Suppliers.Select(seed => seed.Code).ToArray();
+        var names = ConfigurationCatalog.Suppliers.Select(seed => seed.Name).ToArray();
 
         Assert.Equal(
-            ["AMAZON", "IKEA", "CARREFOUR", "EL_CORTE_INGLES", "LEROY_MERLIN", "OTHER"],
-            codes);
-        Assert.All(codes, AssertStableCode);
+            ["Amazon", "IKEA", "Carrefour", "El Corte Inglés", "Leroy Merlin", "Other"],
+            names);
     }
 
     [Fact]
-    public void Configuration_cost_center_codes_are_frozen_and_unique()
+    public void Configuration_cost_center_initial_values_are_frozen_in_order()
     {
-        var codes = ConfigurationCatalog.CostCenters.Select(seed => seed.Code).ToArray();
+        var names = ConfigurationCatalog.CostCenters.Select(seed => seed.Name).ToArray();
 
-        Assert.Equal(["HOUSEHOLD", "PERSONAL", "WORK", "SHARED", "OTHER"], codes);
-        Assert.All(codes, AssertStableCode);
+        Assert.Equal(["Household", "Personal", "Work", "Shared", "Other"], names);
     }
 
     [Fact]
@@ -40,22 +38,21 @@ public sealed class CapexContractTests
 
         Assert.Equal(["EUR", "USD", "GBP"], codes);
         Assert.Equal("EUR", ConfigurationCatalog.CurrencyCodes.Default);
+        Assert.All(codes, AssertStableCode);
     }
 
     [Fact]
-    public void Capex_category_codes_are_frozen_with_other_default()
+    public void Capex_category_initial_values_are_frozen_in_order()
     {
-        var codes = CapexCategoryCatalog.Categories.Select(seed => seed.Code).ToArray();
+        var names = CapexCategoryCatalog.Categories.Select(seed => seed.Name).ToArray();
 
         Assert.Equal(
             [
-                "FURNITURE", "APPLIANCES", "TECHNOLOGY", "HOME", "FOOD_AND_DINING",
-                "LEISURE", "HEALTH", "TRANSPORT", "TRAVEL", "EDUCATION", "GIFTS",
-                "TAXES_AND_FEES", "SALARY_AND_INCOME", "OTHER",
+                "Furniture", "Appliances", "Technology", "Home", "Food & Dining",
+                "Leisure", "Health", "Transport", "Travel", "Education", "Gifts",
+                "Taxes & Fees", "Salary & Income", "Other",
             ],
-            codes);
-        Assert.Equal("OTHER", CapexCategoryCatalog.Codes.Default);
-        Assert.All(codes, AssertStableCode);
+            names);
     }
 
     [Fact]

@@ -190,7 +190,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
         var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
         var categoryId = await database.Set<CapexCategory>()
-            .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+            .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
             .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
         var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
@@ -239,7 +239,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         {
             var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
             categoryId = await database.Set<CapexCategory>()
-                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
             currencyId = await database.Set<SegarisCurrency>()
                 .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
         }
@@ -355,11 +355,11 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
             var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
             var categoryId = await database.Set<CapexCategory>()
-                .Where(category => category.Code == CapexCategoryCatalog.Codes.Other).Select(category => category.Id).SingleAsync();
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
             var currencyId = await database.Set<SegarisCurrency>()
                 .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
             var supplierId = await database.Set<SegarisSupplier>()
-                .Where(supplier => supplier.Code == ConfigurationCatalog.SupplierCodes.Amazon).Select(supplier => supplier.Id).SingleAsync();
+                .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
             var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
             // A planning entry due today, matched by an upper-case search term to
@@ -500,10 +500,12 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var applied = await database.Database.GetAppliedMigrationsAsync();
         Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
         Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
+        // Three catalog tables plus the one-time initialization table.
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'configuration_%'";
-        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        Assert.Equal(4L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'capex_%'";
         Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }

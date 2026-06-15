@@ -1,31 +1,41 @@
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Capex.Domain;
+using Segaris.Api.Modules.Configuration;
+using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Persistence;
-using Segaris.Shared.Time;
 
 namespace Segaris.Api.Modules.Capex.Seeding;
 
-internal sealed class CapexSeeder(SegarisDbContext database, IClock clock)
+/// <summary>
+/// Inserts the frozen initial Capex categories through the shared one-time
+/// <see cref="CatalogInitializer"/>. The category catalog is Capex-owned but shares
+/// the single initialization table, so its initial values are applied only the
+/// first time the unmarked, empty catalog is seen and are never restored once an
+/// administrator customizes the catalog.
+/// </summary>
+internal sealed class CapexSeeder(SegarisDbContext database, CatalogInitializer initializer)
 {
-    public async Task SeedAsync(CancellationToken cancellationToken)
-    {
-        var existing = await database.Set<CapexCategory>()
-            .ToDictionaryAsync(category => category.Code, StringComparer.Ordinal, cancellationToken);
-        var now = clock.UtcNow;
-
-        foreach (var seed in CapexCategoryCatalog.Categories)
-        {
-            if (!existing.TryGetValue(seed.Code, out var category))
+    public Task SeedAsync(CancellationToken cancellationToken) =>
+        initializer.EnsureInitializedAsync(
+            ConfigurationInitializationKeys.CapexCategories,
+            ct => database.Set<CapexCategory>().AnyAsync(ct),
+            (now, _) =>
             {
-                database.Add(new CapexCategory { Code = seed.Code, Name = seed.Name, CreatedAt = now, UpdatedAt = now });
-            }
-            else if (!string.Equals(category.Name, seed.Name, StringComparison.Ordinal))
-            {
-                category.Name = seed.Name;
-                category.UpdatedAt = now;
-            }
-        }
+                var categories = CapexCategoryCatalog.Categories;
+                for (var index = 0; index < categories.Count; index++)
+                {
+                    var seed = categories[index];
+                    database.Add(new CapexCategory
+                    {
+                        Name = seed.Name,
+                        NormalizedName = CapexCategoryNormalization.Normalize(seed.Name),
+                        SortOrder = index,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+                }
 
-        await database.SaveChangesAsync(cancellationToken);
-    }
+                return Task.CompletedTask;
+            },
+            cancellationToken);
 }

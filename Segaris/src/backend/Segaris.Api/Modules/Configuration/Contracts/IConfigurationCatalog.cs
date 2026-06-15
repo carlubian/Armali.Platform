@@ -17,7 +17,7 @@ internal interface IConfigurationCatalog
 
     Task<IReadOnlyList<CatalogItem>> ListCostCentersAsync(CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<CatalogItem>> ListCurrenciesAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<CurrencyItem>> ListCurrenciesAsync(CancellationToken cancellationToken);
 
     Task<bool> SupplierExistsAsync(int supplierId, CancellationToken cancellationToken);
 
@@ -27,7 +27,14 @@ internal interface IConfigurationCatalog
 }
 
 /// <summary>
-/// Bounded read model for a shared catalog value. <see cref="Code"/> is the
-/// stable identity; <see cref="Name"/> is the localizable display value.
+/// Bounded read model for a non-currency shared catalog value. Identity is
+/// <see cref="Id"/>; <see cref="Name"/> is the localizable display value and
+/// <see cref="SortOrder"/> the deterministic catalog order.
 /// </summary>
-internal sealed record CatalogItem(int Id, string Code, string Name);
+internal sealed record CatalogItem(int Id, string Name, int SortOrder);
+
+/// <summary>
+/// Bounded read model for a currency value. <see cref="Code"/> is the editable
+/// three-letter display code; <see cref="Name"/> is localizable.
+/// </summary>
+internal sealed record CurrencyItem(int Id, string Code, string Name, int SortOrder);

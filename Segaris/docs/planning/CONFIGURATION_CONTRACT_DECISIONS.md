@@ -44,7 +44,10 @@ and foreign keys are preserved by provider-specific migrations.
 
 Normalization trims exterior whitespace and uses an invariant upper-case form.
 It does not collapse internal whitespace. Unique indexes protect normalized
-names per table and normalized currency codes.
+names per table and normalized currency codes. Currency therefore carries both a
+unique `NormalizedName` (like every other catalog) and a unique `NormalizedCode`,
+so neither a currency name nor a currency code may be duplicated
+case-insensitively.
 
 ## One-Time Initialization Contract
 

@@ -32,9 +32,14 @@ public sealed class ConfigurationCatalogEndpointTests
             CancellationToken.None);
 
         Assert.NotNull(response);
+        // Catalogs are returned in deterministic SortOrder, which mirrors the frozen
+        // seed declaration order.
         Assert.Equal(
-            ConfigurationCatalog.Suppliers.OrderBy(seed => seed.Name).Select(seed => seed.Code),
-            response.Select(item => item.Code));
+            ConfigurationCatalog.Suppliers.Select(seed => seed.Name),
+            response.Select(item => item.Name));
+        Assert.Equal(
+            Enumerable.Range(0, response.Length),
+            response.Select(item => item.SortOrder));
         Assert.All(response, item => Assert.True(item.Id > 0));
     }
 
@@ -50,8 +55,8 @@ public sealed class ConfigurationCatalogEndpointTests
 
         Assert.NotNull(response);
         Assert.Equal(
-            ConfigurationCatalog.CostCenters.OrderBy(seed => seed.Name).Select(seed => seed.Code),
-            response.Select(item => item.Code));
+            ConfigurationCatalog.CostCenters.Select(seed => seed.Name),
+            response.Select(item => item.Name));
         Assert.All(response, item => Assert.True(item.Id > 0));
     }
 
@@ -67,7 +72,7 @@ public sealed class ConfigurationCatalogEndpointTests
 
         Assert.NotNull(response);
         Assert.Equal(
-            ConfigurationCatalog.Currencies.OrderBy(seed => seed.Name).Select(seed => seed.Code),
+            ConfigurationCatalog.Currencies.Select(seed => seed.Code),
             response.Select(item => item.Code));
         Assert.All(response, item => Assert.True(item.Id > 0));
     }

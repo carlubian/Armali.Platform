@@ -1,56 +1,79 @@
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Persistence;
-using Segaris.Shared.Time;
 
 namespace Segaris.Api.Modules.Configuration.Seeding;
 
-internal sealed class ConfigurationSeeder(SegarisDbContext database, IClock clock)
+/// <summary>
+/// Inserts the frozen initial values for the shared Configuration catalogs through
+/// the one-time <see cref="CatalogInitializer"/>. Initial values are applied only
+/// the first time an unmarked, empty catalog is seen; customized or already-marked
+/// catalogs are never repopulated.
+/// </summary>
+internal sealed class ConfigurationSeeder(SegarisDbContext database, CatalogInitializer initializer)
 {
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
-        var now = clock.UtcNow;
-
-        await UpsertAsync(database.Set<SegarisSupplier>(), ConfigurationCatalog.Suppliers, now, cancellationToken);
-        await UpsertAsync(database.Set<SegarisCostCenter>(), ConfigurationCatalog.CostCenters, now, cancellationToken);
-        await UpsertAsync(database.Set<SegarisCurrency>(), ConfigurationCatalog.Currencies, now, cancellationToken);
-
-        await database.SaveChangesAsync(cancellationToken);
-    }
-
-    private static async Task UpsertAsync<TEntity>(
-        DbSet<TEntity> entities,
-        IReadOnlyList<CatalogSeed> seeds,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-        where TEntity : class, IConfigurationCatalogEntity, new()
-    {
-        var existing = await entities.ToDictionaryAsync(
-            entity => entity.Code,
-            StringComparer.Ordinal,
+        await initializer.EnsureInitializedAsync(
+            ConfigurationInitializationKeys.Suppliers,
+            ct => database.Set<SegarisSupplier>().AnyAsync(ct),
+            (now, _) =>
+            {
+                Seed(ConfigurationCatalog.Suppliers, (sortOrder, seed) => new SegarisSupplier
+                {
+                    Name = seed.Name,
+                    NormalizedName = CatalogNormalization.Normalize(seed.Name),
+                    SortOrder = sortOrder,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+                return Task.CompletedTask;
+            },
             cancellationToken);
 
-        foreach (var seed in seeds)
-        {
-            if (!existing.TryGetValue(seed.Code, out var entity))
+        await initializer.EnsureInitializedAsync(
+            ConfigurationInitializationKeys.CostCenters,
+            ct => database.Set<SegarisCostCenter>().AnyAsync(ct),
+            (now, _) =>
             {
-                entity = new TEntity();
-                entities.Add(entity);
-                entity.Code = seed.Code;
-                entity.Name = seed.Name;
-                entity.CreatedAt = now;
-                entity.UpdatedAt = now;
-                continue;
-            }
+                Seed(ConfigurationCatalog.CostCenters, (sortOrder, seed) => new SegarisCostCenter
+                {
+                    Name = seed.Name,
+                    NormalizedName = CatalogNormalization.Normalize(seed.Name),
+                    SortOrder = sortOrder,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+                return Task.CompletedTask;
+            },
+            cancellationToken);
 
-            if (!string.Equals(
-                entity.Name,
-                seed.Name,
-                StringComparison.Ordinal))
+        await initializer.EnsureInitializedAsync(
+            ConfigurationInitializationKeys.Currencies,
+            ct => database.Set<SegarisCurrency>().AnyAsync(ct),
+            (now, _) =>
             {
-                entity.Name = seed.Name;
-                entity.UpdatedAt = now;
-            }
+                Seed(ConfigurationCatalog.Currencies, (sortOrder, seed) => new SegarisCurrency
+                {
+                    Code = seed.Code,
+                    NormalizedCode = CatalogNormalization.Normalize(seed.Code),
+                    Name = seed.Name,
+                    NormalizedName = CatalogNormalization.Normalize(seed.Name),
+                    SortOrder = sortOrder,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+                return Task.CompletedTask;
+            },
+            cancellationToken);
+    }
+
+    private void Seed<TSeed, TEntity>(IReadOnlyList<TSeed> seeds, Func<int, TSeed, TEntity> factory)
+        where TEntity : class
+    {
+        for (var index = 0; index < seeds.Count; index++)
+        {
+            database.Add(factory(index, seeds[index]));
         }
     }
 }

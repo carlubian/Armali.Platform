@@ -12,32 +12,33 @@ namespace Segaris.Api.IntegrationTests.Capex;
 
 /// <summary>
 /// Seeds Capex entries directly through the database for the Wave 3 read-API
-/// tests, before the Wave 4 mutation endpoints exist. Catalog references are
-/// resolved by their stable codes so the seeds stay readable.
+/// tests, before the Wave 4 mutation endpoints exist. Non-currency catalog
+/// references are resolved by their display name (their stable identity after the
+/// catalog model upgrade); currencies are still resolved by their editable code.
 /// </summary>
 internal static class CapexTestData
 {
     private static readonly DateTimeOffset SeedNow = new(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
-    public static async Task<int> CategoryIdAsync(IServiceProvider services, string code)
+    public static async Task<int> CategoryIdAsync(IServiceProvider services, string name)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        return await database.Set<CapexCategory>().Where(category => category.Code == code).Select(category => category.Id).SingleAsync();
+        return await database.Set<CapexCategory>().Where(category => category.Name == name).Select(category => category.Id).SingleAsync();
     }
 
-    public static async Task<int> SupplierIdAsync(IServiceProvider services, string code)
+    public static async Task<int> SupplierIdAsync(IServiceProvider services, string name)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        return await database.Set<SegarisSupplier>().Where(supplier => supplier.Code == code).Select(supplier => supplier.Id).SingleAsync();
+        return await database.Set<SegarisSupplier>().Where(supplier => supplier.Name == name).Select(supplier => supplier.Id).SingleAsync();
     }
 
-    public static async Task<int> CostCenterIdAsync(IServiceProvider services, string code)
+    public static async Task<int> CostCenterIdAsync(IServiceProvider services, string name)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        return await database.Set<SegarisCostCenter>().Where(costCenter => costCenter.Code == code).Select(costCenter => costCenter.Id).SingleAsync();
+        return await database.Set<SegarisCostCenter>().Where(costCenter => costCenter.Name == name).Select(costCenter => costCenter.Id).SingleAsync();
     }
 
     public static async Task<int> CurrencyIdAsync(IServiceProvider services, string code)
@@ -54,9 +55,9 @@ internal static class CapexTestData
         CapexMovementType movementType = CapexMovementType.Expense,
         CapexEntryStatus status = CapexEntryStatus.Planning,
         DateOnly? dueDate = null,
-        string categoryCode = CapexCategoryCatalog.Codes.Other,
-        string? supplierCode = null,
-        string? costCenterCode = null,
+        string categoryName = "Other",
+        string? supplierName = null,
+        string? costCenterName = null,
         string currencyCode = ConfigurationCatalog.CurrencyCodes.Default,
         string? notes = null,
         RecordVisibility visibility = RecordVisibility.Public,
@@ -66,23 +67,23 @@ internal static class CapexTestData
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
 
         var categoryId = await database.Set<CapexCategory>()
-            .Where(category => category.Code == categoryCode)
+            .Where(category => category.Name == categoryName)
             .Select(category => category.Id)
             .SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
             .Where(currency => currency.Code == currencyCode)
             .Select(currency => currency.Id)
             .SingleAsync();
-        var supplierId = supplierCode is null
+        var supplierId = supplierName is null
             ? (int?)null
             : await database.Set<SegarisSupplier>()
-                .Where(supplier => supplier.Code == supplierCode)
+                .Where(supplier => supplier.Name == supplierName)
                 .Select(supplier => (int?)supplier.Id)
                 .SingleAsync();
-        var costCenterId = costCenterCode is null
+        var costCenterId = costCenterName is null
             ? (int?)null
             : await database.Set<SegarisCostCenter>()
-                .Where(costCenter => costCenter.Code == costCenterCode)
+                .Where(costCenter => costCenter.Name == costCenterName)
                 .Select(costCenter => (int?)costCenter.Id)
                 .SingleAsync();
 

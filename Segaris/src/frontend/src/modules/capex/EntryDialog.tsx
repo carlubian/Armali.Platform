@@ -160,8 +160,8 @@ export function EntryDialog({
     entry != null
       ? fromEntry(entry)
       : buildDefaults({
-          categoryId: defaultCatalogId(categories.data, 'OTHER'),
-          currencyId: defaultCatalogId(currencies.data, 'EUR'),
+          categoryId: firstCatalogId(categories.data),
+          currencyId: firstCatalogId(currencies.data),
         })
 
   // Only the creator may change visibility; everyone with access may edit a
@@ -189,12 +189,12 @@ export function EntryDialog({
   )
 }
 
-function defaultCatalogId(
-  items: ReadonlyArray<{ id: number; code: string }> | undefined,
-  code: string,
-): string {
-  const match = items?.find((item) => item.code === code)
-  return match != null ? String(match.id) : ''
+// A business form's implicit catalog default is the first available row in
+// catalog order (SortOrder, then Id). The API already returns rows in that order,
+// so the first entry is the default.
+function firstCatalogId(items: ReadonlyArray<{ id: number }> | undefined): string {
+  const first = items?.[0]
+  return first != null ? String(first.id) : ''
 }
 
 interface EntryEditorFormProps {

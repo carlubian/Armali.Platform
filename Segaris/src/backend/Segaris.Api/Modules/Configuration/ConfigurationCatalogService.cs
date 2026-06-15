@@ -12,27 +12,27 @@ internal sealed class ConfigurationCatalogService(SegarisDbContext database)
         CancellationToken cancellationToken) =>
         await database.Set<SegarisSupplier>()
             .AsNoTracking()
-            .OrderBy(entity => entity.Name)
+            .OrderBy(entity => entity.SortOrder)
             .ThenBy(entity => entity.Id)
-            .Select(entity => new CatalogItem(entity.Id, entity.Code, entity.Name))
+            .Select(entity => new CatalogItem(entity.Id, entity.Name, entity.SortOrder))
             .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<CatalogItem>> ListCostCentersAsync(
         CancellationToken cancellationToken) =>
         await database.Set<SegarisCostCenter>()
             .AsNoTracking()
-            .OrderBy(entity => entity.Name)
+            .OrderBy(entity => entity.SortOrder)
             .ThenBy(entity => entity.Id)
-            .Select(entity => new CatalogItem(entity.Id, entity.Code, entity.Name))
+            .Select(entity => new CatalogItem(entity.Id, entity.Name, entity.SortOrder))
             .ToArrayAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<CatalogItem>> ListCurrenciesAsync(
+    public async Task<IReadOnlyList<CurrencyItem>> ListCurrenciesAsync(
         CancellationToken cancellationToken) =>
         await database.Set<SegarisCurrency>()
             .AsNoTracking()
-            .OrderBy(entity => entity.Name)
+            .OrderBy(entity => entity.SortOrder)
             .ThenBy(entity => entity.Id)
-            .Select(entity => new CatalogItem(entity.Id, entity.Code, entity.Name))
+            .Select(entity => new CurrencyItem(entity.Id, entity.Code, entity.Name, entity.SortOrder))
             .ToArrayAsync(cancellationToken);
 
     public Task<bool> SupplierExistsAsync(int supplierId, CancellationToken cancellationToken) =>

@@ -101,7 +101,8 @@ public sealed class CapexDomainTests
     public async Task Catalog_validator_accepts_seeded_references_and_rejects_unknown_ones()
     {
         await using var fixture = await CapexFixture.CreateAsync();
-        await new CapexSeeder(fixture.Database, fixture.Clock).SeedAsync(CancellationToken.None);
+        await new CapexSeeder(fixture.Database, new CatalogInitializer(fixture.Database, fixture.Clock))
+            .SeedAsync(CancellationToken.None);
         var categoryId = await fixture.Database.Set<CapexCategory>().Select(category => category.Id).FirstAsync();
         var currencyId = await fixture.Database.Set<SegarisCurrency>().Select(currency => currency.Id).FirstAsync();
         var validator = new CapexCatalogValidator(
@@ -118,16 +119,16 @@ public sealed class CapexDomainTests
     public async Task Sqlite_persists_ordered_decimal_values_and_category_seed_ids_stably()
     {
         await using var fixture = await CapexFixture.CreateAsync();
-        var seeder = new CapexSeeder(fixture.Database, fixture.Clock);
+        var seeder = new CapexSeeder(fixture.Database, new CatalogInitializer(fixture.Database, fixture.Clock));
         await seeder.SeedAsync(CancellationToken.None);
         var originalIds = await fixture.Database.Set<CapexCategory>()
-            .AsNoTracking().ToDictionaryAsync(category => category.Code, category => category.Id);
+            .AsNoTracking().ToDictionaryAsync(category => category.Name, category => category.Id);
         fixture.Clock.UtcNow = fixture.Clock.UtcNow.AddDays(1);
         await seeder.SeedAsync(CancellationToken.None);
         var repeatedIds = await fixture.Database.Set<CapexCategory>()
-            .AsNoTracking().ToDictionaryAsync(category => category.Code, category => category.Id);
+            .AsNoTracking().ToDictionaryAsync(category => category.Name, category => category.Id);
 
-        var categoryId = originalIds[CapexCategoryCatalog.Codes.Other];
+        var categoryId = originalIds["Other"];
         var currencyId = await fixture.Database.Set<SegarisCurrency>()
             .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
             .Select(currency => currency.Id).SingleAsync();
@@ -188,7 +189,8 @@ public sealed class CapexDomainTests
             });
             await database.SaveChangesAsync();
             var clock = new MutableClock { UtcNow = Now };
-            await new ConfigurationSeeder(database, clock).SeedAsync(CancellationToken.None);
+            await new ConfigurationSeeder(database, new CatalogInitializer(database, clock))
+                .SeedAsync(CancellationToken.None);
             return new CapexFixture(connection, database, clock);
         }
 

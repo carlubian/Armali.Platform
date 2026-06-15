@@ -40,7 +40,7 @@ public sealed class BackupPackageTests
         var manifest = fixture.ReadManifest();
         Assert.NotEqual(JsonValueKind.Null, manifest.GetProperty("createdAt").ValueKind);
         Assert.False(string.IsNullOrWhiteSpace(manifest.GetProperty("applicationVersion").GetString()));
-        Assert.EndsWith("_CapexDomainPersistence", manifest.GetProperty("schemaVersion").GetString());
+        Assert.EndsWith("_CatalogModelAndInitialization", manifest.GetProperty("schemaVersion").GetString());
         Assert.True(manifest.GetProperty("files").GetArrayLength() >= 2);
         foreach (var file in manifest.GetProperty("files").EnumerateArray())
         {

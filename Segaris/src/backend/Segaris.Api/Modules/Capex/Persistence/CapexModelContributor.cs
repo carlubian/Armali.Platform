@@ -15,11 +15,15 @@ internal sealed class CapexModelContributor : ISegarisModelContributor
             builder.ToTable("capex_categories");
             builder.HasKey(category => category.Id);
             builder.Property(category => category.Id).ValueGeneratedOnAdd();
-            builder.Property(category => category.Code).HasMaxLength(40).IsRequired();
-            builder.Property(category => category.Name).HasMaxLength(120).IsRequired();
+            builder.Property(category => category.Name)
+                .HasMaxLength(CapexCategoryNormalization.NameMaximumLength).IsRequired();
+            builder.Property(category => category.NormalizedName)
+                .HasMaxLength(CapexCategoryNormalization.NameMaximumLength).IsRequired();
+            builder.Property(category => category.SortOrder).IsRequired();
             builder.Property(category => category.CreatedAt).IsRequired();
             builder.Property(category => category.UpdatedAt).IsRequired();
-            builder.HasIndex(category => category.Code).IsUnique();
+            builder.HasIndex(category => category.NormalizedName).IsUnique();
+            builder.HasIndex(category => category.SortOrder);
         });
 
         modelBuilder.Entity<CapexEntry>(builder =>
