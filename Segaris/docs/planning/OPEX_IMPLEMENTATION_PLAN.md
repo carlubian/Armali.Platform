@@ -285,7 +285,32 @@ Exit criteria:
 
 ### Wave 4: Occurrence APIs And Attachments
 
-Status: **Planned**.
+Status: **Complete**. The backend now serves the subordinate occurrence surface
+under `/api/opex/contracts/{contractId}/occurrences`: a paginated list ordered by
+effective date then identifier, detail, create, full-replacement update, and
+physical deletion, plus the occurrence-level attachment routes. Reads come from
+`OpexReadService` (`ListOccurrencesAsync`, `GetOccurrenceAsync`, and the
+`OccurrenceExistsAsync` guard) and mutations from the new
+`OpexOccurrenceWriteService`, which validates the required effective date,
+nonnegative two-decimal amount, and optional description/notes through the domain
+factory and surfaces every failure as `400 opex.occurrence.validation`. All
+occurrence authorization resolves through the parent contract: an inaccessible or
+missing contract is an indistinguishable `opex.contract.not_found`, and an
+occurrence identifier that does not belong to the addressed contract is
+`opex.occurrence.not_found`, so identifiers cannot bypass an inaccessible parent or
+reach across contracts. Mutations run in a single save so refreshed contract
+realized current-year totals are immediately visible to subsequent queries.
+Occurrence attachments reuse the established per-file upload/list/download/remove
+contract with antiforgery and platform file-validation mapped to
+`opex.attachment.invalid`; deleting an occurrence reconciles its files, and contract
+deletion now captures the cascaded occurrence identifiers beforehand to reconcile
+both contract-level and occurrence-level attachment files. Coverage spans creation
+defaults/trimming, zero amounts and past/future dates, missing-date and negative
+amount validation, every editable field, chronological ordering with the identifier
+tie-breaker, pagination bounds and empty contracts, public collaboration, private
+isolation, cross-contract isolation, the attachment round trip, authorization,
+rejected files, missing attachments, and occurrence and contract cascade cleanup. No
+requirements deviation was needed.
 
 Deliver subordinate occurrence management inside an authorized contract.
 

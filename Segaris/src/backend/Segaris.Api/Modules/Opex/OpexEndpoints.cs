@@ -19,9 +19,10 @@ namespace Segaris.Api.Modules.Opex;
 /// administrator-only category management routes; Wave 2 adds the paginated
 /// contracts list and contract detail reads; Wave 3 adds contract create, update,
 /// deletion, and contract-level attachment routes frozen in
-/// <see cref="OpexApiRoutes"/>. The occurrence routes are added by later Waves.
-/// State-changing routes carry antiforgery protection and never expose EF Core
-/// entities.
+/// <see cref="OpexApiRoutes"/>; and Wave 4 adds the subordinate occurrence list,
+/// detail, create, update, deletion, and occurrence-level attachment routes, all
+/// authorized through their parent contract. State-changing routes carry
+/// antiforgery protection and never expose EF Core entities.
 /// </summary>
 internal static class OpexEndpoints
 {
@@ -103,6 +104,68 @@ internal static class OpexEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteOpexContractAttachment")
             .WithSummary("Removes one attachment of an accessible contract")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/contracts/{contractId:int}/occurrences", ListOccurrencesAsync)
+            .WithName("ListOpexOccurrences")
+            .WithSummary("Returns a paginated chronological list of a contract's occurrences")
+            .Produces<PaginatedResponse<OpexOccurrenceSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/contracts/{contractId:int}/occurrences", CreateOccurrenceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateOpexOccurrence")
+            .WithSummary("Creates an occurrence within an accessible contract")
+            .Produces<OpexOccurrenceResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/contracts/{contractId:int}/occurrences/{occurrenceId:int}", GetOccurrenceAsync)
+            .WithName("GetOpexOccurrence")
+            .WithSummary("Returns the detail of an occurrence with its attachments")
+            .Produces<OpexOccurrenceResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPut("/contracts/{contractId:int}/occurrences/{occurrenceId:int}", UpdateOccurrenceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateOpexOccurrence")
+            .WithSummary("Replaces an occurrence within an accessible contract")
+            .Produces<OpexOccurrenceResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/contracts/{contractId:int}/occurrences/{occurrenceId:int}", DeleteOccurrenceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteOpexOccurrence")
+            .WithSummary("Physically deletes an occurrence and its attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/contracts/{contractId:int}/occurrences/{occurrenceId:int}/attachments", ListOccurrenceAttachmentsAsync)
+            .WithName("ListOpexOccurrenceAttachments")
+            .WithSummary("Lists the attachments of an accessible occurrence")
+            .Produces<IReadOnlyList<OpexAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/contracts/{contractId:int}/occurrences/{occurrenceId:int}/attachments", UploadOccurrenceAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadOpexOccurrenceAttachment")
+            .WithSummary("Uploads one attachment for an accessible occurrence")
+            .Produces<OpexAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("/contracts/{contractId:int}/occurrences/{occurrenceId:int}/attachments/{attachmentId:int}", DownloadOccurrenceAttachmentAsync)
+            .WithName("DownloadOpexOccurrenceAttachment")
+            .WithSummary("Downloads one attachment of an accessible occurrence")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/contracts/{contractId:int}/occurrences/{occurrenceId:int}/attachments/{attachmentId:int}", DeleteOccurrenceAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteOpexOccurrenceAttachment")
+            .WithSummary("Removes one attachment of an accessible occurrence")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -319,6 +382,307 @@ internal static class OpexEndpoints
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListOccurrencesAsync(
+        int contractId,
+        [AsParameters] OpexOccurrenceListQuery query,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            throw OpexProblem.ContractNotFound();
+        }
+
+        var pagination = query.ToPagination();
+        var result = await read.ListOccurrencesAsync(contractId, pagination, cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetOccurrenceAsync(
+        int contractId,
+        int occurrenceId,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            throw OpexProblem.ContractNotFound();
+        }
+
+        var occurrence = await read.GetOccurrenceAsync(contractId, occurrenceId, cancellationToken);
+        if (occurrence is null)
+        {
+            throw OpexProblem.OccurrenceNotFound();
+        }
+
+        return TypedResults.Ok(occurrence);
+    }
+
+    private static async Task<IResult> CreateOccurrenceAsync(
+        int contractId,
+        CreateOpexOccurrenceRequest request,
+        OpexOccurrenceWriteService write,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            throw OpexProblem.ContractNotFound();
+        }
+
+        int occurrenceId;
+        try
+        {
+            occurrenceId = await write.CreateAsync(contractId, request, userId, cancellationToken);
+        }
+        catch (OpexValidationException exception)
+        {
+            throw OpexProblem.FromOccurrence(exception);
+        }
+
+        var created = await read.GetOccurrenceAsync(contractId, occurrenceId, cancellationToken);
+        return TypedResults.Created(
+            $"/api/opex/contracts/{contractId}/occurrences/{occurrenceId}",
+            created);
+    }
+
+    private static async Task<IResult> UpdateOccurrenceAsync(
+        int contractId,
+        int occurrenceId,
+        UpdateOpexOccurrenceRequest request,
+        OpexOccurrenceWriteService write,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            throw OpexProblem.ContractNotFound();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(contractId, occurrenceId, request, userId, cancellationToken);
+        }
+        catch (OpexValidationException exception)
+        {
+            throw OpexProblem.FromOccurrence(exception);
+        }
+
+        if (!updated)
+        {
+            throw OpexProblem.OccurrenceNotFound();
+        }
+
+        var occurrence = await read.GetOccurrenceAsync(contractId, occurrenceId, cancellationToken);
+        return TypedResults.Ok(occurrence);
+    }
+
+    private static async Task<IResult> DeleteOccurrenceAsync(
+        int contractId,
+        int occurrenceId,
+        OpexOccurrenceWriteService write,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            throw OpexProblem.ContractNotFound();
+        }
+
+        var deleted = await write.DeleteAsync(contractId, occurrenceId, cancellationToken);
+        if (!deleted)
+        {
+            throw OpexProblem.OccurrenceNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListOccurrenceAttachmentsAsync(
+        int contractId,
+        int occurrenceId,
+        OpexReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (await ResolveOccurrenceAsync(contractId, occurrenceId, read, currentUser, cancellationToken) is { } failure)
+        {
+            throw failure;
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(OpexAttachments.OccurrenceOwner(occurrenceId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadOccurrenceAttachmentAsync(
+        int contractId,
+        int occurrenceId,
+        HttpRequest request,
+        OpexReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (await ResolveOccurrenceAsync(contractId, occurrenceId, read, currentUser, cancellationToken) is { } failure)
+        {
+            throw failure;
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw OpexProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw OpexProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        AttachmentDescriptor created;
+        try
+        {
+            created = await attachments.CreateAsync(
+                new(OpexAttachments.OccurrenceOwner(occurrenceId), file.FileName, file.ContentType, stream),
+                userId,
+                cancellationToken);
+        }
+        catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            throw OpexProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+        }
+
+        return TypedResults.Created(
+            $"/api/opex/contracts/{contractId}/occurrences/{occurrenceId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadOccurrenceAttachmentAsync(
+        int contractId,
+        int occurrenceId,
+        int attachmentId,
+        OpexReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (await ResolveOccurrenceAsync(contractId, occurrenceId, read, currentUser, cancellationToken) is { } failure)
+        {
+            throw failure;
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            OpexAttachments.OccurrenceOwner(occurrenceId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw OpexProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteOccurrenceAttachmentAsync(
+        int contractId,
+        int occurrenceId,
+        int attachmentId,
+        OpexReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (await ResolveOccurrenceAsync(contractId, occurrenceId, read, currentUser, cancellationToken) is { } failure)
+        {
+            throw failure;
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            OpexAttachments.OccurrenceOwner(occurrenceId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw OpexProblem.AttachmentNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Resolves occurrence authorization through the parent contract. Returns the
+    /// problem to throw when the parent contract is inaccessible (reported as a
+    /// contract not-found so a private contract is not disclosed) or the occurrence
+    /// does not belong to it; returns <c>null</c> when the occurrence is reachable.
+    /// </summary>
+    private static async Task<ApiProblemException?> ResolveOccurrenceAsync(
+        int contractId,
+        int occurrenceId,
+        OpexReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return OpexProblem.ContractNotFound();
+        }
+
+        if (!await read.ContractAccessibleAsync(contractId, userId, cancellationToken))
+        {
+            return OpexProblem.ContractNotFound();
+        }
+
+        if (!await read.OccurrenceExistsAsync(contractId, occurrenceId, cancellationToken))
+        {
+            return OpexProblem.OccurrenceNotFound();
+        }
+
+        return null;
     }
 
     private static OpexAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(

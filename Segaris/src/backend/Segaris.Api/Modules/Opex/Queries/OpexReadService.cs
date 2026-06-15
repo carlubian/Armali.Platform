@@ -100,6 +100,22 @@ internal sealed class OpexReadService(SegarisDbContext database, IAttachmentServ
             .Where(OpexContractPolicies.AccessibleTo(userId))
             .AnyAsync(contract => contract.Id == contractId, cancellationToken);
 
+    /// <summary>
+    /// Returns whether an occurrence exists within the given contract. Occurrence
+    /// attachment routes call this after <see cref="ContractAccessibleAsync"/> so an
+    /// occurrence identifier from another contract is reported as not found rather
+    /// than reached through.
+    /// </summary>
+    public Task<bool> OccurrenceExistsAsync(
+        int contractId,
+        int occurrenceId,
+        CancellationToken cancellationToken) =>
+        database.Set<OpexOccurrence>()
+            .AsNoTracking()
+            .AnyAsync(
+                occurrence => occurrence.ContractId == contractId && occurrence.Id == occurrenceId,
+                cancellationToken);
+
     public async Task<OpexContractResponse?> GetContractAsync(
         int contractId,
         UserId userId,
@@ -169,6 +185,95 @@ internal sealed class OpexReadService(SegarisDbContext database, IAttachmentServ
             row.CurrencyCode,
             row.Notes,
             row.Visibility.ToString(),
+            attachmentResponses,
+            row.CreatedById,
+            row.CreatedByName,
+            row.CreatedAt,
+            row.UpdatedById,
+            row.UpdatedByName,
+            row.UpdatedAt);
+    }
+
+    /// <summary>
+    /// Lists the occurrences of a contract in their fixed chronological order
+    /// (effective date ascending, identifier ascending as the stable tie-breaker).
+    /// The query is scoped to the supplied contract; callers resolve parent-contract
+    /// accessibility through <see cref="ContractAccessibleAsync"/> beforehand so a
+    /// private contract's movements are never exposed.
+    /// </summary>
+    public async Task<PaginatedResponse<OpexOccurrenceSummaryResponse>> ListOccurrencesAsync(
+        int contractId,
+        PaginationRequest pagination,
+        CancellationToken cancellationToken)
+    {
+        var occurrences = database.Set<OpexOccurrence>()
+            .AsNoTracking()
+            .Where(occurrence => occurrence.ContractId == contractId);
+
+        var totalCount = await occurrences.CountAsync(cancellationToken);
+
+        var page = await occurrences
+            .OrderBy(occurrence => occurrence.EffectiveDate)
+            .ThenBy(occurrence => occurrence.Id)
+            .Skip(pagination.Offset)
+            .Take(pagination.PageSize)
+            .Select(occurrence => new OpexOccurrenceSummaryResponse(
+                occurrence.Id,
+                occurrence.EffectiveDate,
+                occurrence.ActualAmount,
+                occurrence.Description))
+            .ToArrayAsync(cancellationToken);
+
+        return PaginatedResponse<OpexOccurrenceSummaryResponse>.Create(page, pagination, totalCount);
+    }
+
+    /// <summary>
+    /// Returns the detail of one occurrence scoped to its parent contract, with its
+    /// attachments. An occurrence identifier that belongs to a different contract
+    /// returns <c>null</c> so it cannot be used to reach across contracts. Callers
+    /// resolve parent-contract accessibility through
+    /// <see cref="ContractAccessibleAsync"/> beforehand.
+    /// </summary>
+    public async Task<OpexOccurrenceResponse?> GetOccurrenceAsync(
+        int contractId,
+        int occurrenceId,
+        CancellationToken cancellationToken)
+    {
+        var row = await database.Set<OpexOccurrence>()
+            .AsNoTracking()
+            .Where(occurrence => occurrence.ContractId == contractId && occurrence.Id == occurrenceId)
+            .Select(occurrence => new OccurrenceDetailRow(
+                occurrence.Id,
+                occurrence.ContractId,
+                occurrence.EffectiveDate,
+                occurrence.ActualAmount,
+                occurrence.Description,
+                occurrence.Notes,
+                occurrence.CreatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == occurrence.CreatedBy).Select(user => user.DisplayName).First(),
+                occurrence.CreatedAt,
+                occurrence.UpdatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == occurrence.UpdatedBy).Select(user => user.DisplayName).First(),
+                occurrence.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(OpexAttachments.OccurrenceOwner(occurrenceId), cancellationToken);
+        var attachmentResponses = descriptors.Select(ToAttachment).ToArray();
+
+        return new OpexOccurrenceResponse(
+            row.Id,
+            row.ContractId,
+            row.EffectiveDate,
+            row.ActualAmount,
+            row.Description,
+            row.Notes,
             attachmentResponses,
             row.CreatedById,
             row.CreatedByName,
@@ -381,6 +486,20 @@ internal sealed class OpexReadService(SegarisDbContext database, IAttachmentServ
         string CurrencyCode,
         string? Notes,
         RecordVisibility Visibility,
+        int CreatedById,
+        string CreatedByName,
+        DateTimeOffset CreatedAt,
+        int UpdatedById,
+        string UpdatedByName,
+        DateTimeOffset UpdatedAt);
+
+    private sealed record OccurrenceDetailRow(
+        int Id,
+        int ContractId,
+        DateOnly EffectiveDate,
+        decimal ActualAmount,
+        string? Description,
+        string? Notes,
         int CreatedById,
         string CreatedByName,
         DateTimeOffset CreatedAt,

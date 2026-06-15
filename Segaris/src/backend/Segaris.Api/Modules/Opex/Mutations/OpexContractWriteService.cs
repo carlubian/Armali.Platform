@@ -115,23 +115,39 @@ internal sealed class OpexContractWriteService(
             return false;
         }
 
+        // The occurrence identifiers are captured before deletion so their files can
+        // be reconciled afterwards: the database cascade removes the occurrence rows
+        // but not their out-of-transaction attachments.
+        var occurrenceIds = await database.Set<OpexOccurrence>()
+            .AsNoTracking()
+            .Where(occurrence => occurrence.ContractId == contractId)
+            .Select(occurrence => occurrence.Id)
+            .ToArrayAsync(cancellationToken);
+
         // Deletion is physical and cascades to occurrences at the database level.
         database.Remove(contract);
         await database.SaveChangesAsync(cancellationToken);
 
         // Compensating storage cleanup runs after the contract row is gone. Files are
         // outside the database transaction, so any residue is reconciled later rather
-        // than resurrecting the deleted contract. Occurrence attachments are removed
-        // alongside their own rows by the occurrence Wave; here we clear the
-        // contract-level attachments.
-        var owner = OpexAttachments.ContractOwner(contractId);
+        // than resurrecting the deleted contract. Both the contract-level attachments
+        // and every cascaded occurrence's attachments are removed here.
+        await DeleteAttachmentsAsync(OpexAttachments.ContractOwner(contractId), cancellationToken);
+        foreach (var occurrenceId in occurrenceIds)
+        {
+            await DeleteAttachmentsAsync(OpexAttachments.OccurrenceOwner(occurrenceId), cancellationToken);
+        }
+
+        return true;
+    }
+
+    private async Task DeleteAttachmentsAsync(AttachmentOwner owner, CancellationToken cancellationToken)
+    {
         var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
         foreach (var descriptor in descriptors)
         {
             await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
         }
-
-        return true;
     }
 
     private async Task EnsureUniqueNameAsync(string normalizedName, int? excludeId, CancellationToken cancellationToken)

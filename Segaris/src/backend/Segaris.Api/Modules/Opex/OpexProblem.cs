@@ -34,6 +34,22 @@ internal static class OpexProblem
         };
     }
 
+    /// <summary>
+    /// Maps an occurrence mutation failure. Occurrences carry only generic shape,
+    /// amount, and date validation; they have no catalog, duplicate-name, or
+    /// visibility reasons, so every failure surfaces as the frozen occurrence
+    /// validation code.
+    /// </summary>
+    public static ApiProblemException FromOccurrence(OpexValidationException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return new ApiProblemException(
+            StatusCodes.Status400BadRequest,
+            OpexErrorCodes.OccurrenceValidation,
+            exception.Message);
+    }
+
     public static ApiProblemException ContractNotFound() => new(
         StatusCodes.Status404NotFound,
         OpexErrorCodes.ContractNotFound,
