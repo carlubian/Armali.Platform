@@ -5,6 +5,7 @@ using Segaris.Api.Modules.Capex.Mutations;
 using Segaris.Api.Modules.Capex.Persistence;
 using Segaris.Api.Modules.Capex.Queries;
 using Segaris.Api.Modules.Capex.Seeding;
+using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Persistence;
 
@@ -27,6 +28,10 @@ internal sealed class CapexModule : ISegarisModule
         services.AddScoped<CapexCatalogValidator>();
         services.AddScoped<CapexReadService>();
         services.AddScoped<CapexEntryWriteService>();
+        services.AddScoped<CapexCategoryManagementService>();
+        services.AddScoped<ICatalogReferenceHandler>(provider => new CapexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));
+        services.AddScoped<ICatalogReferenceHandler>(provider => new CapexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.CostCenters));
+        services.AddScoped<ICatalogReferenceHandler>(provider => new CapexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Currencies));
         services.AddScoped<ILauncherAttentionContributor, CapexAttentionContributor>();
     }
 
