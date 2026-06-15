@@ -47,6 +47,13 @@ internal static class OpexTestData
         return await database.Set<SegarisCurrency>().Where(currency => currency.Code == code).Select(currency => currency.Id).SingleAsync();
     }
 
+    public static async Task<int> OccurrenceCountAsync(IServiceProvider services, int contractId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<OpexOccurrence>().CountAsync(occurrence => occurrence.ContractId == contractId);
+    }
+
     public static async Task<int> SeedContractAsync(
         IServiceProvider services,
         int creatorId,

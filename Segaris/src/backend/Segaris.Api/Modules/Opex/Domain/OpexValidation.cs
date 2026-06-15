@@ -94,6 +94,9 @@ internal enum OpexValidationReason
 
     /// <summary>A non-creator attempted to change a contract's visibility.</summary>
     VisibilityForbidden,
+
+    /// <summary>The normalized contract name conflicts with an existing contract.</summary>
+    DuplicateName,
 }
 
 internal sealed class OpexValidationException(

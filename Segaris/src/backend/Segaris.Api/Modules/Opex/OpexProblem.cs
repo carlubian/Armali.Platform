@@ -23,6 +23,10 @@ internal static class OpexProblem
                 StatusCodes.Status400BadRequest,
                 OpexErrorCodes.UnknownCatalogReference,
                 exception.Message),
+            OpexValidationReason.DuplicateName => new ApiProblemException(
+                StatusCodes.Status409Conflict,
+                OpexErrorCodes.ContractDuplicateName,
+                exception.Message),
             _ => new ApiProblemException(
                 StatusCodes.Status400BadRequest,
                 OpexErrorCodes.ContractValidation,

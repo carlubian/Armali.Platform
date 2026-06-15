@@ -231,7 +231,26 @@ Exit criteria:
 
 ### Wave 3: Contract Mutations And Attachments
 
-Status: **Planned**.
+Status: **Complete**. The backend now serves `POST`, `PUT`, and `DELETE` on
+`/api/opex/contracts` plus the contract-level attachment routes through
+`OpexContractWriteService`. Creation and update map the request into the domain
+factory (shape, enum, and amount validation), validate every catalog reference via
+`OpexCatalogValidator`, and enforce global case-insensitive name uniqueness with a
+pre-check plus a `DbUpdateException` race fallback, both surfaced as a `409`
+`opex.contract.duplicate_name`. Updates are last-write-wins, reuse the read-side
+privacy filter so a non-accessible contract is an indistinguishable not-found, and
+keep the creator-only visibility rule (`403 opex.contract.visibility_forbidden`)
+while any authorized user may edit a public contract. Deletion is physical and
+cascades to occurrences at the database level, then reconciles contract attachments
+through the platform service. Contract attachments reuse the established per-file
+upload/list/download/remove contract with antiforgery and platform file-validation
+mapped to `opex.attachment.invalid`; all attachment routes resolve authorization
+through the parent contract. Coverage spans creation defaults and trimming,
+validation, unknown references, duplicate-name create/rename conflicts, every
+editable field, cross-user public edits, visibility enforcement, private isolation,
+deletion and occurrence cascade, and the attachment round trip, authorization,
+rejected files, missing attachments, and physical cleanup. No requirements
+deviation was needed.
 
 Implement contract creation, editing, visibility rules, deletion, and general
 contract attachments.
