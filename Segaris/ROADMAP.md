@@ -131,8 +131,10 @@ Module purpose: Recurrent income/expenses, grouped inside Contracts, like subscr
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, income/expense discrimination. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | Contracts, effective occurrences, classifications, lifecycle, amounts, privacy, attachments, deletion, and Configuration migration behavior are defined in `docs/requirements/OPEX_REQUIREMENTS.md`. |
+| Resolved | User workflow | Opex opens on a paginated Contracts table and uses a URL-aware contract popup with subordinate occurrence management. Initial and deferred behaviors are defined in `docs/requirements/OPEX_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/OPEX_IMPLEMENTATION_PLAN.md`. |
+| Deferred | Current-year activity filter | Filtering contracts by whether they contain occurrences in the current year is a future usability improvement. |
 
 ### Inventory
 
