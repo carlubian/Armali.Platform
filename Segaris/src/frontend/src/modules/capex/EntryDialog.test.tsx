@@ -244,10 +244,10 @@ describe('Capex entry editor — creation', () => {
     const dialog = await openCreate()
     const fields = within(dialog)
 
-    expect(fields.getByLabelText('Type')).toHaveValue('Expense')
+    expect(fields.getByRole('radio', { name: 'Expense' })).toBeChecked()
     expect(fields.getByLabelText('Status')).toHaveValue('Planning')
     expect(fields.getByLabelText('Currency')).toHaveValue('1')
-    expect(fields.getByLabelText('Visibility')).toHaveValue('Public')
+    expect(fields.getByRole('radio', { name: 'Public' })).toBeChecked()
     expect(fields.getByLabelText('Date')).toHaveDisplayValue(/^\d{4}-\d{2}-\d{2}$/)
   })
 
@@ -395,7 +395,7 @@ describe('Capex entry editor — editing and accessibility', () => {
     const title = await screen.findByLabelText('Title', {}, { timeout: 5000 })
     const dialog = title.closest('[role="dialog"]') as HTMLElement
     expect(title).toHaveValue('Existing entry')
-    expect(within(dialog).getByLabelText('Visibility')).toBeDisabled()
+    expect(within(dialog).getByRole('radio', { name: 'Public' })).toBeDisabled()
   })
 
   it('names the dialog and associates the title error with the field', async () => {

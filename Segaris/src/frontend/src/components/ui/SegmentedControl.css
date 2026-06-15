@@ -1,0 +1,77 @@
+.arm-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  font-family: var(--font-body);
+}
+.arm-segmented__option {
+  display: inline-flex;
+  flex: 1 1 auto;
+  cursor: pointer;
+}
+.arm-segmented__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.arm-segmented__face {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  min-height: 34px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background var(--dur-base) var(--ease-soft),
+    color var(--dur-base) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.arm-segmented__icon {
+  display: inline-flex;
+  align-items: center;
+}
+.arm-segmented__option:hover
+  .arm-segmented__input:not(:checked):not(:disabled)
+  + .arm-segmented__face {
+  background: var(--surface-frost);
+  color: var(--text-primary);
+}
+
+/* Selected segment: a solid, toned chip. */
+.arm-segmented__input:checked + .arm-segmented__face {
+  color: var(--text-on-accent);
+  box-shadow: var(--glow-soft);
+}
+.arm-segmented__input:checked + .arm-segmented__face[data-tone='accent'] {
+  background: var(--accent);
+}
+.arm-segmented__input:checked + .arm-segmented__face[data-tone='success'] {
+  background: var(--success);
+}
+.arm-segmented__input:checked + .arm-segmented__face[data-tone='neutral'] {
+  background: var(--ink-700);
+}
+.arm-segmented__input:checked + .arm-segmented__face[data-tone='danger'] {
+  background: var(--danger);
+}
+
+.arm-segmented__input:focus-visible + .arm-segmented__face {
+  box-shadow: var(--ring);
+}
+
+.arm-segmented--disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}

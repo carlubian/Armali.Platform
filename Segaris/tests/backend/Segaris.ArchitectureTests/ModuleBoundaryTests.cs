@@ -35,6 +35,36 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Capex_depends_on_configuration_contracts()
+    {
+        // The accepted dependency direction is Capex -> Configuration. Capex
+        // consumes the shared catalog contracts (reads now, reference-management
+        // handlers later), so this dependency must remain present; its absence
+        // would mean the boundary was inverted or the consumer contract moved.
+        var dependsOnConfiguration = TypesIn(CapexNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Capex must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Reference_management_contract_is_owned_by_configuration()
+    {
+        // The reference-migration handler interface is the cross-module seam.
+        // Keeping it in the Configuration namespace is what preserves the
+        // Capex -> Configuration direction when Capex implements handlers.
+        var handler = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Configuration.Contracts.ICatalogReferenceHandler",
+            throwOnError: false);
+
+        Assert.NotNull(handler);
+        Assert.True(IsInNamespace(handler!, ConfigurationNamespace));
+    }
+
+    [Fact]
     public void Configuration_does_not_depend_on_launcher()
     {
         AssertNoDependency(ConfigurationNamespace, LauncherNamespace);

@@ -66,6 +66,27 @@ public sealed class MigrationTests
     }
 
     [Fact]
+    public void Current_upgrade_baseline_is_capex_domain_persistence()
+    {
+        // Wave 0 records CapexDomainPersistence as the latest production-compatible
+        // schema for both providers. The Wave 1 Configuration model upgrade (drop
+        // Code, add NormalizedName/SortOrder, initialization table) must migrate
+        // safely from this baseline. When that migration lands, this assertion is
+        // updated to the new tail and the upgrade test starts from this baseline.
+        using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
+        using var postgres = CreateContext(
+            "Postgres",
+            "Host=localhost;Database=segaris_test;Username=postgres;Password=postgres");
+
+        Assert.Equal(
+            "CapexDomainPersistence",
+            LogicalName(sqlite.Database.GetMigrations().Last()));
+        Assert.Equal(
+            "CapexDomainPersistence",
+            LogicalName(postgres.Database.GetMigrations().Last()));
+    }
+
+    [Fact]
     public async Task Sqlite_upgrades_from_the_current_schema()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-upgrade-{Guid.NewGuid():N}.db");

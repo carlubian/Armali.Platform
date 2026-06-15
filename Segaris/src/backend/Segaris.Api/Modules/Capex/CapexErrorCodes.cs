@@ -27,4 +27,25 @@ internal static class CapexErrorCodes
 
     /// <summary>The uploaded attachment failed platform file validation.</summary>
     public static readonly ErrorCode AttachmentInvalid = new("capex.attachment.invalid");
+
+    /// <summary>The addressed Capex category does not exist.</summary>
+    public static readonly ErrorCode CategoryNotFound = new("capex.category.not_found");
+
+    /// <summary>The category request failed validation; may carry field errors.</summary>
+    public static readonly ErrorCode CategoryValidation = new("capex.category.validation");
+
+    /// <summary>Another category already uses the name (case-insensitive).</summary>
+    public static readonly ErrorCode CategoryDuplicateName = new("capex.category.duplicate_name");
+
+    /// <summary>The last remaining category cannot be removed; categories are required.</summary>
+    public static readonly ErrorCode CategoryRequiredNotEmpty = new("capex.category.required_not_empty");
+
+    /// <summary>A direct delete was attempted on a category that is still referenced.</summary>
+    public static readonly ErrorCode CategoryReferenced = new("capex.category.referenced");
+
+    /// <summary>The requested replacement category is missing, equal to the source, or invalid.</summary>
+    public static readonly ErrorCode CategoryInvalidReplacement = new("capex.category.invalid_replacement");
+
+    /// <summary>A concurrent change invalidated the source, replacement, or references.</summary>
+    public static readonly ErrorCode CategoryMigrationConflict = new("capex.category.migration_conflict");
 }

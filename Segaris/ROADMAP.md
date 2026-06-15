@@ -91,10 +91,24 @@ are still in functional definition.
 | Resolved | Frontend core implementation plan | A dependency-ordered, wave-based plan covering the frontend scaffold, design-system port, shared shell, login, self-service profile (including avatar), administrative user management, a minimal launcher, a scoped backend Identity-profile extension, and the container/Compose/CI changes needed to serve the real frontend image. See `docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Frontend foundation conventions | Node 24.16.0 and pnpm 11.6.0 are pinned at repository level. ESLint/Prettier/TypeScript, Vitest/Testing Library, and Playwright have explicit ownership and placement conventions; local API access uses a same-origin Vite `/api` proxy; public build-time environment values and the module-oriented source tree are fixed for the Wave 2 scaffold. See `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`. |
 | Resolved | Capex implementation plan | A dependency-ordered plan covers Configuration catalogs, Capex persistence and APIs, Launcher attention aggregation, the Entries table and popup editor, attachments, migrations, and end-to-end acceptance. See `docs/planning/CAPEX_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Configuration management implementation plan | A dependency-ordered plan covers administrator catalog CRUD and ordering, one-time initialization, safe deletion and reference migration, the unified Configuration frontend, advanced currency conversion, provider migrations, and acceptance. See `docs/planning/CONFIGURATION_IMPLEMENTATION_PLAN.md`. |
 
 ## Phase 2: Functional Definition Backlog
 
 These items should be expanded into detailed requirements after the Phase 1 foundation is clear.
+
+### Configuration
+
+Module purpose: Administrator management of shared reference catalogs and
+module-owned classifications through one unified experience.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| Resolved | Initial catalogs and ownership | Global Supplier, CostCenter, and Currency remain owned by Configuration; CapexCategory remains owned by Capex and is presented in the same frontend. See `docs/requirements/CONFIGURATION_REQUIREMENTS.md`. |
+| Resolved | User workflow | An administrator-only launcher card opens flat Global and Capex sections, with tabs for multiple catalogs, complete tables, popup editors, and accessible move controls. |
+| Resolved | Deletion and migration | Unreferenced values delete directly; referenced values are atomically replaced, optional Supplier/CostCenter references may be cleared, and private records are never disclosed. |
+| Resolved | Currency replacement | Referenced currencies require a manual source-to-target exchange rate and authoritative two-decimal Capex recalculation. Delivery is isolated in an advanced plan wave. |
+| Resolved | Implementation plan | Seven waves cover contracts, schema upgrade and one-time initialization, CRUD, reference migration, frontend delivery, currency conversion, and acceptance. See `docs/planning/CONFIGURATION_IMPLEMENTATION_PLAN.md`. |
 
 ### Capex
 
@@ -225,7 +239,7 @@ Module purpose: Module to see aggregated trends of the financial modules.
 | Open | Attachments | Common attachment model across all domains. |
 | Open | Notes and comments | Whether records support notes, comments, or activity timelines. |
 | Open | Search and filters | What global and per-domain search should support. |
-| Resolved | Shared configuration catalogs | The platform Configuration module owns Supplier, CostCenter, and Currency persistence, seed data, and read contracts. Initial APIs are read-only; future App Configuration mutations require reference migration before deletion. See `docs/architecture/domain-organization.md` and `docs/requirements/CAPEX_REQUIREMENTS.md`. |
+| Resolved | Shared configuration catalogs | The platform Configuration module owns Supplier, CostCenter, and Currency persistence and read contracts. Administrator management, one-time initialization, ordering, and mandatory migration before referenced deletion are defined in `docs/requirements/CONFIGURATION_REQUIREMENTS.md`; module-specific classifications remain domain-owned. |
 
 ## Phase 3: Version Planning Backlog
 

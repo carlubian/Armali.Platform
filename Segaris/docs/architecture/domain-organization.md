@@ -65,15 +65,19 @@ foreign keys where the catalog lifecycle guarantees that referenced values are
 not removed. They do not access Configuration's EF Core entities or tables
 directly.
 
-The initial Configuration module contains persistence, deterministic seed data,
-read contracts, and read-only API queries. It has no launcher card or
-administrative mutation experience. A future App Configuration experience may
-add administrator-only management over these same catalogs, including a
-mandatory reference-migration workflow before deleting an in-use value.
+The initial Configuration foundation contains persistence, deterministic seed
+data, read contracts, and read-only API queries. The separately planned
+administrator-only Configuration experience adds catalog creation, rename,
+ordering, deletion-impact evaluation, and atomic reference migration before an
+in-use value is removed. Consuming modules implement narrow
+Configuration-owned reference-management contracts; Configuration does not
+query their tables or expose private records. See
+`docs/requirements/CONFIGURATION_REQUIREMENTS.md`.
 
 Configuration owns only catalogs with demonstrated cross-module semantics.
 Module-specific classifications such as `CapexCategory` remain in their
-business module.
+business module even when the Configuration frontend presents their management
+alongside shared catalogs.
 
 ### Launcher
 
