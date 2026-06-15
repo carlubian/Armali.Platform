@@ -29,6 +29,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_CapexDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_OpexDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -37,6 +40,9 @@ public sealed class MigrationTests
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
                 Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
+                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+                // Contracts, occurrences, and the Opex-owned category catalog.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'opex_%'";
                 Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
@@ -64,14 +70,15 @@ public sealed class MigrationTests
         Assert.Contains("IdentityProfile", sqliteNames);
         Assert.Contains("ConfigurationFoundation", sqliteNames);
         Assert.Contains("CapexDomainPersistence", sqliteNames);
+        Assert.Contains("OpexDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Catalog_model_upgrade_follows_the_capex_domain_baseline()
+    public void Opex_domain_persistence_is_the_current_tail_after_the_catalog_model()
     {
-        // The Wave 1 Configuration model upgrade (drop Code, add
-        // NormalizedName/SortOrder, initialization table) is the current tail and
-        // migrates from the CapexDomainPersistence baseline recorded in Wave 0.
+        // The Opex Wave 1 model (contracts, occurrences, and the Opex-owned
+        // category catalog) is the current tail and migrates from the
+        // CatalogModelAndInitialization baseline recorded in Configuration Wave 1.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -83,8 +90,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("CatalogModelAndInitialization", migrations[^1]);
-            Assert.Equal("CapexDomainPersistence", migrations[^2]);
+            Assert.Equal("OpexDomainPersistence", migrations[^1]);
+            Assert.Equal("CatalogModelAndInitialization", migrations[^2]);
         }
     }
 
@@ -177,12 +184,15 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
             Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
+            Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'configuration_%'";
             Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'capex_%'";
+            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'opex_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally

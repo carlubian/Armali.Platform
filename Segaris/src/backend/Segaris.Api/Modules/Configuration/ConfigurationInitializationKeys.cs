@@ -8,8 +8,9 @@ namespace Segaris.Api.Modules.Configuration;
 /// never seeded again. The upgrade migration marks all four existing catalogs so
 /// current rows are preserved exactly.
 ///
-/// The <c>capex.categories</c> key names a Capex-owned catalog but lives with the
-/// other keys because the single initialization table is shared infrastructure.
+/// The <c>capex.categories</c> and <c>opex.categories</c> keys name module-owned
+/// catalogs but live with the other keys because the single initialization table
+/// is shared infrastructure.
 /// </summary>
 internal static class ConfigurationInitializationKeys
 {
@@ -21,11 +22,14 @@ internal static class ConfigurationInitializationKeys
 
     public const string CapexCategories = "capex.categories";
 
+    public const string OpexCategories = "opex.categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
         CostCenters,
         Currencies,
         CapexCategories,
+        OpexCategories,
     ];
 }

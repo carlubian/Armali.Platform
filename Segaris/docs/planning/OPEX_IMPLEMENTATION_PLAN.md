@@ -135,7 +135,18 @@ Exit criteria:
 
 ### Wave 1: Domain, Persistence, And Categories
 
-Status: **Planned**.
+Status: **Complete**. The backend now persists the encapsulated `OpexContract`,
+`OpexOccurrence`, and `OpexCategory` model on SQLite and PostgreSQL through the
+`OpexDomainPersistence` migration: audit metadata, decimal precision, bounded
+strings, enum check constraints, occurrence cascade deletion, deterministic
+`(ContractId, EffectiveDate, Id)` ordering, the filter/privacy/catalog indexes,
+and global case-insensitive contract-name uniqueness via a normalized-name unique
+index. A one-time initializer seeds the accepted Opex categories once, and the
+Opex-owned category catalog exposes the read plus the administrator create,
+rename, reorder, privacy-neutral deletion-impact, final-row-protected delete, and
+atomic replace-and-delete routes, reusing the Configuration presentation
+contracts. Domain, seeding, migration, and category integration tests cover the
+invariants; no requirements deviation was needed.
 
 Implement the Opex data model and category lifecycle on both database providers.
 

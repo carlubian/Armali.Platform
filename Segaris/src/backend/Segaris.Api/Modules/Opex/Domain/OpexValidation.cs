@@ -80,4 +80,25 @@ internal static class OpexValidation
     }
 }
 
-internal sealed class OpexValidationException(string message) : Exception(message);
+/// <summary>
+/// Distinguishes the Opex mutation failures so the HTTP surface can map each one
+/// to its frozen <see cref="OpexErrorCodes"/> value.
+/// </summary>
+internal enum OpexValidationReason
+{
+    /// <summary>A required string, length, enum, or amount rule failed.</summary>
+    Validation,
+
+    /// <summary>A referenced category, supplier, cost center, or currency does not exist.</summary>
+    CatalogReference,
+
+    /// <summary>A non-creator attempted to change a contract's visibility.</summary>
+    VisibilityForbidden,
+}
+
+internal sealed class OpexValidationException(
+    string message,
+    OpexValidationReason reason = OpexValidationReason.Validation) : Exception(message)
+{
+    public OpexValidationReason Reason { get; } = reason;
+}

@@ -94,7 +94,7 @@ public sealed class ConfigurationContractTests
     public void Initialization_keys_are_frozen()
     {
         Assert.Equal(
-            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories"],
+            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories"],
             ConfigurationInitializationKeys.All);
     }
 
