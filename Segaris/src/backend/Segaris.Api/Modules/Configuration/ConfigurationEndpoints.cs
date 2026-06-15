@@ -37,6 +37,7 @@ internal static class ConfigurationEndpoints
         currencies.MapPost(ConfigurationApiRoutes.Move, MoveCurrencyAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveConfigurationCurrency").WithSummary("Moves a currency one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
         currencies.MapGet(ConfigurationApiRoutes.DeletionImpact, CurrencyImpactAsync).WithName("GetConfigurationCurrencyDeletionImpact").WithSummary("Returns privacy-neutral currency deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         currencies.MapDelete(ConfigurationApiRoutes.ById, DeleteCurrencyAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteConfigurationCurrency").WithSummary("Deletes an unreferenced currency").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        currencies.MapPost(ConfigurationApiRoutes.ReplaceAndDelete, ReplaceAndDeleteCurrencyAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteConfigurationCurrency").WithSummary("Converts referenced entries to another currency and deletes this one atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapManagement<TResponse>(
@@ -81,6 +82,7 @@ internal static class ConfigurationEndpoints
     private static async Task<IResult> MoveCurrencyAsync(int id, CatalogMoveRequest request, ConfigurationCatalogManagementService service, CancellationToken token) { await service.MoveCurrencyAsync(id, Direction(request), token); return TypedResults.NoContent(); }
     private static async Task<IResult> CurrencyImpactAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) => TypedResults.Ok(await service.CurrencyImpactAsync(id, token));
     private static async Task<IResult> DeleteCurrencyAsync(int id, ConfigurationCatalogManagementService service, CancellationToken token) { await service.DeleteCurrencyAsync(id, token); return TypedResults.NoContent(); }
+    private static async Task<IResult> ReplaceAndDeleteCurrencyAsync(int id, CatalogReplacementRequest request, ConfigurationCatalogManagementService service, ICurrentUser user, CancellationToken token) { await service.ReplaceAndDeleteCurrencyAsync(id, request, Actor(user), token); return TypedResults.NoContent(); }
 
     private static async Task<IResult> ListSuppliersAsync(
         IConfigurationCatalog catalog,

@@ -133,9 +133,18 @@ export const configuration = {
     replacementRequired: 'Choose a replacement value.',
     noCandidates: 'Add another value before removing this one.',
     requiredMin: 'At least one value must remain in this catalog.',
-    currencyBlockedTitle: 'This currency is in use',
-    currencyBlockedDescription:
-      'Existing entries use this currency. Converting and removing a referenced currency will be available in a later update.',
+    convertTitle: 'Convert and remove {{name}}',
+    convertDescription:
+      'Existing entries use this currency. Choose the currency to convert them to and the exchange rate. Amounts are recalculated and this cannot be undone.',
+    convertTargetLabel: 'Convert to',
+    convertTargetPlaceholder: 'Choose a currency',
+    convertTargetRequired: 'Choose a currency to convert to.',
+    convertRateLabel: 'Exchange rate',
+    convertRateInvalid: 'Enter a positive rate with up to eight decimal places.',
+    convertFormula: '1 {{source}} = {{rate}} {{target}}',
+    convertIrreversible:
+      'Amounts on every affected entry are recalculated and rounded. This conversion cannot be reversed.',
+    convertConfirm: 'Convert and remove',
     close: 'Close',
     error: 'The value could not be removed. Please try again.',
     conflict: 'This catalog changed while you were working. Refresh and try again.',

@@ -227,6 +227,21 @@
   font-size: var(--text-sm);
   font-weight: 500;
 }
+.seg-catalog__convert-formula {
+  margin: var(--space-4) 0 var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-card);
+}
+.seg-catalog__form-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
 
 @media (max-width: 780px) {
   .seg-configuration {

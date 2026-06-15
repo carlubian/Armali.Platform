@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Capex;
@@ -13,6 +14,7 @@ using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Persistence;
 using Segaris.Api.Platform.Api;
 using Segaris.Persistence;
+using Segaris.Shared.Api;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -193,6 +195,140 @@ public sealed class CapexDomainTests
         Assert.True(await fixture.Database.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
     }
 
+    [Fact]
+    public void Convert_currency_scales_each_line_rounds_away_from_zero_and_switches_currency()
+    {
+        // 1 source = 1.005 target. Quantities are preserved; unit amounts scale and
+        // round to two decimals away from zero, then lines and the total follow.
+        var entry = CreateEntry([new("First", 2m, 1.00m), new("Second", 1m, 2.50m)]);
+
+        entry.ConvertCurrency(targetCurrencyId: 7, exchangeRate: 1.005m, new UserId(9), Now.AddMinutes(1));
+
+        Assert.Equal(7, entry.CurrencyId);
+        Assert.Equal([2m, 1m], entry.Items.Select(item => item.Quantity));
+        // 1.00 * 1.005 = 1.005 -> 1.01; 2.50 * 1.005 = 2.5125 -> 2.51.
+        Assert.Equal([1.01m, 2.51m], entry.Items.Select(item => item.UnitAmount));
+        Assert.Equal([2.02m, 2.51m], entry.Items.Select(item => item.LineAmount));
+        Assert.Equal(4.53m, entry.TotalAmount);
+        Assert.Equal(9, entry.UpdatedBy);
+        Assert.Equal(Now.AddMinutes(1), entry.UpdatedAt);
+    }
+
+    [Fact]
+    public void Convert_currency_keeps_zero_amounts_at_zero()
+    {
+        var entry = CreateEntry([new("Donated", 3m, 0m)]);
+
+        entry.ConvertCurrency(targetCurrencyId: 5, exchangeRate: 1.25m, new UserId(1), Now.AddMinutes(1));
+
+        Assert.Equal(5, entry.CurrencyId);
+        Assert.Equal(0m, Assert.Single(entry.Items).UnitAmount);
+        Assert.Equal(0m, entry.TotalAmount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Convert_currency_rejects_a_nonpositive_rate(decimal rate)
+    {
+        var entry = CreateEntry([new("Item", 1m, 1m)]);
+
+        Assert.Throws<CapexValidationException>(() =>
+            entry.ConvertCurrency(targetCurrencyId: 2, rate, new UserId(1), Now.AddMinutes(1)));
+    }
+
+    [Fact]
+    public async Task Currency_conversion_rolls_back_when_a_consumer_fails()
+    {
+        await using var fixture = await CapexFixture.CreateAsync();
+        await new CapexSeeder(fixture.Database, new CatalogInitializer(fixture.Database, fixture.Clock))
+            .SeedAsync(CancellationToken.None);
+        var sourceId = await fixture.Database.Set<SegarisCurrency>()
+            .Where(value => value.Code == "EUR").Select(value => value.Id).SingleAsync();
+        var targetId = await fixture.Database.Set<SegarisCurrency>()
+            .Where(value => value.Code == "USD").Select(value => value.Id).SingleAsync();
+        var categoryId = await fixture.Database.Set<CapexCategory>()
+            .Where(value => value.Name == "Other").Select(value => value.Id).SingleAsync();
+        var entry = CapexEntry.Create(
+            Values() with { CategoryId = categoryId, CurrencyId = sourceId },
+            [new("Rollback", 2m, 10m)],
+            new UserId(1),
+            Now);
+        fixture.Database.Add(entry);
+        await fixture.Database.SaveChangesAsync();
+
+        ICatalogReferenceHandler[] handlers =
+        [
+            new CapexCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Currencies),
+            new FailingReferenceHandler(ConfigurationCatalogKind.Currencies),
+        ];
+        var service = new ConfigurationCatalogManagementService(fixture.Database, handlers, fixture.Clock);
+
+        var exception = await Assert.ThrowsAsync<ApiProblemException>(() => service.ReplaceAndDeleteCurrencyAsync(
+            sourceId,
+            new CatalogReplacementRequest(targetId, ClearReferences: false, ExchangeRate: 1.25m),
+            new UserId(1),
+            CancellationToken.None));
+
+        Assert.Equal(ConfigurationErrorCodes.CatalogMigrationFailed, exception.Code);
+        fixture.Database.ChangeTracker.Clear();
+        var stored = await fixture.Database.Set<CapexEntry>().Include(value => value.Items).SingleAsync(value => value.Id == entry.Id);
+        Assert.Equal(sourceId, stored.CurrencyId);
+        Assert.Equal(10m, Assert.Single(stored.Items).UnitAmount);
+        Assert.True(await fixture.Database.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Currency_conversion_requires_a_rate_when_referenced()
+    {
+        var error = await ConvertReferencedCurrencyAsync(exchangeRate: null);
+        Assert.Equal(ConfigurationErrorCodes.CatalogExchangeRateRequired, error);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-2")]
+    [InlineData("1.123456789")]
+    public async Task Currency_conversion_rejects_a_nonpositive_or_too_precise_rate(string rate)
+    {
+        var error = await ConvertReferencedCurrencyAsync(decimal.Parse(rate, CultureInfo.InvariantCulture));
+        Assert.Equal(ConfigurationErrorCodes.CatalogExchangeRateInvalid, error);
+    }
+
+    private static async Task<ErrorCode> ConvertReferencedCurrencyAsync(decimal? exchangeRate)
+    {
+        await using var fixture = await CapexFixture.CreateAsync();
+        await new CapexSeeder(fixture.Database, new CatalogInitializer(fixture.Database, fixture.Clock))
+            .SeedAsync(CancellationToken.None);
+        var sourceId = await fixture.Database.Set<SegarisCurrency>()
+            .Where(value => value.Code == "EUR").Select(value => value.Id).SingleAsync();
+        var targetId = await fixture.Database.Set<SegarisCurrency>()
+            .Where(value => value.Code == "USD").Select(value => value.Id).SingleAsync();
+        var categoryId = await fixture.Database.Set<CapexCategory>()
+            .Where(value => value.Name == "Other").Select(value => value.Id).SingleAsync();
+        var entry = CapexEntry.Create(
+            Values() with { CategoryId = categoryId, CurrencyId = sourceId },
+            [new("Item", 1m, 10m)],
+            new UserId(1),
+            Now);
+        fixture.Database.Add(entry);
+        await fixture.Database.SaveChangesAsync();
+
+        var service = new ConfigurationCatalogManagementService(
+            fixture.Database,
+            [new CapexCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Currencies)],
+            fixture.Clock);
+
+        var exception = await Assert.ThrowsAsync<ApiProblemException>(() => service.ReplaceAndDeleteCurrencyAsync(
+            sourceId,
+            new CatalogReplacementRequest(targetId, ClearReferences: false, exchangeRate),
+            new UserId(1),
+            CancellationToken.None));
+
+        Assert.True(await fixture.Database.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
+        return exception.Code;
+    }
+
     private static CapexEntry CreateEntry(IReadOnlyList<CapexItemValues> items) =>
         CapexEntry.Create(Values(), items, new UserId(1), Now);
 
@@ -252,9 +388,10 @@ public sealed class CapexDomainTests
         public DateTimeOffset UtcNow { get; set; }
     }
 
-    private sealed class FailingReferenceHandler : ICatalogReferenceHandler
+    private sealed class FailingReferenceHandler(ConfigurationCatalogKind kind = ConfigurationCatalogKind.Suppliers)
+        : ICatalogReferenceHandler
     {
-        public ConfigurationCatalogKind Kind => ConfigurationCatalogKind.Suppliers;
+        public ConfigurationCatalogKind Kind => kind;
 
         public Task<bool> HasReferencesAsync(int catalogId, CancellationToken cancellationToken) =>
             Task.FromResult(true);

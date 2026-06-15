@@ -429,7 +429,7 @@ describe('Configuration deletion', () => {
     )
   })
 
-  it('cleanly blocks deleting a referenced currency pending conversion', async () => {
+  it('converts a referenced currency with a matching formula and command', async () => {
     const { calls } = mockBackend({
       impacts: {
         'currencies:1': {
@@ -444,8 +444,54 @@ describe('Configuration deletion', () => {
     await screen.findByText('Euro')
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete Euro' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Convert and remove Euro',
+    })
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.type(within(dialog).getByLabelText('Exchange rate'), '1.25')
+
+    // The displayed formula must match the submitted conversion command.
+    expect(within(dialog).getByText('1 EUR = 1.25 USD')).toBeInTheDocument()
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Convert and remove' }),
+    )
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: 1.25 }),
+    )
+  })
+
+  it('rejects a non-positive or too-precise exchange rate before submitting', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'currencies:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          requiresExchangeRate: true,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Euro' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Convert and remove Euro',
+    })
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.type(within(dialog).getByLabelText('Exchange rate'), '0')
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Convert and remove' }),
+    )
+
     expect(
-      await screen.findByRole('dialog', { name: 'This currency is in use' }),
+      await within(dialog).findByText(
+        'Enter a positive rate with up to eight decimal places.',
+      ),
     ).toBeInTheDocument()
     expect(calls.some((call) => call.url.includes('replace-and-delete'))).toBe(false)
   })

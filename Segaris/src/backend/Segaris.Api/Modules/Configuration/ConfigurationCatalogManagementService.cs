@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Persistence;
@@ -84,6 +85,34 @@ internal sealed class ConfigurationCatalogManagementService(
 
     public Task ReplaceAndDeleteCostCenterAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken cancellationToken) =>
         ReplaceAndDeleteAsync<SegarisCostCenter>(id, ConfigurationCatalogKind.CostCenters, request, actor, cancellationToken);
+
+    public async Task ReplaceAndDeleteCurrencyAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken cancellationToken)
+    {
+        ValidateCurrencyReplacement(id, request);
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var source = await database.Set<SegarisCurrency>().SingleOrDefaultAsync(value => value.Id == id, cancellationToken)
+            ?? throw ConfigurationProblem.NotFound();
+
+        if (!await database.Set<SegarisCurrency>().AnyAsync(value => value.Id == request.ReplacementId, cancellationToken))
+        {
+            throw ConfigurationProblem.InvalidReplacement();
+        }
+
+        var referenced = await HasReferencesAsync(ConfigurationCatalogKind.Currencies, id, cancellationToken);
+        var exchangeRate = ResolveExchangeRate(referenced, request.ExchangeRate);
+
+        var migration = new CatalogReferenceMigration(
+            ConfigurationCatalogKind.Currencies,
+            id,
+            request.ReplacementId,
+            ClearReferences: false,
+            exchangeRate,
+            actor,
+            clock.UtcNow);
+
+        await FinalizeMigrationAsync<SegarisCurrency>(transaction, source, id, migration, cancellationToken);
+    }
 
     private async Task<TResponse> CreateAsync<TEntity, TResponse>(CatalogItemRequest request, UserId actor, Func<TEntity, TResponse> response, CancellationToken cancellationToken)
         where TEntity : class, IConfigurationCatalogEntity, new()
@@ -197,9 +226,26 @@ internal sealed class ConfigurationCatalogManagementService(
             actor,
             clock.UtcNow);
 
+        await FinalizeMigrationAsync<TEntity>(transaction, source, id, migration, cancellationToken);
+    }
+
+    /// <summary>
+    /// Drives every registered handler for the migration kind, deletes the source,
+    /// normalizes the remaining order, and commits — all inside the transaction the
+    /// owning command already started. Consumer or persistence failures roll the
+    /// whole transaction back and surface as stable conflict responses.
+    /// </summary>
+    private async Task FinalizeMigrationAsync<TEntity>(
+        IDbContextTransaction transaction,
+        TEntity source,
+        int id,
+        CatalogReferenceMigration migration,
+        CancellationToken cancellationToken)
+        where TEntity : class, IConfigurationCatalogEntity
+    {
         try
         {
-            foreach (var handler in referenceHandlers.Where(value => value.Kind == kind))
+            foreach (var handler in referenceHandlers.Where(value => value.Kind == migration.Kind))
             {
                 await handler.MigrateReferencesAsync(migration, cancellationToken);
             }
@@ -239,6 +285,43 @@ internal sealed class ConfigurationCatalogManagementService(
         {
             throw ConfigurationProblem.InvalidReplacement();
         }
+    }
+
+    private static void ValidateCurrencyReplacement(int sourceId, CatalogReplacementRequest request)
+    {
+        // A currency is required and cannot be cleared: it must always be converted
+        // to a distinct existing currency.
+        if (request.ClearReferences
+            || request.ReplacementId is null or <= 0
+            || request.ReplacementId == sourceId)
+        {
+            throw ConfigurationProblem.InvalidReplacement();
+        }
+    }
+
+    /// <summary>
+    /// Resolves the conversion rate for a currency deletion. A referenced currency
+    /// requires a positive rate with at most eight decimal places; an unreferenced
+    /// currency needs no conversion, so any supplied rate is ignored.
+    /// </summary>
+    private static decimal? ResolveExchangeRate(bool referenced, decimal? exchangeRate)
+    {
+        if (!referenced)
+        {
+            return null;
+        }
+
+        if (exchangeRate is not { } rate)
+        {
+            throw ConfigurationProblem.ExchangeRateRequired();
+        }
+
+        if (rate <= 0 || decimal.Round(rate, 8) != rate)
+        {
+            throw ConfigurationProblem.ExchangeRateInvalid();
+        }
+
+        return rate;
     }
 
     private async Task<bool> HasReferencesAsync(ConfigurationCatalogKind kind, int id, CancellationToken cancellationToken)

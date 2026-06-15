@@ -33,19 +33,28 @@ internal sealed class CapexCatalogReferenceHandler(SegarisDbContext database, Co
             ConfigurationCatalogKind.CostCenters => await database.Set<CapexEntry>()
                 .Where(entry => entry.CostCenterId == migration.SourceId)
                 .ToListAsync(cancellationToken),
-            ConfigurationCatalogKind.Currencies => throw new NotSupportedException("Currency conversion is implemented in configuration Wave 5."),
+            ConfigurationCatalogKind.Currencies => await database.Set<CapexEntry>()
+                .Include(entry => entry.Items)
+                .Where(entry => entry.CurrencyId == migration.SourceId)
+                .ToListAsync(cancellationToken),
             _ => throw new InvalidOperationException("The catalog is not supported by the Capex reference handler."),
         };
 
         foreach (var entry in entries)
         {
-            if (kind == ConfigurationCatalogKind.Suppliers)
+            switch (kind)
             {
-                entry.ReplaceSupplier(migration.ClearReferences ? null : migration.ReplacementId, migration.Actor, migration.OccurredAt);
-            }
-            else
-            {
-                entry.ReplaceCostCenter(migration.ClearReferences ? null : migration.ReplacementId, migration.Actor, migration.OccurredAt);
+                case ConfigurationCatalogKind.Suppliers:
+                    entry.ReplaceSupplier(migration.ClearReferences ? null : migration.ReplacementId, migration.Actor, migration.OccurredAt);
+                    break;
+                case ConfigurationCatalogKind.CostCenters:
+                    entry.ReplaceCostCenter(migration.ClearReferences ? null : migration.ReplacementId, migration.Actor, migration.OccurredAt);
+                    break;
+                case ConfigurationCatalogKind.Currencies:
+                    var target = migration.ReplacementId ?? throw new InvalidOperationException("Currency conversion requires a replacement currency.");
+                    var rate = migration.ExchangeRate ?? throw new InvalidOperationException("Currency conversion requires an exchange rate.");
+                    entry.ConvertCurrency(target, rate, migration.Actor, migration.OccurredAt);
+                    break;
             }
         }
     }

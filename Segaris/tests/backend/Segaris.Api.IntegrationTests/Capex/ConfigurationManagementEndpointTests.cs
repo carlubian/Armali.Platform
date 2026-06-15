@@ -231,5 +231,102 @@ public sealed class ConfigurationManagementEndpointTests
         Assert.False(await database.Set<CapexCategory>().AnyAsync(value => value.Id == sourceId));
     }
 
+    [Fact]
+    public async Task Currency_conversion_recalculates_public_and_private_entries_and_audits_the_admin()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var memberId = await server.CreateUserAsync("private-currency-owner", "MemberPass123!");
+        var publicEntryId = await CapexTestData.SeedEntryAsync(
+            server.Services,
+            adminId,
+            title: "Public currency",
+            currencyCode: "EUR",
+            items: [new CapexItemValues("Desks", 2m, 10.00m), new CapexItemValues("Lamp", 1m, 5.55m)]);
+        var privateEntryId = await CapexTestData.SeedEntryAsync(
+            server.Services,
+            memberId,
+            title: "Private currency",
+            currencyCode: "EUR",
+            visibility: RecordVisibility.Private,
+            items: [new CapexItemValues("Donated", 3m, 0m)]);
+        var sourceId = await CapexTestData.CurrencyIdAsync(server.Services, "EUR");
+        var targetId = await CapexTestData.CurrencyIdAsync(server.Services, "USD");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/configuration/currencies/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(targetId, ClearReferences: false, ExchangeRate: 1.20m),
+            csrf);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var scope = server.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var publicEntry = await database.Set<CapexEntry>().Include(entry => entry.Items).SingleAsync(entry => entry.Id == publicEntryId);
+        var privateEntry = await database.Set<CapexEntry>().Include(entry => entry.Items).SingleAsync(entry => entry.Id == privateEntryId);
+
+        Assert.Equal(targetId, publicEntry.CurrencyId);
+        Assert.Equal(targetId, privateEntry.CurrencyId);
+        Assert.Equal(adminId, publicEntry.UpdatedBy);
+        Assert.Equal(adminId, privateEntry.UpdatedBy);
+        Assert.Equal(TimeSpan.Zero, publicEntry.UpdatedAt.Offset);
+        // 10.00 * 1.20 = 12.00 (line 24.00); 5.55 * 1.20 = 6.66 (line 6.66); total 30.66.
+        Assert.Equal([12.00m, 6.66m], publicEntry.Items.OrderBy(item => item.Position).Select(item => item.UnitAmount));
+        Assert.Equal([24.00m, 6.66m], publicEntry.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+        Assert.Equal(30.66m, publicEntry.TotalAmount);
+        Assert.Equal(0m, Assert.Single(privateEntry.Items).UnitAmount);
+        Assert.Equal(0m, privateEntry.TotalAmount);
+        Assert.False(await database.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Referenced_currency_deletion_requires_an_exchange_rate()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        await CapexTestData.SeedEntryAsync(server.Services, adminId, title: "Uses euro", currencyCode: "EUR");
+        var sourceId = await CapexTestData.CurrencyIdAsync(server.Services, "EUR");
+        var targetId = await CapexTestData.CurrencyIdAsync(server.Services, "USD");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/configuration/currencies/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(targetId, ClearReferences: false, ExchangeRate: null),
+            csrf);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("configuration.catalog.exchange_rate_required", problem!.Code);
+        await using var scope = server.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        Assert.True(await database.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Referenced_currency_deletion_rejects_a_too_precise_exchange_rate()
+    {
+        using var server = new CapexTestServer();
+        var adminId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        await CapexTestData.SeedEntryAsync(server.Services, adminId, title: "Uses euro", currencyCode: "EUR");
+        var sourceId = await CapexTestData.CurrencyIdAsync(server.Services, "EUR");
+        var targetId = await CapexTestData.CurrencyIdAsync(server.Services, "USD");
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            $"/api/configuration/currencies/{sourceId}/replace-and-delete",
+            new CatalogReplacementRequest(targetId, ClearReferences: false, ExchangeRate: 1.123456789m),
+            csrf);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("configuration.catalog.exchange_rate_invalid", problem!.Code);
+    }
+
     private sealed record ProblemPayload(string? Code);
 }

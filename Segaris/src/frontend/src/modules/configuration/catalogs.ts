@@ -38,7 +38,7 @@ export interface CatalogDescriptor {
   hasCode: boolean
   /** Optional references may be cleared to null (suppliers and cost centres). */
   canClear: boolean
-  /** Currency carries the deferred exchange-rate conversion path (Wave 5). */
+  /** Currency carries the exchange-rate conversion deletion path. */
   isCurrency: boolean
   /** Existing read cache key, shared with the business forms that consume it. */
   queryKey: readonly unknown[]
