@@ -1,6 +1,7 @@
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Inventory;
 using Segaris.Api.Modules.Launcher;
 using Segaris.Api.Modules.Opex;
 using Segaris.Api.Platform;
@@ -16,6 +17,7 @@ internal static class SegarisModules
         new ConfigurationModule(),
         new CapexModule(),
         new OpexModule(),
+        new InventoryModule(),
         new LauncherModule(),
     ];
 
