@@ -40,6 +40,7 @@ import {
   type ContractFormValues,
 } from './contractForm'
 import { opexKeys, useOpexCategories, useCostCenters, useCurrencies, useSuppliers } from './queries'
+import { OccurrencesTab } from './OccurrencesTab'
 
 import './ContractDialog.css'
 
@@ -231,6 +232,7 @@ function ContractEditorForm({
   })
   const { register, control, handleSubmit, formState } = form
 
+  const [activeTab, setActiveTab] = useState<'details' | 'occurrences'>('details')
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -330,41 +332,61 @@ function ContractEditorForm({
         onClose={requestClose}
         closeLabel={t('editor.actions.cancel')}
         footer={
-          <>
-            {mode === 'edit' && (
-              <Button
-                variant="ghost"
-                className="seg-opex-editor__delete"
-                iconLeft={<Trash2 size={15} />}
-                onClick={() => setConfirmingDelete(true)}
-                disabled={submitting || deleteMutation.isPending}
-              >
-                {t('editor.delete.action')}
-              </Button>
-            )}
-            <Button variant="ghost" onClick={requestClose} disabled={submitting}>
+          activeTab === 'occurrences' ? (
+            <Button variant="ghost" onClick={requestClose}>
               {t('editor.actions.cancel')}
             </Button>
-            <Button type="submit" form="seg-opex-contract-form" disabled={submitting}>
-              {mode === 'create'
-                ? submitting
-                  ? t('editor.actions.creating')
-                  : t('editor.actions.create')
-                : submitting
-                  ? t('editor.actions.saving')
-                  : t('editor.actions.save')}
-            </Button>
-          </>
+          ) : (
+            <>
+              {mode === 'edit' && (
+                <Button
+                  variant="ghost"
+                  className="seg-opex-editor__delete"
+                  iconLeft={<Trash2 size={15} />}
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={submitting || deleteMutation.isPending}
+                >
+                  {t('editor.delete.action')}
+                </Button>
+              )}
+              <Button variant="ghost" onClick={requestClose} disabled={submitting}>
+                {t('editor.actions.cancel')}
+              </Button>
+              <Button type="submit" form="seg-opex-contract-form" disabled={submitting}>
+                {mode === 'create'
+                  ? submitting
+                    ? t('editor.actions.creating')
+                    : t('editor.actions.create')
+                  : submitting
+                    ? t('editor.actions.saving')
+                    : t('editor.actions.save')}
+              </Button>
+            </>
+          )
         }
       >
         <Tabs
           className="seg-opex-editor__tabs"
           variant="line"
-          defaultValue="details"
-          tabs={[{ value: 'details', label: t('editor.tabs.details') }]}
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as 'details' | 'occurrences')}
+          tabs={[
+            { value: 'details', label: t('editor.tabs.details') },
+            ...(mode === 'edit'
+              ? [{ value: 'occurrences', label: t('editor.tabs.occurrences') }]
+              : []),
+          ]}
         />
 
+        {activeTab === 'occurrences' && mode === 'edit' && contractId != null && (
+          <OccurrencesTab
+            contractId={contractId}
+            currencyCode={currencyCode}
+          />
+        )}
+
         <form
+          hidden={activeTab !== 'details'}
           id="seg-opex-contract-form"
           className="seg-opex-editor"
           onSubmit={submit}

@@ -135,6 +135,7 @@ Module purpose: Recurrent income/expenses, grouped inside Contracts, like subscr
 | Resolved | User workflow | Opex opens on a paginated Contracts table and uses a URL-aware contract popup with subordinate occurrence management. Initial and deferred behaviors are defined in `docs/requirements/OPEX_REQUIREMENTS.md`. |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/OPEX_IMPLEMENTATION_PLAN.md`. |
 | Deferred | Current-year activity filter | Filtering contracts by whether they contain occurrences in the current year is a future usability improvement. |
+| Deferred | Second-user Opex privacy E2E journey | Public-collaboration and private-isolation behavior is covered by API integration tests. The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex and Configuration patterns. |
 
 ### Inventory
 

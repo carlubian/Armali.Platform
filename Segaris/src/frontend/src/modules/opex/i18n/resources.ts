@@ -90,6 +90,80 @@ export const opex = {
       rowsPerPage: 'Rows per page',
     },
   },
+  occurrences: {
+    newOccurrence: 'New occurrence',
+    openRow: 'Open occurrence for {{date}}',
+    columns: {
+      date: 'Date',
+      amount: 'Amount',
+      description: 'Description',
+    },
+    states: {
+      empty: 'No occurrences yet.',
+      loadError: 'The occurrences could not be loaded. Please try again.',
+    },
+    count_one: '{{count}} occurrence',
+    count_other: '{{count}} occurrences',
+    pagination: {
+      label: 'Occurrences pagination',
+      previous: 'Previous',
+      next: 'Next',
+      status: 'Page {{page}} of {{pages}}',
+    },
+  },
+  occurrenceEditor: {
+    createTitle: 'New occurrence',
+    editTitle: 'Edit occurrence',
+    loading: 'Loading occurrence…',
+    loadError: 'This occurrence could not be loaded.',
+    notFound: 'This occurrence no longer exists.',
+    sections: {
+      general: 'General',
+      notes: 'Notes',
+    },
+    fields: {
+      effectiveDate: 'Date',
+      actualAmount: 'Amount',
+      description: 'Description',
+      descriptionPlaceholder: 'Brief label for this occurrence.',
+      notes: 'Notes',
+      notesPlaceholder: 'Optional details about this occurrence.',
+    },
+    validation: {
+      dateRequired: 'A date is required.',
+      amountInvalid: 'Enter an amount of zero or more (up to two decimals).',
+      descriptionTooLong: 'Description may contain at most 300 characters.',
+      notesTooLong: 'Notes may contain at most 4000 characters.',
+    },
+    actions: {
+      create: 'Create occurrence',
+    },
+    errors: {
+      validation: 'Please review the highlighted fields and try again.',
+      notFound: 'This occurrence no longer exists.',
+      conflict: 'This occurrence could not be saved. Please try again.',
+      generic: 'The occurrence could not be saved. Please try again.',
+    },
+    unsaved: {
+      title: 'Discard changes?',
+      description: 'You have unsaved changes. Closing now will discard them.',
+      stay: 'Keep editing',
+      leave: 'Discard',
+    },
+    attachments: {
+      uploadTitle: 'Upload attachments',
+      uploadDescription: 'The occurrence was created. Add its files below.',
+    },
+    delete: {
+      action: 'Delete occurrence',
+      title: 'Delete this occurrence?',
+      description:
+        'This permanently removes the occurrence and its attachments. This cannot be undone.',
+      cancel: 'Cancel',
+      confirm: 'Delete occurrence',
+      deleting: 'Deleting…',
+    },
+  },
   editor: {
     createTitle: 'New contract',
     editTitle: 'Edit contract',
@@ -100,6 +174,7 @@ export const opex = {
     notFound: 'This contract no longer exists.',
     tabs: {
       details: 'Details',
+      occurrences: 'Occurrences',
     },
     sections: {
       general: 'General',
