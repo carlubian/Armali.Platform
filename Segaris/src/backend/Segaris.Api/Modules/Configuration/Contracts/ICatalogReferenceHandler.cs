@@ -66,3 +66,13 @@ internal sealed record CatalogReferenceMigration(
     decimal? ExchangeRate,
     UserId Actor,
     DateTimeOffset OccurredAt);
+
+/// <summary>
+/// Raised by a handler when a clearing migration cannot be honored because the
+/// consumer's references are mandatory and may only be replaced. The owning
+/// Configuration command catches it and surfaces a stable conflict so the
+/// administrator knows a replacement value is required. Unlike an unexpected
+/// failure, this is an expected, privacy-neutral outcome and never leaves a
+/// partial migration behind because the whole transaction rolls back.
+/// </summary>
+internal sealed class CatalogReplacementRequiredException(string message) : Exception(message);

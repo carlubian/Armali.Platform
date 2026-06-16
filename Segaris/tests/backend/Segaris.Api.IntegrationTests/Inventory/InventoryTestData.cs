@@ -78,6 +78,40 @@ internal static class InventoryTestData
             .SingleAsync();
     }
 
+    public static async Task<IReadOnlyList<int>> ItemSupplierIdsAsync(IServiceProvider services, int itemId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryItem>()
+            .Where(item => item.Id == itemId)
+            .SelectMany(item => item.Suppliers.Select(association => association.SupplierId))
+            .OrderBy(id => id)
+            .ToListAsync();
+    }
+
+    public static async Task<(int SupplierId, int CurrencyId, int UpdatedBy)> OrderReferencesAsync(
+        IServiceProvider services,
+        int orderId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryOrder>()
+            .Where(order => order.Id == orderId)
+            .Select(order => new ValueTuple<int, int, int>(order.SupplierId, order.CurrencyId, order.UpdatedBy))
+            .SingleAsync();
+    }
+
+    public static async Task<IReadOnlyList<decimal>> OrderLineTotalsAsync(IServiceProvider services, int orderId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryOrderLine>()
+            .Where(line => line.OrderId == orderId)
+            .OrderBy(line => line.Id)
+            .Select(line => line.LineTotal)
+            .ToListAsync();
+    }
+
     public static async Task<bool> ItemExistsAsync(IServiceProvider services, int itemId)
     {
         await using var scope = services.CreateAsyncScope();

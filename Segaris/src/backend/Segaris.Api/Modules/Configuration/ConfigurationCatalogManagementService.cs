@@ -265,6 +265,10 @@ internal sealed class ConfigurationCatalogManagementService(
         {
             throw ConfigurationProblem.MigrationConflict();
         }
+        catch (CatalogReplacementRequiredException)
+        {
+            throw ConfigurationProblem.ReplacementRequired();
+        }
         catch (OperationCanceledException)
         {
             throw;

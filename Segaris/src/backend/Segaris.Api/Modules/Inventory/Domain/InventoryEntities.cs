@@ -136,6 +136,35 @@ internal sealed class InventoryItem
         StampModification(actorId, now);
     }
 
+    /// <summary>
+    /// Re-points the allowed-supplier eligibility from <paramref name="sourceSupplierId"/>
+    /// to <paramref name="targetSupplierId"/> during a Configuration supplier migration.
+    /// The source association is removed and the target added unless the item already
+    /// allows it, so the item never gains a duplicate row and never drops below its
+    /// required single supplier. The item is untouched and unstamped when it did not
+    /// allow the source supplier.
+    /// </summary>
+    internal void ReplaceSupplier(int sourceSupplierId, int targetSupplierId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (sourceSupplierId <= 0 || targetSupplierId <= 0)
+        {
+            throw new InventoryValidationException("Supplier identifiers must be positive.");
+        }
+
+        if (suppliers.RemoveAll(association => association.SupplierId == sourceSupplierId) == 0)
+        {
+            return;
+        }
+
+        if (suppliers.All(association => association.SupplierId != targetSupplierId))
+        {
+            suppliers.Add(new InventoryItemSupplier { SupplierId = targetSupplierId });
+        }
+
+        StampModification(actorId, now);
+    }
+
     private void Apply(InventoryItemValues values, UserId actorId, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(values);
@@ -293,6 +322,52 @@ internal sealed class InventoryOrder
         StampModification(actorId, now);
     }
 
+    /// <summary>
+    /// Re-points the order to <paramref name="supplierId"/> during a Configuration
+    /// supplier migration. The supplier is required, so it is replaced rather than
+    /// cleared; the order's lines and currency are unchanged.
+    /// </summary>
+    internal void ReplaceSupplier(int supplierId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (supplierId <= 0)
+        {
+            throw new InventoryValidationException("Catalog identifiers must be positive.");
+        }
+
+        SupplierId = supplierId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Converts every line total from the current currency to
+    /// <paramref name="targetCurrencyId"/> using <paramref name="exchangeRate"/>
+    /// (<c>1 source = exchangeRate target</c>), switches the currency, and stamps the
+    /// modification. Quantities are unchanged. The owning Configuration command
+    /// guarantees a positive rate with at most eight decimal places.
+    /// </summary>
+    internal void ConvertCurrency(int targetCurrencyId, decimal exchangeRate, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (targetCurrencyId <= 0)
+        {
+            throw new InventoryValidationException("Catalog identifiers must be positive.");
+        }
+
+        if (exchangeRate <= 0)
+        {
+            throw new InventoryValidationException("The exchange rate must be a positive value.");
+        }
+
+        foreach (var line in lines)
+        {
+            line.Convert(exchangeRate);
+        }
+
+        CurrencyId = targetCurrencyId;
+        StampModification(actorId, now);
+    }
+
     private void Apply(InventoryOrderValues values, UserId actorId, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(values);
@@ -386,5 +461,15 @@ internal sealed class InventoryOrderLine
             Quantity = InventoryValidation.ValidatePositiveQuantity(values.Quantity),
             LineTotal = InventoryValidation.ValidateLineTotal(values.LineTotal),
         };
+    }
+
+    /// <summary>
+    /// Scales the line total by <paramref name="exchangeRate"/> and rounds to two
+    /// decimal places during a parent-order currency conversion. The quantity is
+    /// preserved and a zero total stays zero.
+    /// </summary>
+    internal void Convert(decimal exchangeRate)
+    {
+        LineTotal = decimal.Round(LineTotal * exchangeRate, 2, MidpointRounding.AwayFromZero);
     }
 }

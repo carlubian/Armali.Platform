@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Inventory.Attention;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Persistence;
@@ -16,8 +17,10 @@ namespace Segaris.Api.Modules.Inventory;
 /// module-owned category and location catalog read and administrator management
 /// endpoints surfaced through Configuration; Waves 2 and 3 add the item read,
 /// mutation, attachment, quick stock-adjustment, and launcher attention surfaces;
-/// Wave 4 adds the non-receive order read, mutation, and attachment surfaces. Wave
-/// 5 adds explicit receive.
+/// Wave 4 adds the non-receive order read, mutation, and attachment surfaces; Wave
+/// 5 adds explicit receive; and Wave 6 registers the shared-catalog reference
+/// handlers that let Configuration migrate supplier references across orders and
+/// item eligibility and convert order currencies atomically.
 /// </summary>
 internal sealed class InventoryModule : ISegarisModule
 {
@@ -32,6 +35,8 @@ internal sealed class InventoryModule : ISegarisModule
         services.AddScoped<InventoryOrderWriteService>();
         services.AddScoped<InventoryCategoryManagementService>();
         services.AddScoped<InventoryLocationManagementService>();
+        services.AddScoped<ICatalogReferenceHandler>(provider => new InventoryCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));
+        services.AddScoped<ICatalogReferenceHandler>(provider => new InventoryCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Currencies));
         services.AddScoped<ILauncherAttentionContributor, InventoryAttentionContributor>();
     }
 

@@ -46,4 +46,7 @@ internal static class ConfigurationErrorCodes
 
     /// <summary>A consumer could not complete its reference migration; the transaction rolled back.</summary>
     public static readonly ErrorCode CatalogMigrationFailed = new("configuration.catalog.migration_failed");
+
+    /// <summary>A consumer requires a replacement value because its references are mandatory and cannot be cleared.</summary>
+    public static readonly ErrorCode CatalogReplacementRequired = new("configuration.catalog.replacement_required");
 }

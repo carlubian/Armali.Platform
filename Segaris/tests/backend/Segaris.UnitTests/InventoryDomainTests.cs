@@ -220,6 +220,83 @@ public sealed class InventoryDomainTests
     }
 
     [Fact]
+    public void Item_replace_supplier_repoints_eligibility_and_stamps_modification()
+    {
+        var item = InventoryItem.Create(Values() with { SupplierIds = [3, 7] }, new UserId(1), Now);
+
+        item.ReplaceSupplier(3, 9, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal([7, 9], item.Suppliers.Select(association => association.SupplierId).OrderBy(id => id));
+        Assert.Equal(2, item.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), item.UpdatedAt);
+    }
+
+    [Fact]
+    public void Item_replace_supplier_deduplicates_when_target_already_allowed()
+    {
+        var item = InventoryItem.Create(Values() with { SupplierIds = [3, 9] }, new UserId(1), Now);
+
+        item.ReplaceSupplier(3, 9, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal([9], item.Suppliers.Select(association => association.SupplierId));
+    }
+
+    [Fact]
+    public void Item_replace_supplier_is_a_no_op_when_source_is_not_allowed()
+    {
+        var item = InventoryItem.Create(Values() with { SupplierIds = [3] }, new UserId(1), Now);
+
+        item.ReplaceSupplier(8, 9, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal([3], item.Suppliers.Select(association => association.SupplierId));
+        // The unaffected item keeps its original modification metadata.
+        Assert.Equal(1, item.UpdatedBy);
+        Assert.Equal(Now, item.UpdatedAt);
+    }
+
+    [Fact]
+    public void Order_replace_supplier_repoints_the_required_supplier_and_stamps_modification()
+    {
+        var order = InventoryOrder.Create(OrderValues() with { SupplierId = 4 }, new UserId(1), Now);
+
+        order.ReplaceSupplier(11, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(11, order.SupplierId);
+        Assert.Equal(2, order.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), order.UpdatedAt);
+    }
+
+    [Fact]
+    public void Order_convert_currency_scales_line_totals_switches_currency_and_stamps_modification()
+    {
+        var order = InventoryOrder.Create(
+            OrderValues() with
+            {
+                CurrencyId = 1,
+                Lines = [new InventoryOrderLineValues(1, 2m, 10.00m), new InventoryOrderLineValues(2, 1m, 5.55m)],
+            },
+            new UserId(1),
+            Now);
+
+        order.ConvertCurrency(2, 1.20m, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(2, order.CurrencyId);
+        // 10.00 * 1.20 = 12.00; 5.55 * 1.20 = 6.66 (rounded to two places).
+        Assert.Equal([12.00m, 6.66m], order.Lines.Select(line => line.LineTotal));
+        Assert.Equal(2, order.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), order.UpdatedAt);
+    }
+
+    [Fact]
+    public void Order_convert_currency_rejects_a_nonpositive_rate()
+    {
+        var order = InventoryOrder.Create(OrderValues(), new UserId(1), Now);
+
+        Assert.Throws<InventoryValidationException>(() =>
+            order.ConvertCurrency(2, 0m, new UserId(2), Now.AddHours(1)));
+    }
+
+    [Fact]
     public async Task Seeder_initializes_categories_and_locations_once_in_declaration_order()
     {
         await using var fixture = await InventoryFixture.CreateAsync();
