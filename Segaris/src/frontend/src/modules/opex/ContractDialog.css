@@ -4,6 +4,10 @@
   gap: var(--space-6);
 }
 
+.seg-opex-editor[hidden] {
+  display: none;
+}
+
 .seg-opex-editor__status {
   display: flex;
   align-items: center;
