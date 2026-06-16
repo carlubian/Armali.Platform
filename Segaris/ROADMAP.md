@@ -146,9 +146,11 @@ Module purpose: Manage items with stock that are spent and bought.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, vendors, items, orders. |
-| Open | Inventory scope | Food, supplies, documents, assets, appliances, warranties, medicines. |
-| Open | Stock behavior | Quantities, expiration dates, locations, low-stock alerts. |
+| Resolved | Entities and properties | Items, item statuses, module-owned categories and locations, supplier eligibility, orders, order lines, stock thresholds, privacy, explicit receipt, and launcher attention are defined in `docs/requirements/INVENTORY_REQUIREMENTS.md`. |
+| Resolved | Inventory scope | The initial module covers stock-tracked consumable or replaceable items such as food, cleaning, hygiene, medicine, office, and pet supplies. Durable assets, warranties, long-term documents, expiration dates, lots, and stock-by-location are outside the initial scope. |
+| Resolved | Stock behavior | Each item stores current stock and minimum stock directly, with one descriptive location and no separate stock-movement entity. Low-stock attention applies only to accessible active items. |
+| Resolved | Order workflow | Orders belong to exactly one supplier and one currency, use `Planning` / `Active` / `Received` / `Cancelled`, support no partial receipt, and update stock only through an explicit receive action. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/INVENTORY_IMPLEMENTATION_PLAN.md`. |
 
 ### Travel
 
