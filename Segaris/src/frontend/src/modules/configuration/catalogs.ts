@@ -1,13 +1,25 @@
 import { capexApi, capexCategoriesManagementApi } from '@/app/api/capex'
 import type { CatalogManagementClient } from '@/app/api/catalogs'
 import { configurationApi, configurationManagementApi } from '@/app/api/configuration'
+import {
+  inventoryApi,
+  inventoryCategoriesManagementApi,
+  inventoryLocationsManagementApi,
+} from '@/app/api/inventory'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
+import { inventoryKeys } from '@/modules/inventory/queries'
 
-/** The four known administrative catalogs. Not a runtime-defined set. */
-export type CatalogKey = 'suppliers' | 'costCenters' | 'currencies' | 'categories'
+/** The administrative catalog keys backing the Configuration table and dialogs. */
+export type CatalogKey =
+  | 'suppliers'
+  | 'costCenters'
+  | 'currencies'
+  | 'categories'
+  | 'inventoryCategories'
+  | 'inventoryLocations'
 
 /** Flat top-level sections of the Configuration experience. */
-export type CatalogSectionId = 'global' | 'capex'
+export type CatalogSectionId = 'global' | 'capex' | 'inventory'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -30,8 +42,8 @@ export interface CatalogDescriptor {
   key: CatalogKey
   section: CatalogSectionId
   /**
-   * Slug used in `?catalog=` for Global tabs. Undefined for the single-catalog
-   * Capex section, which has no Global tab.
+   * Slug used in `?catalog=` for multi-catalog sections. Undefined for the
+   * single-catalog Capex section, which has no per-catalog tab.
    */
   urlSlug?: string
   /** Currencies carry an editable three-letter display code. */
@@ -42,6 +54,12 @@ export interface CatalogDescriptor {
   isCurrency: boolean
   /** Existing read cache key, shared with the business forms that consume it. */
   queryKey: readonly unknown[]
+  /**
+   * Business read caches to invalidate when a mutation can change the
+   * denormalised names or references those records display (a rename, deletion,
+   * or reference migration). A pure reorder leaves them untouched.
+   */
+  dependentKeys?: readonly (readonly unknown[])[]
   read: (signal?: AbortSignal) => Promise<CatalogRow[]>
   management: CatalogManagementClient<CatalogRow, CatalogWriteBody>
 }
@@ -62,6 +80,7 @@ export const suppliersDescriptor: CatalogDescriptor = {
   canClear: true,
   isCurrency: false,
   queryKey: configurationKeys.suppliers(),
+  dependentKeys: [capexKeys.entries(), inventoryKeys.items(), inventoryKeys.orders()],
   read: (signal) => configurationApi.suppliers(signal),
   management: asDescriptorClient(configurationManagementApi.suppliers),
 }
@@ -74,6 +93,7 @@ export const costCentersDescriptor: CatalogDescriptor = {
   canClear: true,
   isCurrency: false,
   queryKey: configurationKeys.costCenters(),
+  dependentKeys: [capexKeys.entries()],
   read: (signal) => configurationApi.costCenters(signal),
   management: asDescriptorClient(configurationManagementApi.costCenters),
 }
@@ -86,6 +106,7 @@ export const currenciesDescriptor: CatalogDescriptor = {
   canClear: false,
   isCurrency: true,
   queryKey: configurationKeys.currencies(),
+  dependentKeys: [capexKeys.entries(), inventoryKeys.orders()],
   read: (signal) => configurationApi.currencies(signal),
   management: asDescriptorClient(configurationManagementApi.currencies),
 }
@@ -97,8 +118,35 @@ export const categoriesDescriptor: CatalogDescriptor = {
   canClear: false,
   isCurrency: false,
   queryKey: capexKeys.categories(),
+  dependentKeys: [capexKeys.entries()],
   read: (signal) => capexApi.categories(signal),
   management: asDescriptorClient(capexCategoriesManagementApi),
+}
+
+export const inventoryCategoriesDescriptor: CatalogDescriptor = {
+  key: 'inventoryCategories',
+  section: 'inventory',
+  urlSlug: 'categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: inventoryKeys.categories(),
+  dependentKeys: [inventoryKeys.items()],
+  read: (signal) => inventoryApi.categories(signal),
+  management: asDescriptorClient(inventoryCategoriesManagementApi),
+}
+
+export const inventoryLocationsDescriptor: CatalogDescriptor = {
+  key: 'inventoryLocations',
+  section: 'inventory',
+  urlSlug: 'locations',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: inventoryKeys.locations(),
+  dependentKeys: [inventoryKeys.items()],
+  read: (signal) => inventoryApi.locations(signal),
+  management: asDescriptorClient(inventoryLocationsManagementApi),
 }
 
 /** Global-section catalogs, in tab order. */
@@ -108,9 +156,16 @@ export const globalCatalogs: readonly CatalogDescriptor[] = [
   currenciesDescriptor,
 ]
 
+/** Inventory-section catalogs, in tab order. */
+export const inventoryCatalogs: readonly CatalogDescriptor[] = [
+  inventoryCategoriesDescriptor,
+  inventoryLocationsDescriptor,
+]
+
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
+  ...inventoryCatalogs,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -121,4 +176,33 @@ export function globalCatalogBySlug(
   slug: string | null,
 ): CatalogDescriptor | undefined {
   return globalCatalogs.find((catalog) => catalog.urlSlug === slug)
+}
+
+/**
+ * Multi-catalog sections expose a `?catalog=` tab per descriptor. Single-catalog
+ * sections (Capex) render their one descriptor directly. Returns the descriptors
+ * for a section in tab order, and the slug the section falls back to.
+ */
+export function sectionCatalogs(
+  section: CatalogSectionId,
+): readonly CatalogDescriptor[] {
+  switch (section) {
+    case 'global':
+      return globalCatalogs
+    case 'inventory':
+      return inventoryCatalogs
+    case 'capex':
+      return [categoriesDescriptor]
+  }
+}
+
+export function defaultSlugForSection(section: CatalogSectionId): string | undefined {
+  return sectionCatalogs(section)[0]?.urlSlug
+}
+
+export function catalogBySlug(
+  section: CatalogSectionId,
+  slug: string | null,
+): CatalogDescriptor | undefined {
+  return sectionCatalogs(section).find((catalog) => catalog.urlSlug === slug)
 }

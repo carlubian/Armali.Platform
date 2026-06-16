@@ -1,7 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
 
-import { capexKeys } from '@/modules/capex/queries'
-
 import type { CatalogDescriptor } from './catalogs'
 
 /**
@@ -9,9 +7,10 @@ import type { CatalogDescriptor } from './catalogs'
  *
  * The catalog's own read key is always invalidated so the table and any business
  * form that consumes it pick up the change. When a mutation can alter the
- * denormalised names or references shown in Capex (a rename, deletion, or
- * reference migration), the known Capex entry queries are invalidated too. A pure
- * reorder leaves entries untouched.
+ * denormalised names or references shown in a business module (a rename,
+ * deletion, or reference migration), that module's read caches — declared on the
+ * descriptor as `dependentKeys` — are invalidated too. A pure reorder leaves them
+ * untouched.
  */
 export function invalidateCatalog(
   queryClient: QueryClient,
@@ -20,7 +19,9 @@ export function invalidateCatalog(
 ): Promise<void> {
   const work = [queryClient.invalidateQueries({ queryKey: descriptor.queryKey })]
   if (options.affectsEntries) {
-    work.push(queryClient.invalidateQueries({ queryKey: capexKeys.entries() }))
+    for (const queryKey of descriptor.dependentKeys ?? []) {
+      work.push(queryClient.invalidateQueries({ queryKey }))
+    }
   }
   return Promise.all(work).then(() => undefined)
 }

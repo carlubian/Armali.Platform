@@ -8,29 +8,37 @@ import { Tabs, Toast } from '@/components/ui'
 
 import { CatalogSection, type CatalogToastKind } from './CatalogSection'
 import {
-  categoriesDescriptor,
-  defaultGlobalSlug,
-  globalCatalogBySlug,
-  globalCatalogs,
+  catalogBySlug,
+  defaultSlugForSection,
+  sectionCatalogs,
   type CatalogSectionId,
 } from './catalogs'
 
 import './ConfigurationPage.css'
 
-const sections: CatalogSectionId[] = ['global', 'capex']
+const sections: CatalogSectionId[] = ['global', 'capex', 'inventory']
 
 interface ToastState {
   kind: CatalogToastKind
   name: string
 }
 
-const globalHome = `/configuration/global?catalog=${defaultGlobalSlug}`
+/** The route a section lands on, including the default catalog tab when it has tabs. */
+function sectionHome(section: CatalogSectionId): string {
+  const slug = defaultSlugForSection(section)
+  const catalogs = sectionCatalogs(section)
+  return catalogs.length > 1 && slug != null
+    ? `/configuration/${section}?catalog=${slug}`
+    : `/configuration/${section}`
+}
+
+const globalHome = sectionHome('global')
 
 /**
- * The administrative Configuration experience: flat Global and Capex sections.
- * The active Global catalog is URL-backed via `?catalog=`; unknown sections or
- * catalogs fall back to Global Suppliers. The route and this page are restricted
- * to administrators.
+ * The administrative Configuration experience: flat Global, Capex, and Inventory
+ * sections. Multi-catalog sections expose a URL-backed `?catalog=` tab; unknown
+ * sections or catalogs fall back to Global Suppliers. The route and this page are
+ * restricted to administrators.
  */
 export function ConfigurationPage() {
   const { t } = useTranslation('configuration')
@@ -48,6 +56,7 @@ export function ConfigurationPage() {
   if (section == null || !sections.includes(section as CatalogSectionId)) {
     return <Navigate to={globalHome} replace />
   }
+  const activeSection = section as CatalogSectionId
 
   const handleToast = (kind: CatalogToastKind, name: string) => setToast({ kind, name })
 
@@ -57,17 +66,18 @@ export function ConfigurationPage() {
   }))
 
   const changeSection = (next: string) => {
-    if (next === section) return
-    void navigate(next === 'global' ? globalHome : `/configuration/${next}`)
+    if (next === activeSection) return
+    void navigate(sectionHome(next as CatalogSectionId))
   }
 
+  const catalogs = sectionCatalogs(activeSection)
   let body: ReactNode
-  if (section === 'global') {
+  if (catalogs.length > 1) {
     const slug = searchParams.get('catalog')
-    const descriptor = globalCatalogBySlug(slug)
-    // An unknown catalog slug falls back to the default Global tab.
+    const descriptor = catalogBySlug(activeSection, slug)
+    // An unknown catalog slug falls back to the section's default tab.
     if (descriptor == null) {
-      return <Navigate to={globalHome} replace />
+      return <Navigate to={sectionHome(activeSection)} replace />
     }
     body = (
       <>
@@ -75,7 +85,7 @@ export function ConfigurationPage() {
           aria-label={t('catalogs.label')}
           value={descriptor.urlSlug}
           onChange={(next) => setSearchParams({ catalog: next })}
-          tabs={globalCatalogs.map((catalog) => ({
+          tabs={catalogs.map((catalog) => ({
             value: catalog.urlSlug as string,
             label: t(`catalogs.${catalog.key}.tab`),
           }))}
@@ -90,8 +100,8 @@ export function ConfigurationPage() {
   } else {
     body = (
       <CatalogSection
-        key={categoriesDescriptor.key}
-        descriptor={categoriesDescriptor}
+        key={catalogs[0].key}
+        descriptor={catalogs[0]}
         onToast={handleToast}
       />
     )
@@ -108,7 +118,7 @@ export function ConfigurationPage() {
       <Tabs
         variant="line"
         aria-label={t('sections.label')}
-        value={section}
+        value={activeSection}
         onChange={changeSection}
         tabs={sectionTabs}
       />

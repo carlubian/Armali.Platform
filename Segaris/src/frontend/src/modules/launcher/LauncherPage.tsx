@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Receipt, SlidersHorizontal, UserRound, Users, Wallet } from 'lucide-react'
+import {
+  Boxes,
+  Receipt,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -50,6 +57,17 @@ export function LauncherPage() {
         href: '/opex',
         icon: Receipt,
         tone: 'sea',
+      },
+      {
+        key: 'inventory',
+        title: t('inventory:launcher.title'),
+        description: t('inventory:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/inventory',
+        icon: Boxes,
+        tone: 'rose',
+        attention: requiresAttention('inventory'),
+        attentionLabel: t('inventory:launcher.attention'),
       },
       {
         key: 'profile',
