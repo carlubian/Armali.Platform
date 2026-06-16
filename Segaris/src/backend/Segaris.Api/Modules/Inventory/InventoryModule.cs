@@ -14,9 +14,10 @@ namespace Segaris.Api.Modules.Inventory;
 /// orders. Wave 0 registered the module and froze its public contracts; Wave 1 added
 /// the persistence model, the one-time category and location initialization, and the
 /// module-owned category and location catalog read and administrator management
-/// endpoints surfaced through Configuration; Wave 2 adds the item read APIs, the
-/// quick stock-adjustment mutation, and the launcher attention contributor. Later
-/// Waves add the full item and order mutation, attachment, and receive surfaces.
+/// endpoints surfaced through Configuration; Waves 2 and 3 add the item read,
+/// mutation, attachment, quick stock-adjustment, and launcher attention surfaces;
+/// Wave 4 adds the non-receive order read, mutation, and attachment surfaces. Wave
+/// 5 adds explicit receive.
 /// </summary>
 internal sealed class InventoryModule : ISegarisModule
 {
@@ -28,6 +29,7 @@ internal sealed class InventoryModule : ISegarisModule
         services.AddScoped<InventorySeeder>();
         services.AddScoped<InventoryReadService>();
         services.AddScoped<InventoryItemWriteService>();
+        services.AddScoped<InventoryOrderWriteService>();
         services.AddScoped<InventoryCategoryManagementService>();
         services.AddScoped<InventoryLocationManagementService>();
         services.AddScoped<ILauncherAttentionContributor, InventoryAttentionContributor>();

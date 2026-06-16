@@ -93,6 +93,56 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
             .Where(InventoryItemPolicies.AccessibleTo(userId))
             .AnyAsync(item => item.Id == itemId, cancellationToken);
 
+    /// <summary>
+    /// Returns whether the order exists and is accessible to the user. Order
+    /// attachment routes resolve authorization through this before touching nested
+    /// resources.
+    /// </summary>
+    public Task<bool> OrderAccessibleAsync(
+        int orderId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        database.Set<InventoryOrder>()
+            .AsNoTracking()
+            .Where(InventoryOrderPolicies.AccessibleTo(userId))
+            .AnyAsync(order => order.Id == orderId, cancellationToken);
+
+    public async Task<PaginatedResponse<InventoryOrderSummaryResponse>> ListOrdersAsync(
+        InventoryOrderFilter filter,
+        PaginationRequest pagination,
+        SortRequest sort,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var orders = ApplyFilters(
+            database.Set<InventoryOrder>().AsNoTracking().Where(InventoryOrderPolicies.AccessibleTo(userId)),
+            filter);
+
+        var totalCount = await orders.CountAsync(cancellationToken);
+
+        var page = await ApplySort(orders, sort)
+            .Skip(pagination.Offset)
+            .Take(pagination.PageSize)
+            .Select(order => new InventoryOrderSummaryResponse(
+                order.Id,
+                order.SupplierId,
+                database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == order.SupplierId).Select(supplier => supplier.Name).First(),
+                order.Status.ToString(),
+                order.OrderDate,
+                order.ExpectedReceiptDate,
+                order.CurrencyId,
+                database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == order.CurrencyId).Select(currency => currency.Code).First(),
+                order.Visibility.ToString(),
+                order.CreatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == order.CreatedBy).Select(user => user.DisplayName).First()))
+            .ToArrayAsync(cancellationToken);
+
+        return PaginatedResponse<InventoryOrderSummaryResponse>.Create(page, pagination, totalCount);
+    }
+
     public async Task<InventoryItemResponse?> GetItemAsync(
         int itemId,
         UserId userId,
@@ -170,6 +220,82 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
             row.UpdatedAt);
     }
 
+    public async Task<InventoryOrderResponse?> GetOrderAsync(
+        int orderId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var row = await database.Set<InventoryOrder>()
+            .AsNoTracking()
+            .Where(InventoryOrderPolicies.AccessibleTo(userId))
+            .Where(order => order.Id == orderId)
+            .Select(order => new OrderDetailRow(
+                order.Id,
+                order.SupplierId,
+                database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == order.SupplierId).Select(supplier => supplier.Name).First(),
+                order.Status,
+                order.OrderDate,
+                order.ExpectedReceiptDate,
+                order.CurrencyId,
+                database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == order.CurrencyId).Select(currency => currency.Code).First(),
+                order.Notes,
+                order.Visibility,
+                order.CreatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == order.CreatedBy).Select(user => user.DisplayName).First(),
+                order.CreatedAt,
+                order.UpdatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == order.UpdatedBy).Select(user => user.DisplayName).First(),
+                order.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var lines = await database.Set<InventoryOrderLine>()
+            .AsNoTracking()
+            .Where(line => line.OrderId == orderId)
+            .OrderBy(line => line.Id)
+            .Select(line => new InventoryOrderLineResponse(
+                line.Id,
+                line.ItemId,
+                database.Set<InventoryItem>()
+                    .Where(item => item.Id == line.ItemId).Select(item => item.Name).First(),
+                database.Set<InventoryItem>()
+                    .Where(item => item.Id == line.ItemId).Select(item => item.Status.ToString()).First(),
+                line.Quantity,
+                line.LineTotal))
+            .ToArrayAsync(cancellationToken);
+
+        var descriptors = await attachments.ListByOwnerAsync(InventoryAttachments.OrderOwner(orderId), cancellationToken);
+        var attachmentResponses = descriptors.Select(ToAttachment).ToArray();
+
+        return new InventoryOrderResponse(
+            row.Id,
+            row.SupplierId,
+            row.SupplierName,
+            row.Status.ToString(),
+            row.OrderDate,
+            row.ExpectedReceiptDate,
+            row.CurrencyId,
+            row.CurrencyCode,
+            row.Notes,
+            row.Visibility.ToString(),
+            lines,
+            attachmentResponses,
+            row.CreatedById,
+            row.CreatedByName,
+            row.CreatedAt,
+            row.UpdatedById,
+            row.UpdatedByName,
+            row.UpdatedAt);
+    }
+
     private static IQueryable<InventoryItem> ApplyFilters(IQueryable<InventoryItem> items, InventoryItemFilter filter)
     {
         if (filter.Search is { } search)
@@ -211,6 +337,46 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
         }
 
         return items;
+    }
+
+    private IQueryable<InventoryOrder> ApplyFilters(IQueryable<InventoryOrder> orders, InventoryOrderFilter filter)
+    {
+        if (filter.Search is { } search)
+        {
+            var pattern = $"%{Escape(search.ToLowerInvariant())}%";
+            orders = orders.Where(order =>
+                (order.Notes != null && EF.Functions.Like(order.Notes.ToLower(), pattern, "\\"))
+                || order.Lines.Any(line => database.Set<InventoryItem>().Any(item =>
+                    item.Id == line.ItemId
+                    && EF.Functions.Like(item.Name.ToLower(), pattern, "\\"))));
+        }
+
+        if (filter.SupplierId is { } supplierId)
+        {
+            orders = orders.Where(order => order.SupplierId == supplierId);
+        }
+
+        if (filter.Status is { } status)
+        {
+            orders = orders.Where(order => order.Status == status);
+        }
+
+        if (filter.CurrencyId is { } currencyId)
+        {
+            orders = orders.Where(order => order.CurrencyId == currencyId);
+        }
+
+        if (filter.Visibility is { } visibility)
+        {
+            orders = orders.Where(order => order.Visibility == visibility);
+        }
+
+        if (filter.CreatorId is { } creatorId)
+        {
+            orders = orders.Where(order => order.CreatedBy == creatorId);
+        }
+
+        return orders;
     }
 
     private IQueryable<InventoryItem> ApplySort(IQueryable<InventoryItem> items, SortRequest sort)
@@ -258,6 +424,45 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
         return ordered.ThenBy(item => item.Id);
     }
 
+    private IQueryable<InventoryOrder> ApplySort(IQueryable<InventoryOrder> orders, SortRequest sort)
+    {
+        var ascending = sort.Direction == SortDirection.Ascending;
+
+        IOrderedQueryable<InventoryOrder> ordered = sort.Field switch
+        {
+            InventoryOrderQuery.SortFields.Supplier => ascending
+                ? orders.OrderBy(order => database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == order.SupplierId).Select(supplier => supplier.Name).First())
+                : orders.OrderByDescending(order => database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == order.SupplierId).Select(supplier => supplier.Name).First()),
+            InventoryOrderQuery.SortFields.Status => ascending
+                ? orders.OrderBy(order => order.Status)
+                : orders.OrderByDescending(order => order.Status),
+            InventoryOrderQuery.SortFields.OrderDate => ascending
+                ? orders.OrderBy(order => order.OrderDate)
+                : orders.OrderByDescending(order => order.OrderDate),
+            InventoryOrderQuery.SortFields.ExpectedReceiptDate => ascending
+                ? orders.OrderBy(order => order.ExpectedReceiptDate)
+                : orders.OrderByDescending(order => order.ExpectedReceiptDate),
+            InventoryOrderQuery.SortFields.Currency => ascending
+                ? orders.OrderBy(order => database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == order.CurrencyId).Select(currency => currency.Code).First())
+                : orders.OrderByDescending(order => database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == order.CurrencyId).Select(currency => currency.Code).First()),
+            InventoryOrderQuery.SortFields.Visibility => ascending
+                ? orders.OrderBy(order => order.Visibility)
+                : orders.OrderByDescending(order => order.Visibility),
+            InventoryOrderQuery.SortFields.TieBreaker => ascending
+                ? orders.OrderBy(order => order.Id)
+                : orders.OrderByDescending(order => order.Id),
+            _ => ascending
+                ? orders.OrderBy(order => order.OrderDate)
+                : orders.OrderByDescending(order => order.OrderDate),
+        };
+
+        return ascending ? ordered.ThenBy(order => order.Id) : ordered.ThenByDescending(order => order.Id);
+    }
+
     private static InventoryAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
         descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
         descriptor.FileName,
@@ -282,6 +487,24 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
         string LocationName,
         decimal CurrentStock,
         decimal MinimumStock,
+        RecordVisibility Visibility,
+        int CreatedById,
+        string CreatedByName,
+        DateTimeOffset CreatedAt,
+        int UpdatedById,
+        string UpdatedByName,
+        DateTimeOffset UpdatedAt);
+
+    private sealed record OrderDetailRow(
+        int Id,
+        int SupplierId,
+        string SupplierName,
+        InventoryOrderStatus Status,
+        DateOnly? OrderDate,
+        DateOnly? ExpectedReceiptDate,
+        int CurrencyId,
+        string CurrencyCode,
+        string? Notes,
         RecordVisibility Visibility,
         int CreatedById,
         string CreatedByName,

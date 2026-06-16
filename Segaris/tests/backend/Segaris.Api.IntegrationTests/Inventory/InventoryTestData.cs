@@ -63,6 +63,13 @@ internal static class InventoryTestData
         return await database.Set<InventoryItem>().AnyAsync(item => item.Id == itemId);
     }
 
+    public static async Task<bool> OrderExistsAsync(IServiceProvider services, int orderId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryOrder>().AnyAsync(order => order.Id == orderId);
+    }
+
     public static async Task<int> SeedItemAsync(
         IServiceProvider services,
         int creatorId,
@@ -117,7 +124,12 @@ internal static class InventoryTestData
         int itemId,
         string supplierName = "Amazon",
         InventoryOrderStatus status = InventoryOrderStatus.Active,
-        RecordVisibility visibility = RecordVisibility.Public)
+        RecordVisibility visibility = RecordVisibility.Public,
+        string? notes = null,
+        DateOnly? orderDate = null,
+        DateOnly? expectedReceiptDate = null,
+        decimal quantity = 1m,
+        decimal lineTotal = 10m)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
@@ -135,11 +147,11 @@ internal static class InventoryTestData
             supplierId,
             status,
             currencyId,
-            DateOnly.FromDateTime(SeedNow.UtcDateTime.Date),
-            DateOnly.FromDateTime(SeedNow.UtcDateTime.Date.AddDays(7)),
-            null,
+            orderDate ?? DateOnly.FromDateTime(SeedNow.UtcDateTime.Date),
+            expectedReceiptDate ?? DateOnly.FromDateTime(SeedNow.UtcDateTime.Date.AddDays(7)),
+            notes,
             visibility,
-            [new InventoryOrderLineValues(itemId, 1m, 10m)]);
+            [new InventoryOrderLineValues(itemId, quantity, lineTotal)]);
 
         var order = InventoryOrder.Create(values, new UserId(creatorId), SeedNow);
         database.Add(order);
