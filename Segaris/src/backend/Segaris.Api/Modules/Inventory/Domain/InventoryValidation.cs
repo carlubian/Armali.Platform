@@ -100,11 +100,33 @@ internal static class InventoryValidation
         if (result < 0)
         {
             throw new InventoryValidationException(
-                "A stock reduction may not produce a negative result.");
+                "A stock reduction may not produce a negative result.",
+                InventoryValidationReason.NegativeStock);
         }
 
         return ValidateStock(result);
     }
 }
 
-internal sealed class InventoryValidationException(string message) : Exception(message);
+/// <summary>
+/// Distinguishes the Inventory domain failures so the HTTP surface can map each one
+/// to its frozen <see cref="InventoryErrorCodes"/> value.
+/// </summary>
+internal enum InventoryValidationReason
+{
+    /// <summary>A required string, length, enum, stock, or quantity rule failed.</summary>
+    Validation,
+
+    /// <summary>An item was saved without at least one allowed supplier.</summary>
+    SupplierRequired,
+
+    /// <summary>A stock reduction would produce a negative result.</summary>
+    NegativeStock,
+}
+
+internal sealed class InventoryValidationException(
+    string message,
+    InventoryValidationReason reason = InventoryValidationReason.Validation) : Exception(message)
+{
+    public InventoryValidationReason Reason { get; } = reason;
+}

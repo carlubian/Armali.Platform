@@ -735,6 +735,8 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Contains(applied, migration => migration.EndsWith("_ConfigurationFoundation"));
         Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
+        Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_InventoryDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         // Three catalog tables plus the one-time initialization table.
@@ -742,6 +744,12 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(4L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'capex_%'";
         Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'opex_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        // Items, item-suppliers, orders, order lines, and the category and location
+        // catalogs.
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'inventory_%'";
+        Assert.Equal(6L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]
