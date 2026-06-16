@@ -2,9 +2,11 @@ using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Inventory.Contracts;
+using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Inventory;
@@ -12,8 +14,9 @@ namespace Segaris.Api.Modules.Inventory;
 /// <summary>
 /// Maps the Inventory HTTP surface. Wave 1 exposes the module-owned category and
 /// location catalog reads and the administrator-only catalog management routes
-/// surfaced through Configuration; later Waves add the item and order read,
-/// mutation, attachment, and receive routes frozen in <see cref="InventoryApiRoutes"/>.
+/// surfaced through Configuration; Wave 2 adds the paginated item list, item detail,
+/// and quick stock-adjustment routes; later Waves add the remaining item mutation,
+/// order, attachment, and receive routes frozen in <see cref="InventoryApiRoutes"/>.
 /// State-changing routes carry antiforgery protection and never expose EF Core
 /// entities.
 /// </summary>
@@ -24,8 +27,33 @@ internal static class InventoryEndpoints
         var group = endpoints.MapSegarisApiGroup("inventory", InventoryApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapItemEndpoints(group);
         MapCategoryEndpoints(group);
         MapLocationEndpoints(group);
+    }
+
+    private static void MapItemEndpoints(RouteGroupBuilder group)
+    {
+        var items = group.MapGroup("/items");
+
+        items.MapGet("", ListItemsAsync)
+            .WithName("ListInventoryItems")
+            .WithSummary("Returns a paginated, filtered, and sorted list of accessible Inventory items")
+            .Produces<PaginatedResponse<InventoryItemSummaryResponse>>();
+
+        items.MapGet(InventoryApiRoutes.ItemById, GetItemAsync)
+            .WithName("GetInventoryItem")
+            .WithSummary("Returns the detail of an accessible Inventory item with its suppliers and attachments")
+            .Produces<InventoryItemResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapPost(InventoryApiRoutes.ItemStockAdjustments, AdjustStockAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("AdjustInventoryItemStock")
+            .WithSummary("Applies a quick stock increase or decrease to an accessible item")
+            .Produces<InventoryItemResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -58,6 +86,77 @@ internal static class InventoryEndpoints
         locations.MapGet(InventoryApiRoutes.LocationDeletionImpact, LocationImpactAsync).WithName("GetInventoryLocationDeletionImpact").WithSummary("Returns privacy-neutral location deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         locations.MapDelete(InventoryApiRoutes.LocationById, DeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteInventoryLocation").WithSummary("Deletes an unreferenced Inventory location").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         locations.MapPost(InventoryApiRoutes.LocationReplaceAndDelete, ReplaceAndDeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteInventoryLocation").WithSummary("Migrates references and deletes an Inventory location atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static async Task<IResult> ListItemsAsync(
+        [AsParameters] InventoryItemListQuery query,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var pagination = query.ToPagination();
+        var sort = query.ToSort();
+        var filter = query.ToFilter();
+
+        var result = await read.ListItemsAsync(filter, pagination, sort, userId, cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetItemAsync(
+        int itemId,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var item = await read.GetItemAsync(itemId, userId, cancellationToken);
+        if (item is null)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        return TypedResults.Ok(item);
+    }
+
+    private static async Task<IResult> AdjustStockAsync(
+        int itemId,
+        InventoryStockAdjustmentRequest request,
+        InventoryItemWriteService write,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool adjusted;
+        try
+        {
+            adjusted = await write.AdjustStockAsync(itemId, request, userId, cancellationToken);
+        }
+        catch (InventoryValidationException exception)
+        {
+            throw InventoryItemProblem.From(exception);
+        }
+
+        if (!adjusted)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        var item = await read.GetItemAsync(itemId, userId, cancellationToken);
+        return TypedResults.Ok(item);
     }
 
     private static async Task<IResult> ListCategoriesAsync(InventoryReadService read, CancellationToken cancellationToken) =>
