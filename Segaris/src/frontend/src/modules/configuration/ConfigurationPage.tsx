@@ -16,7 +16,7 @@ import {
 
 import './ConfigurationPage.css'
 
-const sections: CatalogSectionId[] = ['global', 'capex', 'inventory']
+const sections: CatalogSectionId[] = ['global', 'capex', 'opex', 'inventory']
 
 interface ToastState {
   kind: CatalogToastKind
@@ -35,10 +35,10 @@ function sectionHome(section: CatalogSectionId): string {
 const globalHome = sectionHome('global')
 
 /**
- * The administrative Configuration experience: flat Global, Capex, and Inventory
- * sections. Multi-catalog sections expose a URL-backed `?catalog=` tab; unknown
- * sections or catalogs fall back to Global Suppliers. The route and this page are
- * restricted to administrators.
+ * The administrative Configuration experience: flat Global, Capex, Opex, and
+ * Inventory sections. Multi-catalog sections expose a URL-backed `?catalog=`
+ * tab; unknown sections or catalogs fall back to Global Suppliers. The route and
+ * this page are restricted to administrators.
  */
 export function ConfigurationPage() {
   const { t } = useTranslation('configuration')

@@ -6,8 +6,10 @@ import {
   inventoryCategoriesManagementApi,
   inventoryLocationsManagementApi,
 } from '@/app/api/inventory'
+import { opexApi, opexCategoriesManagementApi } from '@/app/api/opex'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { inventoryKeys } from '@/modules/inventory/queries'
+import { opexKeys } from '@/modules/opex/contracts'
 
 /** The administrative catalog keys backing the Configuration table and dialogs. */
 export type CatalogKey =
@@ -15,11 +17,12 @@ export type CatalogKey =
   | 'costCenters'
   | 'currencies'
   | 'categories'
+  | 'opexCategories'
   | 'inventoryCategories'
   | 'inventoryLocations'
 
 /** Flat top-level sections of the Configuration experience. */
-export type CatalogSectionId = 'global' | 'capex' | 'inventory'
+export type CatalogSectionId = 'global' | 'capex' | 'opex' | 'inventory'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -123,6 +126,18 @@ export const categoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(capexCategoriesManagementApi),
 }
 
+export const opexCategoriesDescriptor: CatalogDescriptor = {
+  key: 'opexCategories',
+  section: 'opex',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: opexKeys.categories(),
+  dependentKeys: [opexKeys.contracts()],
+  read: (signal) => opexApi.categories(signal),
+  management: asDescriptorClient(opexCategoriesManagementApi),
+}
+
 export const inventoryCategoriesDescriptor: CatalogDescriptor = {
   key: 'inventoryCategories',
   section: 'inventory',
@@ -165,6 +180,7 @@ export const inventoryCatalogs: readonly CatalogDescriptor[] = [
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
+  opexCategoriesDescriptor,
   ...inventoryCatalogs,
 ]
 
@@ -193,6 +209,8 @@ export function sectionCatalogs(
       return inventoryCatalogs
     case 'capex':
       return [categoriesDescriptor]
+    case 'opex':
+      return [opexCategoriesDescriptor]
   }
 }
 
