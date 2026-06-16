@@ -26,6 +26,7 @@ export type OpexContractSortField =
 export type OpexSortDirection = 'asc' | 'desc'
 
 export const opexPageSizes = [10, 25, 50, 100] as const
+export type OpexPageSize = (typeof opexPageSizes)[number]
 export const opexRoutePath = '/opex' as const
 
 export interface OpexCategory {

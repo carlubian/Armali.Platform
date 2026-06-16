@@ -391,7 +391,21 @@ Exit criteria:
 
 ### Wave 6: Contracts Frontend
 
-Status: **Planned**.
+Status: **Complete**. The frontend now delivers the lazy Opex module at `/opex`
+with URL-backed table state. The contracts table covers all nine sortable columns
+(name, type, status, category, supplier, frequency, estimated annual amount,
+realized this year, currency) with localized dates and amounts. Filters include a
+primary row (search, type, status, frequency, expand toggle) and a secondary row
+(category, supplier, cost center, currency, visibility, mine checkbox) that
+serialize into URL search params and render as removable chips. Pagination and
+page-size selection follow the Capex pattern. The large contract dialog uses the
+Tabs shell with a Details tab containing all editable fields, a notes section,
+and an attachments section with create-mode staging, upload state, retry,
+download, and removal. Dirty-close and irreversible-deletion confirmations are
+implemented. The Opex launcher card is registered with the `Receipt` icon and
+`sea` tone. The `opex` i18n namespace is registered and its key coverage is
+verified by the existing platform translation test. No requirements deviation
+was needed.
 
 Build the lazy Opex module, URL-backed table state, contracts table, and Details
 editor.

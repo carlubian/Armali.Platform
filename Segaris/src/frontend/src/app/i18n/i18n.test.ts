@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { capex } from '@/modules/capex/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
+import { opex } from '@/modules/opex/i18n/resources'
 
 import { i18n } from './i18n'
 import { platform } from './resources'
 
 // Namespaces a bare `t('...')` literal may resolve against. Keys prefixed with a
 // namespace (for example `capex:launcher.title`) resolve directly via i18next.
-const namespaces = ['platform', 'capex', 'configuration'] as const
+const namespaces = ['platform', 'capex', 'configuration', 'opex'] as const
 
 function leafKeys(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {
@@ -33,6 +34,12 @@ describe('platform translations', () => {
   it('registers every configuration resource key', () => {
     for (const key of leafKeys(configuration)) {
       expect(i18n.exists(key, { ns: 'configuration', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every opex resource key', () => {
+    for (const key of leafKeys(opex)) {
+      expect(i18n.exists(key, { ns: 'opex', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

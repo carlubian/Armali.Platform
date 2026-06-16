@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, UserRound, Users, Wallet } from 'lucide-react'
+import { Receipt, SlidersHorizontal, UserRound, Users, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -41,6 +41,15 @@ export function LauncherPage() {
         tone: 'azure',
         attention: requiresAttention('capex'),
         attentionLabel: t('capex:launcher.attention'),
+      },
+      {
+        key: 'opex',
+        title: t('opex:launcher.title'),
+        description: t('opex:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/opex',
+        icon: Receipt,
+        tone: 'sea',
       },
       {
         key: 'profile',
