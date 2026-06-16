@@ -15,4 +15,9 @@ internal static class InventoryItemPolicies
 {
     public static Expression<Func<InventoryItem, bool>> AccessibleTo(UserId userId) =>
         item => item.Visibility == RecordVisibility.Public || item.CreatedBy == userId.Value;
+
+    public static Expression<Func<InventoryItem, bool>> MutableBy(UserId userId) => AccessibleTo(userId);
+
+    public static bool CanChangeVisibility(InventoryItem item, UserId userId) =>
+        item.CreatedBy == userId.Value;
 }

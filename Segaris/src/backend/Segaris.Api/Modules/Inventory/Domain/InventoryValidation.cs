@@ -122,6 +122,15 @@ internal enum InventoryValidationReason
 
     /// <summary>A stock reduction would produce a negative result.</summary>
     NegativeStock,
+
+    /// <summary>A referenced category, location, or supplier does not exist.</summary>
+    CatalogReference,
+
+    /// <summary>A visibility change would violate ownership or public-order privacy rules.</summary>
+    VisibilityForbidden,
+
+    /// <summary>An item cannot be deleted because at least one order line references it.</summary>
+    ReferencedByOrder,
 }
 
 internal sealed class InventoryValidationException(

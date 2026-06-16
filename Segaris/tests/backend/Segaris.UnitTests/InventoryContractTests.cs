@@ -40,6 +40,8 @@ public sealed class InventoryContractTests
         Assert.Equal("inventory/items", InventoryApiRoutes.Items);
         Assert.Equal("/{itemId:int}", InventoryApiRoutes.ItemById);
         Assert.Equal("/{itemId:int}/stock-adjustments", InventoryApiRoutes.ItemStockAdjustments);
+        Assert.Equal("/{itemId:int}/attachments", InventoryApiRoutes.ItemAttachments);
+        Assert.Equal("/{itemId:int}/attachments/{attachmentId}", InventoryApiRoutes.ItemAttachmentById);
         Assert.Equal("inventory/orders", InventoryApiRoutes.Orders);
         Assert.Equal("/{orderId:int}/receive", InventoryApiRoutes.OrderReceive);
         Assert.Equal("inventory/categories", InventoryApiRoutes.Categories);
@@ -127,7 +129,10 @@ public sealed class InventoryContractTests
     public void Error_codes_are_namespaced_and_stable()
     {
         Assert.Equal("inventory.item.not_found", InventoryErrorCodes.ItemNotFound.Value);
+        Assert.Equal("inventory.item.validation", InventoryErrorCodes.ItemValidation.Value);
+        Assert.Equal("inventory.item.supplier_required", InventoryErrorCodes.ItemSupplierRequired.Value);
         Assert.Equal("inventory.item.referenced", InventoryErrorCodes.ItemReferencedByOrder.Value);
+        Assert.Equal("inventory.item.visibility_forbidden", InventoryErrorCodes.ItemVisibilityForbidden.Value);
         Assert.Equal("inventory.stock.negative_result", InventoryErrorCodes.StockNegativeResult.Value);
         Assert.Equal("inventory.order.not_active", InventoryErrorCodes.OrderNotActive.Value);
         Assert.Equal("inventory.order.received_locked", InventoryErrorCodes.OrderReceivedLocked.Value);
@@ -135,6 +140,8 @@ public sealed class InventoryContractTests
             "inventory.order.line.supplier_not_allowed",
             InventoryErrorCodes.OrderLineSupplierNotAllowed.Value);
         Assert.Equal("inventory.catalog.unknown_reference", InventoryErrorCodes.UnknownCatalogReference.Value);
+        Assert.Equal("inventory.attachment.not_found", InventoryErrorCodes.AttachmentNotFound.Value);
+        Assert.Equal("inventory.attachment.invalid", InventoryErrorCodes.AttachmentInvalid.Value);
         Assert.Equal("inventory.location.not_found", InventoryErrorCodes.LocationNotFound.Value);
     }
 

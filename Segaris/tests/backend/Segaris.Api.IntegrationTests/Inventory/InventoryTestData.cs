@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Persistence;
@@ -25,6 +26,15 @@ internal static class InventoryTestData
         return await database.Set<SegarisSupplier>().Where(supplier => supplier.Name == name).Select(supplier => supplier.Id).SingleAsync();
     }
 
+    public static async Task<int> CurrencyIdAsync(
+        IServiceProvider services,
+        string code = ConfigurationCatalog.CurrencyCodes.Default)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<SegarisCurrency>().Where(currency => currency.Code == code).Select(currency => currency.Id).SingleAsync();
+    }
+
     public static async Task<int> CategoryIdAsync(IServiceProvider services, string name)
     {
         await using var scope = services.CreateAsyncScope();
@@ -44,6 +54,13 @@ internal static class InventoryTestData
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
         return await database.Set<InventoryItem>().Where(item => item.Id == itemId).Select(item => item.CurrentStock).SingleAsync();
+    }
+
+    public static async Task<bool> ItemExistsAsync(IServiceProvider services, int itemId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryItem>().AnyAsync(item => item.Id == itemId);
     }
 
     public static async Task<int> SeedItemAsync(
@@ -92,5 +109,41 @@ internal static class InventoryTestData
         database.Add(item);
         await database.SaveChangesAsync();
         return item.Id;
+    }
+
+    public static async Task<int> SeedOrderAsync(
+        IServiceProvider services,
+        int creatorId,
+        int itemId,
+        string supplierName = "Amazon",
+        InventoryOrderStatus status = InventoryOrderStatus.Active,
+        RecordVisibility visibility = RecordVisibility.Public)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+
+        var supplierId = await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == supplierName)
+            .Select(supplier => supplier.Id)
+            .SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
+            .Select(currency => currency.Id)
+            .SingleAsync();
+
+        var values = new InventoryOrderValues(
+            supplierId,
+            status,
+            currencyId,
+            DateOnly.FromDateTime(SeedNow.UtcDateTime.Date),
+            DateOnly.FromDateTime(SeedNow.UtcDateTime.Date.AddDays(7)),
+            null,
+            visibility,
+            [new InventoryOrderLineValues(itemId, 1m, 10m)]);
+
+        var order = InventoryOrder.Create(values, new UserId(creatorId), SeedNow);
+        database.Add(order);
+        await database.SaveChangesAsync();
+        return order.Id;
     }
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Inventory;
@@ -15,8 +18,9 @@ namespace Segaris.Api.Modules.Inventory;
 /// Maps the Inventory HTTP surface. Wave 1 exposes the module-owned category and
 /// location catalog reads and the administrator-only catalog management routes
 /// surfaced through Configuration; Wave 2 adds the paginated item list, item detail,
-/// and quick stock-adjustment routes; later Waves add the remaining item mutation,
-/// order, attachment, and receive routes frozen in <see cref="InventoryApiRoutes"/>.
+/// and quick stock-adjustment routes; Wave 3 adds item mutation and attachment
+/// routes. Later Waves add the remaining order and receive routes frozen in
+/// <see cref="InventoryApiRoutes"/>.
 /// State-changing routes carry antiforgery protection and never expose EF Core
 /// entities.
 /// </summary>
@@ -47,12 +51,63 @@ internal static class InventoryEndpoints
             .Produces<InventoryItemResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        items.MapPost("", CreateItemAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateInventoryItem")
+            .WithSummary("Creates an Inventory item with its allowed supplier set")
+            .Produces<InventoryItemResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        items.MapPut(InventoryApiRoutes.ItemById, UpdateItemAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateInventoryItem")
+            .WithSummary("Replaces an accessible Inventory item and its allowed supplier set")
+            .Produces<InventoryItemResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapDelete(InventoryApiRoutes.ItemById, DeleteItemAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteInventoryItem")
+            .WithSummary("Deletes an unreferenced Inventory item and its attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         items.MapPost(InventoryApiRoutes.ItemStockAdjustments, AdjustStockAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("AdjustInventoryItemStock")
             .WithSummary("Applies a quick stock increase or decrease to an accessible item")
             .Produces<InventoryItemResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapGet(InventoryApiRoutes.ItemAttachments, ListItemAttachmentsAsync)
+            .WithName("ListInventoryItemAttachments")
+            .WithSummary("Lists the attachments of an accessible Inventory item")
+            .Produces<IReadOnlyList<InventoryAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapPost(InventoryApiRoutes.ItemAttachments, UploadItemAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadInventoryItemAttachment")
+            .WithSummary("Uploads one attachment for an accessible Inventory item")
+            .Produces<InventoryAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapGet(InventoryApiRoutes.ItemAttachmentById, DownloadItemAttachmentAsync)
+            .WithName("DownloadInventoryItemAttachment")
+            .WithSummary("Downloads one attachment of an accessible Inventory item")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        items.MapDelete(InventoryApiRoutes.ItemAttachmentById, DeleteItemAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteInventoryItemAttachment")
+            .WithSummary("Removes one attachment of an accessible Inventory item")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
@@ -127,6 +182,93 @@ internal static class InventoryEndpoints
         return TypedResults.Ok(item);
     }
 
+    private static async Task<IResult> CreateItemAsync(
+        CreateInventoryItemRequest request,
+        InventoryItemWriteService write,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int itemId;
+        try
+        {
+            itemId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (InventoryValidationException exception)
+        {
+            throw InventoryItemProblem.From(exception);
+        }
+
+        var created = await read.GetItemAsync(itemId, userId, cancellationToken);
+        return TypedResults.Created($"/api/inventory/items/{itemId}", created);
+    }
+
+    private static async Task<IResult> UpdateItemAsync(
+        int itemId,
+        UpdateInventoryItemRequest request,
+        InventoryItemWriteService write,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(itemId, request, userId, cancellationToken);
+        }
+        catch (InventoryValidationException exception)
+        {
+            throw InventoryItemProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        var item = await read.GetItemAsync(itemId, userId, cancellationToken);
+        return TypedResults.Ok(item);
+    }
+
+    private static async Task<IResult> DeleteItemAsync(
+        int itemId,
+        InventoryItemWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool deleted;
+        try
+        {
+            deleted = await write.DeleteAsync(itemId, userId, cancellationToken);
+        }
+        catch (InventoryValidationException exception)
+        {
+            throw InventoryItemProblem.From(exception);
+        }
+
+        if (!deleted)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
     private static async Task<IResult> AdjustStockAsync(
         int itemId,
         InventoryStockAdjustmentRequest request,
@@ -157,6 +299,140 @@ internal static class InventoryEndpoints
 
         var item = await read.GetItemAsync(itemId, userId, cancellationToken);
         return TypedResults.Ok(item);
+    }
+
+    private static async Task<IResult> ListItemAttachmentsAsync(
+        int itemId,
+        InventoryReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ItemAccessibleAsync(itemId, userId, cancellationToken))
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(InventoryAttachments.ItemOwner(itemId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadItemAttachmentAsync(
+        int itemId,
+        HttpRequest request,
+        InventoryReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ItemAccessibleAsync(itemId, userId, cancellationToken))
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw InventoryItemProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw InventoryItemProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        AttachmentDescriptor created;
+        try
+        {
+            created = await attachments.CreateAsync(
+                new(InventoryAttachments.ItemOwner(itemId), file.FileName, file.ContentType, stream),
+                userId,
+                cancellationToken);
+        }
+        catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            throw InventoryItemProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+        }
+
+        return TypedResults.Created(
+            $"/api/inventory/items/{itemId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadItemAttachmentAsync(
+        int itemId,
+        int attachmentId,
+        InventoryReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ItemAccessibleAsync(itemId, userId, cancellationToken))
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            InventoryAttachments.ItemOwner(itemId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw InventoryItemProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteItemAttachmentAsync(
+        int itemId,
+        int attachmentId,
+        InventoryReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ItemAccessibleAsync(itemId, userId, cancellationToken))
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            InventoryAttachments.ItemOwner(itemId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw InventoryItemProblem.AttachmentNotFound();
+        }
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> ListCategoriesAsync(InventoryReadService read, CancellationToken cancellationToken) =>
@@ -236,4 +512,12 @@ internal static class InventoryEndpoints
         await service.ReplaceAndDeleteAsync(locationId, request, CatalogActor(user), token);
         return TypedResults.NoContent();
     }
+
+    private static InventoryAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 }
