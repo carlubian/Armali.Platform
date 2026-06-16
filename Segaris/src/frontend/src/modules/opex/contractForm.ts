@@ -45,7 +45,11 @@ export function parseAmount(value: string): number | null {
 
 export function createContractSchema(messages: SchemaMessages) {
   return z.object({
-    name: z.string().trim().min(1, messages.nameRequired).max(200, messages.nameTooLong),
+    name: z
+      .string()
+      .trim()
+      .min(1, messages.nameRequired)
+      .max(200, messages.nameTooLong),
     movementType: z.enum(['Income', 'Expense']),
     status: z.enum(['Planning', 'Active', 'OnHold', 'Closed']),
     startDate: z.string(),
@@ -78,7 +82,10 @@ interface DefaultsParams {
   currencyId: string
 }
 
-export function buildDefaults({ categoryId, currencyId }: DefaultsParams): ContractFormValues {
+export function buildDefaults({
+  categoryId,
+  currencyId,
+}: DefaultsParams): ContractFormValues {
   return {
     name: '',
     movementType: 'Expense',
@@ -104,7 +111,9 @@ export function fromContract(contract: OpexContract): ContractFormValues {
     startDate: contract.startDate?.slice(0, 10) ?? '',
     closedDate: contract.closedDate?.slice(0, 10) ?? '',
     estimatedAnnualAmount:
-      contract.estimatedAnnualAmount == null ? '' : String(contract.estimatedAnnualAmount),
+      contract.estimatedAnnualAmount == null
+        ? ''
+        : String(contract.estimatedAnnualAmount),
     expectedFrequency: contract.expectedFrequency,
     categoryId: String(contract.categoryId),
     supplierId: contract.supplierId == null ? '' : String(contract.supplierId),
@@ -123,7 +132,8 @@ export function toRequest(values: ContractFormValues): CreateOpexContractRequest
     status: values.status,
     startDate: values.startDate === '' ? null : values.startDate,
     closedDate: values.closedDate === '' ? null : values.closedDate,
-    estimatedAnnualAmount: trimmedAmount === '' ? null : (parseAmount(trimmedAmount) ?? null),
+    estimatedAnnualAmount:
+      trimmedAmount === '' ? null : (parseAmount(trimmedAmount) ?? null),
     expectedFrequency: values.expectedFrequency,
     categoryId: Number(values.categoryId),
     supplierId: values.supplierId === '' ? null : Number(values.supplierId),

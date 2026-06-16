@@ -107,11 +107,7 @@ export function OpexPage() {
         </div>
       </section>
 
-      <ContractsFilters
-        state={state}
-        onChange={setFilters}
-        onClear={clearFilters}
-      />
+      <ContractsFilters state={state} onChange={setFilters} onClear={clearFilters} />
 
       {showInitialLoading ? (
         <div className="seg-opex__loading">
@@ -123,7 +119,9 @@ export function OpexPage() {
         </p>
       ) : contracts.length === 0 ? (
         <p className="seg-opex__empty">
-          {hasFilters ? t('contracts.states.emptyFiltered') : t('contracts.states.empty')}
+          {hasFilters
+            ? t('contracts.states.emptyFiltered')
+            : t('contracts.states.empty')}
         </p>
       ) : (
         <ContractsTable

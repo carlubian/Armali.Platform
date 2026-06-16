@@ -25,7 +25,12 @@ const sortFields: readonly OpexContractSortField[] = [
   'currency',
 ]
 const movementTypes: readonly OpexMovementType[] = ['Income', 'Expense']
-const statuses: readonly OpexContractStatus[] = ['Planning', 'Active', 'OnHold', 'Closed']
+const statuses: readonly OpexContractStatus[] = [
+  'Planning',
+  'Active',
+  'OnHold',
+  'Closed',
+]
 const frequencies: readonly OpexExpectedFrequency[] = [
   'None',
   'Weekly',
@@ -149,7 +154,8 @@ function writeState(
   set('visibility', state.visibility === '' ? null : state.visibility)
   set('creator', state.mine && currentUserId != null ? currentUserId : null)
   if (state.sort !== defaultSort) set('sort', state.sort)
-  if (state.sortDirection !== defaultSortDirection) set('sortDirection', state.sortDirection)
+  if (state.sortDirection !== defaultSortDirection)
+    set('sortDirection', state.sortDirection)
   if (state.page !== 1) set('page', state.page)
   if (state.pageSize !== defaultPageSize) set('pageSize', state.pageSize)
 
@@ -279,7 +285,8 @@ export function useContractDialog(): UseContractDialog {
   const dialog = useMemo<ContractDialogState>(() => {
     if (searchParams.get('new') === 'true') return { mode: 'create' }
     const contractId = Number.parseInt(searchParams.get('contractId') ?? '', 10)
-    if (Number.isFinite(contractId) && contractId > 0) return { mode: 'edit', contractId }
+    if (Number.isFinite(contractId) && contractId > 0)
+      return { mode: 'edit', contractId }
     return { mode: 'closed' }
   }, [searchParams])
 

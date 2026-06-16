@@ -15,7 +15,12 @@ import {
   type ContractsFilterPatch,
   type ContractsState,
 } from './contractsState'
-import { useOpexCategories, useCostCenters, useCurrencies, useSuppliers } from './queries'
+import {
+  useOpexCategories,
+  useCostCenters,
+  useCurrencies,
+  useSuppliers,
+} from './queries'
 
 interface ContractsFiltersProps {
   state: ContractsState
@@ -71,8 +76,10 @@ export function ContractsFilters({ state, onChange, onClear }: ContractsFiltersP
     currencyCode: codeById(currencies.data, state.currency),
     type: state.type === '' ? '' : t(`contracts.type.${state.type}`),
     status: state.status === '' ? '' : t(`contracts.status.${state.status}`),
-    frequency: state.frequency === '' ? '' : t(`contracts.frequency.${state.frequency}`),
-    visibility: state.visibility === '' ? '' : t(`contracts.visibility.${state.visibility}`),
+    frequency:
+      state.frequency === '' ? '' : t(`contracts.frequency.${state.frequency}`),
+    visibility:
+      state.visibility === '' ? '' : t(`contracts.visibility.${state.visibility}`),
     labels: {
       search: (value: string) => t('contracts.filters.chip.search', { value }),
       mine: t('contracts.filters.chip.mine'),
@@ -286,7 +293,11 @@ function buildChips(state: ContractsState, resolved: ChipLabels): Chip[] {
     chips.push({ key: 'status', label: resolved.status, clear: { status: '' } })
   }
   if (state.frequency !== '') {
-    chips.push({ key: 'frequency', label: resolved.frequency, clear: { frequency: '' } })
+    chips.push({
+      key: 'frequency',
+      label: resolved.frequency,
+      clear: { frequency: '' },
+    })
   }
   if (state.category != null) {
     chips.push({

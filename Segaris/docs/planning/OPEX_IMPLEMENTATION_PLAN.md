@@ -478,7 +478,13 @@ Exit criteria:
 
 ### Wave 8: Hardening, Documentation, And Acceptance
 
-Status: **Planned**.
+Status: **Complete**. See `docs/planning/OPEX_ACCEPTANCE.md` for the full
+acceptance record. All backend suites (unit, API integration, PostgreSQL,
+migration, architecture) and frontend suites (format, lint, type-check, unit,
+build) pass. The OpenAPI surface and database indexes were verified statically.
+All thirteen requirement acceptance criteria are met; the second-user browser
+journey and the PostgreSQL volume benchmark are recorded as intentional
+deferrals in `ROADMAP.md`.
 
 Validate both providers, performance-sensitive queries, accessibility, OpenAPI,
 and every functional acceptance criterion.

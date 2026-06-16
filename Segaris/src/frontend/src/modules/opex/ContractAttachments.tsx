@@ -26,7 +26,10 @@ interface UploadTask {
   rejection: AttachmentRejection
 }
 
-export function ContractAttachments({ contractId, autoUpload }: ContractAttachmentsProps) {
+export function ContractAttachments({
+  contractId,
+  autoUpload,
+}: ContractAttachmentsProps) {
   const { t } = useTranslation('opex')
   const queryClient = useQueryClient()
 
@@ -154,7 +157,11 @@ export function ContractAttachments({ contractId, autoUpload }: ContractAttachme
         <ul className="seg-opex-attach__list">
           {attachments.map((attachment) => (
             <li key={attachment.id} className="seg-opex-attach__item">
-              <FileText size={18} aria-hidden="true" className="seg-opex-attach__icon" />
+              <FileText
+                size={18}
+                aria-hidden="true"
+                className="seg-opex-attach__icon"
+              />
               <span className="seg-opex-attach__meta">
                 <span className="seg-opex-attach__name">{attachment.fileName}</span>
                 <span className="seg-opex-attach__size">
@@ -195,7 +202,11 @@ export function ContractAttachments({ contractId, autoUpload }: ContractAttachme
                 (task.status === 'error' ? ' seg-opex-attach__item--error' : '')
               }
             >
-              <FileText size={18} aria-hidden="true" className="seg-opex-attach__icon" />
+              <FileText
+                size={18}
+                aria-hidden="true"
+                className="seg-opex-attach__icon"
+              />
               <span className="seg-opex-attach__meta">
                 <span className="seg-opex-attach__name">{task.file.name}</span>
                 <span className="seg-opex-attach__size">

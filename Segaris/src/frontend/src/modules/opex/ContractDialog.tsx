@@ -1,6 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { FileText, Globe, Lock, Paperclip, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react'
+import {
+  FileText,
+  Globe,
+  Lock,
+  Paperclip,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -26,11 +35,7 @@ import {
   type SegmentTone,
 } from '@/components/ui'
 
-import {
-  attachmentAccept,
-  formatFileSize,
-  rejectionFor,
-} from './attachments'
+import { attachmentAccept, formatFileSize, rejectionFor } from './attachments'
 import { ContractAttachments } from './ContractAttachments'
 import {
   buildDefaults,
@@ -39,7 +44,13 @@ import {
   toRequest,
   type ContractFormValues,
 } from './contractForm'
-import { opexKeys, useOpexCategories, useCostCenters, useCurrencies, useSuppliers } from './queries'
+import {
+  opexKeys,
+  useOpexCategories,
+  useCostCenters,
+  useCurrencies,
+  useSuppliers,
+} from './queries'
 import { OccurrencesTab } from './OccurrencesTab'
 
 import './ContractDialog.css'
@@ -129,7 +140,8 @@ export function ContractDialog({
         })
 
   const canChangeVisibility =
-    contract == null || (currentUserId != null && contract.createdById === currentUserId)
+    contract == null ||
+    (currentUserId != null && contract.createdById === currentUserId)
 
   return (
     <ContractEditorForm
@@ -186,7 +198,10 @@ const frequencies: OpexExpectedFrequency[] = [
 ]
 const visibilities: OpexVisibility[] = ['Public', 'Private']
 
-const movementTypeMeta: Record<OpexMovementType, { icon: ReactNode; tone: SegmentTone }> = {
+const movementTypeMeta: Record<
+  OpexMovementType,
+  { icon: ReactNode; tone: SegmentTone }
+> = {
   Income: { icon: <TrendingUp size={15} />, tone: 'success' },
   Expense: { icon: <TrendingDown size={15} />, tone: 'neutral' },
 }
@@ -379,10 +394,7 @@ function ContractEditorForm({
         />
 
         {activeTab === 'occurrences' && mode === 'edit' && contractId != null && (
-          <OccurrencesTab
-            contractId={contractId}
-            currencyCode={currencyCode}
-          />
+          <OccurrencesTab contractId={contractId} currencyCode={currencyCode} />
         )}
 
         <form
@@ -490,7 +502,9 @@ function ContractEditorForm({
               <ToggleField
                 id="opex-field-visibility"
                 label={t('editor.fields.visibility')}
-                hint={canChangeVisibility ? undefined : t('editor.visibilityHint.locked')}
+                hint={
+                  canChangeVisibility ? undefined : t('editor.visibilityHint.locked')
+                }
               >
                 <SegmentedControl
                   aria-labelledby="opex-field-visibility"

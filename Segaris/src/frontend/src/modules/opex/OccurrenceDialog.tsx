@@ -9,11 +9,7 @@ import { opexApi, type OpexOccurrence } from '@/app/api/opex'
 import { isApiError } from '@/app/api/errors'
 import { Button, Dialog, Input, Spinner } from '@/components/ui'
 
-import {
-  attachmentAccept,
-  formatFileSize,
-  rejectionFor,
-} from './attachments'
+import { attachmentAccept, formatFileSize, rejectionFor } from './attachments'
 import { OccurrenceAttachments } from './OccurrenceAttachments'
 import {
   buildOccurrenceDefaults,
@@ -55,7 +51,9 @@ export function OccurrenceDialog({
   })
 
   const title =
-    mode === 'create' ? t('occurrenceEditor.createTitle') : t('occurrenceEditor.editTitle')
+    mode === 'create'
+      ? t('occurrenceEditor.createTitle')
+      : t('occurrenceEditor.editTitle')
 
   if (mode === 'edit' && occurrenceQuery.isPending) {
     return (
@@ -91,7 +89,8 @@ export function OccurrenceDialog({
     )
   }
 
-  const occurrence = mode === 'edit' ? (occurrenceQuery.data as OpexOccurrence) : undefined
+  const occurrence =
+    mode === 'edit' ? (occurrenceQuery.data as OpexOccurrence) : undefined
   const initialValues =
     occurrence != null ? fromOccurrence(occurrence) : buildOccurrenceDefaults()
 
@@ -168,7 +167,9 @@ function OccurrenceEditorForm({
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [stagedFiles, setStagedFiles] = useState<File[]>([])
-  const [createdOccurrence, setCreatedOccurrence] = useState<OpexOccurrence | null>(null)
+  const [createdOccurrence, setCreatedOccurrence] = useState<OpexOccurrence | null>(
+    null,
+  )
   const editedRef = useRef(false)
 
   const mutation = useMutation({
@@ -342,7 +343,10 @@ function OccurrenceEditorForm({
             <h3>{t('editor.attachments.title')}</h3>
             <p className="seg-opex-editor__hint">{t('editor.attachments.hint')}</p>
             {mode === 'edit' && occurrenceId != null ? (
-              <OccurrenceAttachments contractId={contractId} occurrenceId={occurrenceId} />
+              <OccurrenceAttachments
+                contractId={contractId}
+                occurrenceId={occurrenceId}
+              />
             ) : (
               <StagedAttachments
                 files={stagedFiles}

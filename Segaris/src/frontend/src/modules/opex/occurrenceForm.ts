@@ -1,9 +1,6 @@
 import { z } from 'zod'
 
-import type {
-  CreateOpexOccurrenceRequest,
-  OpexOccurrence,
-} from '@/app/api/opex'
+import type { CreateOpexOccurrenceRequest, OpexOccurrence } from '@/app/api/opex'
 
 export interface OccurrenceFormValues {
   effectiveDate: string
@@ -31,10 +28,9 @@ export function parseOccurrenceAmount(value: string): number | null {
 export function createOccurrenceSchema(messages: SchemaMessages) {
   return z.object({
     effectiveDate: z.string().min(1, messages.dateRequired),
-    actualAmount: z.string().refine(
-      (value) => parseOccurrenceAmount(value) != null,
-      messages.amountInvalid,
-    ),
+    actualAmount: z
+      .string()
+      .refine((value) => parseOccurrenceAmount(value) != null, messages.amountInvalid),
     description: z.string().max(300, messages.descriptionTooLong),
     notes: z.string().max(4000, messages.notesTooLong),
   })

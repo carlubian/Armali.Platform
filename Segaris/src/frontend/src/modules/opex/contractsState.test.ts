@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { activeFilterCount, defaultPageSize, defaultSort, defaultSortDirection, toListQuery } from './contractsState'
+import {
+  activeFilterCount,
+  defaultPageSize,
+  defaultSort,
+  defaultSortDirection,
+  toListQuery,
+} from './contractsState'
 import type { ContractsState } from './contractsState'
 
 function baseState(): ContractsState {

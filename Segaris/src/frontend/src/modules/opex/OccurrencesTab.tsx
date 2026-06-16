@@ -57,9 +57,7 @@ export function OccurrencesTab({ contractId, currencyCode }: OccurrencesTabProps
   return (
     <div className="seg-opex-occurrences">
       <div className="seg-opex-occurrences__head">
-        <Badge tone="neutral">
-          {t('occurrences.count', { count: totalCount })}
-        </Badge>
+        <Badge tone="neutral">{t('occurrences.count', { count: totalCount })}</Badge>
         <Button
           size="sm"
           iconLeft={<Plus size={15} />}
@@ -78,9 +76,7 @@ export function OccurrencesTab({ contractId, currencyCode }: OccurrencesTabProps
           {t('occurrences.states.loadError')}
         </p>
       ) : occurrences.length === 0 ? (
-        <p className="seg-opex-occurrences__message">
-          {t('occurrences.states.empty')}
-        </p>
+        <p className="seg-opex-occurrences__message">{t('occurrences.states.empty')}</p>
       ) : (
         <table className="seg-opex-occurrences__table" aria-busy={query.isFetching}>
           <thead>
@@ -116,7 +112,9 @@ export function OccurrencesTab({ contractId, currencyCode }: OccurrencesTabProps
                 </td>
                 <td className="seg-opex-occurrences__description">
                   {occurrence.description ?? (
-                    <span className="seg-opex-occurrences__none">{t('contracts.none')}</span>
+                    <span className="seg-opex-occurrences__none">
+                      {t('contracts.none')}
+                    </span>
                   )}
                 </td>
               </tr>
