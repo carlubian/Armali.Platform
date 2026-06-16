@@ -35,7 +35,9 @@ describe('sessionApi.signIn', () => {
     })
 
     const antiforgeryCalls = fetchMock.mock.calls.filter(
-      ([input]) => String(input) === '/api/session/antiforgery',
+      ([input]) =>
+        (input instanceof Request ? input.url : String(input)) ===
+        '/api/session/antiforgery',
     )
     expect(antiforgeryCalls).toHaveLength(2)
 
