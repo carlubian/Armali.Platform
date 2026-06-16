@@ -341,7 +341,23 @@ Exit criteria:
 
 ### Wave 5: Configuration Reference Migration
 
-Status: **Planned**.
+Status: **Complete**. Opex now registers `ICatalogReferenceHandler` implementations
+for Suppliers, CostCenters, and Currencies, driven by the same
+`ConfigurationCatalogManagementService` transaction that handles Capex. Supplier
+and cost-center handlers replace or clear the optional reference on every matching
+contract and stamp the acting administrator's audit metadata. The currency handler
+loads each matching contract with its occurrences, converts the optional annual
+estimate and every occurrence amount using the validated exchange rate with
+two-decimal rounding away from zero, updates the contract currency, and stamps
+both the contract and each occurrence with the administrator's identity and
+timestamp. All mutations are performed without calling `SaveChanges`, so the owning
+Configuration command commits or rolls back the entire transaction atomically. Unit
+tests cover `ReplaceSupplier`, `ReplaceCostCenter`, and `ConvertCurrency` on the
+domain entities including rounding boundaries and null-estimate handling;
+integration tests cover supplier replacement, cost-center clearing, currency
+conversion with estimates and occurrences across public and private contracts,
+rollback on missing exchange rate, and privacy-neutral deletion-impact reporting.
+No requirements deviation was needed.
 
 Extend structural catalog operations to all Opex references, including atomic
 currency conversion.

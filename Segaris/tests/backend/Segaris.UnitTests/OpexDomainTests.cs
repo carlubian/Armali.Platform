@@ -278,6 +278,113 @@ public sealed class OpexDomainTests
         Assert.False(await fixture.Database.Set<OpexCategory>().AnyAsync(category => category.Id == categoryId));
     }
 
+    [Fact]
+    public void ReplaceSupplier_updates_the_reference_and_stamps_modification()
+    {
+        var contract = OpexContract.Create(Values() with { SupplierId = 10 }, new UserId(1), Now);
+
+        contract.ReplaceSupplier(20, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(20, contract.SupplierId);
+        Assert.Equal(2, contract.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), contract.UpdatedAt);
+    }
+
+    [Fact]
+    public void ReplaceSupplier_allows_clearing_to_null_and_stamps_modification()
+    {
+        var contract = OpexContract.Create(Values() with { SupplierId = 10 }, new UserId(1), Now);
+
+        contract.ReplaceSupplier(null, new UserId(2), Now.AddHours(1));
+
+        Assert.Null(contract.SupplierId);
+        Assert.Equal(2, contract.UpdatedBy);
+    }
+
+    [Fact]
+    public void ReplaceCostCenter_updates_the_reference_and_stamps_modification()
+    {
+        var contract = OpexContract.Create(Values() with { CostCenterId = 10 }, new UserId(1), Now);
+
+        contract.ReplaceCostCenter(20, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(20, contract.CostCenterId);
+        Assert.Equal(2, contract.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), contract.UpdatedAt);
+    }
+
+    [Fact]
+    public void ReplaceCostCenter_allows_clearing_to_null_and_stamps_modification()
+    {
+        var contract = OpexContract.Create(Values() with { CostCenterId = 10 }, new UserId(1), Now);
+
+        contract.ReplaceCostCenter(null, new UserId(2), Now.AddHours(1));
+
+        Assert.Null(contract.CostCenterId);
+        Assert.Equal(2, contract.UpdatedBy);
+    }
+
+    [Fact]
+    public void ConvertCurrency_converts_the_estimate_switches_currency_and_stamps_modification()
+    {
+        var contract = OpexContract.Create(
+            Values() with { EstimatedAnnualAmount = 100.00m, CurrencyId = 1 }, new UserId(1), Now);
+
+        contract.ConvertCurrency(2, 1.20m, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(2, contract.CurrencyId);
+        Assert.Equal(120.00m, contract.EstimatedAnnualAmount);
+        Assert.Equal(2, contract.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), contract.UpdatedAt);
+    }
+
+    [Fact]
+    public void ConvertCurrency_leaves_a_null_estimate_unchanged()
+    {
+        var contract = OpexContract.Create(
+            Values() with { EstimatedAnnualAmount = null, CurrencyId = 1 }, new UserId(1), Now);
+
+        contract.ConvertCurrency(2, 1.20m, new UserId(2), Now.AddHours(1));
+
+        Assert.Null(contract.EstimatedAnnualAmount);
+        Assert.Equal(2, contract.CurrencyId);
+    }
+
+    [Theory]
+    [InlineData(10.55, 1.20, 12.66)]
+    [InlineData(0.00, 1.50, 0.00)]
+    [InlineData(9.99, 1.005, 10.04)]
+    public void ConvertCurrency_rounds_the_estimate_to_two_decimal_places_away_from_zero(
+        decimal estimate, decimal rate, decimal expected)
+    {
+        var contract = OpexContract.Create(
+            Values() with { EstimatedAnnualAmount = estimate, CurrencyId = 1 }, new UserId(1), Now);
+
+        contract.ConvertCurrency(2, rate, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(expected, contract.EstimatedAnnualAmount);
+    }
+
+    [Theory]
+    [InlineData(10.00, 1.20, 12.00)]
+    [InlineData(0.00, 2.00, 0.00)]
+    [InlineData(5.55, 1.20, 6.66)]
+    public void ConvertAmount_on_occurrence_rounds_two_decimal_places_away_from_zero(
+        decimal amount, decimal rate, decimal expected)
+    {
+        var occurrence = OpexOccurrence.Create(
+            5,
+            new OpexOccurrenceValues(new DateOnly(2026, 1, 1), amount, null, null),
+            new UserId(1),
+            Now);
+
+        occurrence.ConvertAmount(rate, new UserId(2), Now.AddHours(1));
+
+        Assert.Equal(expected, occurrence.ActualAmount);
+        Assert.Equal(2, occurrence.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), occurrence.UpdatedAt);
+    }
+
     private static OpexContractValues Values() => new(
         "Example",
         OpexMovementType.Expense,

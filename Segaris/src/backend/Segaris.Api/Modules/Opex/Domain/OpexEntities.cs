@@ -103,6 +103,64 @@ internal sealed class OpexContract
         StampModification(actorId, now);
     }
 
+    internal void ReplaceSupplier(int? supplierId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (supplierId is <= 0)
+        {
+            throw new OpexValidationException("Catalog identifiers must be positive.");
+        }
+
+        SupplierId = supplierId;
+        StampModification(actorId, now);
+    }
+
+    internal void ReplaceCostCenter(int? costCenterId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (costCenterId is <= 0)
+        {
+            throw new OpexValidationException("Catalog identifiers must be positive.");
+        }
+
+        CostCenterId = costCenterId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Converts the contract to <paramref name="targetCurrencyId"/> using
+    /// <paramref name="exchangeRate"/> (<c>1 source = exchangeRate target</c>).
+    /// The optional annual estimate and every loaded occurrence amount are rounded
+    /// to two decimal places away from zero. The owning Configuration command
+    /// guarantees a positive rate with at most eight decimal places.
+    /// </summary>
+    internal void ConvertCurrency(int targetCurrencyId, decimal exchangeRate, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (targetCurrencyId <= 0)
+        {
+            throw new OpexValidationException("Catalog identifiers must be positive.");
+        }
+
+        if (exchangeRate <= 0)
+        {
+            throw new OpexValidationException("The exchange rate must be a positive value.");
+        }
+
+        if (EstimatedAnnualAmount is { } estimate)
+        {
+            EstimatedAnnualAmount = OpexValidation.ConvertAmount(estimate, exchangeRate);
+        }
+
+        foreach (var occurrence in occurrences)
+        {
+            occurrence.ConvertAmount(exchangeRate, actorId, now);
+        }
+
+        CurrencyId = targetCurrencyId;
+        StampModification(actorId, now);
+    }
+
     private void Apply(OpexContractValues values, UserId actorId, DateTimeOffset now, bool isCreation)
     {
         ArgumentNullException.ThrowIfNull(values);
@@ -225,6 +283,13 @@ internal sealed class OpexOccurrence
     public void Update(OpexOccurrenceValues values, UserId actorId, DateTimeOffset now)
     {
         Apply(values, actorId, now);
+    }
+
+    internal void ConvertAmount(decimal exchangeRate, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        ActualAmount = OpexValidation.ConvertAmount(ActualAmount, exchangeRate);
+        StampModification(actorId, now);
     }
 
     private void Apply(OpexOccurrenceValues values, UserId actorId, DateTimeOffset now)
