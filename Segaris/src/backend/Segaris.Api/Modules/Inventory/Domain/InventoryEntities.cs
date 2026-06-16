@@ -238,7 +238,7 @@ internal sealed record InventoryOrderValues(
 /// A supplier-specific replenishment order. Every order belongs to exactly one
 /// supplier and one currency, carries between 1 and 100 lines, and owns its lines
 /// through full replacement. Stock changes only through the explicit receive
-/// operation added in a later Wave; manual status changes never move stock.
+/// operation; manual status changes never move stock.
 /// </summary>
 internal sealed class InventoryOrder
 {
@@ -279,6 +279,18 @@ internal sealed class InventoryOrder
     public void Update(InventoryOrderValues values, UserId actorId, DateTimeOffset now)
     {
         Apply(values, actorId, now);
+    }
+
+    public void MarkReceived(UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (Status != InventoryOrderStatus.Active)
+        {
+            throw new InventoryValidationException("Only active orders can be received.");
+        }
+
+        Status = InventoryOrderStatus.Received;
+        StampModification(actorId, now);
     }
 
     private void Apply(InventoryOrderValues values, UserId actorId, DateTimeOffset now)

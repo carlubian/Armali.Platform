@@ -56,6 +56,28 @@ internal static class InventoryTestData
         return await database.Set<InventoryItem>().Where(item => item.Id == itemId).Select(item => item.CurrentStock).SingleAsync();
     }
 
+    public static async Task<(int UpdatedBy, DateTimeOffset UpdatedAt)> ItemModificationAsync(IServiceProvider services, int itemId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryItem>()
+            .Where(item => item.Id == itemId)
+            .Select(item => new ValueTuple<int, DateTimeOffset>(item.UpdatedBy, item.UpdatedAt))
+            .SingleAsync();
+    }
+
+    public static async Task<(InventoryOrderStatus Status, int UpdatedBy, DateTimeOffset UpdatedAt)> OrderStateAsync(
+        IServiceProvider services,
+        int orderId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<InventoryOrder>()
+            .Where(order => order.Id == orderId)
+            .Select(order => new ValueTuple<InventoryOrderStatus, int, DateTimeOffset>(order.Status, order.UpdatedBy, order.UpdatedAt))
+            .SingleAsync();
+    }
+
     public static async Task<bool> ItemExistsAsync(IServiceProvider services, int itemId)
     {
         await using var scope = services.CreateAsyncScope();

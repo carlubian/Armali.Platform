@@ -18,6 +18,8 @@ using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Inventory.Domain;
+using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
@@ -210,6 +212,107 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(6.76m, stored.TotalAmount);
         Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
         Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
+    public async Task Postgres_receives_inventory_orders_atomically_and_preserves_decimals()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-inventory-receive";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgInventoryReceive123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<InventoryOrderWriteService>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var categoryId = await database.Set<InventoryCategory>().Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+        var locationId = await database.Set<InventoryLocation>().Where(location => location.Name == "Other").Select(location => location.Id).SingleAsync();
+        var supplierId = await database.Set<SegarisSupplier>().Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var now = new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero);
+        var item = InventoryItem.Create(
+            new("Postgres olive oil", InventoryItemStatus.Active, null, categoryId, locationId, 1.10m, 0m, [supplierId], RecordVisibility.Public),
+            new UserId(userId),
+            now);
+        database.Add(item);
+        await database.SaveChangesAsync();
+        var order = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Active, currencyId, new DateOnly(2026, 6, 16), null, null, RecordVisibility.Public,
+                [new InventoryOrderLineValues(item.Id, 2.25m, 12.34m)]),
+            new UserId(userId),
+            now);
+        database.Add(order);
+        await database.SaveChangesAsync();
+
+        Assert.True(await service.ReceiveAsync(order.Id, new UserId(userId), CancellationToken.None));
+
+        database.ChangeTracker.Clear();
+        var storedItem = await database.Set<InventoryItem>().SingleAsync(value => value.Id == item.Id);
+        var storedOrder = await database.Set<InventoryOrder>().SingleAsync(value => value.Id == order.Id);
+        Assert.Equal(3.35m, storedItem.CurrentStock);
+        Assert.Equal(InventoryOrderStatus.Received, storedOrder.Status);
+    }
+
+    [Fact]
+    public async Task Postgres_rolls_back_inventory_receipt_when_one_stock_update_fails()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-inventory-receive-rollback";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgInventoryRollback123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<InventoryOrderWriteService>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var categoryId = await database.Set<InventoryCategory>().Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+        var locationId = await database.Set<InventoryLocation>().Where(location => location.Name == "Other").Select(location => location.Id).SingleAsync();
+        var supplierId = await database.Set<SegarisSupplier>().Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var now = new DateTimeOffset(2026, 6, 16, 12, 0, 0, TimeSpan.Zero);
+        var firstItem = InventoryItem.Create(
+            new("Postgres flour", InventoryItemStatus.Active, null, categoryId, locationId, 4m, 0m, [supplierId], RecordVisibility.Public),
+            new UserId(userId),
+            now);
+        var overflowingItem = InventoryItem.Create(
+            new("Postgres rice", InventoryItemStatus.Active, null, categoryId, locationId, 9999999999999999.99m, 0m, [supplierId], RecordVisibility.Public),
+            new UserId(userId),
+            now);
+        database.AddRange(firstItem, overflowingItem);
+        await database.SaveChangesAsync();
+        var order = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Active, currencyId, new DateOnly(2026, 6, 16), null, null, RecordVisibility.Public,
+                [
+                    new InventoryOrderLineValues(firstItem.Id, 2m, 4m),
+                    new InventoryOrderLineValues(overflowingItem.Id, 0.01m, 1m),
+                ]),
+            new UserId(userId),
+            now);
+        database.Add(order);
+        await database.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            service.ReceiveAsync(order.Id, new UserId(userId), CancellationToken.None));
+
+        database.ChangeTracker.Clear();
+        Assert.Equal(4m, await database.Set<InventoryItem>().Where(item => item.Id == firstItem.Id).Select(item => item.CurrentStock).SingleAsync());
+        Assert.Equal(
+            9999999999999999.99m,
+            await database.Set<InventoryItem>().Where(item => item.Id == overflowingItem.Id).Select(item => item.CurrentStock).SingleAsync());
+        Assert.Equal(
+            InventoryOrderStatus.Active,
+            await database.Set<InventoryOrder>().Where(value => value.Id == order.Id).Select(value => value.Status).SingleAsync());
     }
 
     [Fact]

@@ -20,6 +20,10 @@ internal static class InventoryOrderProblem
 
         return exception.Reason switch
         {
+            InventoryOrderValidationReason.OrderNotActive => new ApiProblemException(
+                StatusCodes.Status409Conflict,
+                InventoryErrorCodes.OrderNotActive,
+                exception.Message),
             InventoryOrderValidationReason.ReceivedLocked => new ApiProblemException(
                 StatusCodes.Status409Conflict,
                 InventoryErrorCodes.OrderReceivedLocked,

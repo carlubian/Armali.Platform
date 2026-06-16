@@ -14,6 +14,7 @@ internal enum InventoryOrderValidationReason
 {
     Validation,
     CatalogReference,
+    OrderNotActive,
     ReceivedLocked,
     VisibilityForbidden,
     LineSupplierNotAllowed,
@@ -112,6 +113,66 @@ internal sealed class InventoryOrderWriteService(
             await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
         }
 
+        return true;
+    }
+
+    public async Task<bool> ReceiveAsync(
+        int orderId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var order = await database.Set<InventoryOrder>()
+            .Where(InventoryOrderPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == orderId)
+            .Include(candidate => candidate.Lines)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (order is null)
+        {
+            return false;
+        }
+
+        if (order.Status != InventoryOrderStatus.Active)
+        {
+            throw new InventoryOrderValidationException(
+                "Only active Inventory orders can be received.",
+                InventoryOrderValidationReason.OrderNotActive);
+        }
+
+        if (order.Lines.Count is < InventoryValidation.MinimumOrderLines or > InventoryValidation.MaximumOrderLines)
+        {
+            throw new InventoryOrderValidationException("The order line state is invalid.");
+        }
+
+        var itemIds = order.Lines.Select(line => line.ItemId).Distinct().ToArray();
+        var items = await database.Set<InventoryItem>()
+            .Where(item => itemIds.Contains(item.Id))
+            .ToDictionaryAsync(item => item.Id, cancellationToken);
+        if (items.Count != itemIds.Length)
+        {
+            throw new InventoryOrderValidationException(
+                "One or more order-line items were not found.",
+                InventoryOrderValidationReason.LineItemNotAccessible);
+        }
+
+        var now = clock.UtcNow;
+        try
+        {
+            foreach (var line in order.Lines)
+            {
+                InventoryValidation.ValidatePositiveQuantity(line.Quantity);
+                items[line.ItemId].AdjustStock(InventoryStockAdjustmentDirection.Increase, line.Quantity, actorId, now);
+            }
+
+            order.MarkReceived(actorId, now);
+        }
+        catch (InventoryValidationException exception)
+        {
+            throw new InventoryOrderValidationException(exception.Message);
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 

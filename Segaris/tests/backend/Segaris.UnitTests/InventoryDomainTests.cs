@@ -191,6 +191,21 @@ public sealed class InventoryDomainTests
     }
 
     [Fact]
+    public void Order_mark_received_requires_active_status_and_stamps_modification()
+    {
+        var order = InventoryOrder.Create(OrderValues() with { Status = InventoryOrderStatus.Active }, new UserId(1), Now);
+
+        order.MarkReceived(new UserId(2), Now.AddMinutes(1));
+
+        Assert.Equal(InventoryOrderStatus.Received, order.Status);
+        Assert.Equal(2, order.UpdatedBy);
+        Assert.Equal(Now.AddMinutes(1), order.UpdatedAt);
+
+        Assert.Throws<InventoryValidationException>(() =>
+            order.MarkReceived(new UserId(2), Now.AddMinutes(2)));
+    }
+
+    [Fact]
     public void ReplaceCategory_and_ReplaceLocation_update_references_and_stamp_modification()
     {
         var item = InventoryItem.Create(Values(), new UserId(1), Now);

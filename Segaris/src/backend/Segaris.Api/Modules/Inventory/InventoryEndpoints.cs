@@ -167,6 +167,14 @@ internal static class InventoryEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        orders.MapPost(InventoryApiRoutes.OrderReceive, ReceiveOrderAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("ReceiveInventoryOrder")
+            .WithSummary("Receives an active Inventory order and increases each referenced item's stock")
+            .Produces<InventoryOrderResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         orders.MapGet(InventoryApiRoutes.OrderAttachments, ListOrderAttachmentsAsync)
             .WithName("ListInventoryOrderAttachments")
             .WithSummary("Lists the attachments of an accessible Inventory order")
@@ -485,6 +493,37 @@ internal static class InventoryEndpoints
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReceiveOrderAsync(
+        int orderId,
+        InventoryOrderWriteService write,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool received;
+        try
+        {
+            received = await write.ReceiveAsync(orderId, userId, cancellationToken);
+        }
+        catch (InventoryOrderValidationException exception)
+        {
+            throw InventoryOrderProblem.From(exception);
+        }
+
+        if (!received)
+        {
+            throw InventoryOrderProblem.NotFound();
+        }
+
+        var order = await read.GetOrderAsync(orderId, userId, cancellationToken);
+        return TypedResults.Ok(order);
     }
 
     private static async Task<IResult> ListItemAttachmentsAsync(
