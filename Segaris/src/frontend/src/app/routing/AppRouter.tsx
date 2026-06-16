@@ -17,6 +17,12 @@ const CapexPage = lazy(() =>
   import('@/modules/capex/CapexPage').then((module) => ({ default: module.CapexPage })),
 )
 
+// The Opex module is lazily loaded so its table, filters, and editor stay out
+// of the initial platform bundle.
+const OpexPage = lazy(() =>
+  import('@/modules/opex/OpexPage').then((module) => ({ default: module.OpexPage })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -78,6 +84,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <CapexPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="opex"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <OpexPage />
               </Suspense>
             </ModuleBoundary>
           }

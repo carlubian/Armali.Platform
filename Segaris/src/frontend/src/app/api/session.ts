@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, resetCsrfToken } from './client'
 
 export interface Session {
   userId: number
@@ -66,15 +66,21 @@ export const sessionApi = {
       method: 'DELETE',
       signal,
     }),
-  signIn: (credentials: SignInCredentials, signal?: AbortSignal) =>
-    apiRequest<void>('/api/session', {
+  signIn: async (credentials: SignInCredentials, signal?: AbortSignal) => {
+    await apiRequest<void>('/api/session', {
       method: 'POST',
       body: JSON.stringify(credentials),
       // A 401 here is an invalid credential, not an expired session: keep it
       // local to the login form instead of triggering the global redirect.
       suppressSessionExpired: true,
       signal,
-    }),
+    })
+    // The antiforgery token fetched to send this request was bound to the
+    // anonymous identity. Antiforgery tokens are tied to the user, so discard
+    // it now that a session exists; the next mutation fetches one bound to the
+    // authenticated user instead of failing validation with a 400.
+    resetCsrfToken()
+  },
   signOut: (signal?: AbortSignal) =>
     apiRequest<void>('/api/session', { method: 'DELETE', signal }),
 }

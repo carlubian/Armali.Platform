@@ -2,9 +2,10 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 2 - Functional Definition**. Capex is implemented and
-accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`); the remaining business modules
-are still in functional definition.
+Current phase: **Phase 2 - Functional Definition**. Capex and Opex are
+implemented and accepted (see `docs/planning/CAPEX_ACCEPTANCE.md` and
+`docs/planning/OPEX_ACCEPTANCE.md`); the remaining business modules are still
+in functional definition.
 
 ## Status Legend
 
@@ -131,8 +132,13 @@ Module purpose: Recurrent income/expenses, grouped inside Contracts, like subscr
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, income/expense discrimination. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | Contracts, effective occurrences, classifications, lifecycle, amounts, privacy, attachments, deletion, and Configuration migration behavior are defined in `docs/requirements/OPEX_REQUIREMENTS.md`. |
+| Resolved | User workflow | Opex opens on a paginated Contracts table and uses a URL-aware contract popup with subordinate occurrence management. Initial and deferred behaviors are defined in `docs/requirements/OPEX_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/OPEX_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Opex implementation plan is delivered through Wave 8. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/OPEX_ACCEPTANCE.md`. |
+| Deferred | Current-year activity filter | Filtering contracts by whether they contain occurrences in the current year is a future usability improvement. |
+| Deferred | Second-user Opex privacy E2E journey | Public-collaboration and private-isolation behavior is covered by API integration tests (`OpexContractMutationTests`, `OpexOccurrenceAuthorizationTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex and Configuration patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
 ### Inventory
 

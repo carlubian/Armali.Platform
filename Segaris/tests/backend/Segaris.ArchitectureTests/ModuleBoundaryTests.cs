@@ -15,6 +15,7 @@ public sealed class ModuleBoundaryTests
     private const string ConfigurationNamespace = "Segaris.Api.Modules.Configuration";
     private const string CapexNamespace = "Segaris.Api.Modules.Capex";
     private const string LauncherNamespace = "Segaris.Api.Modules.Launcher";
+    private const string OpexNamespace = "Segaris.Api.Modules.Opex";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -26,6 +27,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(ConfigurationNamespace));
         Assert.NotEmpty(TypesIn(CapexNamespace));
         Assert.NotEmpty(TypesIn(LauncherNamespace));
+        Assert.NotEmpty(TypesIn(OpexNamespace));
     }
 
     [Fact]
@@ -48,6 +50,30 @@ public sealed class ModuleBoundaryTests
         Assert.True(
             dependsOnConfiguration,
             "Capex must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_opex()
+    {
+        AssertNoDependency(ConfigurationNamespace, OpexNamespace);
+    }
+
+    [Fact]
+    public void Opex_depends_on_configuration_contracts()
+    {
+        var dependsOnConfiguration = TypesIn(OpexNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Opex must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Opex_does_not_depend_on_other_business_modules()
+    {
+        AssertNoDependency(OpexNamespace, CapexNamespace);
     }
 
     [Fact]
@@ -77,6 +103,7 @@ public sealed class ModuleBoundaryTests
         // and must not reference the Capex or Configuration namespaces directly.
         AssertNoDependency(LauncherNamespace, CapexNamespace);
         AssertNoDependency(LauncherNamespace, ConfigurationNamespace);
+        AssertNoDependency(LauncherNamespace, OpexNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

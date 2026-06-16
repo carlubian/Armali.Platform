@@ -594,6 +594,210 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.ToTable("identity_users", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("opex_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexContract", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("ClosedDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("CostCenterId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("EstimatedAnnualAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("ExpectedFrequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<int?>("SupplierId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CostCenterId");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("Name", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.ToTable("opex_contracts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_opex_contracts_estimated_annual_amount", "\"EstimatedAnnualAmount\" IS NULL OR \"EstimatedAnnualAmount\" >= 0");
+
+                            t.HasCheckConstraint("CK_opex_contracts_frequency", "\"ExpectedFrequency\" IN ('None', 'Weekly', 'Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Irregular')");
+
+                            t.HasCheckConstraint("CK_opex_contracts_movement_type", "\"MovementType\" IN ('Income', 'Expense')");
+
+                            t.HasCheckConstraint("CK_opex_contracts_status", "\"Status\" IN ('Planning', 'Active', 'OnHold', 'Closed')");
+
+                            t.HasCheckConstraint("CK_opex_contracts_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexOccurrence", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ActualAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("ContractId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("ContractId", "EffectiveDate", "Id");
+
+                    b.ToTable("opex_occurrences", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_opex_occurrences_actual_amount", "\"ActualAmount\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Platform.Attachments.AttachmentRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -865,9 +1069,72 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexContract", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Opex.Domain.OpexCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisCostCenter", null)
+                        .WithMany()
+                        .HasForeignKey("CostCenterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisCurrency", null)
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisSupplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexOccurrence", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Opex.Domain.OpexContract", null)
+                        .WithMany("Occurrences")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexContract", b =>
+                {
+                    b.Navigation("Occurrences");
                 });
 #pragma warning restore 612, 618
         }
