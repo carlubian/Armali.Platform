@@ -315,6 +315,48 @@ internal sealed class TravelExpense
         StampModification(actorId, now);
     }
 
+    internal void ReplaceSupplier(int? supplierId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (supplierId is <= 0)
+        {
+            throw new TravelValidationException("Catalog identifiers must be positive.");
+        }
+
+        SupplierId = supplierId;
+        StampModification(actorId, now);
+    }
+
+    internal void ReplaceCostCenter(int? costCenterId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (costCenterId is <= 0)
+        {
+            throw new TravelValidationException("Catalog identifiers must be positive.");
+        }
+
+        CostCenterId = costCenterId;
+        StampModification(actorId, now);
+    }
+
+    internal void ConvertCurrency(int targetCurrencyId, decimal exchangeRate, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (targetCurrencyId <= 0)
+        {
+            throw new TravelValidationException("Catalog identifiers must be positive.");
+        }
+
+        if (exchangeRate <= 0)
+        {
+            throw new TravelValidationException("The exchange rate must be a positive value.");
+        }
+
+        Amount = decimal.Round(Amount * exchangeRate, 2, MidpointRounding.AwayFromZero);
+        CurrencyId = targetCurrencyId;
+        StampModification(actorId, now);
+    }
+
     private void Apply(TravelExpenseValues values)
     {
         ArgumentNullException.ThrowIfNull(values);

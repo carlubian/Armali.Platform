@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Travel.Attention;
 using Segaris.Api.Modules.Travel.Mutations;
@@ -32,6 +33,9 @@ internal sealed class TravelModule : ISegarisModule
         services.AddScoped<TravelTripTypeManagementService>();
         services.AddScoped<TravelExpenseCategoryManagementService>();
         services.AddScoped<ILauncherAttentionContributor, TravelAttentionContributor>();
+        services.AddScoped<ICatalogReferenceHandler>(provider => new TravelCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));
+        services.AddScoped<ICatalogReferenceHandler>(provider => new TravelCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.CostCenters));
+        services.AddScoped<ICatalogReferenceHandler>(provider => new TravelCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Currencies));
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

@@ -7,9 +7,15 @@ import {
   inventoryLocationsManagementApi,
 } from '@/app/api/inventory'
 import { opexApi, opexCategoriesManagementApi } from '@/app/api/opex'
+import {
+  travelApi,
+  travelExpenseCategoriesManagementApi,
+  travelTripTypesManagementApi,
+} from '@/app/api/travel'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { inventoryKeys } from '@/modules/inventory/queries'
 import { opexKeys } from '@/modules/opex/contracts'
+import { travelKeys } from '@/modules/travel/contracts'
 
 /** The administrative catalog keys backing the Configuration table and dialogs. */
 export type CatalogKey =
@@ -20,9 +26,11 @@ export type CatalogKey =
   | 'opexCategories'
   | 'inventoryCategories'
   | 'inventoryLocations'
+  | 'travelTripTypes'
+  | 'travelExpenseCategories'
 
 /** Flat top-level sections of the Configuration experience. */
-export type CatalogSectionId = 'global' | 'capex' | 'opex' | 'inventory'
+export type CatalogSectionId = 'global' | 'capex' | 'opex' | 'inventory' | 'travel'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -83,7 +91,12 @@ export const suppliersDescriptor: CatalogDescriptor = {
   canClear: true,
   isCurrency: false,
   queryKey: configurationKeys.suppliers(),
-  dependentKeys: [capexKeys.entries(), inventoryKeys.items(), inventoryKeys.orders()],
+  dependentKeys: [
+    capexKeys.entries(),
+    inventoryKeys.items(),
+    inventoryKeys.orders(),
+    travelKeys.trips(),
+  ],
   read: (signal) => configurationApi.suppliers(signal),
   management: asDescriptorClient(configurationManagementApi.suppliers),
 }
@@ -96,7 +109,7 @@ export const costCentersDescriptor: CatalogDescriptor = {
   canClear: true,
   isCurrency: false,
   queryKey: configurationKeys.costCenters(),
-  dependentKeys: [capexKeys.entries()],
+  dependentKeys: [capexKeys.entries(), travelKeys.trips()],
   read: (signal) => configurationApi.costCenters(signal),
   management: asDescriptorClient(configurationManagementApi.costCenters),
 }
@@ -109,7 +122,7 @@ export const currenciesDescriptor: CatalogDescriptor = {
   canClear: false,
   isCurrency: true,
   queryKey: configurationKeys.currencies(),
-  dependentKeys: [capexKeys.entries(), inventoryKeys.orders()],
+  dependentKeys: [capexKeys.entries(), inventoryKeys.orders(), travelKeys.trips()],
   read: (signal) => configurationApi.currencies(signal),
   management: asDescriptorClient(configurationManagementApi.currencies),
 }
@@ -164,6 +177,32 @@ export const inventoryLocationsDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(inventoryLocationsManagementApi),
 }
 
+export const travelTripTypesDescriptor: CatalogDescriptor = {
+  key: 'travelTripTypes',
+  section: 'travel',
+  urlSlug: 'trip-types',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: travelKeys.tripTypes(),
+  dependentKeys: [travelKeys.trips()],
+  read: (signal) => travelApi.tripTypes(signal),
+  management: asDescriptorClient(travelTripTypesManagementApi),
+}
+
+export const travelExpenseCategoriesDescriptor: CatalogDescriptor = {
+  key: 'travelExpenseCategories',
+  section: 'travel',
+  urlSlug: 'expense-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: travelKeys.expenseCategories(),
+  dependentKeys: [travelKeys.trips()],
+  read: (signal) => travelApi.expenseCategories(signal),
+  management: asDescriptorClient(travelExpenseCategoriesManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -177,11 +216,18 @@ export const inventoryCatalogs: readonly CatalogDescriptor[] = [
   inventoryLocationsDescriptor,
 ]
 
+/** Travel-section catalogs, in tab order. */
+export const travelCatalogs: readonly CatalogDescriptor[] = [
+  travelTripTypesDescriptor,
+  travelExpenseCategoriesDescriptor,
+]
+
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
   opexCategoriesDescriptor,
   ...inventoryCatalogs,
+  ...travelCatalogs,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -207,6 +253,8 @@ export function sectionCatalogs(
       return globalCatalogs
     case 'inventory':
       return inventoryCatalogs
+    case 'travel':
+      return travelCatalogs
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

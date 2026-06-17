@@ -200,6 +200,27 @@ public sealed class TravelDomainTests
     }
 
     [Fact]
+    public void Expense_migration_helpers_update_optional_references_and_currency_amounts()
+    {
+        var expense = TravelExpense.Create(
+            1,
+            ExpenseValues() with { Amount = 10.01m, CurrencyId = 3, SupplierId = 4, CostCenterId = 5 },
+            new UserId(1),
+            Now);
+
+        expense.ReplaceSupplier(null, new UserId(2), Now.AddHours(1));
+        expense.ReplaceCostCenter(8, new UserId(2), Now.AddHours(1));
+        expense.ConvertCurrency(9, 1.25m, new UserId(2), Now.AddHours(1));
+
+        Assert.Null(expense.SupplierId);
+        Assert.Equal(8, expense.CostCenterId);
+        Assert.Equal(9, expense.CurrencyId);
+        Assert.Equal(12.51m, expense.Amount);
+        Assert.Equal(2, expense.UpdatedBy);
+        Assert.Equal(Now.AddHours(1), expense.UpdatedAt);
+    }
+
+    [Fact]
     public async Task Seeder_initializes_trip_types_and_expense_categories_once_in_declaration_order()
     {
         await using var fixture = await TravelFixture.CreateAsync();
@@ -344,6 +365,139 @@ public sealed class TravelDomainTests
         Assert.False(await fixture.Database.Set<TravelExpenseCategory>().AnyAsync(value => value.Id == references.ExpenseCategoryId));
     }
 
+    [Fact]
+    public async Task Configuration_supplier_migration_replaces_or_clears_travel_expense_references()
+    {
+        await using var fixture = await TravelFixture.CreateAsync();
+        var references = await fixture.SeedReferencesAsync();
+        var tripId = await fixture.SeedTripAsync(references);
+        await fixture.SeedExpenseAsync(
+            tripId,
+            references with { SupplierId = references.SourceSupplierId });
+
+        var service = fixture.ConfigurationService([
+            new TravelCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Suppliers),
+        ]);
+
+        await service.ReplaceAndDeleteSupplierAsync(
+            references.SourceSupplierId,
+            new CatalogReplacementRequest(references.ReplacementSupplierId, ClearReferences: false, ExchangeRate: null),
+            new UserId(2),
+            CancellationToken.None);
+
+        fixture.Database.ChangeTracker.Clear();
+        var replaced = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Equal(references.ReplacementSupplierId, replaced.SupplierId);
+        Assert.Equal(2, replaced.UpdatedBy);
+        Assert.False(await fixture.Database.Set<SegarisSupplier>().AnyAsync(value => value.Id == references.SourceSupplierId));
+
+        var nextSourceId = references.ReplacementSupplierId;
+        await service.ReplaceAndDeleteSupplierAsync(
+            nextSourceId,
+            new CatalogReplacementRequest(ReplacementId: null, ClearReferences: true, ExchangeRate: null),
+            new UserId(2),
+            CancellationToken.None);
+
+        fixture.Database.ChangeTracker.Clear();
+        var cleared = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Null(cleared.SupplierId);
+        Assert.False(await fixture.Database.Set<SegarisSupplier>().AnyAsync(value => value.Id == nextSourceId));
+    }
+
+    [Fact]
+    public async Task Configuration_cost_center_migration_replaces_or_clears_travel_expense_references()
+    {
+        await using var fixture = await TravelFixture.CreateAsync();
+        var references = await fixture.SeedReferencesAsync();
+        var tripId = await fixture.SeedTripAsync(references);
+        await fixture.SeedExpenseAsync(
+            tripId,
+            references with { CostCenterId = references.SourceCostCenterId });
+
+        var service = fixture.ConfigurationService([
+            new TravelCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.CostCenters),
+        ]);
+
+        await service.ReplaceAndDeleteCostCenterAsync(
+            references.SourceCostCenterId,
+            new CatalogReplacementRequest(references.ReplacementCostCenterId, ClearReferences: false, ExchangeRate: null),
+            new UserId(2),
+            CancellationToken.None);
+
+        fixture.Database.ChangeTracker.Clear();
+        var replaced = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Equal(references.ReplacementCostCenterId, replaced.CostCenterId);
+        Assert.False(await fixture.Database.Set<SegarisCostCenter>().AnyAsync(value => value.Id == references.SourceCostCenterId));
+
+        var nextSourceId = references.ReplacementCostCenterId;
+        await service.ReplaceAndDeleteCostCenterAsync(
+            nextSourceId,
+            new CatalogReplacementRequest(ReplacementId: null, ClearReferences: true, ExchangeRate: null),
+            new UserId(2),
+            CancellationToken.None);
+
+        fixture.Database.ChangeTracker.Clear();
+        var cleared = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Null(cleared.CostCenterId);
+        Assert.False(await fixture.Database.Set<SegarisCostCenter>().AnyAsync(value => value.Id == nextSourceId));
+    }
+
+    [Fact]
+    public async Task Configuration_currency_migration_converts_travel_expense_amounts()
+    {
+        await using var fixture = await TravelFixture.CreateAsync();
+        var references = await fixture.SeedReferencesAsync();
+        var tripId = await fixture.SeedTripAsync(references);
+        await fixture.SeedExpenseAsync(
+            tripId,
+            references with { CurrencyId = references.SourceCurrencyId, Amount = 10.01m });
+
+        var service = fixture.ConfigurationService([
+            new TravelCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Currencies),
+        ]);
+
+        await service.ReplaceAndDeleteCurrencyAsync(
+            references.SourceCurrencyId,
+            new CatalogReplacementRequest(references.ReplacementCurrencyId, ClearReferences: false, ExchangeRate: 1.25m),
+            new UserId(2),
+            CancellationToken.None);
+
+        fixture.Database.ChangeTracker.Clear();
+        var converted = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Equal(references.ReplacementCurrencyId, converted.CurrencyId);
+        Assert.Equal(12.51m, converted.Amount);
+        Assert.Equal(2, converted.UpdatedBy);
+        Assert.False(await fixture.Database.Set<SegarisCurrency>().AnyAsync(value => value.Id == references.SourceCurrencyId));
+    }
+
+    [Fact]
+    public async Task Configuration_reference_migration_rolls_back_travel_changes_when_a_later_handler_fails()
+    {
+        await using var fixture = await TravelFixture.CreateAsync();
+        var references = await fixture.SeedReferencesAsync();
+        var tripId = await fixture.SeedTripAsync(references);
+        await fixture.SeedExpenseAsync(
+            tripId,
+            references with { SupplierId = references.SourceSupplierId });
+
+        var service = fixture.ConfigurationService([
+            new TravelCatalogReferenceHandler(fixture.Database, ConfigurationCatalogKind.Suppliers),
+            new FailingReferenceHandler(ConfigurationCatalogKind.Suppliers),
+        ]);
+
+        var exception = await Assert.ThrowsAsync<ApiProblemException>(() => service.ReplaceAndDeleteSupplierAsync(
+            references.SourceSupplierId,
+            new CatalogReplacementRequest(references.ReplacementSupplierId, ClearReferences: false, ExchangeRate: null),
+            new UserId(2),
+            CancellationToken.None));
+
+        Assert.Equal(ConfigurationErrorCodes.CatalogMigrationFailed, exception.Code);
+        fixture.Database.ChangeTracker.Clear();
+        var stored = await fixture.Database.Set<TravelExpense>().SingleAsync();
+        Assert.Equal(references.SourceSupplierId, stored.SupplierId);
+        Assert.True(await fixture.Database.Set<SegarisSupplier>().AnyAsync(value => value.Id == references.SourceSupplierId));
+    }
+
     private static TravelTripValues TripValues() => new(
         "Example trip",
         TripTypeId: 1,
@@ -368,7 +522,19 @@ public sealed class TravelDomainTests
     private static TravelItineraryEntryValues Entry(string title, DateOnly date, TimeOnly? time) =>
         new(date, time, title, Place: null, ReservationLocator: null, Note: null);
 
-    private sealed record References(int TripTypeId, int ExpenseCategoryId, int CurrencyId);
+    private sealed record References(
+        int TripTypeId,
+        int ExpenseCategoryId,
+        int CurrencyId,
+        int SourceSupplierId,
+        int ReplacementSupplierId,
+        int SourceCostCenterId,
+        int ReplacementCostCenterId,
+        int SourceCurrencyId,
+        int ReplacementCurrencyId,
+        decimal Amount = 12.50m,
+        int? SupplierId = null,
+        int? CostCenterId = null);
 
     private sealed class TravelFixture : IAsyncDisposable
     {
@@ -431,7 +597,37 @@ public sealed class TravelDomainTests
             var currencyId = await Database.Set<SegarisCurrency>()
                 .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
                 .Select(currency => currency.Id).SingleAsync();
-            return new References(tripTypeId, expenseCategoryId, currencyId);
+            var sourceSupplierId = await Database.Set<SegarisSupplier>()
+                .Where(value => value.Name == "Amazon")
+                .Select(value => value.Id)
+                .SingleAsync();
+            var replacementSupplierId = await Database.Set<SegarisSupplier>()
+                .Where(value => value.Name == "IKEA")
+                .Select(value => value.Id)
+                .SingleAsync();
+            var sourceCostCenterId = await Database.Set<SegarisCostCenter>()
+                .Where(value => value.Name == "Household")
+                .Select(value => value.Id)
+                .SingleAsync();
+            var replacementCostCenterId = await Database.Set<SegarisCostCenter>()
+                .Where(value => value.Name == "Personal")
+                .Select(value => value.Id)
+                .SingleAsync();
+            var sourceCurrencyId = currencyId;
+            var replacementCurrencyId = await Database.Set<SegarisCurrency>()
+                .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.UsDollar)
+                .Select(currency => currency.Id)
+                .SingleAsync();
+            return new References(
+                tripTypeId,
+                expenseCategoryId,
+                currencyId,
+                sourceSupplierId,
+                replacementSupplierId,
+                sourceCostCenterId,
+                replacementCostCenterId,
+                sourceCurrencyId,
+                replacementCurrencyId);
         }
 
         public async Task<int> SeedTripAsync(References references)
@@ -451,6 +647,9 @@ public sealed class TravelDomainTests
                 {
                     ExpenseCategoryId = references.ExpenseCategoryId,
                     CurrencyId = references.CurrencyId,
+                    Amount = references.Amount,
+                    SupplierId = references.SupplierId,
+                    CostCenterId = references.CostCenterId,
                 },
                 new UserId(1),
                 Now);
@@ -458,6 +657,9 @@ public sealed class TravelDomainTests
             await Database.SaveChangesAsync();
             Database.ChangeTracker.Clear();
         }
+
+        public ConfigurationCatalogManagementService ConfigurationService(ICatalogReferenceHandler[] handlers) =>
+            new(Database, handlers, Clock);
 
         public async ValueTask DisposeAsync()
         {
@@ -469,5 +671,16 @@ public sealed class TravelDomainTests
     private sealed class MutableClock : IClock
     {
         public DateTimeOffset UtcNow { get; set; }
+    }
+
+    private sealed class FailingReferenceHandler(ConfigurationCatalogKind kind) : ICatalogReferenceHandler
+    {
+        public ConfigurationCatalogKind Kind => kind;
+
+        public Task<bool> HasReferencesAsync(int catalogId, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
+        public Task MigrateReferencesAsync(CatalogReferenceMigration migration, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Injected consumer failure.");
     }
 }
