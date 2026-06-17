@@ -1,4 +1,6 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Launcher.Contracts;
+using Segaris.Api.Modules.Travel.Attention;
 using Segaris.Api.Modules.Travel.Mutations;
 using Segaris.Api.Modules.Travel.Persistence;
 using Segaris.Api.Modules.Travel.Queries;
@@ -27,6 +29,7 @@ internal sealed class TravelModule : ISegarisModule
         services.AddScoped<TravelReadService>();
         services.AddScoped<TravelTripTypeManagementService>();
         services.AddScoped<TravelExpenseCategoryManagementService>();
+        services.AddScoped<ILauncherAttentionContributor, TravelAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

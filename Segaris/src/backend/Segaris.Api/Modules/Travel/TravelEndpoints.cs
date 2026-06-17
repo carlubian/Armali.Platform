@@ -5,6 +5,7 @@ using Segaris.Api.Modules.Travel.Contracts;
 using Segaris.Api.Modules.Travel.Mutations;
 using Segaris.Api.Modules.Travel.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Travel;
@@ -24,10 +25,27 @@ internal static class TravelEndpoints
         var group = endpoints.MapSegarisApiGroup("travel", TravelApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapTripEndpoints(group);
         MapTripTypeEndpoints(group);
         MapExpenseCategoryEndpoints(group);
 
         return endpoints;
+    }
+
+    private static void MapTripEndpoints(RouteGroupBuilder group)
+    {
+        var trips = group.MapGroup("/trips");
+
+        trips.MapGet("", ListTripsAsync)
+            .WithName("ListTravelTrips")
+            .WithSummary("Returns a paginated, filtered, and sorted list of accessible Travel trips")
+            .Produces<PaginatedResponse<TravelTripSummaryResponse>>();
+
+        trips.MapGet(TravelApiRoutes.TripById, GetTripAsync)
+            .WithName("GetTravelTrip")
+            .WithSummary("Returns the detail of an accessible Travel trip with itinerary and per-currency totals")
+            .Produces<TravelTripResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapTripTypeEndpoints(RouteGroupBuilder group)
@@ -67,6 +85,46 @@ internal static class TravelEndpoints
 
     private static async Task<IResult> ListExpenseCategoriesAsync(TravelReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListExpenseCategoriesAsync(cancellationToken));
+
+    private static async Task<IResult> ListTripsAsync(
+        [AsParameters] TravelTripListQuery query,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListTripsAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetTripAsync(
+        int tripId,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var trip = await read.GetTripAsync(tripId, userId, cancellationToken);
+        if (trip is null)
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        return TypedResults.Ok(trip);
+    }
 
     private static UserId TripTypeActor(ICurrentUser currentUser) => currentUser.UserId ?? throw TravelTripTypeProblem.NotFound();
 
