@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Travel.Contracts;

@@ -1,5 +1,5 @@
-using Segaris.Api.Platform.Api;
 using Segaris.Api.Modules.Travel.Domain;
+using Segaris.Api.Platform.Api;
 
 namespace Segaris.Api.Modules.Travel;
 
