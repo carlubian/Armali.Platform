@@ -1,7 +1,7 @@
 namespace Segaris.Api.Modules.Travel.Contracts;
 
 internal sealed record TravelAttachmentResponse(
-    Guid Id,
+    string Id,
     string FileName,
     string ContentType,
     long Size,

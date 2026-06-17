@@ -27,6 +27,7 @@ internal sealed class TravelModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, TravelModelContributor>();
         services.AddScoped<TravelSeeder>();
         services.AddScoped<TravelReadService>();
+        services.AddScoped<TravelTripWriteService>();
         services.AddScoped<TravelTripTypeManagementService>();
         services.AddScoped<TravelExpenseCategoryManagementService>();
         services.AddScoped<ILauncherAttentionContributor, TravelAttentionContributor>();

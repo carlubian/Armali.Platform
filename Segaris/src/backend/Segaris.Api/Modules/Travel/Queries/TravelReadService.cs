@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Travel.Contracts;
 using Segaris.Api.Modules.Travel.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 
@@ -16,7 +18,7 @@ namespace Segaris.Api.Modules.Travel.Queries;
 /// paginated trip list, trip detail with per-currency totals, and the trip-scoped
 /// expense reads.
 /// </summary>
-internal sealed class TravelReadService(SegarisDbContext database)
+internal sealed class TravelReadService(SegarisDbContext database, IAttachmentService attachments)
 {
     public async Task<IReadOnlyList<TravelTripTypeResponse>> ListTripTypesAsync(CancellationToken cancellationToken)
     {
@@ -144,6 +146,10 @@ internal sealed class TravelReadService(SegarisDbContext database)
             .ThenBy(total => total.CurrencyId)
             .ToArray();
 
+        var attachmentResponses = (await attachments.ListByOwnerAsync(TravelAttachments.TripOwner(tripId), cancellationToken))
+            .Select(ToAttachment)
+            .ToArray();
+
         return new TravelTripResponse(
             row.Id,
             row.Name,
@@ -157,7 +163,7 @@ internal sealed class TravelReadService(SegarisDbContext database)
             row.Visibility.ToString(),
             row.Itinerary,
             totals,
-            [],
+            attachmentResponses,
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -165,6 +171,15 @@ internal sealed class TravelReadService(SegarisDbContext database)
             row.UpdatedByName,
             row.UpdatedAt);
     }
+
+    public async Task<bool> TripAccessibleAsync(
+        int tripId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        await database.Set<TravelTrip>()
+            .AsNoTracking()
+            .Where(TravelTripPolicies.AccessibleTo(userId))
+            .AnyAsync(trip => trip.Id == tripId, cancellationToken);
 
     private IQueryable<TravelTrip> ApplyFilters(IQueryable<TravelTrip> trips, TravelTripFilter filter)
     {
@@ -244,6 +259,14 @@ internal sealed class TravelReadService(SegarisDbContext database)
         .Replace("\\", "\\\\", StringComparison.Ordinal)
         .Replace("%", "\\%", StringComparison.Ordinal)
         .Replace("_", "\\_", StringComparison.Ordinal);
+
+    private static TravelAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 
     private sealed record TripDetailRow(
         int Id,

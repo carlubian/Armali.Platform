@@ -112,6 +112,12 @@ internal enum TravelValidationReason
 
     /// <summary>An itinerary entry or the itinerary collection failed validation.</summary>
     Itinerary,
+
+    /// <summary>A referenced catalog value does not exist.</summary>
+    CatalogReference,
+
+    /// <summary>The requested visibility transition is not allowed for the actor.</summary>
+    VisibilityForbidden,
 }
 
 internal sealed class TravelValidationException(

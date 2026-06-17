@@ -1,11 +1,15 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Api.Modules.Travel.Contracts;
+using Segaris.Api.Modules.Travel.Domain;
 using Segaris.Api.Modules.Travel.Mutations;
 using Segaris.Api.Modules.Travel.Queries;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Travel;
@@ -45,6 +49,56 @@ internal static class TravelEndpoints
             .WithName("GetTravelTrip")
             .WithSummary("Returns the detail of an accessible Travel trip with itinerary and per-currency totals")
             .Produces<TravelTripResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapPost("", CreateTripAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateTravelTrip")
+            .WithSummary("Creates a Travel trip with its embedded itinerary")
+            .Produces<TravelTripResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        trips.MapPut(TravelApiRoutes.TripById, UpdateTripAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateTravelTrip")
+            .WithSummary("Updates a Travel trip and fully replaces its embedded itinerary")
+            .Produces<TravelTripResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapDelete(TravelApiRoutes.TripById, DeleteTripAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteTravelTrip")
+            .WithSummary("Physically deletes a Travel trip, itinerary, expenses, and owned attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripAttachments, ListTripAttachmentsAsync)
+            .WithName("ListTravelTripAttachments")
+            .WithSummary("Lists the attachments of an accessible Travel trip")
+            .Produces<IReadOnlyList<TravelAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapPost(TravelApiRoutes.TripAttachments, UploadTripAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadTravelTripAttachment")
+            .WithSummary("Uploads one attachment for an accessible Travel trip")
+            .Produces<TravelAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripAttachmentById, DownloadTripAttachmentAsync)
+            .WithName("DownloadTravelTripAttachment")
+            .WithSummary("Downloads one attachment of an accessible Travel trip")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapDelete(TravelApiRoutes.TripAttachmentById, DeleteTripAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteTravelTripAttachment")
+            .WithSummary("Removes one attachment of an accessible Travel trip")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
@@ -125,6 +179,228 @@ internal static class TravelEndpoints
 
         return TypedResults.Ok(trip);
     }
+
+    private static async Task<IResult> CreateTripAsync(
+        CreateTravelTripRequest request,
+        TravelTripWriteService write,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int tripId;
+        try
+        {
+            tripId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (TravelValidationException exception)
+        {
+            throw TravelTripProblem.From(exception);
+        }
+
+        var created = await read.GetTripAsync(tripId, userId, cancellationToken);
+        return TypedResults.Created($"/api/travel/trips/{tripId}", created);
+    }
+
+    private static async Task<IResult> UpdateTripAsync(
+        int tripId,
+        UpdateTravelTripRequest request,
+        TravelTripWriteService write,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(tripId, request, userId, cancellationToken);
+        }
+        catch (TravelValidationException exception)
+        {
+            throw TravelTripProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        var trip = await read.GetTripAsync(tripId, userId, cancellationToken);
+        return TypedResults.Ok(trip);
+    }
+
+    private static async Task<IResult> DeleteTripAsync(
+        int tripId,
+        TravelTripWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(tripId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListTripAttachmentsAsync(
+        int tripId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TripAccessibleAsync(tripId, userId, cancellationToken))
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(TravelAttachments.TripOwner(tripId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadTripAttachmentAsync(
+        int tripId,
+        HttpRequest request,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TripAccessibleAsync(tripId, userId, cancellationToken))
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw TravelTripProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw TravelTripProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(TravelAttachments.TripOwner(tripId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw TravelTripProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/travel/trips/{tripId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadTripAttachmentAsync(
+        int tripId,
+        int attachmentId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TripAccessibleAsync(tripId, userId, cancellationToken))
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            TravelAttachments.TripOwner(tripId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw TravelTripProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteTripAttachmentAsync(
+        int tripId,
+        int attachmentId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TripAccessibleAsync(tripId, userId, cancellationToken))
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            TravelAttachments.TripOwner(tripId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw TravelTripProblem.AttachmentNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static TravelAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 
     private static UserId TripTypeActor(ICurrentUser currentUser) => currentUser.UserId ?? throw TravelTripTypeProblem.NotFound();
 
