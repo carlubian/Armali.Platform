@@ -13,9 +13,11 @@ export const travelKeys = {
   tripTypes: () => [...travelKeys.all, 'tripTypes'] as const,
   expenseCategories: () => [...travelKeys.all, 'expenseCategories'] as const,
   trips: () => [...travelKeys.all, 'trips'] as const,
-  tripList: (query: TravelTripListQuery) => [...travelKeys.trips(), 'list', query] as const,
+  tripList: (query: TravelTripListQuery) =>
+    [...travelKeys.trips(), 'list', query] as const,
   trip: (tripId: number) => [...travelKeys.trips(), tripId] as const,
-  tripAttachments: (tripId: number) => [...travelKeys.trip(tripId), 'attachments'] as const,
+  tripAttachments: (tripId: number) =>
+    [...travelKeys.trip(tripId), 'attachments'] as const,
   expenses: (tripId: number) => [...travelKeys.trip(tripId), 'expenses'] as const,
   expenseList: (tripId: number, query: TravelExpenseListQuery) =>
     [...travelKeys.expenses(tripId), 'list', query] as const,

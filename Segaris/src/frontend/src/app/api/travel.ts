@@ -228,7 +228,11 @@ export const travelApi = {
       body: JSON.stringify(request),
       signal,
     }),
-  updateTrip: (tripId: number, request: UpdateTravelTripRequest, signal?: AbortSignal) =>
+  updateTrip: (
+    tripId: number,
+    request: UpdateTravelTripRequest,
+    signal?: AbortSignal,
+  ) =>
     apiRequest<TravelTrip>(`/api/travel/trips/${tripId}`, {
       method: 'PUT',
       body: JSON.stringify(request),
@@ -236,16 +240,19 @@ export const travelApi = {
     }),
   deleteTrip: (tripId: number, signal?: AbortSignal) =>
     apiRequest<void>(`/api/travel/trips/${tripId}`, { method: 'DELETE', signal }),
-  listExpenses: (tripId: number, query: TravelExpenseListQuery = {}, signal?: AbortSignal) =>
+  listExpenses: (
+    tripId: number,
+    query: TravelExpenseListQuery = {},
+    signal?: AbortSignal,
+  ) =>
     apiRequest<PaginatedResponse<TravelExpenseSummary>>(
       `/api/travel/trips/${tripId}/expenses${buildQuery(query)}`,
       { signal },
     ),
   getExpense: (tripId: number, expenseId: number, signal?: AbortSignal) =>
-    apiRequest<TravelExpense>(
-      `/api/travel/trips/${tripId}/expenses/${expenseId}`,
-      { signal },
-    ),
+    apiRequest<TravelExpense>(`/api/travel/trips/${tripId}/expenses/${expenseId}`, {
+      signal,
+    }),
   createExpense: (
     tripId: number,
     request: CreateTravelExpenseRequest,
@@ -272,6 +279,60 @@ export const travelApi = {
       method: 'DELETE',
       signal,
     }),
+  listTripAttachments: (tripId: number, signal?: AbortSignal) =>
+    apiRequest<TravelAttachment[]>(`/api/travel/trips/${tripId}/attachments`, {
+      signal,
+    }),
+  uploadTripAttachment: (tripId: number, file: File, signal?: AbortSignal) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest<TravelAttachment>(`/api/travel/trips/${tripId}/attachments`, {
+      method: 'POST',
+      body,
+      signal,
+      timeoutMs: 60_000,
+    })
+  },
+  tripAttachmentDownloadUrl: (tripId: number, attachmentId: string) =>
+    `/api/travel/trips/${tripId}/attachments/${attachmentId}`,
+  deleteTripAttachment: (tripId: number, attachmentId: string, signal?: AbortSignal) =>
+    apiRequest<void>(`/api/travel/trips/${tripId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      signal,
+    }),
+  listExpenseAttachments: (tripId: number, expenseId: number, signal?: AbortSignal) =>
+    apiRequest<TravelAttachment[]>(
+      `/api/travel/trips/${tripId}/expenses/${expenseId}/attachments`,
+      { signal },
+    ),
+  uploadExpenseAttachment: (
+    tripId: number,
+    expenseId: number,
+    file: File,
+    signal?: AbortSignal,
+  ) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest<TravelAttachment>(
+      `/api/travel/trips/${tripId}/expenses/${expenseId}/attachments`,
+      { method: 'POST', body, signal, timeoutMs: 60_000 },
+    )
+  },
+  expenseAttachmentDownloadUrl: (
+    tripId: number,
+    expenseId: number,
+    attachmentId: string,
+  ) => `/api/travel/trips/${tripId}/expenses/${expenseId}/attachments/${attachmentId}`,
+  deleteExpenseAttachment: (
+    tripId: number,
+    expenseId: number,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<void>(
+      `/api/travel/trips/${tripId}/expenses/${expenseId}/attachments/${attachmentId}`,
+      { method: 'DELETE', signal },
+    ),
 }
 
 export const travelTripTypesManagementApi: CatalogManagementClient<
