@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin: var(--space-5) 0;
+  margin-block: var(--space-5);
 }
 
 .seg-inv__sr {

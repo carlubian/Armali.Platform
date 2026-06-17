@@ -225,6 +225,7 @@ export const inventory = {
       location: 'Location',
       currentStock: 'Current stock',
       minimumStock: 'Minimum stock',
+      visibility: 'Visibility',
       suppliers: 'Allowed suppliers',
       notes: 'Notes',
       notesPlaceholder: 'Optional details about this item.',
