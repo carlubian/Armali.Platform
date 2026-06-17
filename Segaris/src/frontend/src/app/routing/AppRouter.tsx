@@ -23,6 +23,14 @@ const OpexPage = lazy(() =>
   import('@/modules/opex/OpexPage').then((module) => ({ default: module.OpexPage })),
 )
 
+// The Inventory module is lazily loaded so its tables, dialogs, and editors stay
+// out of the initial platform bundle.
+const InventoryPage = lazy(() =>
+  import('@/modules/inventory/InventoryPage').then((module) => ({
+    default: module.InventoryPage,
+  })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -94,6 +102,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <OpexPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="inventory"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <InventoryPage />
               </Suspense>
             </ModuleBoundary>
           }

@@ -51,6 +51,7 @@ interface BackendOptions {
   costCenters?: Row[]
   currencies?: Row[]
   categories?: Row[]
+  opexCategories?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
@@ -62,6 +63,7 @@ const catalogPaths: Record<string, string> = {
   'configuration/cost-centers': 'costCenters',
   'configuration/currencies': 'currencies',
   'capex/categories': 'categories',
+  'opex/categories': 'opexCategories',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -77,6 +79,9 @@ function mockBackend(options: BackendOptions = {}) {
       { id: 2, code: 'USD', name: 'US Dollar', sortOrder: 2 },
     ],
     categories: options.categories ?? [{ id: 1, name: 'Other', sortOrder: 1 }],
+    opexCategories: options.opexCategories ?? [
+      { id: 1, name: 'Subscriptions', sortOrder: 1 },
+    ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
   let nextId = 1000
@@ -102,7 +107,7 @@ function mockBackend(options: BackendOptions = {}) {
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -233,6 +238,15 @@ describe('Configuration navigation and states', () => {
     mockBackend()
     renderAt('/configuration/capex')
     expect(await screen.findByText('Other')).toBeInTheDocument()
+  })
+
+  it('shows the Opex categories section', async () => {
+    mockBackend()
+    renderAt('/configuration/opex')
+    expect(
+      await screen.findByRole('heading', { name: 'Opex categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Subscriptions')).toBeInTheDocument()
   })
 
   it('renders the empty state for a catalog with no rows', async () => {

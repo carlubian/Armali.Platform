@@ -16,4 +16,5 @@ internal static class ConfigurationProblem
     public static ApiProblemException ExchangeRateInvalid() => new(StatusCodes.Status400BadRequest, ConfigurationErrorCodes.CatalogExchangeRateInvalid, "The exchange rate is invalid.", errors: new Dictionary<string, string[]> { ["exchangeRate"] = ["The exchange rate must be positive with at most eight decimal places."] });
     public static ApiProblemException MigrationConflict() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogMigrationConflict, "The catalog migration conflicted with a concurrent change.");
     public static ApiProblemException MigrationFailed() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogMigrationFailed, "A catalog consumer could not migrate its references.");
+    public static ApiProblemException ReplacementRequired() => new(StatusCodes.Status409Conflict, ConfigurationErrorCodes.CatalogReplacementRequired, "A catalog consumer requires a replacement value because its references cannot be cleared.");
 }

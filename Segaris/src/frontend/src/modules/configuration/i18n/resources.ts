@@ -1,18 +1,17 @@
 /**
  * `configuration` i18n namespace. Strings for the administrative Configuration
- * experience (shared catalogs and Capex categories) live here, separate from the
- * platform namespace, and are registered alongside it in `app/i18n`.
+ * experience (shared catalogs and module-owned categories) live here, separate
+ * from the platform namespace, and are registered alongside it in `app/i18n`.
  *
  * Per-catalog labels are keyed by the catalog descriptor key
- * (`suppliers`, `costCenters`, `currencies`, `categories`) so the four known
- * catalogs share one table, dialog, and toast surface without a generic runtime
- * framework.
+ * (`suppliers`, `costCenters`, `currencies`, `categories`) so the known catalogs
+ * share one table, dialog, and toast surface without a generic runtime framework.
  */
 export const configuration = {
   launcher: {
     title: 'Configuration',
     description:
-      'Manage shared catalogs: suppliers, cost centres, currencies, and Capex categories.',
+      'Manage shared catalogs: suppliers, cost centres, currencies, and module categories.',
   },
   page: {
     eyebrow: 'Administration',
@@ -24,6 +23,8 @@ export const configuration = {
     label: 'Configuration sections',
     global: 'Global',
     capex: 'Capex',
+    opex: 'Opex',
+    inventory: 'Inventory',
   },
   catalogs: {
     label: 'Global catalogs',
@@ -76,6 +77,42 @@ export const configuration = {
       namePlaceholder: 'Category name',
       empty: 'No categories yet. Add the first one so entries can use it.',
       itemName: 'category',
+    },
+    opexCategories: {
+      tab: 'Categories',
+      title: 'Opex categories',
+      description: 'Categories that classify Opex contracts.',
+      addAction: 'New category',
+      createTitle: 'New category',
+      editTitle: 'Edit category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No categories yet. Add the first one so contracts can use it.',
+      itemName: 'category',
+    },
+    inventoryCategories: {
+      tab: 'Categories',
+      title: 'Inventory categories',
+      description: 'Categories that classify inventory items.',
+      addAction: 'New category',
+      createTitle: 'New category',
+      editTitle: 'Edit category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No categories yet. Add the first one so items can use it.',
+      itemName: 'category',
+    },
+    inventoryLocations: {
+      tab: 'Locations',
+      title: 'Inventory locations',
+      description: 'Locations where inventory items are stored.',
+      addAction: 'New location',
+      createTitle: 'New location',
+      editTitle: 'Edit location',
+      nameLabel: 'Name',
+      namePlaceholder: 'Location name',
+      empty: 'No locations yet. Add the first one so items can use it.',
+      itemName: 'location',
     },
   },
   table: {

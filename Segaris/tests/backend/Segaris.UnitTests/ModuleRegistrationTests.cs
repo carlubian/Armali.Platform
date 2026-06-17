@@ -20,6 +20,7 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Configuration", names);
         Assert.Contains("Capex", names);
         Assert.Contains("Opex", names);
+        Assert.Contains("Inventory", names);
         Assert.Contains("Launcher", names);
     }
 
@@ -41,5 +42,15 @@ public sealed class ModuleRegistrationTests
         Assert.True(
             names.IndexOf("Configuration") < names.IndexOf("Opex"),
             "Configuration must be registered before Opex.");
+    }
+
+    [Fact]
+    public void Inventory_is_registered_after_configuration()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Configuration") < names.IndexOf("Inventory"),
+            "Configuration must be registered before Inventory.");
     }
 }

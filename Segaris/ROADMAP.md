@@ -2,10 +2,10 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 2 - Functional Definition**. Capex and Opex are
-implemented and accepted (see `docs/planning/CAPEX_ACCEPTANCE.md` and
-`docs/planning/OPEX_ACCEPTANCE.md`); the remaining business modules are still
-in functional definition.
+Current phase: **Phase 2 - Functional Definition**. Capex, Opex, and Inventory
+are implemented and accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`,
+`docs/planning/OPEX_ACCEPTANCE.md`, and `docs/planning/INVENTORY_ACCEPTANCE.md`);
+the remaining business modules are still in functional definition.
 
 ## Status Legend
 
@@ -146,9 +146,16 @@ Module purpose: Manage items with stock that are spent and bought.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, vendors, items, orders. |
-| Open | Inventory scope | Food, supplies, documents, assets, appliances, warranties, medicines. |
-| Open | Stock behavior | Quantities, expiration dates, locations, low-stock alerts. |
+| Resolved | Entities and properties | Items, item statuses, module-owned categories and locations, supplier eligibility, orders, order lines, stock thresholds, privacy, explicit receipt, and launcher attention are defined in `docs/requirements/INVENTORY_REQUIREMENTS.md`. |
+| Resolved | Inventory scope | The initial module covers stock-tracked consumable or replaceable items such as food, cleaning, hygiene, medicine, office, and pet supplies. Durable assets, warranties, long-term documents, expiration dates, lots, and stock-by-location are outside the initial scope. |
+| Resolved | Stock behavior | Each item stores current stock and minimum stock directly, with one descriptive location and no separate stock-movement entity. Low-stock attention applies only to accessible active items. |
+| Resolved | Order workflow | Orders belong to exactly one supplier and one currency, use `Planning` / `Active` / `Received` / `Cancelled`, support no partial receipt, and update stock only through an explicit receive action. |
+| Resolved | Supplier reference migration (Wave 6) | A supplier still referenced by an Inventory order or item-supplier eligibility may only be replaced, never cleared, because orders require a supplier and items require at least one allowed supplier. Configuration rejects the clearing path with the stable `configuration.catalog.replacement_required` conflict and rolls the whole migration back. Replacement re-points orders and item eligibility (deduplicating when the target is already allowed); currency deletion converts order line totals. |
+| Deferred | Inventory frontend query invalidation (Wave 7) | Wave 6 delivers the backend reference migration. Invalidating Inventory frontend caches after a structural catalog mutation is deferred to Wave 7, when the Inventory module's query keys exist; Configuration's own catalog caches are already invalidated. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/INVENTORY_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Inventory implementation plan is delivered through Wave 8. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/INVENTORY_ACCEPTANCE.md`. |
+| Deferred | Second-user Inventory privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`InventoryItemAuthorizationTests`, `InventoryOrderMutationTests`, `InventoryOrderReceiveTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, and Opex patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
 ### Travel
 

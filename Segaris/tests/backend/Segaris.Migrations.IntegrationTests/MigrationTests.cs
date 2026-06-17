@@ -32,6 +32,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_OpexDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_InventoryDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -44,6 +47,10 @@ public sealed class MigrationTests
                 // Contracts, occurrences, and the Opex-owned category catalog.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'opex_%'";
                 Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+                // Items, item-suppliers, orders, order lines, and the category and
+                // location catalogs.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'inventory_%'";
+                Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -71,14 +78,15 @@ public sealed class MigrationTests
         Assert.Contains("ConfigurationFoundation", sqliteNames);
         Assert.Contains("CapexDomainPersistence", sqliteNames);
         Assert.Contains("OpexDomainPersistence", sqliteNames);
+        Assert.Contains("InventoryDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Opex_domain_persistence_is_the_current_tail_after_the_catalog_model()
+    public void Inventory_domain_persistence_is_the_current_tail_after_the_opex_model()
     {
-        // The Opex Wave 1 model (contracts, occurrences, and the Opex-owned
-        // category catalog) is the current tail and migrates from the
-        // CatalogModelAndInitialization baseline recorded in Configuration Wave 1.
+        // The Inventory Wave 1 model (items, item-suppliers, orders, order lines,
+        // and the Inventory-owned category and location catalogs) is the current
+        // tail and migrates from the OpexDomainPersistence model.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -90,8 +98,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("OpexDomainPersistence", migrations[^1]);
-            Assert.Equal("CatalogModelAndInitialization", migrations[^2]);
+            Assert.Equal("InventoryDomainPersistence", migrations[^1]);
+            Assert.Equal("OpexDomainPersistence", migrations[^2]);
         }
     }
 
@@ -185,6 +193,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_CapexDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
             Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_InventoryDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -194,6 +203,8 @@ public sealed class MigrationTests
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'opex_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'inventory_%'";
+            Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {
