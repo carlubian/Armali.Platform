@@ -1010,6 +1010,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Contains(applied, migration => migration.EndsWith("_CatalogModelAndInitialization"));
         Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_InventoryDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_TravelDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         // Three catalog tables plus the one-time initialization table.
@@ -1023,6 +1024,10 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         // catalogs.
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'inventory_%'";
         Assert.Equal(6L, (long)(await countCommand.ExecuteScalarAsync())!);
+        // Trips, itinerary entries, expenses, and the trip-type and expense-category
+        // catalogs.
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'travel_%'";
+        Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]

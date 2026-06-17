@@ -163,8 +163,17 @@ Module purpose: Manage travels and expenses, for both holidays and work.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Trip model | Itineraries, bookings, packing lists, expenses, documents. |
-| Open | Calendar integration | Whether trips and reminders should sync with calendars. |
+| Resolved | Trip model | A trip is the only top-level entity, with a type, destination, civil start/end dates, fixed manual status (`Planned`/`Ongoing`/`Completed`/`Cancelled`), notes, visibility, and attachments. It carries a light embedded itinerary (0-100 ordered entries, each with an optional reservation locator) and a managed expense sub-resource. See `docs/requirements/TRAVEL_REQUIREMENTS.md`. |
+| Resolved | Itinerary and bookings | Itineraries are a light embedded list edited through full-collection replacement; bookings are not entities but an optional text locator on each itinerary entry. Packing lists are out of initial scope. |
+| Resolved | Expenses and currency | Expenses are a per-trip sub-resource with individual CRUD and attachments. Currency belongs to each expense; the trip shows totals grouped by currency with no automatic conversion and no single normalised total. Supplier and cost centre are optional shared references; currency is required. |
+| Resolved | Catalogs and configuration | Travel owns `TripType` (`Regional`, `National`, `European`, `Non-Schengen`) and `TravelExpenseCategory` (`Flight`, `Lodging`, `Ground transport`, `Meals`, `Activities`, `Other`) through Configuration, and consumes the shared Supplier, Currency, and CostCenter catalogs. |
+| Resolved | Visibility and attention | Itinerary entries and expenses inherit the parent trip's visibility. The launcher card requests attention when an accessible trip is `Ongoing`, or `Planned` with a start date within the next seven days in `Europe/Madrid`. |
+| Resolved | Calendar integration | External calendar synchronisation is deferred; trip and itinerary civil dates are stored so a future internal calendar may read them. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/TRAVEL_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Travel implementation plan is delivered through Wave 7. All thirteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/TRAVEL_ACCEPTANCE.md`. |
+| Deferred | Second-user Travel privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`TravelTripMutationTests`, `TravelExpenseTests`, `TravelTripAttachmentTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, and Inventory patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers, the queries run at the database level, and the PostgreSQL integration suite is green. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
+| Deferred | Bookings, budgets, and conversion | First-class bookings, trip budgets with over-budget attention, automatic currency conversion to a single trip total, packing lists, and per-household-member travellers are future versions. See `docs/requirements/TRAVEL_REQUIREMENTS.md`. |
 
 ### Assets
 

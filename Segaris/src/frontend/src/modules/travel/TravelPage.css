@@ -1,0 +1,275 @@
+.seg-trv {
+  min-height: calc(100vh - var(--topbar-h));
+  padding: var(--space-8);
+}
+.seg-trv > * {
+  position: relative;
+  z-index: 1;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+.seg-trv__head {
+  margin-bottom: var(--space-6);
+}
+.seg-trv__head h1 {
+  margin-top: var(--space-2);
+  font-size: var(--text-3xl);
+}
+.seg-trv__head p {
+  margin-top: 4px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.seg-trv__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block: var(--space-5);
+}
+
+/* ---- Filters ---------------------------------------------------- */
+.seg-trv__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card-solid);
+  box-shadow: var(--glow-soft);
+}
+.seg-trv__filters-primary,
+.seg-trv__filters-secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+}
+.seg-trv__filters-secondary {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.seg-trv__search {
+  grid-column: 1 / -1;
+}
+.seg-trv__field {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+.seg-trv__filters-primary > .seg-trv__field:last-of-type,
+.seg-trv__filters-primary > button {
+  align-self: end;
+}
+.seg-trv__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+
+.seg-trv__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.seg-trv__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-frost);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+.seg-trv__chip:hover {
+  border-color: var(--terracotta-400);
+  color: var(--text-primary);
+}
+.seg-trv__chip-clear {
+  padding: 4px var(--space-3);
+  border: none;
+  background: none;
+  color: var(--text-link);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+}
+.seg-trv__chip-clear:hover {
+  text-decoration: underline;
+}
+
+/* ---- Table ------------------------------------------------------ */
+.seg-trv__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card-solid);
+  box-shadow: var(--glow-card);
+}
+.seg-trv__table-wrap[aria-busy='true'] {
+  opacity: 0.7;
+}
+.seg-trv__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.seg-trv__table thead th {
+  text-align: left;
+  padding: 0;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-sunken);
+  white-space: nowrap;
+}
+.seg-trv__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.seg-trv__sort:hover {
+  color: var(--text-primary);
+}
+.seg-trv__sort.is-active {
+  color: var(--accent);
+}
+.seg-trv__sort svg {
+  opacity: 0.5;
+}
+.seg-trv__sort.is-active svg {
+  opacity: 1;
+}
+.seg-trv__table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.seg-trv__table tbody tr:last-child td {
+  border-bottom: none;
+}
+.seg-trv__table tbody tr:hover td {
+  background: var(--bone-50);
+}
+.seg-trv__row {
+  cursor: pointer;
+}
+.seg-trv__name {
+  font-weight: 600;
+}
+.seg-trv__row-open {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-link);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.seg-trv__row-open:hover {
+  text-decoration: underline;
+}
+.seg-trv__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.seg-trv__loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8);
+}
+.seg-trv__empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: var(--weight-emphasis);
+}
+.seg-trv__error {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-card);
+  font-weight: var(--weight-emphasis);
+}
+
+/* ---- Pagination ------------------------------------------------- */
+.seg-trv__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.seg-trv__rows {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+}
+.seg-trv__pager-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.seg-trv__page {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.seg-trv__toast {
+  position: fixed;
+  z-index: 110;
+  right: var(--space-6);
+  bottom: var(--space-6);
+}
+
+@media (max-width: 780px) {
+  .seg-trv {
+    padding: var(--space-5);
+  }
+  .seg-trv__panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .seg-trv__pager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .seg-trv__pager-nav {
+    justify-content: space-between;
+  }
+}

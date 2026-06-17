@@ -52,6 +52,8 @@ interface BackendOptions {
   currencies?: Row[]
   categories?: Row[]
   opexCategories?: Row[]
+  travelTripTypes?: Row[]
+  travelExpenseCategories?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
@@ -64,6 +66,8 @@ const catalogPaths: Record<string, string> = {
   'configuration/currencies': 'currencies',
   'capex/categories': 'categories',
   'opex/categories': 'opexCategories',
+  'travel/trip-types': 'travelTripTypes',
+  'travel/expense-categories': 'travelExpenseCategories',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -81,6 +85,12 @@ function mockBackend(options: BackendOptions = {}) {
     categories: options.categories ?? [{ id: 1, name: 'Other', sortOrder: 1 }],
     opexCategories: options.opexCategories ?? [
       { id: 1, name: 'Subscriptions', sortOrder: 1 },
+    ],
+    travelTripTypes: options.travelTripTypes ?? [
+      { id: 1, name: 'Regional', sortOrder: 1 },
+    ],
+    travelExpenseCategories: options.travelExpenseCategories ?? [
+      { id: 1, name: 'Transport', sortOrder: 1 },
     ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
@@ -107,7 +117,7 @@ function mockBackend(options: BackendOptions = {}) {
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -247,6 +257,22 @@ describe('Configuration navigation and states', () => {
       await screen.findByRole('heading', { name: 'Opex categories' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Subscriptions')).toBeInTheDocument()
+  })
+
+  it('shows the Travel catalog tabs', async () => {
+    mockBackend()
+    renderAt('/configuration/travel?catalog=trip-types')
+    expect(
+      await screen.findByRole('heading', { name: 'Travel trip types' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Regional')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Expense categories' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Travel expense categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Transport')).toBeInTheDocument()
   })
 
   it('renders the empty state for a catalog with no rows', async () => {

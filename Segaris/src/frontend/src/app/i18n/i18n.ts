@@ -5,6 +5,7 @@ import { capex } from '@/modules/capex/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { opex } from '@/modules/opex/i18n/resources'
+import { travel } from '@/modules/travel/i18n/resources'
 
 import { platform } from './resources'
 
@@ -15,9 +16,9 @@ void i18n.use(initReactI18next).init({
   fallbackLng: fallbackLanguage,
   supportedLngs: [fallbackLanguage],
   defaultNS: 'platform',
-  ns: ['platform', 'capex', 'configuration', 'inventory', 'opex'],
+  ns: ['platform', 'capex', 'configuration', 'inventory', 'opex', 'travel'],
   resources: {
-    [fallbackLanguage]: { platform, capex, configuration, inventory, opex },
+    [fallbackLanguage]: { platform, capex, configuration, inventory, opex, travel },
   },
   interpolation: { escapeValue: false },
   returnNull: false,

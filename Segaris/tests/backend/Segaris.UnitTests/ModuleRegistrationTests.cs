@@ -21,6 +21,7 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Capex", names);
         Assert.Contains("Opex", names);
         Assert.Contains("Inventory", names);
+        Assert.Contains("Travel", names);
         Assert.Contains("Launcher", names);
     }
 
@@ -52,5 +53,18 @@ public sealed class ModuleRegistrationTests
         Assert.True(
             names.IndexOf("Configuration") < names.IndexOf("Inventory"),
             "Configuration must be registered before Inventory.");
+    }
+
+    [Fact]
+    public void Travel_is_registered_after_inventory_and_before_launcher()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Inventory") < names.IndexOf("Travel"),
+            "Travel must be registered after Inventory.");
+        Assert.True(
+            names.IndexOf("Travel") < names.IndexOf("Launcher"),
+            "Travel must be registered before Launcher.");
     }
 }

@@ -28,6 +28,10 @@ internal static class ConfigurationInitializationKeys
 
     public const string InventoryLocations = "inventory.locations";
 
+    public const string TravelTripTypes = "travel.trip-types";
+
+    public const string TravelExpenseCategories = "travel.expense-categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -37,5 +41,7 @@ internal static class ConfigurationInitializationKeys
         OpexCategories,
         InventoryCategories,
         InventoryLocations,
+        TravelTripTypes,
+        TravelExpenseCategories,
     ];
 }

@@ -6,6 +6,7 @@ using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Modules.Inventory.Seeding;
 using Segaris.Api.Modules.Opex.Seeding;
+using Segaris.Api.Modules.Travel.Seeding;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Api;
 using Segaris.Api.Platform.Observability;
@@ -38,6 +39,7 @@ await app.Services.SeedConfigurationAsync();
 await app.Services.SeedCapexAsync();
 await app.Services.SeedOpexAsync();
 await app.Services.SeedInventoryAsync();
+await app.Services.SeedTravelAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>
