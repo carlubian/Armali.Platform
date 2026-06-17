@@ -20,6 +20,7 @@ import {
   SegmentedControl,
   Select,
   Spinner,
+  Tabs,
   type SegmentTone,
 } from '@/components/ui'
 
@@ -216,6 +217,7 @@ function TripEditorForm({
   const itinerary = useFieldArray({ control, name: 'itinerary' })
 
   const [serverError, setServerError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'details' | 'expenses'>('details')
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const editedRef = useRef(false)
@@ -280,34 +282,54 @@ function TripEditorForm({
         onClose={requestClose}
         closeLabel={t('editor.actions.cancel')}
         footer={
-          <>
-            {mode === 'edit' && (
-              <Button
-                variant="ghost"
-                className="seg-trv-editor__delete"
-                iconLeft={<Trash2 size={15} />}
-                onClick={() => setConfirmingDelete(true)}
-                disabled={busy}
-              >
-                {t('tripEditor.delete.action')}
-              </Button>
-            )}
-            <Button variant="ghost" onClick={requestClose} disabled={submitting}>
+          activeTab === 'expenses' ? (
+            <Button variant="ghost" onClick={requestClose}>
               {t('editor.actions.cancel')}
             </Button>
-            <Button type="submit" form="seg-trv-trip-form" disabled={busy}>
-              {mode === 'create'
-                ? submitting
-                  ? t('editor.actions.creating')
-                  : t('editor.actions.create')
-                : submitting
-                  ? t('editor.actions.saving')
-                  : t('editor.actions.save')}
-            </Button>
-          </>
+          ) : (
+            <>
+              {mode === 'edit' && (
+                <Button
+                  variant="ghost"
+                  className="seg-trv-editor__delete"
+                  iconLeft={<Trash2 size={15} />}
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={busy}
+                >
+                  {t('tripEditor.delete.action')}
+                </Button>
+              )}
+              <Button variant="ghost" onClick={requestClose} disabled={submitting}>
+                {t('editor.actions.cancel')}
+              </Button>
+              <Button type="submit" form="seg-trv-trip-form" disabled={busy}>
+                {mode === 'create'
+                  ? submitting
+                    ? t('editor.actions.creating')
+                    : t('editor.actions.create')
+                  : submitting
+                    ? t('editor.actions.saving')
+                    : t('editor.actions.save')}
+              </Button>
+            </>
+          )
         }
       >
+        <Tabs
+          className="seg-trv-editor__tabs"
+          variant="line"
+          value={activeTab}
+          onChange={(value) => setActiveTab(value as 'details' | 'expenses')}
+          tabs={[
+            { value: 'details', label: t('tripEditor.tabs.details') },
+            ...(mode === 'edit'
+              ? [{ value: 'expenses', label: t('tripEditor.tabs.expenses') }]
+              : []),
+          ]}
+        />
+
         <form
+          hidden={activeTab !== 'details'}
           id="seg-trv-trip-form"
           className="seg-trv-editor"
           onSubmit={submit}
@@ -511,8 +533,8 @@ function TripEditorForm({
           </section>
         </form>
 
-        {mode === 'edit' && trip != null && (
-          <section className="seg-trv-editor__section seg-trv-editor__section--expenses">
+        {activeTab === 'expenses' && mode === 'edit' && trip != null && (
+          <section className="seg-trv-editor__section">
             <TripExpenses
               tripId={trip.id}
               totals={trip.expenseTotals}

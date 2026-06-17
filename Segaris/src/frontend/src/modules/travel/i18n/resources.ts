@@ -156,6 +156,10 @@ export const travel = {
     notFound: 'This trip is no longer available.',
     loadError: 'The trip could not be loaded.',
     attachmentsAfterSave: 'Save the trip to add attachments.',
+    tabs: {
+      details: 'Details',
+      expenses: 'Expenses',
+    },
     sections: {
       general: 'Trip details',
       itinerary: 'Itinerary',

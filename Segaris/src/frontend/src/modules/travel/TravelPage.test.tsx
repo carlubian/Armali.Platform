@@ -230,7 +230,7 @@ describe('Travel trips view', () => {
     expect(await screen.findByRole('dialog', { name: 'New trip' })).toBeInTheDocument()
   })
 
-  it('opens a trip and shows its itinerary, expenses, and totals', async () => {
+  it('opens a trip with details and expenses in separate tabs', async () => {
     const user = userEvent.setup()
     mockBackend()
     render(<App />)
@@ -239,6 +239,10 @@ describe('Travel trips view', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit trip' })
     expect(within(dialog).getByDisplayValue('Flight to Porto')).toBeInTheDocument()
+    expect(within(dialog).queryByText('Hotel Ribeira')).not.toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('tab', { name: 'Expenses' }))
+
     expect(await within(dialog).findByText('Hotel Ribeira')).toBeInTheDocument()
     // The amount appears both as the per-currency total and on the expense row.
     expect(within(dialog).getAllByText('€250.00').length).toBeGreaterThanOrEqual(1)

@@ -4,6 +4,10 @@
   gap: var(--space-6);
 }
 
+.seg-trv-editor[hidden] {
+  display: none;
+}
+
 .seg-trv-editor__status {
   display: flex;
   align-items: center;
@@ -39,12 +43,6 @@
   justify-content: space-between;
   gap: var(--space-4);
 }
-.seg-trv-editor__section--expenses {
-  margin-top: var(--space-6);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--border-subtle);
-}
-
 .seg-trv-editor__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -177,6 +175,11 @@
 }
 .seg-trv-editor__delete:hover:not(:disabled) {
   color: var(--danger);
+}
+
+/* ---- Tabs ------------------------------------------------------- */
+.seg-trv-editor__tabs {
+  margin-bottom: var(--space-2);
 }
 
 /* ---- Expenses --------------------------------------------------- */
