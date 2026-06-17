@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   Boxes,
+  Luggage,
   Receipt,
   SlidersHorizontal,
   UserRound,
@@ -68,6 +69,17 @@ export function LauncherPage() {
         tone: 'rose',
         attention: requiresAttention('inventory'),
         attentionLabel: t('inventory:launcher.attention'),
+      },
+      {
+        key: 'travel',
+        title: t('travel:launcher.title'),
+        description: t('travel:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/travel',
+        icon: Luggage,
+        tone: 'sea',
+        attention: requiresAttention('travel'),
+        attentionLabel: t('travel:launcher.attention'),
       },
       {
         key: 'profile',

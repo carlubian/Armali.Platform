@@ -17,6 +17,7 @@ public sealed class ModuleBoundaryTests
     private const string LauncherNamespace = "Segaris.Api.Modules.Launcher";
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
+    private const string TravelNamespace = "Segaris.Api.Modules.Travel";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -30,6 +31,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(LauncherNamespace));
         Assert.NotEmpty(TypesIn(OpexNamespace));
         Assert.NotEmpty(TypesIn(InventoryNamespace));
+        Assert.NotEmpty(TypesIn(TravelNamespace));
     }
 
     [Fact]
@@ -101,6 +103,33 @@ public sealed class ModuleBoundaryTests
     {
         AssertNoDependency(InventoryNamespace, CapexNamespace);
         AssertNoDependency(InventoryNamespace, OpexNamespace);
+        AssertNoDependency(InventoryNamespace, TravelNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_travel()
+    {
+        AssertNoDependency(ConfigurationNamespace, TravelNamespace);
+    }
+
+    [Fact]
+    public void Travel_depends_on_configuration_contracts()
+    {
+        var dependsOnConfiguration = TypesIn(TravelNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Travel must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Travel_does_not_depend_on_other_business_modules()
+    {
+        AssertNoDependency(TravelNamespace, CapexNamespace);
+        AssertNoDependency(TravelNamespace, OpexNamespace);
+        AssertNoDependency(TravelNamespace, InventoryNamespace);
     }
 
     [Fact]
@@ -132,6 +161,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, ConfigurationNamespace);
         AssertNoDependency(LauncherNamespace, OpexNamespace);
         AssertNoDependency(LauncherNamespace, InventoryNamespace);
+        AssertNoDependency(LauncherNamespace, TravelNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

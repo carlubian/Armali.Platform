@@ -31,6 +31,14 @@ const InventoryPage = lazy(() =>
   })),
 )
 
+// The Travel module is lazily loaded so its trip table and dialogs stay out of
+// the initial platform bundle.
+const TravelPage = lazy(() =>
+  import('@/modules/travel/TravelPage').then((module) => ({
+    default: module.TravelPage,
+  })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -112,6 +120,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <InventoryPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="travel"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <TravelPage />
               </Suspense>
             </ModuleBoundary>
           }
