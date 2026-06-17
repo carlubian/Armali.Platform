@@ -11,7 +11,14 @@ import { platform } from './resources'
 
 // Namespaces a bare `t('...')` literal may resolve against. Keys prefixed with a
 // namespace (for example `capex:launcher.title`) resolve directly via i18next.
-const namespaces = ['platform', 'capex', 'configuration', 'inventory', 'opex', 'travel'] as const
+const namespaces = [
+  'platform',
+  'capex',
+  'configuration',
+  'inventory',
+  'opex',
+  'travel',
+] as const
 
 function leafKeys(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {

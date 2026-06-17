@@ -339,6 +339,11 @@ Exit criteria:
 
 ### Wave 7: End-To-End, Hardening, And Acceptance
 
+> **Status: complete.** The hardening and acceptance pass is recorded in
+> `docs/planning/TRAVEL_ACCEPTANCE.md`, which maps every Travel requirement to
+> covering code and tests and lists the intentional deferrals now tracked in
+> `ROADMAP.md`.
+
 Validate the implemented behavior across both providers and the deployed
 frontend/backend boundary.
 
