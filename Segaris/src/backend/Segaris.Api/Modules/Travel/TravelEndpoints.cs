@@ -100,6 +100,68 @@ internal static class TravelEndpoints
             .WithSummary("Removes one attachment of an accessible Travel trip")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripExpenses, ListExpensesAsync)
+            .WithName("ListTravelExpenses")
+            .WithSummary("Returns a paginated, filtered, and sorted expense list for an accessible Travel trip")
+            .Produces<PaginatedResponse<TravelExpenseSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapPost(TravelApiRoutes.TripExpenses, CreateExpenseAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateTravelExpense")
+            .WithSummary("Creates an expense under an accessible Travel trip")
+            .Produces<TravelExpenseResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripExpenseById, GetExpenseAsync)
+            .WithName("GetTravelExpense")
+            .WithSummary("Returns one expense from an accessible Travel trip")
+            .Produces<TravelExpenseResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapPut(TravelApiRoutes.TripExpenseById, UpdateExpenseAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateTravelExpense")
+            .WithSummary("Updates one expense under an accessible Travel trip")
+            .Produces<TravelExpenseResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapDelete(TravelApiRoutes.TripExpenseById, DeleteExpenseAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteTravelExpense")
+            .WithSummary("Deletes one expense and its attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripExpenseAttachments, ListExpenseAttachmentsAsync)
+            .WithName("ListTravelExpenseAttachments")
+            .WithSummary("Lists the attachments of an accessible Travel expense")
+            .Produces<IReadOnlyList<TravelAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapPost(TravelApiRoutes.TripExpenseAttachments, UploadExpenseAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadTravelExpenseAttachment")
+            .WithSummary("Uploads one attachment for an accessible Travel expense")
+            .Produces<TravelAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapGet(TravelApiRoutes.TripExpenseAttachmentById, DownloadExpenseAttachmentAsync)
+            .WithName("DownloadTravelExpenseAttachment")
+            .WithSummary("Downloads one attachment of an accessible Travel expense")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        trips.MapDelete(TravelApiRoutes.TripExpenseAttachmentById, DeleteExpenseAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteTravelExpenseAttachment")
+            .WithSummary("Removes one attachment of an accessible Travel expense")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapTripTypeEndpoints(RouteGroupBuilder group)
@@ -385,6 +447,280 @@ internal static class TravelEndpoints
         var removed = await attachments.DeleteAsync(
             new(attachmentId),
             TravelAttachments.TripOwner(tripId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw TravelTripProblem.AttachmentNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListExpensesAsync(
+        int tripId,
+        [AsParameters] TravelExpenseListQuery query,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListExpensesAsync(
+            tripId,
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        if (result is null)
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetExpenseAsync(
+        int tripId,
+        int expenseId,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var expense = await read.GetExpenseAsync(tripId, expenseId, userId, cancellationToken);
+        if (expense is null)
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        return TypedResults.Ok(expense);
+    }
+
+    private static async Task<IResult> CreateExpenseAsync(
+        int tripId,
+        CreateTravelExpenseRequest request,
+        TravelExpenseWriteService write,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int? expenseId;
+        try
+        {
+            expenseId = await write.CreateAsync(tripId, request, userId, cancellationToken);
+        }
+        catch (TravelValidationException exception)
+        {
+            throw TravelExpenseProblem.From(exception);
+        }
+
+        if (expenseId is null)
+        {
+            throw TravelTripProblem.NotFound();
+        }
+
+        var created = await read.GetExpenseAsync(tripId, expenseId.Value, userId, cancellationToken);
+        return TypedResults.Created($"/api/travel/trips/{tripId}/expenses/{expenseId.Value}", created);
+    }
+
+    private static async Task<IResult> UpdateExpenseAsync(
+        int tripId,
+        int expenseId,
+        UpdateTravelExpenseRequest request,
+        TravelExpenseWriteService write,
+        TravelReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(tripId, expenseId, request, userId, cancellationToken);
+        }
+        catch (TravelValidationException exception)
+        {
+            throw TravelExpenseProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        var expense = await read.GetExpenseAsync(tripId, expenseId, userId, cancellationToken);
+        return TypedResults.Ok(expense);
+    }
+
+    private static async Task<IResult> DeleteExpenseAsync(
+        int tripId,
+        int expenseId,
+        TravelExpenseWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(tripId, expenseId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListExpenseAttachmentsAsync(
+        int tripId,
+        int expenseId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ExpenseAccessibleAsync(tripId, expenseId, userId, cancellationToken))
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(TravelAttachments.ExpenseOwner(expenseId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadExpenseAttachmentAsync(
+        int tripId,
+        int expenseId,
+        HttpRequest request,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ExpenseAccessibleAsync(tripId, expenseId, userId, cancellationToken))
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw TravelTripProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw TravelTripProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(TravelAttachments.ExpenseOwner(expenseId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw TravelTripProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/travel/trips/{tripId}/expenses/{expenseId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadExpenseAttachmentAsync(
+        int tripId,
+        int expenseId,
+        int attachmentId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ExpenseAccessibleAsync(tripId, expenseId, userId, cancellationToken))
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            TravelAttachments.ExpenseOwner(expenseId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw TravelTripProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteExpenseAttachmentAsync(
+        int tripId,
+        int expenseId,
+        int attachmentId,
+        TravelReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ExpenseAccessibleAsync(tripId, expenseId, userId, cancellationToken))
+        {
+            throw TravelExpenseProblem.NotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            TravelAttachments.ExpenseOwner(expenseId),
             cancellationToken);
         if (!removed)
         {

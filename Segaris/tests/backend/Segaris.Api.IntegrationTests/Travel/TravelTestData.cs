@@ -35,6 +35,36 @@ internal static class TravelTestData
             .SingleAsync();
     }
 
+    public static async Task<int> ExpenseCategoryIdAsync(IServiceProvider services, string name = "Other")
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<TravelExpenseCategory>()
+            .Where(category => category.Name == name)
+            .Select(category => category.Id)
+            .SingleAsync();
+    }
+
+    public static async Task<int> SupplierIdAsync(IServiceProvider services, string name = "Amazon")
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == name)
+            .Select(supplier => supplier.Id)
+            .SingleAsync();
+    }
+
+    public static async Task<int> CostCenterIdAsync(IServiceProvider services, string name = "Household")
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<SegarisCostCenter>()
+            .Where(costCenter => costCenter.Name == name)
+            .Select(costCenter => costCenter.Id)
+            .SingleAsync();
+    }
+
     public static async Task<int> SeedTripAsync(
         IServiceProvider services,
         int creatorId,

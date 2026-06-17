@@ -181,6 +181,121 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
             .Where(TravelTripPolicies.AccessibleTo(userId))
             .AnyAsync(trip => trip.Id == tripId, cancellationToken);
 
+    public async Task<bool> ExpenseAccessibleAsync(
+        int tripId,
+        int expenseId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        await database.Set<TravelExpense>()
+            .AsNoTracking()
+            .Where(expense => expense.Id == expenseId && expense.TripId == tripId)
+            .Where(expense => database.Set<TravelTrip>()
+                .Where(TravelTripPolicies.AccessibleTo(userId))
+                .Any(trip => trip.Id == expense.TripId))
+            .AnyAsync(cancellationToken);
+
+    public async Task<PaginatedResponse<TravelExpenseSummaryResponse>?> ListExpensesAsync(
+        int tripId,
+        TravelExpenseFilter filter,
+        PaginationRequest pagination,
+        SortRequest sort,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        if (!await TripAccessibleAsync(tripId, userId, cancellationToken))
+        {
+            return null;
+        }
+
+        var expenses = ApplyExpenseFilters(
+            database.Set<TravelExpense>().AsNoTracking().Where(expense => expense.TripId == tripId),
+            filter);
+
+        var totalCount = await expenses.CountAsync(cancellationToken);
+        var page = await ProjectExpenseSummaries(ApplyExpenseSort(expenses, sort))
+            .Skip(pagination.Offset)
+            .Take(pagination.PageSize)
+            .ToArrayAsync(cancellationToken);
+
+        return PaginatedResponse<TravelExpenseSummaryResponse>.Create(page, pagination, totalCount);
+    }
+
+    public async Task<TravelExpenseResponse?> GetExpenseAsync(
+        int tripId,
+        int expenseId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var row = await database.Set<TravelExpense>()
+            .AsNoTracking()
+            .Where(expense => expense.Id == expenseId && expense.TripId == tripId)
+            .Where(expense => database.Set<TravelTrip>()
+                .Where(TravelTripPolicies.AccessibleTo(userId))
+                .Any(trip => trip.Id == expense.TripId))
+            .Select(expense => new ExpenseDetailRow(
+                expense.Id,
+                expense.ExpenseCategoryId,
+                database.Set<TravelExpenseCategory>()
+                    .Where(category => category.Id == expense.ExpenseCategoryId).Select(category => category.Name).First(),
+                expense.Description,
+                expense.Date,
+                expense.Amount,
+                expense.CurrencyId,
+                database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == expense.CurrencyId).Select(currency => currency.Code).First(),
+                expense.SupplierId,
+                expense.SupplierId == null
+                    ? null
+                    : database.Set<SegarisSupplier>()
+                        .Where(supplier => supplier.Id == expense.SupplierId).Select(supplier => supplier.Name).FirstOrDefault(),
+                expense.CostCenterId,
+                expense.CostCenterId == null
+                    ? null
+                    : database.Set<SegarisCostCenter>()
+                        .Where(costCenter => costCenter.Id == expense.CostCenterId).Select(costCenter => costCenter.Name).FirstOrDefault(),
+                expense.Notes,
+                expense.CreatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == expense.CreatedBy).Select(user => user.DisplayName).First(),
+                expense.CreatedAt,
+                expense.UpdatedBy,
+                database.Set<SegarisUser>()
+                    .Where(user => user.Id == expense.UpdatedBy).Select(user => user.DisplayName).FirstOrDefault(),
+                expense.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var attachmentResponses = (await attachments.ListByOwnerAsync(TravelAttachments.ExpenseOwner(expenseId), cancellationToken))
+            .Select(ToAttachment)
+            .ToArray();
+
+        return new TravelExpenseResponse(
+            row.Id,
+            row.ExpenseCategoryId,
+            row.ExpenseCategoryName,
+            row.Description,
+            row.Date,
+            row.Amount,
+            row.CurrencyId,
+            row.CurrencyCode,
+            row.SupplierId,
+            row.SupplierName,
+            row.CostCenterId,
+            row.CostCenterName,
+            row.Notes,
+            attachmentResponses,
+            row.CreatedById,
+            row.CreatedByName,
+            row.CreatedAt,
+            row.UpdatedById,
+            row.UpdatedByName,
+            row.UpdatedAt);
+    }
+
     private IQueryable<TravelTrip> ApplyFilters(IQueryable<TravelTrip> trips, TravelTripFilter filter)
     {
         if (filter.Search is { } search)
@@ -213,6 +328,41 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
         }
 
         return trips;
+    }
+
+    private IQueryable<TravelExpense> ApplyExpenseFilters(
+        IQueryable<TravelExpense> expenses,
+        TravelExpenseFilter filter)
+    {
+        if (filter.Search is { } search)
+        {
+            var pattern = $"%{Escape(search.ToLowerInvariant())}%";
+            expenses = expenses.Where(expense =>
+                EF.Functions.Like(expense.Description.ToLower(), pattern, "\\")
+                || (expense.Notes != null && EF.Functions.Like(expense.Notes.ToLower(), pattern, "\\")));
+        }
+
+        if (filter.CategoryId is { } categoryId)
+        {
+            expenses = expenses.Where(expense => expense.ExpenseCategoryId == categoryId);
+        }
+
+        if (filter.CurrencyId is { } currencyId)
+        {
+            expenses = expenses.Where(expense => expense.CurrencyId == currencyId);
+        }
+
+        if (filter.SupplierId is { } supplierId)
+        {
+            expenses = expenses.Where(expense => expense.SupplierId == supplierId);
+        }
+
+        if (filter.CostCenterId is { } costCenterId)
+        {
+            expenses = expenses.Where(expense => expense.CostCenterId == costCenterId);
+        }
+
+        return expenses;
     }
 
     private IQueryable<TravelTrip> ApplySort(IQueryable<TravelTrip> trips, SortRequest sort)
@@ -255,6 +405,76 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
         return ascending ? ordered.ThenBy(trip => trip.Id) : ordered.ThenByDescending(trip => trip.Id);
     }
 
+    private IQueryable<TravelExpense> ApplyExpenseSort(IQueryable<TravelExpense> expenses, SortRequest sort)
+    {
+        var ascending = sort.Direction == SortDirection.Ascending;
+
+        IOrderedQueryable<TravelExpense> ordered = sort.Field switch
+        {
+            TravelExpenseQuery.SortFields.Category => ascending
+                ? expenses.OrderBy(expense => database.Set<TravelExpenseCategory>()
+                    .Where(category => category.Id == expense.ExpenseCategoryId).Select(category => category.Name).First())
+                : expenses.OrderByDescending(expense => database.Set<TravelExpenseCategory>()
+                    .Where(category => category.Id == expense.ExpenseCategoryId).Select(category => category.Name).First()),
+            TravelExpenseQuery.SortFields.Description => ascending
+                ? expenses.OrderBy(expense => expense.Description)
+                : expenses.OrderByDescending(expense => expense.Description),
+            TravelExpenseQuery.SortFields.Amount => ascending
+                ? expenses.OrderBy(expense => expense.Amount)
+                : expenses.OrderByDescending(expense => expense.Amount),
+            TravelExpenseQuery.SortFields.Currency => ascending
+                ? expenses.OrderBy(expense => database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == expense.CurrencyId).Select(currency => currency.Code).First())
+                : expenses.OrderByDescending(expense => database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == expense.CurrencyId).Select(currency => currency.Code).First()),
+            TravelExpenseQuery.SortFields.Supplier => ascending
+                ? expenses.OrderBy(expense => expense.SupplierId == null)
+                    .ThenBy(expense => database.Set<SegarisSupplier>()
+                        .Where(supplier => supplier.Id == expense.SupplierId).Select(supplier => supplier.Name).FirstOrDefault())
+                : expenses.OrderBy(expense => expense.SupplierId == null)
+                    .ThenByDescending(expense => database.Set<SegarisSupplier>()
+                        .Where(supplier => supplier.Id == expense.SupplierId).Select(supplier => supplier.Name).FirstOrDefault()),
+            TravelExpenseQuery.SortFields.CostCenter => ascending
+                ? expenses.OrderBy(expense => expense.CostCenterId == null)
+                    .ThenBy(expense => database.Set<SegarisCostCenter>()
+                        .Where(costCenter => costCenter.Id == expense.CostCenterId).Select(costCenter => costCenter.Name).FirstOrDefault())
+                : expenses.OrderBy(expense => expense.CostCenterId == null)
+                    .ThenByDescending(expense => database.Set<SegarisCostCenter>()
+                        .Where(costCenter => costCenter.Id == expense.CostCenterId).Select(costCenter => costCenter.Name).FirstOrDefault()),
+            TravelExpenseQuery.SortFields.TieBreaker => ascending
+                ? expenses.OrderBy(expense => expense.Id)
+                : expenses.OrderByDescending(expense => expense.Id),
+            _ => ascending
+                ? expenses.OrderBy(expense => expense.Date)
+                : expenses.OrderByDescending(expense => expense.Date),
+        };
+
+        return ascending ? ordered.ThenBy(expense => expense.Id) : ordered.ThenByDescending(expense => expense.Id);
+    }
+
+    private IQueryable<TravelExpenseSummaryResponse> ProjectExpenseSummaries(IQueryable<TravelExpense> expenses) =>
+        expenses.Select(expense => new TravelExpenseSummaryResponse(
+            expense.Id,
+            expense.ExpenseCategoryId,
+            database.Set<TravelExpenseCategory>()
+                .Where(category => category.Id == expense.ExpenseCategoryId).Select(category => category.Name).First(),
+            expense.Description,
+            expense.Date,
+            expense.Amount,
+            expense.CurrencyId,
+            database.Set<SegarisCurrency>()
+                .Where(currency => currency.Id == expense.CurrencyId).Select(currency => currency.Code).First(),
+            expense.SupplierId,
+            expense.SupplierId == null
+                ? null
+                : database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == expense.SupplierId).Select(supplier => supplier.Name).FirstOrDefault(),
+            expense.CostCenterId,
+            expense.CostCenterId == null
+                ? null
+                : database.Set<SegarisCostCenter>()
+                    .Where(costCenter => costCenter.Id == expense.CostCenterId).Select(costCenter => costCenter.Name).FirstOrDefault()));
+
     private static string Escape(string value) => value
         .Replace("\\", "\\\\", StringComparison.Ordinal)
         .Replace("%", "\\%", StringComparison.Ordinal)
@@ -288,4 +508,25 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
         DateTimeOffset? UpdatedAt);
 
     private sealed record CurrencyTotalRow(int CurrencyId, decimal Amount);
+
+    private sealed record ExpenseDetailRow(
+        int Id,
+        int ExpenseCategoryId,
+        string ExpenseCategoryName,
+        string Description,
+        DateOnly Date,
+        decimal Amount,
+        int CurrencyId,
+        string CurrencyCode,
+        int? SupplierId,
+        string? SupplierName,
+        int? CostCenterId,
+        string? CostCenterName,
+        string? Notes,
+        int CreatedById,
+        string CreatedByName,
+        DateTimeOffset CreatedAt,
+        int? UpdatedById,
+        string? UpdatedByName,
+        DateTimeOffset? UpdatedAt);
 }
