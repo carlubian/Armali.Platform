@@ -113,8 +113,7 @@ internal static class ClothesEndpoints
         categories.MapPost(ClothesApiRoutes.CategoryMove, MoveCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveClothingCategory").WithSummary("Moves a Clothes category one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
         categories.MapGet(ClothesApiRoutes.CategoryDeletionImpact, CategoryImpactAsync).WithName("GetClothingCategoryDeletionImpact").WithSummary("Returns privacy-neutral category deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         categories.MapDelete(ClothesApiRoutes.CategoryById, DeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteClothingCategory").WithSummary("Deletes an unreferenced Clothes category").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
-        // Reference-migrating deletion is delivered with the Configuration reference handlers in a later wave.
-        categories.MapPost(ClothesApiRoutes.CategoryReplaceAndDelete, NotImplemented).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteClothingCategory");
+        categories.MapPost(ClothesApiRoutes.CategoryReplaceAndDelete, ReplaceAndDeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteClothingCategory").WithSummary("Migrates garment references and deletes a Clothes category atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapColorEndpoints(RouteGroupBuilder group)
@@ -130,8 +129,7 @@ internal static class ClothesEndpoints
         colors.MapPost(ClothesApiRoutes.ColorMove, MoveColorAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveClothingColor").WithSummary("Moves a Clothes colour one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
         colors.MapGet(ClothesApiRoutes.ColorDeletionImpact, ColorImpactAsync).WithName("GetClothingColorDeletionImpact").WithSummary("Returns privacy-neutral colour deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         colors.MapDelete(ClothesApiRoutes.ColorById, DeleteColorAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteClothingColor").WithSummary("Deletes an unreferenced Clothes colour").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
-        // Reference-migrating deletion is delivered with the Configuration reference handlers in a later wave.
-        colors.MapPost(ClothesApiRoutes.ColorReplaceAndDelete, NotImplemented).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteClothingColor");
+        colors.MapPost(ClothesApiRoutes.ColorReplaceAndDelete, ReplaceAndDeleteColorAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteClothingColor").WithSummary("Migrates or clears garment references and deletes a Clothes colour atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static async Task<IResult> ListCategoriesAsync(ClothesReadService read, CancellationToken cancellationToken) =>
@@ -453,6 +451,12 @@ internal static class ClothesEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<IResult> ReplaceAndDeleteCategoryAsync(int categoryId, CatalogReplacementRequest request, ClothingCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(categoryId, request, CategoryActor(user), token);
+        return TypedResults.NoContent();
+    }
+
     private static async Task<IResult> CreateColorAsync(CatalogItemRequest request, ClothingColorManagementService service, ICurrentUser user, CancellationToken token)
     {
         var value = await service.CreateAsync(request, ColorActor(user), token);
@@ -477,6 +481,9 @@ internal static class ClothesEndpoints
         return TypedResults.NoContent();
     }
 
-    private static IResult NotImplemented() =>
-        Results.StatusCode(StatusCodes.Status501NotImplemented);
+    private static async Task<IResult> ReplaceAndDeleteColorAsync(int colorId, CatalogReplacementRequest request, ClothingColorManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(colorId, request, ColorActor(user), token);
+        return TypedResults.NoContent();
+    }
 }

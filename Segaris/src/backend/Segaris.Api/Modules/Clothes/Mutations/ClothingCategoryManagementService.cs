@@ -11,10 +11,9 @@ namespace Segaris.Api.Modules.Clothes.Mutations;
 /// <summary>
 /// Administrative lifecycle for the Clothes-owned category catalog. It mirrors the
 /// established module-owned catalog conventions (creation at the catalog tail, rename,
-/// reorder, privacy-neutral deletion impact, and final-row protection) while keeping
-/// ownership inside Clothes. A category is required on every garment, so the
-/// reference-migrating replace-and-delete path is delivered with the Configuration
-/// reference handlers in a later wave.
+/// reorder, privacy-neutral deletion impact, final-row protection, and atomic
+/// replace-and-delete) while keeping ownership inside Clothes. A category is required
+/// on every garment, so a referenced category may only be replaced.
 /// </summary>
 internal sealed class ClothingCategoryManagementService(SegarisDbContext database, IClock clock)
 {
@@ -76,6 +75,57 @@ internal sealed class ClothingCategoryManagementService(SegarisDbContext databas
         for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
         try { await database.SaveChangesAsync(token); await transaction.CommitAsync(token); }
         catch (DbUpdateException) { throw ClothesCategoryProblem.Referenced(); }
+    }
+
+    public async Task ReplaceAndDeleteAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken token)
+    {
+        if (request.ClearReferences
+            || request.ExchangeRate is not null
+            || request.ReplacementId is not { } replacementId
+            || replacementId <= 0
+            || replacementId == id)
+        {
+            throw ClothesCategoryProblem.InvalidReplacement();
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(token);
+        var source = await FindAsync(id, token);
+        if (!await database.Set<ClothingCategory>().AnyAsync(value => value.Id == replacementId, token))
+        {
+            throw ClothesCategoryProblem.InvalidReplacement();
+        }
+
+        if (await database.Set<ClothingCategory>().CountAsync(token) <= 1)
+        {
+            throw ClothesCategoryProblem.RequiredNotEmpty();
+        }
+
+        try
+        {
+            var garments = await database.Set<ClothesGarment>()
+                .Where(garment => garment.CategoryId == id)
+                .ToListAsync(token);
+            var occurredAt = clock.UtcNow;
+            foreach (var garment in garments)
+            {
+                garment.ReplaceCategory(replacementId, actor, occurredAt);
+            }
+
+            database.Remove(source);
+            var remaining = await database.Set<ClothingCategory>()
+                .Where(value => value.Id != id)
+                .OrderBy(value => value.SortOrder)
+                .ThenBy(value => value.Id)
+                .ToListAsync(token);
+            for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
+
+            await database.SaveChangesAsync(token);
+            await transaction.CommitAsync(token);
+        }
+        catch (DbUpdateException)
+        {
+            throw ClothesCategoryProblem.MigrationConflict();
+        }
     }
 
     private async Task<ClothingCategory> FindAsync(int id, CancellationToken token, bool tracked = true)

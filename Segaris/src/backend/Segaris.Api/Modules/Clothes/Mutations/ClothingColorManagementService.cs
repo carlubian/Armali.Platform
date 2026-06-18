@@ -12,9 +12,8 @@ namespace Segaris.Api.Modules.Clothes.Mutations;
 /// Administrative lifecycle for the Clothes-owned colour catalog. It follows the same
 /// module-owned conventions as the category catalog and additionally requires and
 /// validates a canonical <c>#RRGGBB</c> colour value on every row. Colour is optional
-/// and multi-valued on garments, so deletion impact reports a clearing path; the
-/// reference-migrating replace-or-clear path is delivered with the Configuration
-/// reference handlers in a later wave.
+/// and multi-valued on garments, so deletion impact reports a clearing path and
+/// replace-and-delete can either replace or clear garment associations atomically.
 /// </summary>
 internal sealed class ClothingColorManagementService(SegarisDbContext database, IClock clock)
 {
@@ -79,6 +78,66 @@ internal sealed class ClothingColorManagementService(SegarisDbContext database, 
         for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
         try { await database.SaveChangesAsync(token); await transaction.CommitAsync(token); }
         catch (DbUpdateException) { throw ClothesColorProblem.Referenced(); }
+    }
+
+    public async Task ReplaceAndDeleteAsync(int id, CatalogReplacementRequest request, UserId actor, CancellationToken token)
+    {
+        var hasReplacement = request.ReplacementId is not null;
+        if (request.ExchangeRate is not null
+            || hasReplacement == request.ClearReferences
+            || request.ReplacementId == id
+            || request.ReplacementId is <= 0)
+        {
+            throw ClothesColorProblem.InvalidReplacement();
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(token);
+        var source = await FindAsync(id, token);
+        if (request.ReplacementId is { } replacementId
+            && !await database.Set<ClothingColor>().AnyAsync(value => value.Id == replacementId, token))
+        {
+            throw ClothesColorProblem.InvalidReplacement();
+        }
+
+        if (await database.Set<ClothingColor>().CountAsync(token) <= 1)
+        {
+            throw ClothesColorProblem.RequiredNotEmpty();
+        }
+
+        try
+        {
+            var garments = await database.Set<ClothesGarment>()
+                .Include(garment => garment.Colors)
+                .Where(garment => garment.Colors.Any(association => association.ColorId == id))
+                .ToListAsync(token);
+            var occurredAt = clock.UtcNow;
+            foreach (var garment in garments)
+            {
+                if (request.ClearReferences)
+                {
+                    garment.ClearColor(id, actor, occurredAt);
+                }
+                else
+                {
+                    garment.ReplaceColor(id, request.ReplacementId!.Value, actor, occurredAt);
+                }
+            }
+
+            database.Remove(source);
+            var remaining = await database.Set<ClothingColor>()
+                .Where(value => value.Id != id)
+                .OrderBy(value => value.SortOrder)
+                .ThenBy(value => value.Id)
+                .ToListAsync(token);
+            for (var position = 0; position < remaining.Count; position++) remaining[position].SortOrder = position;
+
+            await database.SaveChangesAsync(token);
+            await transaction.CommitAsync(token);
+        }
+        catch (DbUpdateException)
+        {
+            throw ClothesColorProblem.MigrationConflict();
+        }
     }
 
     private async Task<ClothingColor> FindAsync(int id, CancellationToken token, bool tracked = true)

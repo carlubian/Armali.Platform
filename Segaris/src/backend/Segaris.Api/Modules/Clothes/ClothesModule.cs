@@ -12,9 +12,8 @@ namespace Segaris.Api.Modules.Clothes;
 /// module and froze the public contracts; Wave 1 adds the persistence model, the
 /// one-time category and colour initialization, and the module-owned category and
 /// colour catalog read and administrator management endpoints surfaced through
-/// Configuration. Later waves add garment operations, attachments, Configuration
-/// reference migration, and the frontend. The module registers no launcher attention
-/// contributor.
+/// Configuration. Later waves add the frontend. The module registers no launcher
+/// attention contributor.
 /// </summary>
 internal sealed class ClothesModule : ISegarisModule
 {
