@@ -25,6 +25,7 @@ internal sealed class ClothesModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, ClothesModelContributor>();
         services.AddScoped<ClothesSeeder>();
         services.AddScoped<ClothesReadService>();
+        services.AddScoped<ClothesGarmentWriteService>();
         services.AddScoped<ClothingCategoryManagementService>();
         services.AddScoped<ClothingColorManagementService>();
     }

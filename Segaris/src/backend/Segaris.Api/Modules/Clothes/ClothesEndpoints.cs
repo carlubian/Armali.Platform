@@ -1,10 +1,12 @@
 using Segaris.Api.Modules.Clothes.Contracts;
+using Segaris.Api.Modules.Clothes.Domain;
 using Segaris.Api.Modules.Clothes.Mutations;
 using Segaris.Api.Modules.Clothes.Queries;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Clothes;
@@ -34,17 +36,35 @@ internal static class ClothesEndpoints
     private static void MapGarmentEndpoints(RouteGroupBuilder group)
     {
         var garments = group.MapGroup("/garments");
-        garments.MapGet("", NotImplemented).WithName("ListClothesGarments");
-        garments.MapPost("", NotImplemented)
+        garments.MapGet("", ListGarmentsAsync)
+            .WithName("ListClothesGarments")
+            .WithSummary("Returns a paginated, filtered, and sorted gallery of accessible Clothes garments")
+            .Produces<PaginatedResponse<ClothesGarmentSummaryResponse>>();
+        garments.MapPost("", CreateGarmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("CreateClothesGarment");
-        garments.MapGet(ClothesApiRoutes.GarmentById, NotImplemented).WithName("GetClothesGarment");
-        garments.MapPut(ClothesApiRoutes.GarmentById, NotImplemented)
+            .WithName("CreateClothesGarment")
+            .WithSummary("Creates a Clothes garment with its colour set and care values")
+            .Produces<ClothesGarmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        garments.MapGet(ClothesApiRoutes.GarmentById, GetGarmentAsync)
+            .WithName("GetClothesGarment")
+            .WithSummary("Returns the detail of an accessible Clothes garment")
+            .Produces<ClothesGarmentResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapPut(ClothesApiRoutes.GarmentById, UpdateGarmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UpdateClothesGarment");
-        garments.MapDelete(ClothesApiRoutes.GarmentById, NotImplemented)
+            .WithName("UpdateClothesGarment")
+            .WithSummary("Replaces an accessible Clothes garment and its colour set")
+            .Produces<ClothesGarmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapDelete(ClothesApiRoutes.GarmentById, DeleteGarmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteClothesGarment");
+            .WithName("DeleteClothesGarment")
+            .WithSummary("Deletes an accessible Clothes garment and its owned attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         garments.MapGet(ClothesApiRoutes.GarmentAttachments, NotImplemented).WithName("ListClothesGarmentAttachments");
         garments.MapPost(ClothesApiRoutes.GarmentAttachments, NotImplemented)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
@@ -97,6 +117,124 @@ internal static class ClothesEndpoints
 
     private static async Task<IResult> ListColorsAsync(ClothesReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListColorsAsync(cancellationToken));
+
+    private static async Task<IResult> ListGarmentsAsync(
+        [AsParameters] ClothesGarmentListQuery query,
+        ClothesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListGarmentsAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetGarmentAsync(
+        int garmentId,
+        ClothesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var garment = await read.GetGarmentAsync(garmentId, userId, cancellationToken);
+        if (garment is null)
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        return TypedResults.Ok(garment);
+    }
+
+    private static async Task<IResult> CreateGarmentAsync(
+        CreateClothesGarmentRequest request,
+        ClothesGarmentWriteService write,
+        ClothesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int garmentId;
+        try
+        {
+            garmentId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (ClothesValidationException exception)
+        {
+            throw ClothesGarmentProblem.From(exception);
+        }
+
+        var created = await read.GetGarmentAsync(garmentId, userId, cancellationToken);
+        return TypedResults.Created($"/api/clothes/garments/{garmentId}", created);
+    }
+
+    private static async Task<IResult> UpdateGarmentAsync(
+        int garmentId,
+        UpdateClothesGarmentRequest request,
+        ClothesGarmentWriteService write,
+        ClothesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(garmentId, request, userId, cancellationToken);
+        }
+        catch (ClothesValidationException exception)
+        {
+            throw ClothesGarmentProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        var garment = await read.GetGarmentAsync(garmentId, userId, cancellationToken);
+        return TypedResults.Ok(garment);
+    }
+
+    private static async Task<IResult> DeleteGarmentAsync(
+        int garmentId,
+        ClothesGarmentWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(garmentId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static UserId CategoryActor(ICurrentUser currentUser) => currentUser.UserId ?? throw ClothesCategoryProblem.NotFound();
 
