@@ -1,5 +1,10 @@
 import { capexApi, capexCategoriesManagementApi } from '@/app/api/capex'
 import type { CatalogManagementClient } from '@/app/api/catalogs'
+import {
+  clothesApi,
+  clothingCategoriesManagementApi,
+  clothingColorsManagementApi,
+} from '@/app/api/clothes'
 import { configurationApi, configurationManagementApi } from '@/app/api/configuration'
 import {
   inventoryApi,
@@ -13,6 +18,7 @@ import {
   travelTripTypesManagementApi,
 } from '@/app/api/travel'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
+import { clothesKeys } from '@/modules/clothes/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
 import { opexKeys } from '@/modules/opex/contracts'
 import { travelKeys } from '@/modules/travel/contracts'
@@ -28,9 +34,17 @@ export type CatalogKey =
   | 'inventoryLocations'
   | 'travelTripTypes'
   | 'travelExpenseCategories'
+  | 'clothingCategories'
+  | 'clothingColors'
 
 /** Flat top-level sections of the Configuration experience. */
-export type CatalogSectionId = 'global' | 'capex' | 'opex' | 'inventory' | 'travel'
+export type CatalogSectionId =
+  | 'global'
+  | 'capex'
+  | 'opex'
+  | 'inventory'
+  | 'travel'
+  | 'clothes'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -207,6 +221,33 @@ export const travelExpenseCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(travelExpenseCategoriesManagementApi),
 }
 
+export const clothingCategoriesDescriptor: CatalogDescriptor = {
+  key: 'clothingCategories',
+  section: 'clothes',
+  urlSlug: 'categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: clothesKeys.categories(),
+  dependentKeys: [clothesKeys.garments()],
+  read: (signal) => clothesApi.categories(signal),
+  management: asDescriptorClient(clothingCategoriesManagementApi),
+}
+
+export const clothingColorsDescriptor: CatalogDescriptor = {
+  key: 'clothingColors',
+  section: 'clothes',
+  urlSlug: 'colors',
+  hasCode: false,
+  hasColorValue: true,
+  canClear: true,
+  isCurrency: false,
+  queryKey: clothesKeys.colors(),
+  dependentKeys: [clothesKeys.garments()],
+  read: (signal) => clothesApi.colors(signal),
+  management: asDescriptorClient(clothingColorsManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -226,12 +267,19 @@ export const travelCatalogs: readonly CatalogDescriptor[] = [
   travelExpenseCategoriesDescriptor,
 ]
 
+/** Clothes-section catalogs, in tab order. */
+export const clothesCatalogs: readonly CatalogDescriptor[] = [
+  clothingCategoriesDescriptor,
+  clothingColorsDescriptor,
+]
+
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
   opexCategoriesDescriptor,
   ...inventoryCatalogs,
   ...travelCatalogs,
+  ...clothesCatalogs,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -259,6 +307,8 @@ export function sectionCatalogs(
       return inventoryCatalogs
     case 'travel':
       return travelCatalogs
+    case 'clothes':
+      return clothesCatalogs
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

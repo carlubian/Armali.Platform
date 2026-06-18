@@ -75,6 +75,11 @@ export function CatalogTable({
                 {t('table.columns.code')}
               </th>
             )}
+            {descriptor.hasColorValue && (
+              <th scope="col" className="seg-catalog__col-color">
+                {t('table.columns.color')}
+              </th>
+            )}
             <th scope="col" className="seg-catalog__col-actions">
               {t('table.columns.actions')}
             </th>
@@ -117,6 +122,20 @@ export function CatalogTable({
                 <td className="seg-catalog__name">{row.name}</td>
                 {descriptor.hasCode && (
                   <td className="seg-catalog__code">{row.code}</td>
+                )}
+                {descriptor.hasColorValue && (
+                  <td className="seg-catalog__color">
+                    <span className="seg-catalog__swatch">
+                      <span
+                        className="seg-catalog__swatch-chip"
+                        style={{ backgroundColor: row.colorValue }}
+                        aria-hidden="true"
+                      />
+                      <span className="seg-catalog__swatch-value">
+                        {row.colorValue}
+                      </span>
+                    </span>
+                  </td>
                 )}
                 <td className="seg-catalog__col-actions">
                   <div className="seg-catalog__row-actions">

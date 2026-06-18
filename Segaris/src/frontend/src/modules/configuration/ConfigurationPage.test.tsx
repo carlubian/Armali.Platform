@@ -10,6 +10,7 @@ interface Row {
   id: number
   name: string
   code?: string
+  colorValue?: string
   sortOrder: number
 }
 
@@ -54,6 +55,8 @@ interface BackendOptions {
   opexCategories?: Row[]
   travelTripTypes?: Row[]
   travelExpenseCategories?: Row[]
+  clothingCategories?: Row[]
+  clothingColors?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
@@ -68,6 +71,8 @@ const catalogPaths: Record<string, string> = {
   'opex/categories': 'opexCategories',
   'travel/trip-types': 'travelTripTypes',
   'travel/expense-categories': 'travelExpenseCategories',
+  'clothes/categories': 'clothingCategories',
+  'clothes/colors': 'clothingColors',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -91,6 +96,13 @@ function mockBackend(options: BackendOptions = {}) {
     ],
     travelExpenseCategories: options.travelExpenseCategories ?? [
       { id: 1, name: 'Transport', sortOrder: 1 },
+    ],
+    clothingCategories: options.clothingCategories ?? [
+      { id: 1, name: 'Tops', sortOrder: 1 },
+    ],
+    clothingColors: options.clothingColors ?? [
+      { id: 1, name: 'Black', colorValue: '#111111', sortOrder: 1 },
+      { id: 2, name: 'White', colorValue: '#FAFAFA', sortOrder: 2 },
     ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
@@ -117,7 +129,7 @@ function mockBackend(options: BackendOptions = {}) {
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -129,11 +141,12 @@ function mockBackend(options: BackendOptions = {}) {
         if (id == null && method === 'POST') {
           calls.push({ method, url, body })
           if (options.createResponse) return options.createResponse()
-          const input = body as { name: string; code?: string }
+          const input = body as { name: string; code?: string; colorValue?: string }
           const created: Row = {
             id: nextId++,
             name: input.name,
             code: input.code,
+            colorValue: input.colorValue,
             sortOrder: rows.length + 1,
           }
           rows.push(created)
@@ -155,11 +168,12 @@ function mockBackend(options: BackendOptions = {}) {
         }
         if (id != null && suffix == null && method === 'PUT') {
           calls.push({ method, url, body })
-          const input = body as { name: string; code?: string }
+          const input = body as { name: string; code?: string; colorValue?: string }
           const target = rows.find((row) => row.id === id)
           if (target != null) {
             target.name = input.name
             if (input.code != null) target.code = input.code
+            if (input.colorValue != null) target.colorValue = input.colorValue
           }
           return json(target ?? {})
         }
@@ -275,6 +289,24 @@ describe('Configuration navigation and states', () => {
     expect(await screen.findByText('Transport')).toBeInTheDocument()
   })
 
+  it('shows the Clothes catalog tabs and the colour swatch column', async () => {
+    mockBackend()
+    renderAt('/configuration/clothes?catalog=categories')
+    expect(
+      await screen.findByRole('heading', { name: 'Clothing categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Tops')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Colours' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Clothing colours' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Black')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Colour' })).toBeInTheDocument()
+    expect(screen.getByText('#111111')).toBeInTheDocument()
+  })
+
   it('renders the empty state for a catalog with no rows', async () => {
     mockBackend({ suppliers: [] })
     renderAt(suppliersHome)
@@ -327,6 +359,42 @@ describe('Configuration creation and editing', () => {
 
     expect(
       await within(dialog).findByText('Use exactly three letters, for example EUR.'),
+    ).toBeInTheDocument()
+  })
+
+  it('creates a clothing colour with its hex colour value', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/clothes?catalog=colors')
+    await screen.findByText('Black')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New colour' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New colour' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Navy')
+    const hex = within(dialog).getByLabelText('Colour value')
+    await userEvent.clear(hex)
+    await userEvent.type(hex, '#1A2B3C')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    const created = calls.find((call) => call.method === 'POST')
+    expect(created?.body).toEqual({ name: 'Navy', colorValue: '#1A2B3C' })
+  })
+
+  it('validates the hex colour value on the client', async () => {
+    mockBackend()
+    renderAt('/configuration/clothes?catalog=colors')
+    await screen.findByText('Black')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New colour' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New colour' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Broken')
+    const hex = within(dialog).getByLabelText('Colour value')
+    await userEvent.clear(hex)
+    await userEvent.type(hex, 'not-a-colour')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(
+      await within(dialog).findByText('Enter a hex colour value, for example #1A2B3C.'),
     ).toBeInTheDocument()
   })
 
@@ -457,6 +525,34 @@ describe('Configuration deletion', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete Amazon' }))
     const dialog = await screen.findByRole('dialog', { name: 'Remove Amazon' })
+    await userEvent.click(
+      within(dialog).getByRole('radio', { name: /Leave the value empty/ }),
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
+      ).toEqual({ replacementId: null, clearReferences: true, exchangeRate: null }),
+    )
+  })
+
+  it('clears a referenced clothing colour through the optional clear path', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'clothingColors:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: true,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/clothes?catalog=colors')
+    await screen.findByText('Black')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Black' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Black' })
     await userEvent.click(
       within(dialog).getByRole('radio', { name: /Leave the value empty/ }),
     )
