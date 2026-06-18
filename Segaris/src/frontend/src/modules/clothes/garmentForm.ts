@@ -47,11 +47,7 @@ export const washingCareValues: ClothesWashingCare[] = [
   'DoNotWash',
 ]
 
-export const dryingCareValues: ClothesDryingCare[] = [
-  'Any',
-  'Delicate',
-  'VeryDelicate',
-]
+export const dryingCareValues: ClothesDryingCare[] = ['Any', 'Delicate', 'VeryDelicate']
 
 export const ironingCareValues: ClothesIroningCare[] = [
   'Any',
@@ -60,10 +56,7 @@ export const ironingCareValues: ClothesIroningCare[] = [
   'DoNotIron',
 ]
 
-export const dryCleaningCareValues: ClothesDryCleaningCare[] = [
-  'Any',
-  'DoNotDryClean',
-]
+export const dryCleaningCareValues: ClothesDryCleaningCare[] = ['Any', 'DoNotDryClean']
 
 export function createGarmentSchema(messages: SchemaMessages) {
   return z.object({
@@ -76,21 +69,20 @@ export function createGarmentSchema(messages: SchemaMessages) {
     status: z.enum(['Active', 'Unavailable', 'Deprecated']),
     size: z.string().max(50, messages.sizeTooLong),
     colorIds: z.array(z.number().int().positive()),
-    washingCare: z
-      .enum([
-        '',
-        'Any',
-        'Wash30',
-        'Wash30Delicate',
-        'Wash40',
-        'Wash40Delicate',
-        'Wash50',
-        'Wash50Delicate',
-        'Wash60',
-        'Wash60Delicate',
-        'HandWash',
-        'DoNotWash',
-      ]),
+    washingCare: z.enum([
+      '',
+      'Any',
+      'Wash30',
+      'Wash30Delicate',
+      'Wash40',
+      'Wash40Delicate',
+      'Wash50',
+      'Wash50Delicate',
+      'Wash60',
+      'Wash60Delicate',
+      'HandWash',
+      'DoNotWash',
+    ]),
     dryingCare: z.enum(['', 'Any', 'Delicate', 'VeryDelicate']),
     ironingCare: z.enum(['', 'Any', 'Low', 'Medium', 'DoNotIron']),
     dryCleaningCare: z.enum(['', 'Any', 'DoNotDryClean']),

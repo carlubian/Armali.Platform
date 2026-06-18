@@ -19,11 +19,7 @@ export type ClothesWashingCare =
 export type ClothesDryingCare = 'Any' | 'Delicate' | 'VeryDelicate'
 export type ClothesIroningCare = 'Any' | 'Low' | 'Medium' | 'DoNotIron'
 export type ClothesDryCleaningCare = 'Any' | 'DoNotDryClean'
-export type ClothesGarmentSortField =
-  | 'name'
-  | 'category'
-  | 'status'
-  | 'visibility'
+export type ClothesGarmentSortField = 'name' | 'category' | 'status' | 'visibility'
 export type ClothesSortDirection = 'asc' | 'desc'
 
 export const clothesPageSizes = [10, 25, 50, 100] as const
@@ -176,10 +172,9 @@ export const clothesApi = {
       signal,
     }),
   listGarmentAttachments: (garmentId: number, signal?: AbortSignal) =>
-    apiRequest<ClothesAttachment[]>(
-      `/api/clothes/garments/${garmentId}/attachments`,
-      { signal },
-    ),
+    apiRequest<ClothesAttachment[]>(`/api/clothes/garments/${garmentId}/attachments`, {
+      signal,
+    }),
   uploadGarmentAttachment: (garmentId: number, file: File, signal?: AbortSignal) => {
     const body = new FormData()
     body.append('file', file)
@@ -195,10 +190,10 @@ export const clothesApi = {
     attachmentId: string,
     signal?: AbortSignal,
   ) =>
-    apiRequest<void>(
-      `/api/clothes/garments/${garmentId}/attachments/${attachmentId}`,
-      { method: 'DELETE', signal },
-    ),
+    apiRequest<void>(`/api/clothes/garments/${garmentId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      signal,
+    }),
   setPrimaryGarmentAttachment: (
     garmentId: number,
     attachmentId: string,
@@ -220,6 +215,4 @@ export const clothingCategoriesManagementApi: CatalogManagementClient<
 export const clothingColorsManagementApi: CatalogManagementClient<
   ClothingColor,
   ClothingColorRequest
-> = catalogManagementClient<ClothingColor, ClothingColorRequest>(
-  '/api/clothes/colors',
-)
+> = catalogManagementClient<ClothingColor, ClothingColorRequest>('/api/clothes/colors')

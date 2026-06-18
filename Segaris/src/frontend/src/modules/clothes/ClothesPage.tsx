@@ -1,5 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import {
   ChevronLeft,
   ChevronRight,
@@ -88,7 +93,10 @@ const sortFields: ClothesGarmentSortField[] = [
   'visibility',
 ]
 
-const visibilityMeta: Record<ClothesVisibility, { icon: ReactNode; tone: SegmentTone }> = {
+const visibilityMeta: Record<
+  ClothesVisibility,
+  { icon: ReactNode; tone: SegmentTone }
+> = {
   Public: { icon: <Globe size={15} />, tone: 'accent' },
   Private: { icon: <Lock size={15} />, tone: 'neutral' },
 }
@@ -260,7 +268,10 @@ function GarmentsFilters({
   const count = activeGarmentFilterCount(state)
 
   return (
-    <section className="seg-clothes__filters" aria-label={t('filters.active', { count })}>
+    <section
+      className="seg-clothes__filters"
+      aria-label={t('filters.active', { count })}
+    >
       <div className="seg-clothes__filters-primary">
         <Input
           className="seg-clothes__search"
@@ -284,9 +295,7 @@ function GarmentsFilters({
         <FilterSelect
           label={t('filters.status')}
           value={state.status}
-          onChange={(value) =>
-            onChange({ status: value as ClothesGarmentStatus | '' })
-          }
+          onChange={(value) => onChange({ status: value as ClothesGarmentStatus | '' })}
           options={statuses.map((status) => ({
             value: status,
             label: t(`status.${status}`),
@@ -340,7 +349,13 @@ interface GarmentGalleryProps {
   onOpen: (garmentId: number) => void
 }
 
-function GarmentGallery({ garments, state, busy, onSort, onOpen }: GarmentGalleryProps) {
+function GarmentGallery({
+  garments,
+  state,
+  busy,
+  onSort,
+  onOpen,
+}: GarmentGalleryProps) {
   const { t } = useTranslation('clothes')
   return (
     <section className="seg-clothes__gallery-wrap" aria-busy={busy}>
@@ -357,9 +372,7 @@ function GarmentGallery({ garments, state, busy, onSort, onOpen }: GarmentGaller
             onClick={() => onSort(field)}
           >
             {t(`sort.${field}`)}
-            {state.sort === field && (
-              <span>{t(`sort.${state.sortDirection}`)}</span>
-            )}
+            {state.sort === field && <span>{t(`sort.${state.sortDirection}`)}</span>}
           </button>
         ))}
       </div>
@@ -441,7 +454,9 @@ function CareSymbolsRow({ garment }: { garment: ClothesGarmentSummary }) {
           src: dryCleaningCareSymbols[garment.dryCleaningCare],
           label: t(`care.dryCleaningValues.${garment.dryCleaningCare}`),
         },
-  ].filter((symbol): symbol is { key: string; src: string; label: string } => symbol != null)
+  ].filter(
+    (symbol): symbol is { key: string; src: string; label: string } => symbol != null,
+  )
 
   if (symbols.length === 0) return null
 
@@ -489,7 +504,14 @@ interface PagerProps {
   onPageSize: (pageSize: ClothesPageSize) => void
 }
 
-function Pager({ page, pageSize, totalPages, fetching, onPage, onPageSize }: PagerProps) {
+function Pager({
+  page,
+  pageSize,
+  totalPages,
+  fetching,
+  onPage,
+  onPageSize,
+}: PagerProps) {
   const { t } = useTranslation('clothes')
   return (
     <nav className="seg-clothes__pager" aria-label={t('pagination.label')}>
@@ -878,7 +900,9 @@ function GarmentEditorForm({
             <h3>{t('editor.sections.colours')}</h3>
             <p className="seg-clothes-editor__hint">{t('editor.colours.hint')}</p>
             <fieldset className="seg-clothes-editor__colors">
-              <legend className="seg-clothes__sr">{t('editor.sections.colours')}</legend>
+              <legend className="seg-clothes__sr">
+                {t('editor.sections.colours')}
+              </legend>
               {colors.length === 0 ? (
                 <p className="seg-clothes-editor__hint">{t('editor.colours.none')}</p>
               ) : (
@@ -1080,10 +1104,7 @@ function CarePicker({ label, value, options, onChange }: CarePickerProps) {
         </label>
       </div>
       {options.map((option) => (
-        <div
-          key={option.value}
-          className="seg-clothes-care__option"
-        >
+        <div key={option.value} className="seg-clothes-care__option">
           <input
             id={`${id}-${option.value}`}
             type="radio"
@@ -1140,7 +1161,9 @@ function StagedAttachments({ files, onChange }: StagedAttachmentsProps) {
               <span>{file.name}</span>
               <button
                 type="button"
-                onClick={() => onChange(files.filter((_, candidate) => candidate !== index))}
+                onClick={() =>
+                  onChange(files.filter((_, candidate) => candidate !== index))
+                }
                 aria-label={t('editor.attachments.remove')}
               >
                 <Trash2 size={15} aria-hidden="true" />

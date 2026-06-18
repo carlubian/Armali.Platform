@@ -172,10 +172,7 @@ export function useGarmentsState(currentUserId: number | null): UseGarmentsState
     () => parseGarmentsState(searchParams, currentUserId),
     [searchParams, currentUserId],
   )
-  const dialog = useMemo(
-    () => parseGarmentDialogState(searchParams),
-    [searchParams],
-  )
+  const dialog = useMemo(() => parseGarmentDialogState(searchParams), [searchParams])
 
   const commit = useCallback(
     (next: GarmentsState, options?: { replace?: boolean }) => {
