@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { capex } from '@/modules/capex/i18n/resources'
+import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
@@ -15,6 +16,7 @@ import { platform } from './resources'
 const namespaces = [
   'platform',
   'capex',
+  'clothes',
   'configuration',
   'inventory',
   'mood',
@@ -39,6 +41,12 @@ describe('platform translations', () => {
   it('registers every capex resource key', () => {
     for (const key of leafKeys(capex)) {
       expect(i18n.exists(key, { ns: 'capex', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every clothes resource key', () => {
+    for (const key of leafKeys(clothes)) {
+      expect(i18n.exists(key, { ns: 'clothes', lng: 'en-GB' }), key).toBe(true)
     }
   })
 
