@@ -117,6 +117,22 @@ function mockBackend(options: BackendOptions = {}) {
     }
     if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
+    if (url.startsWith('/api/mood/derived-emotion') && method === 'GET') {
+      const parsed = new URL(url, 'http://localhost')
+      const energy = parsed.searchParams.get('energy')
+      const alignment = parsed.searchParams.get('alignment')
+      const direction = parsed.searchParams.get('direction')
+      const source = parsed.searchParams.get('source')
+      const derivedEmotion =
+        energy === 'High' &&
+        alignment === 'Positive' &&
+        direction === 'Harmony' &&
+        source === 'Internal'
+          ? 'Happy'
+          : 'Optimistic'
+      return json({ derivedEmotion })
+    }
+
     const entryDetail = url.match(/\/api\/mood\/entries\/(\d+)(\?|$)/)
     if (entryDetail != null && method === 'GET') {
       if (options.entryStatus === 404)
@@ -275,6 +291,7 @@ describe('Mood log view', () => {
         { name: 'Internal' },
       ),
     )
+    expect(await within(dialog).findByText('Happy')).toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('button', { name: 'Save entry' }))
 

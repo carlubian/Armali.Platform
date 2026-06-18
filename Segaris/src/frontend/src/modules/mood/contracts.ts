@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type {
   CreateMoodEntryRequest,
   MoodDashboardQuery,
+  MoodDerivedEmotionQuery,
   MoodEntryRangeQuery,
 } from '@/app/api/mood'
 import { moodNotesMaxLength, moodScoreMax, moodScoreMin } from '@/app/api/mood'
@@ -10,6 +11,8 @@ import { moodNotesMaxLength, moodScoreMax, moodScoreMin } from '@/app/api/mood'
 export const moodKeys = {
   all: ['mood'] as const,
   options: () => [...moodKeys.all, 'options'] as const,
+  derivedEmotion: (query: MoodDerivedEmotionQuery | null) =>
+    [...moodKeys.all, 'derivedEmotion', query] as const,
   entries: () => [...moodKeys.all, 'entries'] as const,
   entryRange: (query: MoodEntryRangeQuery) =>
     [...moodKeys.entries(), 'range', query] as const,

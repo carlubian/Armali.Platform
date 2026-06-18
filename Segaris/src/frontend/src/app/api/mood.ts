@@ -92,6 +92,17 @@ export interface MoodOptions {
   emotions: string[]
 }
 
+export interface MoodDerivedEmotionQuery {
+  energy: MoodEnergy
+  alignment: MoodAlignment
+  direction: MoodDirection
+  source: MoodSource
+}
+
+export interface MoodDerivedEmotion {
+  derivedEmotion: string
+}
+
 // Dashboard chart-data skeletons. Wave 3 fills the aggregate computation; the
 // response shape is frozen here so the Wave 5 charts and query keys are stable.
 export interface MoodScoreStat {
@@ -161,6 +172,16 @@ function buildQuery(query: Record<string, string>): string {
 export const moodApi = {
   options: (signal?: AbortSignal) =>
     apiRequest<MoodOptions>('/api/mood/options', { signal }),
+  derivedEmotion: (query: MoodDerivedEmotionQuery, signal?: AbortSignal) =>
+    apiRequest<MoodDerivedEmotion>(
+      `/api/mood/derived-emotion${buildQuery({
+        energy: query.energy,
+        alignment: query.alignment,
+        direction: query.direction,
+        source: query.source,
+      })}`,
+      { signal },
+    ),
   listEntries: (query: MoodEntryRangeQuery, signal?: AbortSignal) =>
     apiRequest<MoodEntryList>(
       `/api/mood/entries${buildQuery({ from: query.from, to: query.to })}`,

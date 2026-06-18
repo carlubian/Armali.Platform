@@ -47,6 +47,12 @@ internal sealed record MoodOptionsResponse(
     IReadOnlyList<string> Emotions);
 
 /// <summary>
+/// Stateless preview of the concrete emotion resolved from a complete set of
+/// Mood criteria. The value is not persisted by Mood entries.
+/// </summary>
+internal sealed record MoodDerivedEmotionResponse(string DerivedEmotion);
+
+/// <summary>
 /// Score minimum, average, and maximum for one weekday slot of the selected period.
 /// All three values are null when the selected period has no entries on that weekday.
 /// <see cref="DayOfWeek"/> is the stable enum name (<c>Monday</c>..<c>Sunday</c>);

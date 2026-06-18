@@ -78,19 +78,73 @@ export const mood = {
     },
   },
   dashboard: {
+    eyebrow: 'Your trends',
+    title: 'Dashboard',
+    description:
+      'How your check-ins move across a calendar period. Only your own entries.',
     scale: {
+      label: 'Dashboard scale',
       year: 'Year',
       semester: 'Semester',
       quarter: 'Quarter',
       month: 'Month',
     },
-    placeholder: {
-      eyebrow: 'Your trends',
-      title: 'Dashboard',
-      description:
-        'How your check-ins move across a calendar period. Only your own entries.',
-      body: 'The trend dashboard arrives next. For now, review and add check-ins from the Log.',
-      backToLog: 'Go to the Log',
+    period: {
+      label: 'Period navigation',
+      previous: 'Previous period',
+      next: 'Next period',
+      current: 'Current period',
+      range: '{{start}} – {{end}}',
+    },
+    summary: {
+      eyebrow: 'Interval average',
+      meta: '{{count}} entries · low {{low}} · high {{high}}',
+    },
+    days: {
+      1: 'Mon',
+      2: 'Tue',
+      3: 'Wed',
+      4: 'Thu',
+      5: 'Fri',
+      6: 'Sat',
+      7: 'Sun',
+    },
+    charts: {
+      noData: 'No entries',
+      scoreSummary: 'min {{min}}, average {{average}}, max {{max}}',
+      dayOfWeek: {
+        title: 'Score by day of week',
+        subtitle: 'Min, average, and max',
+        aria: 'Mood score minimum, average, and maximum by day of week',
+      },
+      interval: {
+        title: 'Score by period interval',
+        aria: 'Mood score minimum, average, and maximum by period interval',
+        subtitle: {
+          year: 'Grouped by month',
+          semester: 'Grouped by month',
+          quarter: 'Grouped by month',
+          month: 'Grouped by week',
+        },
+      },
+      distribution: {
+        subtitle: 'Share of entries',
+        energy: 'Energy distribution',
+        alignment: 'Alignment distribution',
+        direction: 'Direction distribution',
+        source: 'Source distribution',
+      },
+      evolution: {
+        title: '{{criterion}} evolution',
+        subtitle: 'Entry counts by interval',
+        aria: '{{criterion}} criteria evolution by period interval',
+      },
+    },
+    states: {
+      loading: 'Loading your dashboard…',
+      loadError: 'Your dashboard could not be loaded. Please try again.',
+      empty:
+        'No entries in this period — nothing to chart yet. Pick another period, or add check-ins in the Log.',
     },
   },
   editor: {
@@ -110,6 +164,8 @@ export const mood = {
     derived: {
       label: 'Derived emotion',
       placeholder: 'Pick all four criteria',
+      loading: 'Calculating…',
+      unavailable: 'Preview unavailable',
       hint: 'Calculated from your four criteria — not stored.',
     },
     actions: {

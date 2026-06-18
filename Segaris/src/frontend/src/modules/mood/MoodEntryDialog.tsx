@@ -14,6 +14,7 @@ import {
   moodNotesMaxLength,
   moodSources,
   type CreateMoodEntryRequest,
+  type MoodDerivedEmotionQuery,
   type MoodEntry,
 } from '@/app/api/mood'
 import { Button, Dialog, Input, Spinner } from '@/components/ui'
@@ -222,6 +223,28 @@ function MoodEntryForm({
   const submitting = mutation.isPending
   const busy = submitting || deleteMutation.isPending
   const notes = useWatch({ control, name: 'notes' })
+  const [energy, alignment, direction, source] = useWatch({
+    control,
+    name: ['energy', 'alignment', 'direction', 'source'],
+  })
+  const previewCriteria: MoodDerivedEmotionQuery | null =
+    energy != null && alignment != null && direction != null && source != null
+      ? { energy, alignment, direction, source }
+      : null
+  const previewQuery = useQuery({
+    queryKey: moodKeys.derivedEmotion(previewCriteria),
+    queryFn: ({ signal }) =>
+      moodApi.derivedEmotion(previewCriteria as MoodDerivedEmotionQuery, signal),
+    enabled: previewCriteria != null,
+  })
+  const derivedEmotionText =
+    previewCriteria == null
+      ? t('editor.derived.placeholder')
+      : previewQuery.isPending
+        ? t('editor.derived.loading')
+        : previewQuery.isError
+          ? t('editor.derived.unavailable')
+          : emotionLabel(previewQuery.data.derivedEmotion)
 
   return (
     <>
@@ -362,11 +385,7 @@ function MoodEntryForm({
             </span>
             <div className="mood-derived__text">
               <span className="mood-derived__label">{t('editor.derived.label')}</span>
-              <span className="mood-derived__value">
-                {entry != null
-                  ? emotionLabel(entry.derivedEmotion)
-                  : t('editor.derived.placeholder')}
-              </span>
+              <span className="mood-derived__value">{derivedEmotionText}</span>
             </div>
             <span className="mood-derived__hint">{t('editor.derived.hint')}</span>
           </div>

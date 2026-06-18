@@ -25,6 +25,12 @@ internal static class MoodEndpoints
             .WithSummary("Returns fixed Mood criteria and derived-emotion codes")
             .Produces<MoodOptionsResponse>();
 
+        group.MapGet("/derived-emotion", GetDerivedEmotion)
+            .WithName("GetMoodDerivedEmotion")
+            .WithSummary("Previews the derived emotion for a complete criteria combination")
+            .Produces<MoodDerivedEmotionResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         group.MapGet("/dashboard", GetDashboardAsync)
             .WithName("GetMoodDashboard")
             .WithSummary("Returns owner-only strict-period dashboard aggregates for the current user")
@@ -71,6 +77,27 @@ internal static class MoodEndpoints
     }
 
     private static IResult GetOptions(MoodReadService read) => TypedResults.Ok(read.GetOptions());
+
+    private static IResult GetDerivedEmotion(
+        string? energy,
+        string? alignment,
+        string? direction,
+        string? source)
+    {
+        try
+        {
+            var derivedEmotion = MoodDerivedEmotionMatrix.Resolve(
+                ParseCriterion<MoodEnergy>(energy, "energy"),
+                ParseCriterion<MoodAlignment>(alignment, "alignment"),
+                ParseCriterion<MoodDirection>(direction, "direction"),
+                ParseCriterion<MoodSource>(source, "source"));
+            return TypedResults.Ok(new MoodDerivedEmotionResponse(derivedEmotion));
+        }
+        catch (MoodValidationException exception)
+        {
+            throw MoodProblem.From(exception);
+        }
+    }
 
     private static async Task<IResult> GetDashboardAsync(
         string? scale,
@@ -247,5 +274,20 @@ internal static class MoodEndpoints
         }
 
         return (from.Value, to.Value);
+    }
+
+    private static TEnum ParseCriterion<TEnum>(string? value, string field)
+        where TEnum : struct, Enum
+    {
+        if (!string.IsNullOrWhiteSpace(value)
+            && Enum.TryParse<TEnum>(value.Trim(), ignoreCase: true, out var parsed)
+            && Enum.IsDefined(parsed))
+        {
+            return parsed;
+        }
+
+        throw new MoodValidationException(
+            $"The {field} criterion is not a recognized value.",
+            MoodValidationReason.Criteria);
     }
 }

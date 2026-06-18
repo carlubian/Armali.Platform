@@ -40,6 +40,46 @@ public sealed class MoodEntryEndpointTests
     }
 
     [Fact]
+    public async Task Derived_emotion_preview_resolves_complete_criteria_without_csrf_or_persistence()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+
+        using var response = await client.GetAsync(
+            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Harmony", "Internal"),
+            CancellationToken.None);
+        var preview = await response.Content.ReadFromJsonAsync<MoodDerivedEmotionResponse>(
+            CancellationToken.None);
+        var log = await client.GetFromJsonAsync<MoodEntryListResponse>(
+            MoodRequests.EntryRangePath(new DateOnly(2026, 6, 15), new DateOnly(2026, 6, 21)),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Happy", preview!.DerivedEmotion);
+        Assert.Empty(log!.Entries);
+    }
+
+    [Fact]
+    public async Task Derived_emotion_preview_requires_authentication_and_valid_criteria()
+    {
+        using var server = new CapexTestServer();
+        using var anonymous = server.CreateClient();
+        using var client = await server.CreateAuthenticatedClientAsync();
+
+        using var anonymousResponse = await anonymous.GetAsync(
+            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Harmony", "Internal"),
+            CancellationToken.None);
+        using var invalid = await client.GetAsync(
+            MoodRequests.DerivedEmotionPreviewPath("Bogus", "Positive", "Harmony", "Internal"),
+            CancellationToken.None);
+        var problem = await invalid.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal("mood.entry.validation", problem!.Code);
+    }
+
+    [Fact]
     public async Task Create_returns_owner_metadata_trimmed_notes_and_derived_emotion()
     {
         using var server = new CapexTestServer();

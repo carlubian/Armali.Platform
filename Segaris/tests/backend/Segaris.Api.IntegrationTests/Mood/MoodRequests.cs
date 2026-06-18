@@ -11,6 +11,7 @@ internal static class MoodRequests
 {
     public const string EntriesPath = "/api/mood/entries";
     public const string OptionsPath = "/api/mood/options";
+    public const string DerivedEmotionPath = "/api/mood/derived-emotion";
     public const string DashboardPath = "/api/mood/dashboard";
 
     public static string EntryPath(int entryId) => $"{EntriesPath}/{entryId}";
@@ -20,6 +21,13 @@ internal static class MoodRequests
 
     public static string DashboardPeriodPath(string scale, string period) =>
         $"{DashboardPath}?scale={scale}&period={period}";
+
+    public static string DerivedEmotionPreviewPath(
+        string energy,
+        string alignment,
+        string direction,
+        string source) =>
+        $"{DerivedEmotionPath}?energy={energy}&alignment={alignment}&direction={direction}&source={source}";
 
     public static CreateMoodEntryRequest ValidEntry(
         DateOnly entryDate,

@@ -1,6 +1,10 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
-import { moodApi, type MoodEntryRangeQuery } from '@/app/api/mood'
+import {
+  moodApi,
+  type MoodDashboardQuery,
+  type MoodEntryRangeQuery,
+} from '@/app/api/mood'
 
 import { moodKeys } from './contracts'
 
@@ -32,6 +36,15 @@ export function useMoodEntry(entryId: number | null) {
     queryKey: moodKeys.entry(entryId ?? 0),
     queryFn: ({ signal }) => moodApi.getEntry(entryId as number, signal),
     enabled: entryId != null,
+  })
+}
+
+/** Owner-only dashboard aggregates for the selected strict calendar period. */
+export function useMoodDashboard(query: MoodDashboardQuery) {
+  return useQuery({
+    queryKey: moodKeys.dashboardPeriod(query),
+    queryFn: ({ signal }) => moodApi.dashboard(query, signal),
+    placeholderData: keepPreviousData,
   })
 }
 
