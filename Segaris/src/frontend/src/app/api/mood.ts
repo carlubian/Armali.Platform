@@ -51,6 +51,27 @@ export interface MoodEntryRangeQuery {
   to: string
 }
 
+/**
+ * Average mood score for one civil date in a weekly log range. `averageScore` is
+ * `null` for days the user did not log, so the chart renders a missing-data gap
+ * rather than a zero.
+ */
+export interface MoodDailyAverage {
+  entryDate: string
+  averageScore: number | null
+}
+
+/**
+ * Owner-only weekly log payload. `entries` preserve deterministic insertion order
+ * within each day; `dailyAverages` carries one bucket per civil date in the range.
+ */
+export interface MoodEntryList {
+  from: string
+  to: string
+  entries: MoodEntry[]
+  dailyAverages: MoodDailyAverage[]
+}
+
 export interface CreateMoodEntryRequest {
   entryDate: string
   score: number
@@ -141,7 +162,7 @@ export const moodApi = {
   options: (signal?: AbortSignal) =>
     apiRequest<MoodOptions>('/api/mood/options', { signal }),
   listEntries: (query: MoodEntryRangeQuery, signal?: AbortSignal) =>
-    apiRequest<MoodEntry[]>(
+    apiRequest<MoodEntryList>(
       `/api/mood/entries${buildQuery({ from: query.from, to: query.to })}`,
       { signal },
     ),

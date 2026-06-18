@@ -7,7 +7,7 @@
 
 /* ---- Tweakable overrides (driven by the Tweaks panel) -------- */
 :root {
-  --seg-aurora-op: 0.20;          /* aurora blob opacity        */
+  --seg-aurora-op: 0.40;          /* aurora blob opacity        */
   --seg-aurora-op2: 0.22;
   --seg-brand-grad: linear-gradient(140deg, var(--aqua-400), var(--azure-500));
 }
@@ -330,3 +330,266 @@
 .seg-notes__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-6) var(--space-9); }
 .seg-notes ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; }
 .seg-notes strong { color: var(--text-primary); font-weight: 600; }
+
+/* ============================================================
+   MOOD MODULE
+   Private emotional check-ins · Log + Dashboard.
+   Composes Armali tokens only — no invented colors.
+   ============================================================ */
+
+/* The Mood module is immersive but still scrolls within its artboard. */
+.mood-screen .seg-page { overflow: hidden; }
+.mood-scroll { flex: 1; min-height: 0; overflow: auto; }
+.mood-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.mood-scroll::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+
+/* ---- Header bar (title + week/period controls) --------------- */
+.mood-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; }
+.mood-bar h2 { font-size: var(--text-3xl); }
+.mood-bar p { font-family: var(--font-body); font-weight: 500; font-size: var(--text-base); color: var(--text-secondary); margin-top: 4px; }
+.mood-bar__controls { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+/* Period / week navigator — prev · label · next */
+.mood-nav {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; background: var(--surface-card-solid);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  box-shadow: var(--glow-soft);
+}
+.mood-nav__btn {
+  width: 34px; height: 34px; border: none; background: transparent; cursor: pointer;
+  border-radius: var(--radius-pill); color: var(--text-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background var(--dur-fast) var(--ease-soft), color var(--dur-fast) var(--ease-soft);
+}
+.mood-nav__btn:hover { background: var(--surface-sunken); color: var(--aqua-700); }
+.mood-nav__label {
+  min-width: 0; padding: 0 var(--space-4); display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-base);
+  letter-spacing: var(--tracking-title); color: var(--text-primary); white-space: nowrap;
+}
+.mood-nav__label small { font-family: var(--font-body); font-weight: 600; font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+
+/* Segmented control (scale selector, in-dialog choices) */
+.mood-seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-sunken); border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); }
+.mood-seg__btn {
+  border: none; background: transparent; cursor: pointer; white-space: nowrap;
+  padding: 0.45em 0.95em; border-radius: var(--radius-pill);
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);
+  letter-spacing: 0.01em; color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-soft), color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
+}
+.mood-seg__btn:hover { color: var(--text-primary); }
+.mood-seg__btn.is-active { background: var(--surface-card-solid); color: var(--aqua-700); box-shadow: var(--glow-soft); }
+
+/* ---- Shared pills / chips ------------------------------------ */
+.mood-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.mood-pill {
+  display: inline-flex; align-items: center; gap: 0.35em;
+  padding: 0.22em 0.6em; border-radius: var(--radius-pill);
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs);
+  letter-spacing: 0.01em; white-space: nowrap;
+}
+.mood-scorechip {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600;
+  font-size: var(--text-base); font-variant-numeric: tabular-nums;
+}
+
+/* ---- Emotion label ------------------------------------------- */
+.mood-emotion { font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); letter-spacing: var(--tracking-title); color: var(--text-primary); }
+.mood-emotion--lg { font-size: var(--text-2xl); }
+
+/* ============================================================
+   WEEKLY SCORE CHART (compact, shared by both Log variants)
+   ============================================================ */
+.mood-chartcard {
+  display: flex; align-items: center; gap: var(--space-7);
+  padding: var(--space-5) var(--space-6);
+  background: var(--surface-card-solid); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card); box-shadow: var(--glow-card);
+}
+.mood-chartcard__lead { flex: none; max-width: 200px; }
+.mood-chartcard__lead .armali-eyebrow { color: var(--accent); }
+.mood-chartcard__lead .mood-chartcard__big { font-family: var(--font-display); font-weight: 600; font-size: var(--text-4xl); line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.mood-chartcard__lead small { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-secondary); }
+.mood-weekchart { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-3); align-items: end; height: 96px; }
+.mood-weekchart__col { display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
+.mood-weekchart__track { width: 100%; max-width: 34px; flex: 1; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+.mood-weekchart__bar { width: 100%; border-radius: var(--radius-sm) var(--radius-sm) 3px 3px; min-height: 4px; transition: height var(--dur-slow) var(--ease-out); }
+.mood-weekchart__empty { width: 100%; height: 100%; border-radius: var(--radius-sm); border: 1.5px dashed var(--border-default); }
+.mood-weekchart__val { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.mood-weekchart__lbl { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+
+/* ============================================================
+   LOG · VARIANT A — 7-column week board
+   ============================================================ */
+.mood-board { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
+.mood-daycol { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.mood-daycol__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 0.55em 0.7em; border-radius: var(--radius-md);
+  background: var(--surface-card-solid); border: 1px solid var(--border-subtle);
+}
+.mood-daycol.is-today .mood-daycol__head { border-color: var(--aqua-300); box-shadow: var(--glow-aqua); }
+.mood-daycol__dow { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-secondary); }
+.mood-daycol__date { font-family: var(--font-body); font-weight: 600; font-size: 11px; color: var(--text-muted); }
+.mood-daycol__avg { margin-left: auto; }
+.mood-daycol__body { display: flex; flex-direction: column; gap: var(--space-2); }
+.mood-daycol__empty {
+  border: 1.5px dashed var(--border-default); border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-2); text-align: center;
+  font-family: var(--font-body); font-weight: 500; font-size: 11px; color: var(--text-muted);
+}
+
+.mood-entry {
+  text-align: left; cursor: pointer; width: 100%;
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 0.7em 0.75em; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); background: var(--surface-card-solid);
+  box-shadow: var(--glow-soft);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.mood-entry:hover { transform: translateY(-2px); box-shadow: var(--glow-aqua); }
+.mood-entry__top { display: flex; align-items: center; gap: 0.55em; }
+
+/* ============================================================
+   LOG · VARIANT B — day-grouped vertical list
+   ============================================================ */
+.mood-list { display: flex; flex-direction: column; gap: var(--space-5); }
+.mood-daygroup { background: var(--surface-card-solid); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); box-shadow: var(--glow-card); overflow: hidden; }
+.mood-daygroup__head {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+.mood-daygroup.is-today .mood-daygroup__head { background: var(--aqua-50); }
+.mood-daygroup__dow { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); letter-spacing: var(--tracking-title); color: var(--text-primary); }
+.mood-daygroup__date { font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-muted); }
+.mood-daygroup__todaytag { font-family: var(--font-display); font-weight: 600; font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--aqua-700); background: var(--aqua-100); padding: 0.2em 0.6em; border-radius: var(--radius-pill); }
+.mood-daygroup__meta { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+.mood-daygroup__avg { display: flex; align-items: center; gap: 0.5em; font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-secondary); }
+.mood-daygroup__empty { padding: var(--space-5) var(--space-6); font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-muted); }
+
+.mood-row {
+  display: grid; grid-template-columns: 44px 150px 1fr auto; align-items: center; gap: var(--space-4);
+  padding: 0.85em var(--space-6); cursor: pointer; width: 100%; text-align: left;
+  background: transparent; border: none;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.mood-row + .mood-row { border-top: 1px solid var(--border-subtle); }
+.mood-row:hover { background: var(--surface-sunken); }
+.mood-row__time { font-family: var(--font-body); font-weight: 600; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.mood-row__chev { color: var(--text-muted); display: inline-flex; }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+.mood-dash { display: flex; flex-direction: column; gap: var(--space-5); }
+.mood-grid { display: grid; gap: var(--space-5); }
+.mood-card {
+  background: var(--surface-card-solid); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card); box-shadow: var(--glow-card); padding: var(--pad-card);
+  display: flex; flex-direction: column; gap: var(--space-4); min-width: 0;
+}
+.mood-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.mood-card__title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); letter-spacing: var(--tracking-title); color: var(--text-primary); }
+.mood-card__sub { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-muted); }
+
+/* Score scorecards (min / avg / max) */
+.mood-scorecards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.mood-scorecard {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-5) var(--space-6);
+  background: var(--surface-card-solid); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card); box-shadow: var(--glow-card); position: relative; overflow: hidden;
+}
+.mood-scorecard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--bar, var(--accent)); }
+.mood-scorecard__lbl { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.mood-scorecard__val { font-family: var(--font-display); font-weight: 600; font-size: var(--text-5xl); line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.mood-scorecard__note { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-secondary); }
+
+/* Score-by-day-of-week range chart */
+.mood-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-4); align-items: end; height: 220px; }
+.mood-dow__col { display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+.mood-dow__track { position: relative; width: 14px; flex: 1; background: var(--surface-sunken); border-radius: var(--radius-pill); min-height: 0; }
+.mood-dow__range { position: absolute; left: 0; right: 0; border-radius: var(--radius-pill); background: var(--range, var(--aqua-300)); }
+.mood-dow__avg { position: absolute; left: -4px; right: -4px; height: 4px; border-radius: var(--radius-pill); background: var(--text-primary); transform: translateY(50%); }
+.mood-dow__cap { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.mood-dow__avgval { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.mood-dow__lbl { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.mood-dow__scale { display: flex; flex-direction: column; justify-content: space-between; height: 220px; padding-bottom: 26px; font-family: var(--font-body); font-weight: 600; font-size: 10px; color: var(--text-muted); text-align: right; }
+
+/* Criteria distribution */
+.mood-dist { display: flex; flex-direction: column; gap: var(--space-3); }
+.mood-dist__row { display: grid; grid-template-columns: 84px 1fr 46px; align-items: center; gap: var(--space-3); }
+.mood-dist__lbl { font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-secondary); }
+.mood-dist__track { height: 14px; background: var(--surface-sunken); border-radius: var(--radius-pill); overflow: hidden; }
+.mood-dist__fill { height: 100%; border-radius: var(--radius-pill); min-width: 3px; transition: width var(--dur-slow) var(--ease-out); }
+.mood-dist__pct { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); text-align: right; font-variant-numeric: tabular-nums; }
+.mood-distgrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+
+/* Empty period note inside a card */
+.mood-emptynote { padding: var(--space-7); text-align: center; font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-muted); border: 1.5px dashed var(--border-default); border-radius: var(--radius-md); }
+
+/* ============================================================
+   ENTRY EDITOR DIALOG
+   ============================================================ */
+.mood-dialog .seg-modal__card { max-width: 560px; gap: var(--space-5); }
+.mood-dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.mood-dialog__head h3 { font-size: var(--text-2xl); }
+.mood-dialog__head p { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-secondary); margin-top: 4px; }
+.mood-dialog__body { display: flex; flex-direction: column; gap: var(--space-5); max-height: 56vh; overflow: auto; padding-right: 4px; margin-right: -4px; }
+.mood-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.mood-field__label { font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); display: flex; align-items: center; gap: 0.4em; }
+.mood-field__req { color: var(--terracotta-500); }
+.mood-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+
+/* Choice group (segmented, wraps; one tone per active value) */
+.mood-choice { display: flex; flex-wrap: wrap; gap: 6px; }
+.mood-choice__btn {
+  cursor: pointer; border: 1px solid var(--border-default); background: var(--surface-card-solid);
+  padding: 0.5em 0.9em; border-radius: var(--radius-pill);
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: all var(--dur-fast) var(--ease-soft);
+}
+.mood-choice__btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.mood-choice__btn.is-active { color: var(--chip-fg, var(--aqua-700)); background: var(--chip-bg, var(--aqua-100)); border-color: transparent; box-shadow: var(--glow-soft); }
+
+/* Score selector 1–5 */
+.mood-scoresel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.mood-scoresel__btn {
+  cursor: pointer; border: 1px solid var(--border-default); background: var(--surface-card-solid);
+  padding: 0.6em 0; border-radius: var(--radius-control); text-align: center;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg);
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+  transition: all var(--dur-fast) var(--ease-soft);
+}
+.mood-scoresel__btn:hover { color: var(--text-primary); }
+.mood-scoresel__btn.is-active { color: var(--chip-fg); background: var(--chip-bg); border-color: transparent; box-shadow: var(--glow-soft); }
+
+.mood-textarea {
+  width: 100%; box-sizing: border-box; resize: vertical; min-height: 76px;
+  padding: 0.7em 0.9em; border: 1px solid var(--border-default); border-radius: var(--radius-control);
+  background: var(--surface-card-solid); color: var(--text-primary);
+  font-family: var(--font-body); font-weight: 500; font-size: var(--text-base); line-height: var(--leading-snug);
+  transition: box-shadow var(--dur-fast) var(--ease-soft), border-color var(--dur-fast) var(--ease-soft);
+}
+.mood-textarea:focus { outline: none; border-color: var(--aqua-400); box-shadow: var(--ring); }
+.mood-textarea::placeholder { color: var(--text-muted); }
+.mood-field__count { font-family: var(--font-body); font-weight: 500; font-size: 11px; color: var(--text-muted); text-align: right; }
+
+/* Live derived-emotion preview */
+.mood-derived {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5); border-radius: var(--radius-md);
+  background: var(--aqua-50); border: 1px solid var(--aqua-100);
+}
+.mood-derived__icon { width: 38px; height: 38px; border-radius: var(--radius-pill); flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-card-solid); color: var(--aqua-600); box-shadow: var(--glow-soft); }
+.mood-derived__txt { display: flex; flex-direction: column; }
+.mood-derived__lbl { font-family: var(--font-display); font-weight: 600; font-size: 10px; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--aqua-700); }
+.mood-derived__val { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xl); letter-spacing: var(--tracking-title); color: var(--text-primary); }
+.mood-derived__hint { margin-left: auto; max-width: 16ch; font-family: var(--font-body); font-weight: 500; font-size: 11px; color: var(--text-secondary); text-align: right; }
+
+.mood-dialog__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle); }
+.mood-dialog__foot-right { display: flex; gap: var(--space-3); margin-left: auto; }

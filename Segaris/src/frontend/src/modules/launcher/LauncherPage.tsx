@@ -4,6 +4,7 @@ import {
   Luggage,
   Receipt,
   SlidersHorizontal,
+  Smile,
   UserRound,
   Users,
   Wallet,
@@ -80,6 +81,15 @@ export function LauncherPage() {
         tone: 'sea',
         attention: requiresAttention('travel'),
         attentionLabel: t('travel:launcher.attention'),
+      },
+      {
+        key: 'mood',
+        title: t('mood:launcher.title'),
+        description: t('mood:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/mood',
+        icon: Smile,
+        tone: 'aqua',
       },
       {
         key: 'profile',
