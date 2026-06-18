@@ -882,6 +882,80 @@ namespace Segaris.Migrations.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Mood.Domain.MoodEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Alignment")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Energy")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateOnly>("EntryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("CreatedBy", "EntryDate");
+
+                    b.HasIndex("CreatedBy", "Id");
+
+                    b.HasIndex("CreatedBy", "EntryDate", "Id");
+
+                    b.ToTable("mood_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_mood_entries_alignment", "\"Alignment\" IN ('Negative', 'Medium', 'Positive')");
+
+                            t.HasCheckConstraint("CK_mood_entries_direction", "\"Direction\" IN ('Harmony', 'Defensive', 'Offensive', 'Stability')");
+
+                            t.HasCheckConstraint("CK_mood_entries_energy", "\"Energy\" IN ('Low', 'Medium', 'High')");
+
+                            t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 1 AND \"Score\" <= 5");
+
+                            t.HasCheckConstraint("CK_mood_entries_source", "\"Source\" IN ('Internal', 'External')");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -1720,6 +1794,20 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Mood.Domain.MoodEntry", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexContract", b =>

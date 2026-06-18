@@ -135,6 +135,16 @@ function App() {
           <DCArtboard id="profile" label="Profile" width={1180} height={840}><Frame><window.Profile /></Frame></DCArtboard>
         </DCSection>
 
+        <DCSection id="mood-log" title="Mood · Log" subtitle="Private weekly check-ins · Mon–Sun · click an entry or “New entry”">
+          <DCArtboard id="mood-board" label="A · Week board" width={1320} height={900}><Frame><window.MoodLogBoard /></Frame></DCArtboard>
+          <DCArtboard id="mood-list" label="B · Day-grouped list" width={1200} height={900}><Frame><window.MoodLogList /></Frame></DCArtboard>
+        </DCSection>
+
+        <DCSection id="mood-dash" title="Mood · Dashboard" subtitle="Calendar-period trends · switch scale & navigate periods">
+          <DCArtboard id="mood-dash-score" label="A · Score emphasis" width={1320} height={940}><Frame><window.MoodDashScore /></Frame></DCArtboard>
+          <DCArtboard id="mood-dash-criteria" label="B · Criteria emphasis" width={1320} height={940}><Frame><window.MoodDashCriteria /></Frame></DCArtboard>
+        </DCSection>
+
         <DCSection id="states" title="System states" subtitle="Explicit failure & not-found experiences">
           <DCArtboard id="unavailable" label="Service unavailable" width={1080} height={680}><Frame><window.ServiceUnavailable /></Frame></DCArtboard>
           <DCArtboard id="notfound" label="404 · Not found" width={1080} height={680}><Frame><window.NotFound /></Frame></DCArtboard>

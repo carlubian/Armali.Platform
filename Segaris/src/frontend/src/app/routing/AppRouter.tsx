@@ -39,6 +39,20 @@ const TravelPage = lazy(() =>
   })),
 )
 
+// The Mood module's two immersive screens are lazily loaded so their week board,
+// charts, and entry dialog stay out of the initial platform bundle.
+const MoodLogPage = lazy(() =>
+  import('@/modules/mood/MoodLogPage').then((module) => ({
+    default: module.MoodLogPage,
+  })),
+)
+
+const MoodDashboardPage = lazy(() =>
+  import('@/modules/mood/MoodDashboardPage').then((module) => ({
+    default: module.MoodDashboardPage,
+  })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -130,6 +144,27 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <TravelPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route path="mood" element={<Navigate to="/mood/log" replace />} />
+        <Route
+          path="mood/log"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <MoodLogPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="mood/dashboard"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <MoodDashboardPage />
               </Suspense>
             </ModuleBoundary>
           }
