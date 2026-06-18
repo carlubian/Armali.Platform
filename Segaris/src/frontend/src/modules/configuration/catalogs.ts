@@ -41,12 +41,14 @@ export interface CatalogRow {
   name: string
   sortOrder: number
   code?: string
+  colorValue?: string
 }
 
-/** Create/update body shape covering every catalog (currency adds `code`). */
+/** Create/update body shape covering every catalog. */
 export interface CatalogWriteBody {
   name: string
   code?: string
+  colorValue?: string
 }
 
 export interface CatalogDescriptor {
@@ -59,6 +61,8 @@ export interface CatalogDescriptor {
   urlSlug?: string
   /** Currencies carry an editable three-letter display code. */
   hasCode: boolean
+  /** Clothing colours carry an editable hex colour value. */
+  hasColorValue?: boolean
   /** Optional references may be cleared to null (suppliers and cost centres). */
   canClear: boolean
   /** Currency carries the exchange-rate conversion deletion path. */

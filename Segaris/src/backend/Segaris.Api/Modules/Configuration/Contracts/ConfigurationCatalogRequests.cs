@@ -8,7 +8,7 @@ namespace Segaris.Api.Modules.Configuration.Contracts;
 /// server is authoritative for ordering and never trusts a client-supplied
 /// position or identifier.
 /// </summary>
-internal sealed record CatalogItemRequest(string? Name);
+internal sealed record CatalogItemRequest(string? Name, string? ColorValue = null);
 
 /// <summary>
 /// Frozen request contract for creating or updating a currency

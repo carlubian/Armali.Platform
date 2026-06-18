@@ -1,4 +1,5 @@
 using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Clothes;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory;
@@ -21,6 +22,7 @@ internal static class SegarisModules
         new OpexModule(),
         new InventoryModule(),
         new TravelModule(),
+        new ClothesModule(),
         new MoodModule(),
         new LauncherModule(),
     ];
