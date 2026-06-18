@@ -313,7 +313,7 @@ describe('Mood log view', () => {
 
     await user.click(await screen.findByRole('button', { name: /Grateful/ }))
     let dialog = await screen.findByRole('dialog')
-    let notes = within(dialog).getByLabelText(/Notes/) as HTMLTextAreaElement
+    let notes = within(dialog).getByLabelText(/Notes/)
     expect(notes).toHaveValue('A good walk by the harbour.')
 
     await user.clear(notes)
@@ -327,7 +327,7 @@ describe('Mood log view', () => {
 
     await user.click(await screen.findByRole('button', { name: /Grateful/ }))
     dialog = await screen.findByRole('dialog')
-    notes = within(dialog).getByLabelText(/Notes/) as HTMLTextAreaElement
+    notes = within(dialog).getByLabelText(/Notes/)
     expect(notes).toHaveValue('Updated private note')
   })
 
