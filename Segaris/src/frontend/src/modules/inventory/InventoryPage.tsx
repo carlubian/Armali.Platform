@@ -117,6 +117,7 @@ function ItemsPanel({ onToast }: PanelProps) {
   }
 
   const handleSaved = (item: InventoryItem, mode: 'create' | 'edit') => {
+    queryClient.setQueryData(inventoryKeys.item(item.id), item)
     invalidateItems(item.id)
     onToast(mode === 'create' ? 'itemCreated' : 'itemUpdated', item.name)
     close()
@@ -129,6 +130,7 @@ function ItemsPanel({ onToast }: PanelProps) {
   }
 
   const handleAdjusted = (item: InventoryItem) => {
+    queryClient.setQueryData(inventoryKeys.item(item.id), item)
     invalidateItems(item.id)
     onToast('itemAdjusted', item.name)
     setAdjusting(null)
@@ -248,6 +250,7 @@ function OrdersPanel({ onToast }: PanelProps) {
   }
 
   const handleSaved = (order: InventoryOrder, mode: 'create' | 'edit') => {
+    queryClient.setQueryData(inventoryKeys.order(order.id), order)
     invalidateOrders(order.id)
     onToast(mode === 'create' ? 'orderCreated' : 'orderUpdated', order.supplierName)
     close()
@@ -260,6 +263,7 @@ function OrdersPanel({ onToast }: PanelProps) {
   }
 
   const handleReceived = (order: InventoryOrder) => {
+    queryClient.setQueryData(inventoryKeys.order(order.id), order)
     invalidateOrders(order.id, true)
     onToast('orderReceived', order.supplierName)
     close()

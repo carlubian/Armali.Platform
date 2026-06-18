@@ -3,9 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { MoodDashboard } from '@/app/api/mood'
-
-import { moodDashboard } from './testing/moodFixtures'
+import type { MoodDashboardScale } from '@/app/api/mood'
 
 const TODAY = '2026-06-17'
 vi.mock('./entryForm', async (importOriginal) => {
@@ -37,24 +35,66 @@ function urlOf(input: RequestInfo | URL): string {
       : input.url
 }
 
-function dashboardFor(scale: string, period: string): MoodDashboard {
-  return moodDashboard({
-    scale: scale as MoodDashboard['scale'],
+interface MoodDashboardResponseFixture {
+  scale: string
+  period: string
+  from: string
+  to: string
+  previousPeriod: string
+  nextPeriod: string
+  bucketGranularity: string
+  entryCount: number
+  scoreByDayOfWeek: Array<{
+    dayOfWeek: string
+    minScore: number | null
+    averageScore: number | null
+    maxScore: number | null
+  }>
+  distribution: CriteriaDistributionFixture
+  buckets: Array<{
+    key: string
+    start: string
+    end: string
+    minScore: number | null
+    averageScore: number | null
+    maxScore: number | null
+    distribution: CriteriaDistributionFixture
+  }>
+}
+
+interface CriteriaDistributionFixture {
+  energy: Array<{ value: string; count: number }>
+  alignment: Array<{ value: string; count: number }>
+  direction: Array<{ value: string; count: number }>
+  source: Array<{ value: string; count: number }>
+}
+
+function responseScale(scale: string): string {
+  const normalized: Record<MoodDashboardScale, string> = {
+    year: 'Year',
+    semester: 'Semester',
+    quarter: 'Quarter',
+    month: 'Month',
+  }
+  return normalized[scale as MoodDashboardScale] ?? 'Year'
+}
+
+function dashboardFor(scale: string, period: string): MoodDashboardResponseFixture {
+  const from = scale === 'month' && period === '2026-06' ? '2026-06-01' : '2026-01-01'
+  const to = scale === 'month' && period === '2026-06' ? '2026-06-30' : '2026-12-31'
+  return {
+    scale: responseScale(scale),
     period,
-    periodStart:
-      scale === 'month' && period === '2026-06' ? '2026-06-01' : '2026-01-01',
-    periodEnd: scale === 'month' && period === '2026-06' ? '2026-06-30' : '2026-12-31',
+    from,
+    to,
     previousPeriod: period === '2026' ? '2025' : '2026-05',
     nextPeriod: period === '2026' ? '2027' : '2026-07',
+    bucketGranularity: scale === 'month' ? 'Week' : 'Month',
+    entryCount: 8,
     scoreByDayOfWeek: [
-      { dayOfWeek: 1, min: 3, average: 3.5, max: 4 },
-      { dayOfWeek: 3, min: 2, average: 2.8, max: 4 },
-      { dayOfWeek: 5, min: 4, average: 4.2, max: 5 },
-    ],
-    scoreByInterval: [
-      { interval: '2026-01', min: 3, average: 3.2, max: 4 },
-      { interval: '2026-02', min: 2, average: 3.6, max: 5 },
-      { interval: '2026-03', min: 4, average: 4.1, max: 5 },
+      { dayOfWeek: 'Monday', minScore: 3, averageScore: 3.5, maxScore: 4 },
+      { dayOfWeek: 'Wednesday', minScore: 2, averageScore: 2.8, maxScore: 4 },
+      { dayOfWeek: 'Friday', minScore: 4, averageScore: 4.2, maxScore: 5 },
     ],
     distribution: {
       energy: [
@@ -78,33 +118,85 @@ function dashboardFor(scale: string, period: string): MoodDashboard {
         { value: 'External', count: 2 },
       ],
     },
-    evolution: [
+    buckets: [
       {
-        interval: '2026-01',
-        energy: { Low: 0, Medium: 2, High: 1 },
-        alignment: { Negative: 0, Medium: 1, Positive: 2 },
-        direction: { Harmony: 1, Defensive: 0, Offensive: 1, Stability: 1 },
-        source: { Internal: 2, External: 1 },
+        key: '2026-01',
+        start: '2026-01-01',
+        end: '2026-01-31',
+        minScore: 3,
+        averageScore: 3.2,
+        maxScore: 4,
+        distribution: {
+          energy: [
+            { value: 'Low', count: 0 },
+            { value: 'Medium', count: 2 },
+            { value: 'High', count: 1 },
+          ],
+          alignment: [
+            { value: 'Negative', count: 0 },
+            { value: 'Medium', count: 1 },
+            { value: 'Positive', count: 2 },
+          ],
+          direction: [
+            { value: 'Harmony', count: 1 },
+            { value: 'Defensive', count: 0 },
+            { value: 'Offensive', count: 1 },
+            { value: 'Stability', count: 1 },
+          ],
+          source: [
+            { value: 'Internal', count: 2 },
+            { value: 'External', count: 1 },
+          ],
+        },
       },
       {
-        interval: '2026-02',
-        energy: { Low: 1, Medium: 1, High: 2 },
-        alignment: { Negative: 1, Medium: 1, Positive: 2 },
-        direction: { Harmony: 2, Defensive: 1, Offensive: 0, Stability: 1 },
-        source: { Internal: 4, External: 0 },
+        key: '2026-02',
+        start: '2026-02-01',
+        end: '2026-02-28',
+        minScore: 2,
+        averageScore: 3.6,
+        maxScore: 5,
+        distribution: {
+          energy: [
+            { value: 'Low', count: 1 },
+            { value: 'Medium', count: 1 },
+            { value: 'High', count: 2 },
+          ],
+          alignment: [
+            { value: 'Negative', count: 1 },
+            { value: 'Medium', count: 1 },
+            { value: 'Positive', count: 2 },
+          ],
+          direction: [
+            { value: 'Harmony', count: 2 },
+            { value: 'Defensive', count: 1 },
+            { value: 'Offensive', count: 0 },
+            { value: 'Stability', count: 1 },
+          ],
+          source: [
+            { value: 'Internal', count: 4 },
+            { value: 'External', count: 0 },
+          ],
+        },
       },
     ],
-  })
+  }
 }
 
-function emptyDashboard(scale: string, period: string): MoodDashboard {
-  return moodDashboard({
-    scale: scale as MoodDashboard['scale'],
+function emptyDashboard(scale: string, period: string): MoodDashboardResponseFixture {
+  return {
+    scale: responseScale(scale),
     period,
-    periodStart: '2026-01-01',
-    periodEnd: '2026-12-31',
+    from: '2026-01-01',
+    to: '2026-12-31',
+    previousPeriod: '2025',
+    nextPeriod: '2027',
+    bucketGranularity: 'Month',
+    entryCount: 0,
+    scoreByDayOfWeek: [],
     distribution: { energy: [], alignment: [], direction: [], source: [] },
-  })
+    buckets: [],
+  }
 }
 
 function mockBackend(options: { empty?: boolean } = {}) {

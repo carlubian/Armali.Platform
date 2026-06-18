@@ -97,7 +97,7 @@ interface BackendOptions {
 }
 
 function mockBackend(options: BackendOptions = {}) {
-  const currentWeek = options.currentWeek ?? weekEntries
+  let currentWeek = options.currentWeek ?? weekEntries
   const requests: Array<{ method: string; url: string; body?: string }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -142,7 +142,14 @@ function mockBackend(options: BackendOptions = {}) {
     }
     if (entryDetail != null && method === 'PUT') {
       const body = JSON.parse(init?.body as string) as CreateMoodEntryRequest
-      return json({ ...currentWeek[0], ...body, id: 901 })
+      const id = Number(entryDetail[1])
+      const updated = {
+        ...(currentWeek.find((entry) => entry.id === id) ?? currentWeek[0]),
+        ...body,
+        id,
+      }
+      currentWeek = currentWeek.map((entry) => (entry.id === id ? updated : entry))
+      return json(updated)
     }
     if (entryDetail != null && method === 'DELETE') return json(null, 204)
 
@@ -297,6 +304,31 @@ describe('Mood log view', () => {
 
     await waitFor(() => expect(requests.some((r) => r.method === 'POST')).toBe(true))
     expect(await screen.findByText('Entry saved')).toBeInTheDocument()
+  })
+
+  it('keeps notes focused while typing and reopens with saved notes', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /Grateful/ }))
+    let dialog = await screen.findByRole('dialog')
+    let notes = within(dialog).getByLabelText(/Notes/) as HTMLTextAreaElement
+    expect(notes).toHaveValue('A good walk by the harbour.')
+
+    await user.clear(notes)
+    expect(notes).toHaveFocus()
+    await user.type(notes, 'Updated private note')
+    expect(notes).toHaveFocus()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(requests.some((r) => r.method === 'PUT')).toBe(true))
+    expect(await screen.findByText('Entry updated')).toBeInTheDocument()
+
+    await user.click(await screen.findByRole('button', { name: /Grateful/ }))
+    dialog = await screen.findByRole('dialog')
+    notes = within(dialog).getByLabelText(/Notes/) as HTMLTextAreaElement
+    expect(notes).toHaveValue('Updated private note')
   })
 
   it('confirms before discarding a dirty entry', async () => {

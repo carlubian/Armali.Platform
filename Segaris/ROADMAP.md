@@ -249,7 +249,7 @@ Module purpose: Record moods or emotions for long term trend analysis.
 | Resolved | User workflow | Mood has a weekly Log view with Monday-Sunday navigation, a global new-entry action, derived emotion display, and a small weekly score chart; the Dashboard provides current-user trends by strict Year, Semester, Quarter, or Month periods. See `docs/requirements/MOOD_REQUIREMENTS.md`. |
 | Resolved | Integration scope | Mood is autocontained for the initial release, with no launcher attention, attachments, Analytics integration, audit history, or configurable criteria catalogs. |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-6 in `docs/planning/MOOD_IMPLEMENTATION_PLAN.md`. |
-| Open | Implementation and acceptance | Deliver the plan and map every requirement acceptance criterion to covering code and tests. |
+| Resolved | Implementation and acceptance | Deliver the plan and map every requirement acceptance criterion to covering code and tests. |
 
 ### Analytics
 

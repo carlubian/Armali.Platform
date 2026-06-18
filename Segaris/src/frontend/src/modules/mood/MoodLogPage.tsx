@@ -137,6 +137,7 @@ export function MoodLogPage() {
   }
 
   const handleMutated = (kind: ToastKind, entry: MoodEntry) => {
+    if (kind !== 'deleted') queryClient.setQueryData(moodKeys.entry(entry.id), entry)
     refreshAfterMutation()
     setToast({ kind, date: entry.entryDate })
     closeDialog()

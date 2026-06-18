@@ -48,6 +48,7 @@ export function CapexPage() {
   const [savedToast, setSavedToast] = useState<SavedToast | null>(null)
 
   const handleSaved = (entry: CapexEntry, mode: 'create' | 'edit') => {
+    queryClient.setQueryData(capexKeys.entry(entry.id), entry)
     void queryClient.invalidateQueries({ queryKey: capexKeys.entries() })
     void queryClient.invalidateQueries({ queryKey: capexKeys.entry(entry.id) })
     // A new or changed entry can flip overdue-planning attention either way.

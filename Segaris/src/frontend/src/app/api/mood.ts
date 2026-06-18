@@ -159,6 +159,45 @@ export interface MoodDashboard {
   evolution: MoodCriteriaEvolutionPoint[]
 }
 
+interface MoodScoreByDayResponse {
+  dayOfWeek: string
+  minScore: number | null
+  averageScore: number | null
+  maxScore: number | null
+}
+
+interface MoodValueCountResponse {
+  value: string
+  count: number
+}
+
+interface MoodCriteriaDistributionResponse {
+  energy: MoodValueCountResponse[]
+  alignment: MoodValueCountResponse[]
+  direction: MoodValueCountResponse[]
+  source: MoodValueCountResponse[]
+}
+
+interface MoodBucketResponse {
+  key: string
+  minScore: number | null
+  averageScore: number | null
+  maxScore: number | null
+  distribution: MoodCriteriaDistributionResponse
+}
+
+interface MoodDashboardResponse {
+  scale: string
+  period: string
+  from: string
+  to: string
+  previousPeriod: string
+  nextPeriod: string
+  scoreByDayOfWeek: MoodScoreByDayResponse[]
+  distribution: MoodCriteriaDistributionResponse
+  buckets: MoodBucketResponse[]
+}
+
 function buildQuery(query: Record<string, string>): string {
   const parameters = new URLSearchParams()
   for (const [key, value] of Object.entries(query)) {
@@ -167,6 +206,79 @@ function buildQuery(query: Record<string, string>): string {
   }
   const search = parameters.toString()
   return search ? `?${search}` : ''
+}
+
+const dayOfWeekToNumber: Record<string, number> = {
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+  Sunday: 7,
+}
+
+const scaleFromResponse: Record<string, MoodDashboardScale> = {
+  Year: 'year',
+  Semester: 'semester',
+  Quarter: 'quarter',
+  Month: 'month',
+}
+
+function countMap<T extends string>(
+  values: readonly T[],
+  buckets: readonly MoodValueCountResponse[],
+): Record<T, number> {
+  const counts = Object.fromEntries(values.map((value) => [value, 0])) as Record<
+    T,
+    number
+  >
+  for (const bucket of buckets) {
+    if (values.includes(bucket.value as T)) counts[bucket.value as T] = bucket.count
+  }
+  return counts
+}
+
+function mapDistribution(
+  distribution: MoodCriteriaDistributionResponse,
+): MoodCriteriaDistribution {
+  return {
+    energy: distribution.energy,
+    alignment: distribution.alignment,
+    direction: distribution.direction,
+    source: distribution.source,
+  }
+}
+
+function mapDashboard(response: MoodDashboardResponse): MoodDashboard {
+  return {
+    scale: scaleFromResponse[response.scale] ?? 'year',
+    period: response.period,
+    periodStart: response.from,
+    periodEnd: response.to,
+    previousPeriod: response.previousPeriod,
+    nextPeriod: response.nextPeriod,
+    scoreByDayOfWeek: response.scoreByDayOfWeek.map((day) => ({
+      dayOfWeek: dayOfWeekToNumber[day.dayOfWeek] ?? 1,
+      min: day.minScore,
+      average: day.averageScore,
+      max: day.maxScore,
+    })),
+    scoreByInterval: response.buckets.map((bucket) => ({
+      interval: bucket.key,
+      min: bucket.minScore,
+      average: bucket.averageScore,
+      max: bucket.maxScore,
+    })),
+    distribution: mapDistribution(response.distribution),
+    evolution: response.buckets.map((bucket) => ({
+      interval: bucket.key,
+      energy: countMap(moodEnergies, bucket.distribution.energy),
+      alignment: countMap(moodAlignments, bucket.distribution.alignment),
+      direction: countMap(moodDirections, bucket.distribution.direction),
+      source: countMap(moodSources, bucket.distribution.source),
+    })),
+  }
 }
 
 export const moodApi = {
@@ -207,9 +319,11 @@ export const moodApi = {
     }),
   deleteEntry: (entryId: number, signal?: AbortSignal) =>
     apiRequest<void>(`/api/mood/entries/${entryId}`, { method: 'DELETE', signal }),
-  dashboard: (query: MoodDashboardQuery, signal?: AbortSignal) =>
-    apiRequest<MoodDashboard>(
-      `/api/mood/dashboard${buildQuery({ scale: query.scale, period: query.period })}`,
-      { signal },
+  dashboard: async (query: MoodDashboardQuery, signal?: AbortSignal) =>
+    mapDashboard(
+      await apiRequest<MoodDashboardResponse>(
+        `/api/mood/dashboard${buildQuery({ scale: query.scale, period: query.period })}`,
+        { signal },
+      ),
     ),
 }
