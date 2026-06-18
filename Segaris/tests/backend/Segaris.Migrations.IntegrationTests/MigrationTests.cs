@@ -38,6 +38,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_TravelDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_MoodDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -58,6 +61,8 @@ public sealed class MigrationTests
                 // expense-category catalogs.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'travel_%'";
                 Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'mood_%'";
+                Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -87,14 +92,14 @@ public sealed class MigrationTests
         Assert.Contains("OpexDomainPersistence", sqliteNames);
         Assert.Contains("InventoryDomainPersistence", sqliteNames);
         Assert.Contains("TravelDomainPersistence", sqliteNames);
+        Assert.Contains("MoodDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Travel_domain_persistence_is_the_current_tail_after_the_inventory_model()
+    public void Mood_domain_persistence_is_the_current_tail_after_the_travel_model()
     {
-        // The Travel Wave 1 model (trips, itinerary entries, expenses, and the
-        // Travel-owned trip-type and expense-category catalogs) is the current tail
-        // and migrates from the InventoryDomainPersistence model.
+        // The Mood Wave 1 model (current-user mood entries) is the current tail and
+        // migrates from the TravelDomainPersistence model.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -106,8 +111,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("TravelDomainPersistence", migrations[^1]);
-            Assert.Equal("InventoryDomainPersistence", migrations[^2]);
+            Assert.Equal("MoodDomainPersistence", migrations[^1]);
+            Assert.Equal("TravelDomainPersistence", migrations[^2]);
         }
     }
 
@@ -203,6 +208,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_InventoryDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_TravelDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_MoodDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -216,6 +222,8 @@ public sealed class MigrationTests
             Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'travel_%'";
             Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'mood_%'";
+            Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {

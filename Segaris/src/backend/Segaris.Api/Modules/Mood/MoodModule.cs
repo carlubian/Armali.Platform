@@ -1,15 +1,15 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Mood.Persistence;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Mood;
 
 /// <summary>
 /// Privacy-first business module for the current user's personal mood check-ins.
-/// Wave 0 registers the module shell and freezes its public contracts (entry and
-/// dashboard routes, criteria enums, request/response DTOs, the strict
-/// dashboard-period contract, and stable error codes) without adding persistence
-/// or endpoints. Later waves add the <c>MoodEntry</c> model and code-backed
-/// derived-emotion matrix, the owner-only entry and weekly-log APIs, and the
-/// strict-period dashboard aggregates.
+/// Wave 0 registered the module shell and froze its public contracts. Wave 1 adds
+/// the <c>MoodEntry</c> persistence model and code-backed derived-emotion matrix.
+/// Later waves add the owner-only entry and weekly-log APIs, and the strict-period
+/// dashboard aggregates.
 /// </summary>
 /// <remarks>
 /// Unlike the other business modules, Mood owns its fixed criteria and
@@ -22,8 +22,7 @@ internal sealed class MoodModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Wave 0 registers no services. Persistence, the derived-emotion matrix,
-        // the entry/log services, and the dashboard aggregates arrive in later waves.
+        services.AddSingleton<ISegarisModelContributor, MoodModelContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

@@ -20,6 +20,8 @@ using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Api.Modules.Inventory.Mutations;
+using Segaris.Api.Modules.Mood.Contracts;
+using Segaris.Api.Modules.Mood.Domain;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
@@ -257,6 +259,47 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var storedOrder = await database.Set<InventoryOrder>().SingleAsync(value => value.Id == order.Id);
         Assert.Equal(3.35m, storedItem.CurrentStock);
         Assert.Equal(InventoryOrderStatus.Received, storedOrder.Status);
+    }
+
+    [Fact]
+    public async Task Postgres_persists_mood_entries_and_preserves_owner_date_order()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-mood-owner";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgMoodPass123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var now = new DateTimeOffset(2026, 6, 18, 10, 0, 0, TimeSpan.Zero);
+        database.Add(MoodEntry.Create(
+            new(new DateOnly(2026, 6, 18), 4, MoodEnergy.High, MoodAlignment.Positive, MoodDirection.Harmony, MoodSource.Internal, "first"),
+            new UserId(userId),
+            now));
+        database.Add(MoodEntry.Create(
+            new(new DateOnly(2026, 6, 18), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Stability, MoodSource.External, "second"),
+            new UserId(userId),
+            now.AddMinutes(1)));
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var stored = await database.Set<MoodEntry>()
+            .Where(entry => entry.CreatedBy == userId && entry.EntryDate == new DateOnly(2026, 6, 18))
+            .OrderBy(entry => entry.EntryDate)
+            .ThenBy(entry => entry.Id)
+            .ToListAsync();
+
+        Assert.Equal(["first", "second"], stored.Select(entry => entry.Notes));
+        Assert.Equal("Burnout", MoodDerivedEmotionMatrix.Resolve(
+            stored[1].Energy,
+            stored[1].Alignment,
+            stored[1].Direction,
+            stored[1].Source));
     }
 
     [Fact]
@@ -1028,6 +1071,8 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         // catalogs.
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'travel_%'";
         Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'mood_%'";
+        Assert.Equal(1L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]
