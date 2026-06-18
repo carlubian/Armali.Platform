@@ -2,6 +2,7 @@ using Scalar.AspNetCore;
 using Segaris.Api.Composition;
 using Segaris.Api.Configuration;
 using Segaris.Api.Modules.Capex.Seeding;
+using Segaris.Api.Modules.Clothes.Seeding;
 using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Modules.Inventory.Seeding;
@@ -40,6 +41,7 @@ await app.Services.SeedCapexAsync();
 await app.Services.SeedOpexAsync();
 await app.Services.SeedInventoryAsync();
 await app.Services.SeedTravelAsync();
+await app.Services.SeedClothesAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>

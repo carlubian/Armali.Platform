@@ -32,6 +32,10 @@ internal static class ConfigurationInitializationKeys
 
     public const string TravelExpenseCategories = "travel.expense-categories";
 
+    public const string ClothingCategories = "clothes.categories";
+
+    public const string ClothingColors = "clothes.colors";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -43,5 +47,7 @@ internal static class ConfigurationInitializationKeys
         InventoryLocations,
         TravelTripTypes,
         TravelExpenseCategories,
+        ClothingCategories,
+        ClothingColors,
     ];
 }
