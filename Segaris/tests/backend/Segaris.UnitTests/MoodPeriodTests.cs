@@ -144,6 +144,48 @@ public sealed class MoodPeriodTests
         Assert.True(MoodWeek.IsMondayToSunday(start, end));
     }
 
+    [Fact]
+    public void Month_weeks_cover_every_overlapping_monday_to_sunday_week()
+    {
+        // March 2026 starts on a Sunday, so the first week's Monday is in February
+        // and the last week's Sunday spills into April.
+        Assert.True(MoodPeriod.TryParse(MoodDashboardScale.Month, "2026-03", out var march));
+
+        var weeks = MoodWeek.WeekStarts(march.Start, march.End).ToArray();
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 2, 23),
+                new DateOnly(2026, 3, 2),
+                new DateOnly(2026, 3, 9),
+                new DateOnly(2026, 3, 16),
+                new DateOnly(2026, 3, 23),
+                new DateOnly(2026, 3, 30),
+            ],
+            weeks);
+        Assert.All(weeks, monday => Assert.Equal(DayOfWeek.Monday, monday.DayOfWeek));
+    }
+
+    [Fact]
+    public void Month_starting_on_monday_aligns_to_its_first_week()
+    {
+        // June 2026 starts on a Monday, so no leading partial week is needed.
+        Assert.True(MoodPeriod.TryParse(MoodDashboardScale.Month, "2026-06", out var june));
+
+        var weeks = MoodWeek.WeekStarts(june.Start, june.End).ToArray();
+
+        Assert.Equal(new DateOnly(2026, 6, 1), weeks[0]);
+        Assert.Equal(
+            [
+                new DateOnly(2026, 6, 1),
+                new DateOnly(2026, 6, 8),
+                new DateOnly(2026, 6, 15),
+                new DateOnly(2026, 6, 22),
+                new DateOnly(2026, 6, 29),
+            ],
+            weeks);
+    }
+
     private static MoodDashboardScale ParseScale(string scaleName)
     {
         Assert.True(MoodPeriod.TryParseScale(scaleName, out var scale));

@@ -303,6 +303,75 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Postgres_aggregates_the_mood_dashboard_for_the_current_user()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-mood-dashboard";
+        const string password = "PgMoodDashboard123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
+            database.Add(MoodEntry.Create(
+                new(new DateOnly(2026, 1, 5), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Harmony, MoodSource.Internal, null),
+                new UserId(userId), now));
+            database.Add(MoodEntry.Create(
+                new(new DateOnly(2026, 1, 5), 4, MoodEnergy.High, MoodAlignment.Positive, MoodDirection.Offensive, MoodSource.External, null),
+                new UserId(userId), now.AddMinutes(1)));
+            database.Add(MoodEntry.Create(
+                new(new DateOnly(2026, 3, 10), 5, MoodEnergy.Medium, MoodAlignment.Medium, MoodDirection.Defensive, MoodSource.Internal, null),
+                new UserId(userId), now));
+            // Outside the selected year, so it must not contribute.
+            database.Add(MoodEntry.Create(
+                new(new DateOnly(2025, 12, 31), 1, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Stability, MoodSource.External, null),
+                new UserId(userId), now));
+            await database.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+
+        var dashboard = await client.GetFromJsonAsync<MoodDashboardResponse>(
+            "/api/mood/dashboard?scale=year&period=2026",
+            CancellationToken.None);
+
+        Assert.NotNull(dashboard);
+        Assert.Equal(3, dashboard.EntryCount);
+
+        // Score by day of week: Monday holds the two January entries, Tuesday the March one.
+        var monday = dashboard.ScoreByDayOfWeek.Single(day => day.DayOfWeek == "Monday");
+        Assert.Equal(2, monday.MinScore);
+        Assert.Equal(3.0d, monday.AverageScore);
+        Assert.Equal(4, monday.MaxScore);
+        Assert.Equal(5.0d, dashboard.ScoreByDayOfWeek.Single(day => day.DayOfWeek == "Tuesday").AverageScore);
+
+        // Month buckets and arithmetic average evaluated end-to-end against PostgreSQL.
+        var january = dashboard.Buckets.Single(bucket => bucket.Key == "2026-01");
+        Assert.Equal(3.0d, january.AverageScore);
+        Assert.Equal(5.0d, dashboard.Buckets.Single(bucket => bucket.Key == "2026-03").AverageScore);
+
+        // Criteria distribution counts every enum value across the three in-year entries.
+        Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "Low").Count);
+        Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "Medium").Count);
+        Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "High").Count);
+        Assert.Equal(2, dashboard.Distribution.Source.Single(value => value.Value == "Internal").Count);
+        Assert.Equal(1, dashboard.Distribution.Source.Single(value => value.Value == "External").Count);
+    }
+
+    [Fact]
     public async Task Postgres_rolls_back_inventory_receipt_when_one_stock_update_fails()
     {
         if (postgres is null)

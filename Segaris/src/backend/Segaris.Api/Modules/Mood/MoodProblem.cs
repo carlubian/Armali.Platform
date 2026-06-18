@@ -32,4 +32,16 @@ internal static class MoodProblem
         {
             [field] = [message],
         });
+
+    public static ApiProblemException PeriodInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        MoodErrorCodes.PeriodValidation,
+        "The mood dashboard period is invalid.",
+        errors: errors ?? new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            [field] = [message],
+        });
 }

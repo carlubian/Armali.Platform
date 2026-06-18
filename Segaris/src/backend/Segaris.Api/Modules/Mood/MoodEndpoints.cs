@@ -5,6 +5,7 @@ using Segaris.Api.Modules.Mood.Mutations;
 using Segaris.Api.Modules.Mood.Queries;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Identity;
+using Segaris.Shared.Time;
 
 namespace Segaris.Api.Modules.Mood;
 
@@ -23,6 +24,12 @@ internal static class MoodEndpoints
             .WithName("GetMoodOptions")
             .WithSummary("Returns fixed Mood criteria and derived-emotion codes")
             .Produces<MoodOptionsResponse>();
+
+        group.MapGet("/dashboard", GetDashboardAsync)
+            .WithName("GetMoodDashboard")
+            .WithSummary("Returns owner-only strict-period dashboard aggregates for the current user")
+            .Produces<MoodDashboardResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         var entries = group.MapGroup("/entries");
 
@@ -64,6 +71,24 @@ internal static class MoodEndpoints
     }
 
     private static IResult GetOptions(MoodReadService read) => TypedResults.Ok(read.GetOptions());
+
+    private static async Task<IResult> GetDashboardAsync(
+        string? scale,
+        string? period,
+        MoodDashboardService dashboard,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var resolved = ResolvePeriod(scale, period, clock);
+        var result = await dashboard.GetDashboardAsync(resolved, userId, cancellationToken);
+        return TypedResults.Ok(result);
+    }
 
     private static async Task<IResult> ListEntriesAsync(
         DateOnly? from,
@@ -178,6 +203,30 @@ internal static class MoodEndpoints
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static MoodPeriod ResolvePeriod(string? scale, string? period, IClock clock)
+    {
+        var dashboardScale = MoodDashboardScale.Year;
+        if (!string.IsNullOrWhiteSpace(scale) && !MoodPeriod.TryParseScale(scale, out dashboardScale))
+        {
+            throw MoodProblem.PeriodInvalid(MoodApiRoutes.ScaleQuery, "The dashboard scale is unknown.");
+        }
+
+        if (string.IsNullOrWhiteSpace(period))
+        {
+            var today = MoodDefaults.Today(clock.UtcNow);
+            return MoodPeriod.Current(dashboardScale, today);
+        }
+
+        if (!MoodPeriod.TryParse(dashboardScale, period, out var resolved))
+        {
+            throw MoodProblem.PeriodInvalid(
+                MoodApiRoutes.PeriodQuery,
+                "The dashboard period token is malformed for the selected scale.");
+        }
+
+        return resolved;
     }
 
     private static (DateOnly From, DateOnly To) ValidateRange(DateOnly? from, DateOnly? to)

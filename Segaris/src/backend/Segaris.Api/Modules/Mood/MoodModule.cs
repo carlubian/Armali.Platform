@@ -26,6 +26,7 @@ internal sealed class MoodModule : ISegarisModule
     {
         services.AddSingleton<ISegarisModelContributor, MoodModelContributor>();
         services.AddScoped<MoodReadService>();
+        services.AddScoped<MoodDashboardService>();
         services.AddScoped<MoodEntryWriteService>();
     }
 
