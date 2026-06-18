@@ -41,6 +41,10 @@ function makeGarment(
     status: 'Active',
     size: 'M',
     colors: [{ id: 1, name: 'Black', colorValue: '#111111', sortOrder: 1 }],
+    washingCare: 'Wash30',
+    dryingCare: null,
+    ironingCare: 'Low',
+    dryCleaningCare: null,
     visibility: 'Public',
     thumbnail: { attachmentId: null, url: null, source: 'placeholder' },
     creatorId: 7,
@@ -118,6 +122,9 @@ describe('Clothes gallery', () => {
     expect(screen.getByText('Wool coat')).toBeInTheDocument()
     expect(screen.getAllByTitle('Black')).toHaveLength(2)
     expect(screen.getAllByText('No image')).toHaveLength(2)
+    expect(screen.getAllByRole('img', { name: 'Wash 30 C' })).toHaveLength(2)
+    expect(screen.getAllByRole('img', { name: 'Low heat' })).toHaveLength(2)
+    expect(screen.queryByRole('img', { name: 'Any drying' })).not.toBeInTheDocument()
   })
 
   it('serializes the search term into the garment request', async () => {

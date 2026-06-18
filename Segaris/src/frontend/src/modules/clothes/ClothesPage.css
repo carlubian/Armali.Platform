@@ -142,7 +142,7 @@
   padding: var(--space-4);
 }
 .seg-clothes-card {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
   background: var(--surface-frost);
@@ -151,7 +151,9 @@
   display: block;
   width: 100%;
   padding: 0;
+  overflow: hidden;
   border: 0;
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
   background: var(--surface-sunken);
   cursor: pointer;
 }
@@ -179,6 +181,7 @@
 }
 .seg-clothes-card__title-row,
 .seg-clothes-card__chips,
+.seg-clothes-care-icons,
 .seg-clothes-colors,
 .seg-clothes-colors li {
   display: flex;
@@ -218,6 +221,31 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-pill);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+}
+.seg-clothes-care-icons {
+  list-style: none;
+  flex-wrap: wrap;
+  margin: -2px 0 0;
+  padding: 0;
+}
+.seg-clothes-care-icons__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+.seg-clothes-care-icons__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.seg-clothes-care-icons__trigger img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .seg-clothes__loading {

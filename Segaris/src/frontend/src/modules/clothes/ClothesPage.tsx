@@ -18,6 +18,7 @@ import {
   clothesApi,
   clothesPageSizes,
   type ClothesGarment,
+  type ClothesGarmentSummary,
   type ClothesGarmentSortField,
   type ClothesGarmentStatus,
   type ClothesPageSize,
@@ -38,6 +39,7 @@ import {
   Select,
   Spinner,
   Toast,
+  Tooltip,
   type SegmentTone,
 } from '@/components/ui'
 
@@ -299,27 +301,6 @@ function GarmentsFilters({
             label: color.name,
           }))}
         />
-      </div>
-      <div className="seg-clothes__filters-secondary">
-        <FilterSelect
-          label={t('filters.visibility')}
-          value={state.visibility}
-          onChange={(value) =>
-            onChange({ visibility: value as ClothesVisibility | '' })
-          }
-          options={visibilities.map((visibility) => ({
-            value: visibility,
-            label: t(`visibility.${visibility}`),
-          }))}
-        />
-        <label className="seg-clothes__check">
-          <input
-            type="checkbox"
-            checked={state.mine}
-            onChange={(event) => onChange({ mine: event.target.checked })}
-          />
-          <span>{t('filters.mine')}</span>
-        </label>
         {count > 0 && (
           <Button variant="ghost" onClick={onClear}>
             {t('filters.clear')}
@@ -352,17 +333,7 @@ function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
 }
 
 interface GarmentGalleryProps {
-  garments: Array<{
-    id: number
-    name: string
-    categoryName: string
-    status: ClothesGarmentStatus
-    size: string | null
-    colors: ClothingColor[]
-    visibility: ClothesVisibility
-    thumbnail: { url: string | null; source: string }
-    creatorName: string
-  }>
+  garments: ClothesGarmentSummary[]
   state: GarmentsState
   busy: boolean
   onSort: (sort: ClothesGarmentSortField) => void
@@ -430,11 +401,62 @@ function GarmentGallery({ garments, state, busy, onSort, onOpen }: GarmentGaller
                 <span>{t('gallery.by', { name: garment.creatorName })}</span>
               </div>
               <ColorSwatches colors={garment.colors} />
+              <CareSymbolsRow garment={garment} />
             </div>
           </article>
         ))}
       </div>
     </section>
+  )
+}
+
+function CareSymbolsRow({ garment }: { garment: ClothesGarmentSummary }) {
+  const { t } = useTranslation('clothes')
+  const symbols = [
+    garment.washingCare == null
+      ? null
+      : {
+          key: 'washing',
+          src: washingCareSymbols[garment.washingCare],
+          label: t(`care.washingValues.${garment.washingCare}`),
+        },
+    garment.dryingCare == null
+      ? null
+      : {
+          key: 'drying',
+          src: dryingCareSymbols[garment.dryingCare],
+          label: t(`care.dryingValues.${garment.dryingCare}`),
+        },
+    garment.ironingCare == null
+      ? null
+      : {
+          key: 'ironing',
+          src: ironingCareSymbols[garment.ironingCare],
+          label: t(`care.ironingValues.${garment.ironingCare}`),
+        },
+    garment.dryCleaningCare == null
+      ? null
+      : {
+          key: 'dry-cleaning',
+          src: dryCleaningCareSymbols[garment.dryCleaningCare],
+          label: t(`care.dryCleaningValues.${garment.dryCleaningCare}`),
+        },
+  ].filter((symbol): symbol is { key: string; src: string; label: string } => symbol != null)
+
+  if (symbols.length === 0) return null
+
+  return (
+    <ul className="seg-clothes-care-icons" aria-label={t('editor.sections.care')}>
+      {symbols.map((symbol) => (
+        <li key={symbol.key}>
+          <Tooltip label={symbol.label}>
+            <span className="seg-clothes-care-icons__trigger" tabIndex={0}>
+              <img src={symbol.src} alt={symbol.label} />
+            </span>
+          </Tooltip>
+        </li>
+      ))}
+    </ul>
   )
 }
 

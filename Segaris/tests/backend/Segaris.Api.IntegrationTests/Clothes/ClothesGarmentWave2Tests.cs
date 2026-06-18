@@ -65,7 +65,16 @@ public sealed class ClothesGarmentWave2Tests
         using var server = new CapexTestServer();
         using var client = await server.CreateAuthenticatedClientAsync();
         var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
-        await ClothesTestData.SeedGarmentAsync(server.Services, founderId, name: "Blue jeans", categoryName: "Bottoms", status: ClothesGarmentStatus.Active, size: "32", colorNames: ["Blue"]);
+        await ClothesTestData.SeedGarmentAsync(
+            server.Services,
+            founderId,
+            name: "Blue jeans",
+            categoryName: "Bottoms",
+            status: ClothesGarmentStatus.Active,
+            size: "32",
+            colorNames: ["Blue"],
+            washingCare: WashingCare.Wash40,
+            ironingCare: IroningCare.Low);
         await ClothesTestData.SeedGarmentAsync(server.Services, founderId, name: "Red scarf", categoryName: "Accessories", status: ClothesGarmentStatus.Unavailable, notes: "winter wool", colorNames: ["Red"]);
         await ClothesTestData.SeedGarmentAsync(server.Services, founderId, name: "Black coat", categoryName: "Outerwear", status: ClothesGarmentStatus.Deprecated, colorNames: ["Black"], visibility: RecordVisibility.Private);
 
@@ -82,6 +91,11 @@ public sealed class ClothesGarmentWave2Tests
 
         Assert.Equal(3, firstPage.TotalCount);
         Assert.Equal(2, firstPage.Items.Count);
+        var blueJeans = firstPage.Items.Single(item => item.Name == "Blue jeans");
+        Assert.Equal("Wash40", blueJeans.WashingCare);
+        Assert.Null(blueJeans.DryingCare);
+        Assert.Equal("Low", blueJeans.IroningCare);
+        Assert.Null(blueJeans.DryCleaningCare);
         Assert.Equal("Red scarf", Assert.Single(search.Items).Name);
         Assert.Equal("Red scarf", Assert.Single(byCategory.Items).Name);
         Assert.Equal("Red scarf", Assert.Single(byColor.Items).Name);

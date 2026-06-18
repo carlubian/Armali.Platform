@@ -76,6 +76,10 @@ export interface ClothesGarmentSummary {
   status: ClothesGarmentStatus
   size: string | null
   colors: ClothingColor[]
+  washingCare: ClothesWashingCare | null
+  dryingCare: ClothesDryingCare | null
+  ironingCare: ClothesIroningCare | null
+  dryCleaningCare: ClothesDryCleaningCare | null
   visibility: ClothesVisibility
   thumbnail: ClothesThumbnail
   creatorId: number
@@ -83,10 +87,6 @@ export interface ClothesGarmentSummary {
 }
 
 export interface ClothesGarment extends ClothesGarmentSummary {
-  washingCare: ClothesWashingCare | null
-  dryingCare: ClothesDryingCare | null
-  ironingCare: ClothesIroningCare | null
-  dryCleaningCare: ClothesDryCleaningCare | null
   notes: string | null
   attachments: ClothesAttachment[]
   createdById: number
