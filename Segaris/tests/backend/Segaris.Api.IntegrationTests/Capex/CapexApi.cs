@@ -47,6 +47,16 @@ internal static class CapexApi
         return await client.SendAsync(request, CancellationToken.None);
     }
 
+    public static async Task<HttpResponseMessage> PutAsync(
+        HttpClient client,
+        string route,
+        string? csrf)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, route);
+        AddCsrf(request, csrf);
+        return await client.SendAsync(request, CancellationToken.None);
+    }
+
     public static async Task<HttpResponseMessage> UploadAsync(
         HttpClient client,
         string route,

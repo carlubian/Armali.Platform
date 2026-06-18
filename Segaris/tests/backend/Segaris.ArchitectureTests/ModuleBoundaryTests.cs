@@ -18,6 +18,7 @@ public sealed class ModuleBoundaryTests
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
+    private const string ClothesNamespace = "Segaris.Api.Modules.Clothes";
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
@@ -33,6 +34,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(OpexNamespace));
         Assert.NotEmpty(TypesIn(InventoryNamespace));
         Assert.NotEmpty(TypesIn(TravelNamespace));
+        Assert.NotEmpty(TypesIn(ClothesNamespace));
         Assert.NotEmpty(TypesIn(MoodNamespace));
     }
 
@@ -132,7 +134,42 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(TravelNamespace, CapexNamespace);
         AssertNoDependency(TravelNamespace, OpexNamespace);
         AssertNoDependency(TravelNamespace, InventoryNamespace);
+        AssertNoDependency(TravelNamespace, ClothesNamespace);
         AssertNoDependency(TravelNamespace, MoodNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_clothes()
+    {
+        AssertNoDependency(ConfigurationNamespace, ClothesNamespace);
+    }
+
+    [Fact]
+    public void Clothes_depends_on_configuration_contracts()
+    {
+        var dependsOnConfiguration = TypesIn(ClothesNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Clothes must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Clothes_does_not_depend_on_other_business_modules()
+    {
+        AssertNoDependency(ClothesNamespace, CapexNamespace);
+        AssertNoDependency(ClothesNamespace, OpexNamespace);
+        AssertNoDependency(ClothesNamespace, InventoryNamespace);
+        AssertNoDependency(ClothesNamespace, TravelNamespace);
+        AssertNoDependency(ClothesNamespace, MoodNamespace);
+    }
+
+    [Fact]
+    public void Clothes_does_not_depend_on_launcher()
+    {
+        AssertNoDependency(ClothesNamespace, LauncherNamespace);
     }
 
     [Fact]
@@ -157,6 +194,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(MoodNamespace, OpexNamespace);
         AssertNoDependency(MoodNamespace, InventoryNamespace);
         AssertNoDependency(MoodNamespace, TravelNamespace);
+        AssertNoDependency(MoodNamespace, ClothesNamespace);
     }
 
     [Fact]
@@ -197,6 +235,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, OpexNamespace);
         AssertNoDependency(LauncherNamespace, InventoryNamespace);
         AssertNoDependency(LauncherNamespace, TravelNamespace);
+        AssertNoDependency(LauncherNamespace, ClothesNamespace);
         AssertNoDependency(LauncherNamespace, MoodNamespace);
     }
 

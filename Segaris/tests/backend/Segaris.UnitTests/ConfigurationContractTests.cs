@@ -94,7 +94,7 @@ public sealed class ConfigurationContractTests
     public void Initialization_keys_are_frozen()
     {
         Assert.Equal(
-            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories"],
+            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories", "clothes.categories", "clothes.colors"],
             ConfigurationInitializationKeys.All);
     }
 
@@ -187,8 +187,9 @@ public sealed class ConfigurationContractTests
     [Fact]
     public void Catalog_and_currency_create_requests_serialize_to_the_frozen_wire_shape()
     {
-        using var item = JsonDocument.Parse(JsonSerializer.Serialize(new CatalogItemRequest("Household"), Web));
+        using var item = JsonDocument.Parse(JsonSerializer.Serialize(new CatalogItemRequest("Household", "#123ABC"), Web));
         Assert.Equal("Household", item.RootElement.GetProperty("name").GetString());
+        Assert.Equal("#123ABC", item.RootElement.GetProperty("colorValue").GetString());
 
         using var currency = JsonDocument.Parse(JsonSerializer.Serialize(new CurrencyItemRequest("Euro", "EUR"), Web));
         Assert.Equal("Euro", currency.RootElement.GetProperty("name").GetString());

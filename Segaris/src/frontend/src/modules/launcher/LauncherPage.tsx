@@ -3,6 +3,7 @@ import {
   Boxes,
   Luggage,
   Receipt,
+  Shirt,
   SlidersHorizontal,
   Smile,
   UserRound,
@@ -81,6 +82,15 @@ export function LauncherPage() {
         tone: 'sea',
         attention: requiresAttention('travel'),
         attentionLabel: t('travel:launcher.attention'),
+      },
+      {
+        key: 'clothes',
+        title: t('clothes:launcher.title'),
+        description: t('clothes:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/clothes',
+        icon: Shirt,
+        tone: 'gold',
       },
       {
         key: 'mood',

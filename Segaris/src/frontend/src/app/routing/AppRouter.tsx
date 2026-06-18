@@ -39,6 +39,12 @@ const TravelPage = lazy(() =>
   })),
 )
 
+const ClothesPage = lazy(() =>
+  import('@/modules/clothes/ClothesPage').then((module) => ({
+    default: module.ClothesPage,
+  })),
+)
+
 // The Mood module's two immersive screens are lazily loaded so their week board,
 // charts, and entry dialog stay out of the initial platform bundle.
 const MoodLogPage = lazy(() =>
@@ -144,6 +150,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <TravelPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="clothes"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <ClothesPage />
               </Suspense>
             </ModuleBoundary>
           }

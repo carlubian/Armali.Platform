@@ -235,8 +235,10 @@ Module purpose: Manage the wardrobe, with clothes and accesories.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, wash types. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | A single `Garment` entity covers clothes and accessories, distinguished by category. It carries a required name and `ClothingCategory`, a fixed `Active`/`Unavailable`/`Deprecated` status, an optional free-text size, zero or more colours, four optional fixed-value care axes (washing, drying, ironing, dry cleaning), notes, attachments with an optional primary image, and Public/Private visibility. No dynamic laundry state, purchase/cost, brand, material, season, outfits, history, or bleaching axis. See `docs/requirements/CLOTHES_REQUIREMENTS.md`. |
+| Resolved | Catalogues | Clothes owns `ClothingCategory` (required, replace-only deletion) and `ClothingColor` (optional, multi-valued, replace-or-clear deletion) through Configuration. `ClothingColor` carries a name plus a colour value (hex swatch), extending the catalogue editor. Care axis values are fixed enums mapped to the `docs/icons/` symbol set, not configurable. |
+| Resolved | User workflow | Clothes opens directly on a server-paginated thumbnail gallery with search, filters, sorting, and a URL-aware popup editor. The launcher card never requests attention. See `docs/requirements/CLOTHES_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/CLOTHES_IMPLEMENTATION_PLAN.md`. |
 
 ### Mood
 

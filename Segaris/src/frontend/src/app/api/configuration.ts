@@ -27,6 +27,7 @@ export interface Currency {
 /** Create/update body for suppliers and cost centres. */
 export interface CatalogItemRequest {
   name: string
+  colorValue?: string
 }
 
 /** Create/update body for currencies; `code` is a three-letter display code. */

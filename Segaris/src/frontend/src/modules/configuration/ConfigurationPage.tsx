@@ -16,7 +16,14 @@ import {
 
 import './ConfigurationPage.css'
 
-const sections: CatalogSectionId[] = ['global', 'capex', 'opex', 'inventory', 'travel']
+const sections: CatalogSectionId[] = [
+  'global',
+  'capex',
+  'opex',
+  'inventory',
+  'travel',
+  'clothes',
+]
 
 interface ToastState {
   kind: CatalogToastKind

@@ -2,8 +2,8 @@ import { apiRequest } from './client'
 
 /**
  * Shared transport types and management client for the four known administrative
- * catalogs (suppliers, cost centres, currencies, and Capex categories). The wire
- * contract is identical across catalogs — only the create/update body differs —
+ * catalogs. The wire contract is identical across catalogs — only the
+ * create/update body differs —
  * so the per-row management routes are bound once here and reused by the
  * Configuration and Capex API modules. This is deliberate de-duplication of a
  * frozen contract, not a generic runtime catalog framework.

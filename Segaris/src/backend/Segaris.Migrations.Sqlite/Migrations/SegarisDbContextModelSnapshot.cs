@@ -304,6 +304,201 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothesGarment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DryCleaningCare")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DryingCare")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IroningCare")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PrimaryAttachmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Size")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WashingCare")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("Visibility");
+
+                    b.HasIndex("Name", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.ToTable("clothes_garments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_clothes_garments_dry_cleaning_care", "\"DryCleaningCare\" IS NULL OR \"DryCleaningCare\" IN ('Any', 'DoNotDryClean')");
+
+                            t.HasCheckConstraint("CK_clothes_garments_drying_care", "\"DryingCare\" IS NULL OR \"DryingCare\" IN ('Any', 'Delicate', 'VeryDelicate')");
+
+                            t.HasCheckConstraint("CK_clothes_garments_ironing_care", "\"IroningCare\" IS NULL OR \"IroningCare\" IN ('Any', 'Low', 'Medium', 'DoNotIron')");
+
+                            t.HasCheckConstraint("CK_clothes_garments_status", "\"Status\" IN ('Active', 'Unavailable', 'Deprecated')");
+
+                            t.HasCheckConstraint("CK_clothes_garments_visibility", "\"Visibility\" IN ('Public', 'Private')");
+
+                            t.HasCheckConstraint("CK_clothes_garments_washing_care", "\"WashingCare\" IS NULL OR \"WashingCare\" IN ('Any', 'Wash30', 'Wash30Delicate', 'Wash40', 'Wash40Delicate', 'Wash50', 'Wash50Delicate', 'Wash60', 'Wash60Delicate', 'HandWash', 'DoNotWash')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothesGarmentColor", b =>
+                {
+                    b.Property<int>("GarmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ColorId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("GarmentId", "ColorId");
+
+                    b.HasIndex("ColorId");
+
+                    b.ToTable("clothes_garment_colors", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothingCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("clothing_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothingColor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ColorValue")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("clothing_colors", (string)null);
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Configuration.Persistence.SegarisCatalogInitialization", b =>
                 {
                     b.Property<string>("CatalogKey")
@@ -1653,6 +1848,42 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothesGarment", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Clothes.Domain.ClothingCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothesGarmentColor", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Clothes.Domain.ClothingColor", null)
+                        .WithMany()
+                        .HasForeignKey("ColorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Clothes.Domain.ClothesGarment", null)
+                        .WithMany("Colors")
+                        .HasForeignKey("GarmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Inventory.Domain.InventoryItem", b =>
                 {
                     b.HasOne("Segaris.Api.Modules.Inventory.Domain.InventoryCategory", null)
@@ -1883,6 +2114,11 @@ namespace Segaris.Migrations.Sqlite.Migrations
             modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Clothes.Domain.ClothesGarment", b =>
+                {
+                    b.Navigation("Colors");
                 });
 
             modelBuilder.Entity("Segaris.Api.Modules.Inventory.Domain.InventoryItem", b =>

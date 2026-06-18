@@ -22,6 +22,7 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Opex", names);
         Assert.Contains("Inventory", names);
         Assert.Contains("Travel", names);
+        Assert.Contains("Clothes", names);
         Assert.Contains("Mood", names);
         Assert.Contains("Launcher", names);
     }
@@ -70,13 +71,26 @@ public sealed class ModuleRegistrationTests
     }
 
     [Fact]
-    public void Mood_is_registered_after_travel_and_before_launcher()
+    public void Clothes_is_registered_after_travel_and_before_mood()
     {
         var names = SegarisModules.ModuleNames.ToList();
 
         Assert.True(
-            names.IndexOf("Travel") < names.IndexOf("Mood"),
-            "Mood must be registered after Travel.");
+            names.IndexOf("Travel") < names.IndexOf("Clothes"),
+            "Clothes must be registered after Travel.");
+        Assert.True(
+            names.IndexOf("Clothes") < names.IndexOf("Mood"),
+            "Clothes must be registered before Mood.");
+    }
+
+    [Fact]
+    public void Mood_is_registered_after_clothes_and_before_launcher()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Clothes") < names.IndexOf("Mood"),
+            "Mood must be registered after Clothes.");
         Assert.True(
             names.IndexOf("Mood") < names.IndexOf("Launcher"),
             "Mood must be registered before Launcher.");
