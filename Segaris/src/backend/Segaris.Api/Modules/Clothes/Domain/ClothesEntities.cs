@@ -152,6 +152,40 @@ internal sealed class ClothesGarment
     }
 
     /// <summary>
+    /// Marks <paramref name="attachmentId"/> as the garment's primary image. The caller
+    /// is responsible for verifying the attachment belongs to the garment and is an
+    /// image; the garment only records the reference and stamps the change.
+    /// </summary>
+    internal void SetPrimaryAttachment(int attachmentId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (attachmentId <= 0)
+        {
+            throw new ClothesValidationException("Attachment identifiers must be positive.");
+        }
+
+        PrimaryAttachmentId = attachmentId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Clears the primary-image reference, keeping it consistent when the referenced
+    /// attachment is removed. The garment is untouched and unstamped when no primary
+    /// image is set.
+    /// </summary>
+    internal void ClearPrimaryAttachment(UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (PrimaryAttachmentId is null)
+        {
+            return;
+        }
+
+        PrimaryAttachmentId = null;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
     /// Removes the optional colour association <paramref name="colorId"/> during a
     /// Configuration colour-clearing migration. The garment is untouched and unstamped
     /// when it did not reference the colour.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Clothes.Contracts;
 using Segaris.Api.Modules.Clothes.Domain;
 using Segaris.Api.Modules.Clothes.Mutations;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Clothes;
@@ -65,17 +68,36 @@ internal static class ClothesEndpoints
             .WithSummary("Deletes an accessible Clothes garment and its owned attachments")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
-        garments.MapGet(ClothesApiRoutes.GarmentAttachments, NotImplemented).WithName("ListClothesGarmentAttachments");
-        garments.MapPost(ClothesApiRoutes.GarmentAttachments, NotImplemented)
+        garments.MapGet(ClothesApiRoutes.GarmentAttachments, ListGarmentAttachmentsAsync)
+            .WithName("ListClothesGarmentAttachments")
+            .WithSummary("Lists the attachments of an accessible Clothes garment")
+            .Produces<IReadOnlyList<ClothesAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapPost(ClothesApiRoutes.GarmentAttachments, UploadGarmentAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UploadClothesGarmentAttachment");
-        garments.MapGet(ClothesApiRoutes.GarmentAttachmentById, NotImplemented).WithName("DownloadClothesGarmentAttachment");
-        garments.MapDelete(ClothesApiRoutes.GarmentAttachmentById, NotImplemented)
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadClothesGarmentAttachment")
+            .WithSummary("Uploads one attachment for an accessible Clothes garment")
+            .Produces<ClothesAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapGet(ClothesApiRoutes.GarmentAttachmentById, DownloadGarmentAttachmentAsync)
+            .WithName("DownloadClothesGarmentAttachment")
+            .WithSummary("Downloads one attachment of an accessible Clothes garment")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapDelete(ClothesApiRoutes.GarmentAttachmentById, DeleteGarmentAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteClothesGarmentAttachment");
-        garments.MapPut(ClothesApiRoutes.GarmentPrimaryAttachment, NotImplemented)
+            .WithName("DeleteClothesGarmentAttachment")
+            .WithSummary("Removes one attachment of an accessible Clothes garment, clearing the primary image when needed")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        garments.MapPut(ClothesApiRoutes.GarmentPrimaryAttachment, SetGarmentPrimaryAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("SetClothesGarmentPrimaryAttachment");
+            .WithName("SetClothesGarmentPrimaryAttachment")
+            .WithSummary("Marks one image attachment as the garment's primary image")
+            .Produces<ClothesAttachmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -235,6 +257,163 @@ internal static class ClothesEndpoints
 
         return TypedResults.NoContent();
     }
+
+    private static async Task<IResult> ListGarmentAttachmentsAsync(
+        int garmentId,
+        ClothesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var attachments = await read.ListGarmentAttachmentsAsync(garmentId, userId, cancellationToken);
+        if (attachments is null)
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        return TypedResults.Ok(attachments);
+    }
+
+    private static async Task<IResult> UploadGarmentAttachmentAsync(
+        int garmentId,
+        HttpRequest request,
+        ClothesReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.GarmentAccessibleAsync(garmentId, userId, cancellationToken))
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw ClothesGarmentProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw ClothesGarmentProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(ClothesAttachments.GarmentOwner(garmentId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw ClothesGarmentProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/clothes/garments/{garmentId}/attachments/{created.Id.Value}",
+            ToAttachment(created, isPrimary: false));
+    }
+
+    private static async Task<IResult> DownloadGarmentAttachmentAsync(
+        int garmentId,
+        int attachmentId,
+        ClothesReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.GarmentAccessibleAsync(garmentId, userId, cancellationToken))
+        {
+            throw ClothesGarmentProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            ClothesAttachments.GarmentOwner(garmentId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw ClothesGarmentProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteGarmentAttachmentAsync(
+        int garmentId,
+        int attachmentId,
+        ClothesGarmentWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var outcome = await write.DeleteAttachmentAsync(garmentId, attachmentId, userId, cancellationToken);
+        return outcome switch
+        {
+            ClothesDeleteAttachmentOutcome.GarmentNotFound => throw ClothesGarmentProblem.NotFound(),
+            ClothesDeleteAttachmentOutcome.AttachmentNotFound => throw ClothesGarmentProblem.AttachmentNotFound(),
+            _ => TypedResults.NoContent(),
+        };
+    }
+
+    private static async Task<IResult> SetGarmentPrimaryAttachmentAsync(
+        int garmentId,
+        int attachmentId,
+        ClothesGarmentWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await write.SetPrimaryAttachmentAsync(garmentId, attachmentId, userId, cancellationToken);
+        return result.Outcome switch
+        {
+            ClothesSetPrimaryOutcome.GarmentNotFound => throw ClothesGarmentProblem.NotFound(),
+            ClothesSetPrimaryOutcome.AttachmentNotFound => throw ClothesGarmentProblem.AttachmentNotFound(),
+            ClothesSetPrimaryOutcome.NotImage => throw ClothesGarmentProblem.PrimaryNotImage(),
+            _ => TypedResults.Ok(ToAttachment(result.Descriptor!, isPrimary: true)),
+        };
+    }
+
+    private static ClothesAttachmentResponse ToAttachment(AttachmentDescriptor descriptor, bool isPrimary) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        isPrimary);
 
     private static UserId CategoryActor(ICurrentUser currentUser) => currentUser.UserId ?? throw ClothesCategoryProblem.NotFound();
 

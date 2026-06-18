@@ -113,6 +113,79 @@ internal sealed class ClothesGarmentWriteService(
         return true;
     }
 
+    /// <summary>
+    /// Marks one image attachment as the garment's primary image. Inaccessible
+    /// garments are reported as not found so private records are never disclosed; a
+    /// missing or non-image attachment is rejected without mutating the garment.
+    /// </summary>
+    public async Task<ClothesSetPrimaryResult> SetPrimaryAttachmentAsync(
+        int garmentId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var garment = await database.Set<ClothesGarment>()
+            .Where(ClothesGarmentPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == garmentId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (garment is null)
+        {
+            return new(ClothesSetPrimaryOutcome.GarmentNotFound, null);
+        }
+
+        var owner = ClothesAttachments.GarmentOwner(garmentId);
+        var descriptor = await attachments.FindAsync(new(attachmentId), owner, cancellationToken);
+        if (descriptor is null)
+        {
+            return new(ClothesSetPrimaryOutcome.AttachmentNotFound, null);
+        }
+
+        if (!ClothesAttachments.IsImageContentType(descriptor.ContentType))
+        {
+            return new(ClothesSetPrimaryOutcome.NotImage, null);
+        }
+
+        garment.SetPrimaryAttachment(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return new(ClothesSetPrimaryOutcome.Assigned, descriptor);
+    }
+
+    /// <summary>
+    /// Removes one attachment from a garment, clearing the primary-image reference when
+    /// the removed attachment was the primary. Inaccessible garments are reported as not
+    /// found so private records are never disclosed.
+    /// </summary>
+    public async Task<ClothesDeleteAttachmentOutcome> DeleteAttachmentAsync(
+        int garmentId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var garment = await database.Set<ClothesGarment>()
+            .Where(ClothesGarmentPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == garmentId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (garment is null)
+        {
+            return ClothesDeleteAttachmentOutcome.GarmentNotFound;
+        }
+
+        var owner = ClothesAttachments.GarmentOwner(garmentId);
+        var removed = await attachments.DeleteAsync(new(attachmentId), owner, cancellationToken);
+        if (!removed)
+        {
+            return ClothesDeleteAttachmentOutcome.AttachmentNotFound;
+        }
+
+        if (garment.PrimaryAttachmentId == attachmentId)
+        {
+            garment.ClearPrimaryAttachment(actorId, clock.UtcNow);
+            await database.SaveChangesAsync(cancellationToken);
+        }
+
+        return ClothesDeleteAttachmentOutcome.Deleted;
+    }
+
     private async Task ValidateReferencesAsync(
         ClothesGarmentValues values,
         CancellationToken cancellationToken)
@@ -204,4 +277,29 @@ internal sealed class ClothesGarmentWriteService(
 
         throw new ClothesValidationException($"The {field} is not a recognized value.");
     }
+}
+
+/// <summary>Outcome of a primary-image assignment.</summary>
+internal enum ClothesSetPrimaryOutcome
+{
+    GarmentNotFound,
+    AttachmentNotFound,
+    NotImage,
+    Assigned,
+}
+
+/// <summary>
+/// Result of <see cref="ClothesGarmentWriteService.SetPrimaryAttachmentAsync"/>, carrying
+/// the assigned attachment descriptor when the assignment succeeded.
+/// </summary>
+internal sealed record ClothesSetPrimaryResult(
+    ClothesSetPrimaryOutcome Outcome,
+    AttachmentDescriptor? Descriptor);
+
+/// <summary>Outcome of an attachment deletion.</summary>
+internal enum ClothesDeleteAttachmentOutcome
+{
+    GarmentNotFound,
+    AttachmentNotFound,
+    Deleted,
 }
