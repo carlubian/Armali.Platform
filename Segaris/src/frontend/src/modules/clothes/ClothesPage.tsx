@@ -450,7 +450,7 @@ function CareSymbolsRow({ garment }: { garment: ClothesGarmentSummary }) {
       {symbols.map((symbol) => (
         <li key={symbol.key}>
           <Tooltip label={symbol.label}>
-            <span className="seg-clothes-care-icons__trigger" tabIndex={0}>
+            <span className="seg-clothes-care-icons__trigger">
               <img src={symbol.src} alt={symbol.label} />
             </span>
           </Tooltip>
