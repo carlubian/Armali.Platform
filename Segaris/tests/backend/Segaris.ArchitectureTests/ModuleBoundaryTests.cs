@@ -18,6 +18,7 @@ public sealed class ModuleBoundaryTests
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
+    private const string MoodNamespace = "Segaris.Api.Modules.Mood";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -32,6 +33,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(OpexNamespace));
         Assert.NotEmpty(TypesIn(InventoryNamespace));
         Assert.NotEmpty(TypesIn(TravelNamespace));
+        Assert.NotEmpty(TypesIn(MoodNamespace));
     }
 
     [Fact]
@@ -130,6 +132,39 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(TravelNamespace, CapexNamespace);
         AssertNoDependency(TravelNamespace, OpexNamespace);
         AssertNoDependency(TravelNamespace, InventoryNamespace);
+        AssertNoDependency(TravelNamespace, MoodNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_mood()
+    {
+        AssertNoDependency(ConfigurationNamespace, MoodNamespace);
+    }
+
+    [Fact]
+    public void Mood_does_not_depend_on_configuration()
+    {
+        // Mood is privacy-first and owns its fixed criteria and derived-emotion
+        // matrix. Unlike the other business modules it must not consume any
+        // Configuration catalog or reference-management contract.
+        AssertNoDependency(MoodNamespace, ConfigurationNamespace);
+    }
+
+    [Fact]
+    public void Mood_does_not_depend_on_other_business_modules()
+    {
+        AssertNoDependency(MoodNamespace, CapexNamespace);
+        AssertNoDependency(MoodNamespace, OpexNamespace);
+        AssertNoDependency(MoodNamespace, InventoryNamespace);
+        AssertNoDependency(MoodNamespace, TravelNamespace);
+    }
+
+    [Fact]
+    public void Mood_does_not_depend_on_launcher()
+    {
+        // Mood contributes no launcher attention, so it must not reference the
+        // Launcher namespace at all.
+        AssertNoDependency(MoodNamespace, LauncherNamespace);
     }
 
     [Fact]
@@ -162,6 +197,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, OpexNamespace);
         AssertNoDependency(LauncherNamespace, InventoryNamespace);
         AssertNoDependency(LauncherNamespace, TravelNamespace);
+        AssertNoDependency(LauncherNamespace, MoodNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

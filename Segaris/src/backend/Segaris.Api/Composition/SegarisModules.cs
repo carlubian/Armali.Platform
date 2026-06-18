@@ -3,6 +3,7 @@ using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory;
 using Segaris.Api.Modules.Launcher;
+using Segaris.Api.Modules.Mood;
 using Segaris.Api.Modules.Opex;
 using Segaris.Api.Modules.Travel;
 using Segaris.Api.Platform;
@@ -20,6 +21,7 @@ internal static class SegarisModules
         new OpexModule(),
         new InventoryModule(),
         new TravelModule(),
+        new MoodModule(),
         new LauncherModule(),
     ];
 
