@@ -126,6 +126,24 @@ public sealed class MoodPeriodTests
         Assert.Equal("2027-01", navigated.Token);
     }
 
+    [Theory]
+    [InlineData("2026-06-15", "2026-06-15", "2026-06-21")]
+    [InlineData("2026-06-18", "2026-06-15", "2026-06-21")]
+    [InlineData("2026-06-21", "2026-06-15", "2026-06-21")]
+    public void Madrid_week_helpers_resolve_monday_to_sunday_ranges(
+        string date,
+        string expectedStart,
+        string expectedEnd)
+    {
+        var civilDate = DateOnly.Parse(date);
+        var start = MoodWeek.StartOfWeek(civilDate);
+        var end = MoodWeek.EndOfWeek(civilDate);
+
+        Assert.Equal(DateOnly.Parse(expectedStart), start);
+        Assert.Equal(DateOnly.Parse(expectedEnd), end);
+        Assert.True(MoodWeek.IsMondayToSunday(start, end));
+    }
+
     private static MoodDashboardScale ParseScale(string scaleName)
     {
         Assert.True(MoodPeriod.TryParseScale(scaleName, out var scale));

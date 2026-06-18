@@ -22,6 +22,19 @@ internal sealed record MoodEntryResponse(
     string? UpdatedByName,
     DateTimeOffset? UpdatedAt);
 
+/// <summary>Average mood score for one civil date in a weekly log range.</summary>
+internal sealed record MoodDailyAverageResponse(DateOnly EntryDate, double? AverageScore);
+
+/// <summary>
+/// Owner-only weekly log payload. Entries preserve deterministic insertion order
+/// within each day, while daily averages include missing days as null values.
+/// </summary>
+internal sealed record MoodEntryListResponse(
+    DateOnly From,
+    DateOnly To,
+    IReadOnlyList<MoodEntryResponse> Entries,
+    IReadOnlyList<MoodDailyAverageResponse> DailyAverages);
+
 /// <summary>
 /// Fixed criteria vocabularies and derived-emotion codes the frontend translates
 /// through the Mood i18next namespace. The lists never expose another user's data.

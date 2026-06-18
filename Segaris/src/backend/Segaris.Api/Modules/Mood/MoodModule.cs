@@ -1,5 +1,7 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Mood.Mutations;
 using Segaris.Api.Modules.Mood.Persistence;
+using Segaris.Api.Modules.Mood.Queries;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Mood;
@@ -23,6 +25,8 @@ internal sealed class MoodModule : ISegarisModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISegarisModelContributor, MoodModelContributor>();
+        services.AddScoped<MoodReadService>();
+        services.AddScoped<MoodEntryWriteService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

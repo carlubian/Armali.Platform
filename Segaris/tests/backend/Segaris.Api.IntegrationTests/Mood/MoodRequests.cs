@@ -37,4 +37,21 @@ internal static class MoodRequests
             direction.ToString(),
             source.ToString(),
             notes);
+
+    public static UpdateMoodEntryRequest ValidUpdate(
+        DateOnly entryDate,
+        int score = 3,
+        MoodEnergy energy = MoodEnergy.Medium,
+        MoodAlignment alignment = MoodAlignment.Medium,
+        MoodDirection direction = MoodDirection.Harmony,
+        MoodSource source = MoodSource.Internal,
+        string? notes = null) =>
+        new(
+            entryDate,
+            score,
+            energy.ToString(),
+            alignment.ToString(),
+            direction.ToString(),
+            source.ToString(),
+            notes);
 }
