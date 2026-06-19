@@ -19,6 +19,7 @@ public sealed class ModuleBoundaryTests
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
     private const string ClothesNamespace = "Segaris.Api.Modules.Clothes";
+    private const string AssetsNamespace = "Segaris.Api.Modules.Assets";
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
@@ -35,6 +36,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(InventoryNamespace));
         Assert.NotEmpty(TypesIn(TravelNamespace));
         Assert.NotEmpty(TypesIn(ClothesNamespace));
+        Assert.NotEmpty(TypesIn(AssetsNamespace));
         Assert.NotEmpty(TypesIn(MoodNamespace));
     }
 
@@ -135,6 +137,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(TravelNamespace, OpexNamespace);
         AssertNoDependency(TravelNamespace, InventoryNamespace);
         AssertNoDependency(TravelNamespace, ClothesNamespace);
+        AssertNoDependency(TravelNamespace, AssetsNamespace);
         AssertNoDependency(TravelNamespace, MoodNamespace);
     }
 
@@ -163,6 +166,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(ClothesNamespace, OpexNamespace);
         AssertNoDependency(ClothesNamespace, InventoryNamespace);
         AssertNoDependency(ClothesNamespace, TravelNamespace);
+        AssertNoDependency(ClothesNamespace, AssetsNamespace);
         AssertNoDependency(ClothesNamespace, MoodNamespace);
     }
 
@@ -170,6 +174,37 @@ public sealed class ModuleBoundaryTests
     public void Clothes_does_not_depend_on_launcher()
     {
         AssertNoDependency(ClothesNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_assets()
+    {
+        AssertNoDependency(ConfigurationNamespace, AssetsNamespace);
+    }
+
+    [Fact]
+    public void Assets_depends_on_configuration_contracts()
+    {
+        var dependsOnConfiguration = TypesIn(AssetsNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Assets must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Assets_does_not_depend_on_other_business_modules()
+    {
+        // Assets contributes launcher attention, so it may reference the Launcher
+        // contracts; it must remain independent from every other business module.
+        AssertNoDependency(AssetsNamespace, CapexNamespace);
+        AssertNoDependency(AssetsNamespace, OpexNamespace);
+        AssertNoDependency(AssetsNamespace, InventoryNamespace);
+        AssertNoDependency(AssetsNamespace, TravelNamespace);
+        AssertNoDependency(AssetsNamespace, ClothesNamespace);
+        AssertNoDependency(AssetsNamespace, MoodNamespace);
     }
 
     [Fact]
@@ -195,6 +230,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(MoodNamespace, InventoryNamespace);
         AssertNoDependency(MoodNamespace, TravelNamespace);
         AssertNoDependency(MoodNamespace, ClothesNamespace);
+        AssertNoDependency(MoodNamespace, AssetsNamespace);
     }
 
     [Fact]
@@ -236,6 +272,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, InventoryNamespace);
         AssertNoDependency(LauncherNamespace, TravelNamespace);
         AssertNoDependency(LauncherNamespace, ClothesNamespace);
+        AssertNoDependency(LauncherNamespace, AssetsNamespace);
         AssertNoDependency(LauncherNamespace, MoodNamespace);
     }
 
