@@ -1,3 +1,4 @@
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Assets.Contracts;
@@ -66,4 +67,7 @@ internal sealed record AssetDeletionReassignment(
 /// user is told to reassign or delete the affected records manually first. It never
 /// leaves a partial reassignment behind because the whole transaction rolls back.
 /// </summary>
-internal sealed class AssetReassignmentBlockedException(string message) : Exception(message);
+internal sealed class AssetReassignmentBlockedException(ErrorCode code, string message) : Exception(message)
+{
+    public ErrorCode Code { get; } = code;
+}

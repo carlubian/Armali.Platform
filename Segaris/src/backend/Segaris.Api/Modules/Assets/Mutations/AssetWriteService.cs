@@ -23,6 +23,7 @@ internal sealed class AssetWriteService(
     SegarisDbContext database,
     AssetCatalogValidator catalogValidator,
     IAttachmentService attachments,
+    IEnumerable<IAssetDeletionReferenceHandler> deletionReferenceHandlers,
     IClock clock)
 {
     public async Task<int> CreateAsync(
@@ -102,6 +103,7 @@ internal sealed class AssetWriteService(
         UserId actorId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var asset = await database.Set<Asset>()
             .Where(AssetPolicies.MutableBy(actorId))
             .Where(candidate => candidate.Id == assetId)
@@ -111,21 +113,96 @@ internal sealed class AssetWriteService(
             return false;
         }
 
-        // Deletion is physical and immediate; no other module references assets.
+        if (await CountReferencesAsync(assetId, cancellationToken) > 0)
+        {
+            throw new AssetReassignmentBlockedException(
+                AssetsErrorCodes.AssetDeletionReferenced,
+                "The asset is referenced and must be reassigned before deletion.");
+        }
+
         database.Remove(asset);
         await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         // Compensating storage cleanup runs after the asset row is gone. Files are
         // outside the database transaction, so any residue is reconciled later rather
         // than resurrecting the deleted asset.
-        var owner = AssetsAttachments.AssetOwner(assetId);
-        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
-        foreach (var descriptor in descriptors)
-        {
-            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
-        }
+        await DeleteAttachmentFilesAsync(assetId, cancellationToken);
 
         return true;
+    }
+
+    public async Task<AssetDeletionImpactResponse?> GetDeletionImpactAsync(
+        int assetId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var asset = await database.Set<Asset>()
+            .AsNoTracking()
+            .Where(AssetPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == assetId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var references = await CountReferencesAsync(assetId, cancellationToken);
+        var replacementCandidates = await database.Set<Asset>()
+            .AsNoTracking()
+            .Where(AssetPolicies.AccessibleTo(actorId))
+            .AnyAsync(candidate => candidate.Id != assetId, cancellationToken);
+        return new(
+            references > 0,
+            references,
+            references == 0,
+            references > 0,
+            replacementCandidates);
+    }
+
+    public async Task<AssetDeletionOutcome> ReassignAndDeleteAsync(
+        int assetId,
+        AssetReassignmentDeletionRequest request,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.TargetAssetId is not { } targetAssetId || targetAssetId <= 0 || targetAssetId == assetId)
+        {
+            return AssetDeletionOutcome.InvalidReassignment;
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var source = await database.Set<Asset>()
+            .Where(AssetPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == assetId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (source is null)
+        {
+            return AssetDeletionOutcome.AssetNotFound;
+        }
+
+        if (!await database.Set<Asset>()
+            .AsNoTracking()
+            .Where(AssetPolicies.AccessibleTo(actorId))
+            .AnyAsync(candidate => candidate.Id == targetAssetId, cancellationToken))
+        {
+            return AssetDeletionOutcome.InvalidReassignment;
+        }
+
+        var occurredAt = clock.UtcNow;
+        var reassignment = new AssetDeletionReassignment(assetId, targetAssetId, actorId, occurredAt);
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            await handler.ReassignReferencesAsync(reassignment, cancellationToken);
+        }
+
+        database.Remove(source);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        await DeleteAttachmentFilesAsync(assetId, cancellationToken);
+        return AssetDeletionOutcome.Deleted;
     }
 
     /// <summary>
@@ -215,6 +292,27 @@ internal sealed class AssetWriteService(
         }
     }
 
+    private async Task<int> CountReferencesAsync(int assetId, CancellationToken cancellationToken)
+    {
+        var count = 0;
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            count += await handler.CountReferencesAsync(assetId, cancellationToken);
+        }
+
+        return count;
+    }
+
+    private async Task DeleteAttachmentFilesAsync(int assetId, CancellationToken cancellationToken)
+    {
+        var owner = AssetsAttachments.AssetOwner(assetId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
+        }
+    }
+
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         try
@@ -296,4 +394,11 @@ internal enum AssetDeleteAttachmentOutcome
     AssetNotFound,
     AttachmentNotFound,
     Deleted,
+}
+
+internal enum AssetDeletionOutcome
+{
+    Deleted,
+    AssetNotFound,
+    InvalidReassignment,
 }

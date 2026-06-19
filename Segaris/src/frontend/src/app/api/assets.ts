@@ -97,6 +97,18 @@ export interface AssetListQuery {
   sortDirection?: AssetSortDirection
 }
 
+export interface AssetDeletionImpact {
+  isReferenced: boolean
+  referenceCount: number
+  canDeleteDirectly: boolean
+  requiresReassignment: boolean
+  hasReplacementCandidates: boolean
+}
+
+export interface AssetReassignmentDeletionRequest {
+  targetAssetId: number
+}
+
 export interface CreateAssetRequest {
   name: string
   categoryId: number
@@ -141,6 +153,10 @@ export const assetsApi = {
     ),
   getAsset: (assetId: number, signal?: AbortSignal) =>
     apiRequest<Asset>(`/api/assets/items/${assetId}`, { signal }),
+  getAssetDeletionImpact: (assetId: number, signal?: AbortSignal) =>
+    apiRequest<AssetDeletionImpact>(`/api/assets/items/${assetId}/deletion-impact`, {
+      signal,
+    }),
   createAsset: (request: CreateAssetRequest, signal?: AbortSignal) =>
     apiRequest<Asset>('/api/assets/items', {
       method: 'POST',
@@ -156,6 +172,16 @@ export const assetsApi = {
   deleteAsset: (assetId: number, signal?: AbortSignal) =>
     apiRequest<void>(`/api/assets/items/${assetId}`, {
       method: 'DELETE',
+      signal,
+    }),
+  reassignAndDeleteAsset: (
+    assetId: number,
+    request: AssetReassignmentDeletionRequest,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<void>(`/api/assets/items/${assetId}/reassign-and-delete`, {
+      method: 'POST',
+      body: JSON.stringify(request),
       signal,
     }),
   listAssetAttachments: (assetId: number, signal?: AbortSignal) =>

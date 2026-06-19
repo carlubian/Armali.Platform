@@ -82,6 +82,19 @@ internal sealed class MaintenanceTask
         StampModification(actorId, now);
     }
 
+    /// <summary>Re-points the optional live asset reference during Assets deletion.</summary>
+    internal void ReplaceAsset(int assetId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (assetId <= 0)
+        {
+            throw new MaintenanceValidationException("Asset identifiers must be positive.");
+        }
+
+        AssetId = assetId;
+        StampModification(actorId, now);
+    }
+
     private void Apply(MaintenanceTaskValues values, UserId actorId, DateTimeOffset now, DateOnly today, bool isCreation)
     {
         ArgumentNullException.ThrowIfNull(values);

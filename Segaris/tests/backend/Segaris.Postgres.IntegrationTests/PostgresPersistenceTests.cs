@@ -13,6 +13,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Segaris.Api.Modules.Assets.Contracts;
+using Segaris.Api.Modules.Assets.Domain;
+using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
@@ -20,6 +23,7 @@ using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Api.Modules.Inventory.Mutations;
+using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Mood.Contracts;
 using Segaris.Api.Modules.Mood.Domain;
 using Segaris.Api.Modules.Opex.Domain;
@@ -668,6 +672,71 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(replacementId, storedOrder.SupplierId);
         Assert.Equal([replacementId], eligibility);
         Assert.False(await verificationDatabase.Set<SegarisSupplier>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Postgres_reassigns_maintenance_asset_references_and_deletes_the_source_atomically()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-maintenance-asset-admin";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgMaintenanceAssetPass123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var write = scope.ServiceProvider.GetRequiredService<AssetWriteService>();
+        var actor = new UserId(await database.Set<SegarisUser>()
+            .Where(user => user.UserName == userName)
+            .Select(user => user.Id)
+            .SingleAsync());
+        var now = new DateTimeOffset(2026, 6, 19, 11, 0, 0, TimeSpan.Zero);
+        var categoryId = await database.Set<AssetCategory>()
+            .Where(category => category.Name == "Other")
+            .Select(category => category.Id)
+            .SingleAsync();
+        var locationId = await database.Set<AssetLocation>()
+            .Where(location => location.Name == "Other")
+            .Select(location => location.Id)
+            .SingleAsync();
+        var typeId = await database.Set<MaintenanceType>()
+            .Where(type => type.Name == "Repair")
+            .Select(type => type.Id)
+            .SingleAsync();
+        var source = Asset.Create(
+            new("Postgres source asset", categoryId, locationId, AssetStatus.Active, null, null, null, null, null, null, RecordVisibility.Public),
+            actor,
+            now);
+        var target = Asset.Create(
+            new("Postgres target asset", categoryId, locationId, AssetStatus.Active, null, null, null, null, null, null, RecordVisibility.Public),
+            actor,
+            now);
+        database.AddRange(source, target);
+        await database.SaveChangesAsync();
+
+        var task = MaintenanceTask.Create(
+            new("Postgres referenced task", typeId, MaintenanceStatus.Pending, MaintenancePriority.Medium, null, null, source.Id, RecordVisibility.Public),
+            actor,
+            now,
+            new DateOnly(2026, 6, 19));
+        database.Add(task);
+        await database.SaveChangesAsync();
+
+        var outcome = await write.ReassignAndDeleteAsync(
+            source.Id,
+            new AssetReassignmentDeletionRequest(target.Id),
+            actor,
+            CancellationToken.None);
+
+        Assert.Equal(AssetDeletionOutcome.Deleted, outcome);
+        Assert.False(await database.Set<Asset>().AnyAsync(asset => asset.Id == source.Id));
+        Assert.Equal(target.Id, await database.Set<MaintenanceTask>()
+            .Where(candidate => candidate.Id == task.Id)
+            .Select(candidate => candidate.AssetId)
+            .SingleAsync());
     }
 
     [Fact]

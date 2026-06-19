@@ -7,6 +7,8 @@ internal static class AssetsApiRoutes
 
     public const string Items = "assets/items";
     public const string ItemById = "/{assetId:int}";
+    public const string ItemDeletionImpact = "/{assetId:int}/deletion-impact";
+    public const string ItemReassignAndDelete = "/{assetId:int}/reassign-and-delete";
     public const string ItemAttachments = "/{assetId:int}/attachments";
     public const string ItemAttachmentById = "/{assetId:int}/attachments/{attachmentId}";
     public const string ItemPrimaryAttachment = "/{assetId:int}/attachments/{attachmentId}/primary";

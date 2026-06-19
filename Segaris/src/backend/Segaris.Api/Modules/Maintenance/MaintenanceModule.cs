@@ -3,6 +3,7 @@ using Segaris.Api.Modules.Maintenance.Mutations;
 using Segaris.Api.Modules.Maintenance.Persistence;
 using Segaris.Api.Modules.Maintenance.Queries;
 using Segaris.Api.Modules.Maintenance.Seeding;
+using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Maintenance;
@@ -28,14 +29,13 @@ internal sealed class MaintenanceModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Wave 2 adds task read/write services; later waves add attachments, launcher
-        // attention, and the Assets deletion-reference handler.
         services.AddSingleton<ISegarisModelContributor, MaintenanceModelContributor>();
         services.AddScoped<MaintenanceSeeder>();
         services.AddScoped<MaintenanceTypeReadService>();
         services.AddScoped<MaintenanceTypeManagementService>();
         services.AddScoped<MaintenanceTaskReadService>();
         services.AddScoped<MaintenanceTaskWriteService>();
+        services.AddScoped<IAssetDeletionReferenceHandler, MaintenanceAssetDeletionReferenceHandler>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

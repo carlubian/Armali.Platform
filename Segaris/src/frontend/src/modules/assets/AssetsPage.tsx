@@ -14,6 +14,7 @@ import { launcherKeys } from '@/app/api/launcher'
 import { useSession } from '@/app/session/SessionContext'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
 import { Badge, Button, Select, Spinner, Toast } from '@/components/ui'
+import { maintenanceKeys } from '@/modules/maintenance/contracts'
 
 import { AssetDialog } from './AssetDialog'
 import { AssetsFilters } from './AssetsFilters'
@@ -71,6 +72,7 @@ export function AssetsPage() {
 
   const handleDeleted = (asset: Asset) => {
     invalidateAssets()
+    void queryClient.invalidateQueries({ queryKey: maintenanceKeys.tasks() })
     setToast({ kind: 'deleted', name: asset.name })
     closeDialog()
   }
