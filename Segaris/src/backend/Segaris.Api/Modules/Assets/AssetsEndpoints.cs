@@ -1,12 +1,20 @@
+using Segaris.Api.Modules.Assets.Contracts;
+using Segaris.Api.Modules.Assets.Mutations;
+using Segaris.Api.Modules.Assets.Queries;
+using Segaris.Api.Modules.Configuration.Contracts;
+using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Assets;
 
 /// <summary>
-/// Maps the Assets HTTP surface frozen in Wave 0. Later waves replace these
-/// placeholders with the required category and location catalogues, asset, and
-/// attachment behaviour. State-changing routes carry antiforgery protection.
+/// Maps the Assets HTTP surface. Wave 1 exposes the module-owned category and
+/// location catalog reads and the administrator-only catalog management routes
+/// surfaced through Configuration; later waves replace the asset and attachment
+/// placeholders. State-changing routes carry antiforgery protection and never
+/// expose EF Core entities.
 /// </summary>
 internal static class AssetsEndpoints
 {
@@ -15,6 +23,15 @@ internal static class AssetsEndpoints
         var group = endpoints.MapSegarisApiGroup("assets", AssetsApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapItemEndpoints(group);
+        MapCategoryEndpoints(group);
+        MapLocationEndpoints(group);
+
+        return endpoints;
+    }
+
+    private static void MapItemEndpoints(RouteGroupBuilder group)
+    {
         var items = group.MapGroup("/items");
         items.MapGet("", NotImplemented).WithName("ListAssets");
         items.MapPost("", NotImplemented)
@@ -38,11 +55,116 @@ internal static class AssetsEndpoints
         items.MapPut(AssetsApiRoutes.ItemPrimaryAttachment, NotImplemented)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("SetAssetPrimaryAttachment");
+    }
 
-        group.MapGet("/categories", NotImplemented).WithName("ListAssetCategories");
-        group.MapGet("/locations", NotImplemented).WithName("ListAssetLocations");
+    private static void MapCategoryEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/categories", ListCategoriesAsync)
+            .WithName("ListAssetCategories")
+            .WithSummary("Returns the Assets category catalog")
+            .Produces<IReadOnlyList<AssetCategoryResponse>>();
 
-        return endpoints;
+        var categories = group.MapGroup("/categories").RequireAuthorization(IdentityPolicies.Admin);
+        categories.MapPost("", CreateCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateAssetCategory").WithSummary("Creates a category at the end of the catalog").Produces<AssetCategoryResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPut(AssetsApiRoutes.CategoryById, UpdateCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("UpdateAssetCategory").WithSummary("Updates an Assets category").Produces<AssetCategoryResponse>().ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPost(AssetsApiRoutes.CategoryMove, MoveCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveAssetCategory").WithSummary("Moves an Assets category one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
+        categories.MapGet(AssetsApiRoutes.CategoryDeletionImpact, CategoryImpactAsync).WithName("GetAssetCategoryDeletionImpact").WithSummary("Returns privacy-neutral category deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        categories.MapDelete(AssetsApiRoutes.CategoryById, DeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteAssetCategory").WithSummary("Deletes an unreferenced Assets category").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        categories.MapPost(AssetsApiRoutes.CategoryReplaceAndDelete, ReplaceAndDeleteCategoryAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteAssetCategory").WithSummary("Migrates references and deletes an Assets category atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static void MapLocationEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/locations", ListLocationsAsync)
+            .WithName("ListAssetLocations")
+            .WithSummary("Returns the Assets location catalog")
+            .Produces<IReadOnlyList<AssetLocationResponse>>();
+
+        var locations = group.MapGroup("/locations").RequireAuthorization(IdentityPolicies.Admin);
+        locations.MapPost("", CreateLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateAssetLocation").WithSummary("Creates a location at the end of the catalog").Produces<AssetLocationResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
+        locations.MapPut(AssetsApiRoutes.LocationById, UpdateLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("UpdateAssetLocation").WithSummary("Updates an Assets location").Produces<AssetLocationResponse>().ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        locations.MapPost(AssetsApiRoutes.LocationMove, MoveLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveAssetLocation").WithSummary("Moves an Assets location one position").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
+        locations.MapGet(AssetsApiRoutes.LocationDeletionImpact, LocationImpactAsync).WithName("GetAssetLocationDeletionImpact").WithSummary("Returns privacy-neutral location deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        locations.MapDelete(AssetsApiRoutes.LocationById, DeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteAssetLocation").WithSummary("Deletes an unreferenced Assets location").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        locations.MapPost(AssetsApiRoutes.LocationReplaceAndDelete, ReplaceAndDeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteAssetLocation").WithSummary("Migrates references and deletes an Assets location atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static async Task<IResult> ListCategoriesAsync(AssetReadService read, CancellationToken cancellationToken) =>
+        TypedResults.Ok(await read.ListCategoriesAsync(cancellationToken));
+
+    private static async Task<IResult> ListLocationsAsync(AssetReadService read, CancellationToken cancellationToken) =>
+        TypedResults.Ok(await read.ListLocationsAsync(cancellationToken));
+
+    private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw AssetCategoryProblem.NotFound();
+
+    private static CatalogMoveDirection CategoryDirection(CatalogMoveRequest request) =>
+        CatalogMoveDirections.TryParse(request.Direction, out var direction)
+            ? direction
+            : throw AssetCategoryProblem.Validation("direction", "Direction must be 'up' or 'down'.");
+
+    private static CatalogMoveDirection LocationDirection(CatalogMoveRequest request) =>
+        CatalogMoveDirections.TryParse(request.Direction, out var direction)
+            ? direction
+            : throw AssetLocationProblem.Validation("direction", "Direction must be 'up' or 'down'.");
+
+    private static async Task<IResult> CreateCategoryAsync(CatalogItemRequest request, AssetCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        var value = await service.CreateAsync(request, CatalogActor(user), token);
+        return TypedResults.Created($"/api/assets/categories/{value.Id}", value);
+    }
+
+    private static async Task<IResult> UpdateCategoryAsync(int categoryId, CatalogItemRequest request, AssetCategoryManagementService service, ICurrentUser user, CancellationToken token) =>
+        TypedResults.Ok(await service.UpdateAsync(categoryId, request, CatalogActor(user), token));
+
+    private static async Task<IResult> MoveCategoryAsync(int categoryId, CatalogMoveRequest request, AssetCategoryManagementService service, CancellationToken token)
+    {
+        await service.MoveAsync(categoryId, CategoryDirection(request), token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> CategoryImpactAsync(int categoryId, AssetCategoryManagementService service, CancellationToken token) =>
+        TypedResults.Ok(await service.ImpactAsync(categoryId, token));
+
+    private static async Task<IResult> DeleteCategoryAsync(int categoryId, AssetCategoryManagementService service, CancellationToken token)
+    {
+        await service.DeleteAsync(categoryId, token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReplaceAndDeleteCategoryAsync(int categoryId, CatalogReplacementRequest request, AssetCategoryManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(categoryId, request, CatalogActor(user), token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> CreateLocationAsync(CatalogItemRequest request, AssetLocationManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        var value = await service.CreateAsync(request, CatalogActor(user), token);
+        return TypedResults.Created($"/api/assets/locations/{value.Id}", value);
+    }
+
+    private static async Task<IResult> UpdateLocationAsync(int locationId, CatalogItemRequest request, AssetLocationManagementService service, ICurrentUser user, CancellationToken token) =>
+        TypedResults.Ok(await service.UpdateAsync(locationId, request, CatalogActor(user), token));
+
+    private static async Task<IResult> MoveLocationAsync(int locationId, CatalogMoveRequest request, AssetLocationManagementService service, CancellationToken token)
+    {
+        await service.MoveAsync(locationId, LocationDirection(request), token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> LocationImpactAsync(int locationId, AssetLocationManagementService service, CancellationToken token) =>
+        TypedResults.Ok(await service.ImpactAsync(locationId, token));
+
+    private static async Task<IResult> DeleteLocationAsync(int locationId, AssetLocationManagementService service, CancellationToken token)
+    {
+        await service.DeleteAsync(locationId, token);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReplaceAndDeleteLocationAsync(int locationId, CatalogReplacementRequest request, AssetLocationManagementService service, ICurrentUser user, CancellationToken token)
+    {
+        await service.ReplaceAndDeleteAsync(locationId, request, CatalogActor(user), token);
+        return TypedResults.NoContent();
     }
 
     private static IResult NotImplemented() =>

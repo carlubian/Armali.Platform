@@ -44,6 +44,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_ClothesDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_AssetsDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -69,6 +72,9 @@ public sealed class MigrationTests
                 // Garments, the garment-colour join, and the category and colour catalogs.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name LIKE 'clothes_%' OR name LIKE 'clothing_%')";
                 Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
+                // Assets plus the category and location catalogs.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name = 'assets' OR name LIKE 'asset_%')";
+                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -100,14 +106,14 @@ public sealed class MigrationTests
         Assert.Contains("TravelDomainPersistence", sqliteNames);
         Assert.Contains("MoodDomainPersistence", sqliteNames);
         Assert.Contains("ClothesDomainPersistence", sqliteNames);
+        Assert.Contains("AssetsDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Clothes_domain_persistence_is_the_current_tail_after_the_mood_model()
+    public void Assets_domain_persistence_is_the_current_tail_after_the_clothes_model()
     {
-        // The Clothes Wave 1 model (garments, the garment-colour join, and the
-        // category and colour catalogs) is the current tail and migrates from the
-        // MoodDomainPersistence model.
+        // The Assets Wave 1 model (assets and the category and location catalogs) is
+        // the current tail and migrates from the ClothesDomainPersistence model.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -119,8 +125,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("ClothesDomainPersistence", migrations[^1]);
-            Assert.Equal("MoodDomainPersistence", migrations[^2]);
+            Assert.Equal("AssetsDomainPersistence", migrations[^1]);
+            Assert.Equal("ClothesDomainPersistence", migrations[^2]);
         }
     }
 
@@ -218,6 +224,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_TravelDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_MoodDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_ClothesDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_AssetsDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -235,6 +242,8 @@ public sealed class MigrationTests
             Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name LIKE 'clothes_%' OR name LIKE 'clothing_%')";
             Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name = 'assets' OR name LIKE 'asset_%')";
+            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {
