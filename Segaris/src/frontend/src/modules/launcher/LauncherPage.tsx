@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+  Archive,
   Boxes,
   Luggage,
   Receipt,
@@ -100,6 +101,17 @@ export function LauncherPage() {
         href: '/mood',
         icon: Smile,
         tone: 'aqua',
+      },
+      {
+        key: 'assets',
+        title: t('assets:launcher.title'),
+        description: t('assets:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/assets',
+        icon: Archive,
+        tone: 'azure',
+        attention: requiresAttention('assets'),
+        attentionLabel: t('assets:launcher.attention'),
       },
       {
         key: 'profile',

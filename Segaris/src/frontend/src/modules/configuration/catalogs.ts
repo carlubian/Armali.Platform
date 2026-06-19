@@ -1,6 +1,11 @@
 import { capexApi, capexCategoriesManagementApi } from '@/app/api/capex'
 import type { CatalogManagementClient } from '@/app/api/catalogs'
 import {
+  assetCategoriesManagementApi,
+  assetLocationsManagementApi,
+  assetsApi,
+} from '@/app/api/assets'
+import {
   clothesApi,
   clothingCategoriesManagementApi,
   clothingColorsManagementApi,
@@ -17,6 +22,7 @@ import {
   travelExpenseCategoriesManagementApi,
   travelTripTypesManagementApi,
 } from '@/app/api/travel'
+import { assetsKeys } from '@/modules/assets/contracts'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
@@ -36,6 +42,8 @@ export type CatalogKey =
   | 'travelExpenseCategories'
   | 'clothingCategories'
   | 'clothingColors'
+  | 'assetCategories'
+  | 'assetLocations'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -45,6 +53,7 @@ export type CatalogSectionId =
   | 'inventory'
   | 'travel'
   | 'clothes'
+  | 'assets'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -248,6 +257,32 @@ export const clothingColorsDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(clothingColorsManagementApi),
 }
 
+export const assetCategoriesDescriptor: CatalogDescriptor = {
+  key: 'assetCategories',
+  section: 'assets',
+  urlSlug: 'categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: assetsKeys.categories(),
+  dependentKeys: [assetsKeys.assets()],
+  read: (signal) => assetsApi.categories(signal),
+  management: asDescriptorClient(assetCategoriesManagementApi),
+}
+
+export const assetLocationsDescriptor: CatalogDescriptor = {
+  key: 'assetLocations',
+  section: 'assets',
+  urlSlug: 'locations',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: assetsKeys.locations(),
+  dependentKeys: [assetsKeys.assets()],
+  read: (signal) => assetsApi.locations(signal),
+  management: asDescriptorClient(assetLocationsManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -273,6 +308,12 @@ export const clothesCatalogs: readonly CatalogDescriptor[] = [
   clothingColorsDescriptor,
 ]
 
+/** Assets-section catalogs, in tab order. */
+export const assetsCatalogs: readonly CatalogDescriptor[] = [
+  assetCategoriesDescriptor,
+  assetLocationsDescriptor,
+]
+
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
@@ -280,6 +321,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   ...inventoryCatalogs,
   ...travelCatalogs,
   ...clothesCatalogs,
+  ...assetsCatalogs,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -309,6 +351,8 @@ export function sectionCatalogs(
       return travelCatalogs
     case 'clothes':
       return clothesCatalogs
+    case 'assets':
+      return assetsCatalogs
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

@@ -9,8 +9,9 @@ namespace Segaris.Api.Modules.Configuration;
 /// current rows are preserved exactly.
 ///
 /// The <c>capex.categories</c>, <c>opex.categories</c>, <c>inventory.categories</c>,
-/// and <c>inventory.locations</c> keys name module-owned catalogs but live with the
-/// other keys because the single initialization table is shared infrastructure.
+/// <c>inventory.locations</c>, <c>assets.categories</c>, and <c>assets.locations</c>
+/// keys name module-owned catalogs but live with the other keys because the single
+/// initialization table is shared infrastructure.
 /// </summary>
 internal static class ConfigurationInitializationKeys
 {
@@ -36,6 +37,10 @@ internal static class ConfigurationInitializationKeys
 
     public const string ClothingColors = "clothes.colors";
 
+    public const string AssetCategories = "assets.categories";
+
+    public const string AssetLocations = "assets.locations";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -49,5 +54,7 @@ internal static class ConfigurationInitializationKeys
         TravelExpenseCategories,
         ClothingCategories,
         ClothingColors,
+        AssetCategories,
+        AssetLocations,
     ];
 }

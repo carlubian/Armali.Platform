@@ -94,7 +94,7 @@ public sealed class ConfigurationContractTests
     public void Initialization_keys_are_frozen()
     {
         Assert.Equal(
-            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories", "clothes.categories", "clothes.colors"],
+            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories", "clothes.categories", "clothes.colors", "assets.categories", "assets.locations"],
             ConfigurationInitializationKeys.All);
     }
 
