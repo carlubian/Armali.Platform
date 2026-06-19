@@ -159,9 +159,7 @@ describe('Assets page', () => {
     await user.type(screen.getByLabelText('Search'), 'Asset 01')
     await user.click(screen.getByRole('button', { name: 'New asset' }))
 
-    expect(
-      await screen.findByRole('dialog', { name: 'New asset' }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'New asset' })).toBeInTheDocument()
     expect(window.location.search).toContain('search=Asset+01')
     expect(window.location.search).toContain('newAsset=true')
   })

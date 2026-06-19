@@ -199,12 +199,12 @@ export function AssetAttachments({
                   />
                 )}
                 <span className="seg-assets-attach__meta">
-                  <span className="seg-assets-attach__name">
-                    {attachment.fileName}
-                  </span>
+                  <span className="seg-assets-attach__name">{attachment.fileName}</span>
                   <span className="seg-assets-attach__size">
                     {formatFileSize(attachment.size)}
-                    {attachment.isPrimary ? ` · ${t('editor.attachments.primary')}` : ''}
+                    {attachment.isPrimary
+                      ? ` · ${t('editor.attachments.primary')}`
+                      : ''}
                   </span>
                 </span>
                 {image && (

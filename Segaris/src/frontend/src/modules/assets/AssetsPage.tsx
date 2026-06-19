@@ -206,9 +206,7 @@ function Pager({
         <span>{t('pagination.rowsPerPage')}</span>
         <Select
           value={String(pageSize)}
-          onChange={(event) =>
-            onPageSize(Number(event.target.value) as AssetPageSize)
-          }
+          onChange={(event) => onPageSize(Number(event.target.value) as AssetPageSize)}
           options={assetPageSizes.map((size) => ({
             value: String(size),
             label: String(size),

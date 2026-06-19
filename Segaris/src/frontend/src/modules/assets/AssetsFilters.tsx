@@ -41,7 +41,9 @@ export function AssetsFilters({ state, onChange, onClear }: AssetsFiltersProps) 
   const categories = useAssetCategories()
   const locations = useAssetLocations()
   const anyOption = { value: '', label: t('assets.filters.anyOption') }
-  const idOptions = (items: ReadonlyArray<{ id: number; name: string }> | undefined) => [
+  const idOptions = (
+    items: ReadonlyArray<{ id: number; name: string }> | undefined,
+  ) => [
     anyOption,
     ...(items ?? []).map((item) => ({ value: String(item.id), label: item.name })),
   ]

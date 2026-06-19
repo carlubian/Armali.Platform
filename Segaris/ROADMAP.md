@@ -187,6 +187,9 @@ Module purpose: Manage objects where stock doesn't apply, like furniture, applia
 | Resolved | User workflow | Assets opens directly on a server-paginated table with a thumbnail column, search, filters, sorting, and a URL-aware popup editor. See `docs/requirements/ASSETS_REQUIREMENTS.md`. |
 | Resolved | Attention | The launcher card requests attention when an accessible non-`Retired` asset has an expected end of life within the next 30 days in `Europe/Madrid` (upcoming window only). |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/ASSETS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Assets implementation plan is delivered through Wave 8. All twelve requirement acceptance criteria are mapped to covering code and tests in `docs/planning/ASSETS_ACCEPTANCE.md`. |
+| Deferred | Second-user Assets privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`AssetMutationTests`, `AssetListTests`, `AssetAttachmentTests`, `AssetsAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, Inventory, and Travel patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
 ### Maintenance
 

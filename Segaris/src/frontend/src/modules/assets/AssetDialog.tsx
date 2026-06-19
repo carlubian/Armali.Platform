@@ -92,7 +92,8 @@ export function AssetDialog({
   }
 
   if (mode === 'edit' && assetQuery.isError) {
-    const notFound = isApiError(assetQuery.error) && assetQuery.error.kind === 'not-found'
+    const notFound =
+      isApiError(assetQuery.error) && assetQuery.error.kind === 'not-found'
     return (
       <Dialog
         width={760}
@@ -160,13 +161,11 @@ interface AssetEditorFormProps {
 const statuses: AssetStatus[] = ['Active', 'Stored', 'Retired']
 const visibilities: AssetVisibility[] = ['Public', 'Private']
 
-const visibilityMeta: Record<
-  AssetVisibility,
-  { icon: ReactNode; tone: SegmentTone }
-> = {
-  Public: { icon: <Globe size={15} />, tone: 'accent' },
-  Private: { icon: <Lock size={15} />, tone: 'neutral' },
-}
+const visibilityMeta: Record<AssetVisibility, { icon: ReactNode; tone: SegmentTone }> =
+  {
+    Public: { icon: <Globe size={15} />, tone: 'accent' },
+    Private: { icon: <Lock size={15} />, tone: 'neutral' },
+  }
 
 function AssetEditorForm({
   mode,

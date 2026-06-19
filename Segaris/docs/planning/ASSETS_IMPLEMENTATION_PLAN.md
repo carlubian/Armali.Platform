@@ -339,6 +339,8 @@ Exit criteria:
 Validate the implemented behaviour across both providers and the deployed
 frontend/backend boundary.
 
+Status: delivered in `docs/planning/ASSETS_ACCEPTANCE.md`.
+
 Tasks:
 
 1. Run backend format, build, unit, API, PostgreSQL, migration, and architecture
