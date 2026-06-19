@@ -131,6 +131,12 @@ function App() {
           <DCArtboard id="cards" label="B · Cards" width={1280} height={820}><Frame><window.UserMgmtCards /></Frame></DCArtboard>
         </DCSection>
 
+        <DCSection id="entity-selector" title="Entity selector" subtitle="Cross-module reference · Asset → Capex · click “Browse” / “Select”">
+          <DCArtboard id="es-editor" label="A · Edit popup + picker control" width={1280} height={840}><Frame><window.EntitySelectorEditor /></Frame></DCArtboard>
+          <DCArtboard id="es-top" label="B · Selector — top filter bar" width={1280} height={840}><Frame><window.EntitySelectorTop /></Frame></DCArtboard>
+          <DCArtboard id="es-rail" label="C · Selector — left filter rail" width={1280} height={840}><Frame><window.EntitySelectorRail /></Frame></DCArtboard>
+        </DCSection>
+
         <DCSection id="profile" title="My profile" subtitle="Self-service: name, photo, language, password">
           <DCArtboard id="profile" label="Profile" width={1180} height={840}><Frame><window.Profile /></Frame></DCArtboard>
         </DCSection>
