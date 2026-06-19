@@ -1,4 +1,9 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Maintenance.Mutations;
+using Segaris.Api.Modules.Maintenance.Persistence;
+using Segaris.Api.Modules.Maintenance.Queries;
+using Segaris.Api.Modules.Maintenance.Seeding;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Maintenance;
 
@@ -23,14 +28,20 @@ internal sealed class MaintenanceModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Wave 1 onward registers the model contributor, seeder, read/write services,
-        // the type catalogue management services, the launcher attention contributor,
-        // and the Assets deletion-reference handler implementation.
+        // Wave 1 registers the persistence model, the one-time type initialization, and
+        // the module-owned type catalogue read and administrator management services
+        // surfaced through Configuration; later waves add the task read/write services,
+        // the launcher attention contributor, and the Assets deletion-reference handler.
+        services.AddSingleton<ISegarisModelContributor, MaintenanceModelContributor>();
+        services.AddScoped<MaintenanceSeeder>();
+        services.AddScoped<MaintenanceTypeReadService>();
+        services.AddScoped<MaintenanceTypeManagementService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // Wave 2 onward maps the task, type, and attachment HTTP surface frozen in
-        // MaintenanceApiRoutes.
+        // Wave 1 maps the type catalogue routes; Wave 2 onward adds the task and
+        // attachment HTTP surface frozen in MaintenanceApiRoutes.
+        endpoints.MapMaintenanceEndpoints();
     }
 }
