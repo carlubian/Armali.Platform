@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Identity;
@@ -6,6 +7,7 @@ using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
 using Segaris.Shared.Authorization;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Maintenance.Queries;
@@ -14,7 +16,10 @@ namespace Segaris.Api.Modules.Maintenance.Queries;
 /// Read-side queries for Maintenance tasks. Asset names are resolved through the
 /// Assets read contract and omitted when inaccessible to preserve privacy.
 /// </summary>
-internal sealed class MaintenanceTaskReadService(SegarisDbContext database, IAssetReferenceReader assetReferences)
+internal sealed class MaintenanceTaskReadService(
+    SegarisDbContext database,
+    IAssetReferenceReader assetReferences,
+    IAttachmentService attachments)
 {
     public async Task<PaginatedResponse<MaintenanceTaskSummaryResponse>> ListTasksAsync(
         MaintenanceTaskFilter filter,
@@ -106,6 +111,9 @@ internal sealed class MaintenanceTaskReadService(SegarisDbContext database, IAss
         }
 
         var assetNames = await ResolveAssetNamesAsync([row.AssetId], userId, cancellationToken);
+        var taskAttachments = await attachments.ListByOwnerAsync(
+            MaintenanceAttachments.TaskOwner(taskId),
+            cancellationToken);
         return new MaintenanceTaskResponse(
             row.Id,
             row.Title,
@@ -119,7 +127,7 @@ internal sealed class MaintenanceTaskReadService(SegarisDbContext database, IAss
             row.CompletedDate,
             row.Notes,
             row.Visibility,
-            Array.Empty<MaintenanceTaskAttachmentResponse>(),
+            taskAttachments.Select(ToAttachment).ToArray(),
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -127,6 +135,15 @@ internal sealed class MaintenanceTaskReadService(SegarisDbContext database, IAss
             row.UpdatedByName,
             row.UpdatedAt);
     }
+
+    public async Task<bool> TaskAccessibleAsync(
+        int taskId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        await database.Set<MaintenanceTask>()
+            .AsNoTracking()
+            .Where(MaintenanceTaskPolicies.AccessibleTo(userId))
+            .AnyAsync(task => task.Id == taskId, cancellationToken);
 
     private static IQueryable<MaintenanceTask> ApplyFilters(
         IQueryable<MaintenanceTask> tasks,
@@ -232,6 +249,14 @@ internal sealed class MaintenanceTaskReadService(SegarisDbContext database, IAss
 
     private static string? AssetName(int? assetId, IReadOnlyDictionary<int, AssetReference> assets) =>
         assetId is { } id && assets.TryGetValue(id, out var asset) ? asset.Name : null;
+
+    private static MaintenanceTaskAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 
     private sealed record SummaryRow(
         int Id,

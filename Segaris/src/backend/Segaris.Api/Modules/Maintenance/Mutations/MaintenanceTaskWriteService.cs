@@ -4,6 +4,7 @@ using Segaris.Api.Modules.Maintenance.Contracts;
 using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Authorization;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
 
@@ -16,7 +17,8 @@ namespace Segaris.Api.Modules.Maintenance.Mutations;
 internal sealed class MaintenanceTaskWriteService(
     SegarisDbContext database,
     IClock clock,
-    IAssetReferenceReader assetReferences)
+    IAssetReferenceReader assetReferences,
+    IAttachmentService attachments)
 {
     public async Task<int> CreateAsync(
         CreateMaintenanceTaskRequest request,
@@ -104,6 +106,14 @@ internal sealed class MaintenanceTaskWriteService(
 
         database.Remove(task);
         await database.SaveChangesAsync(cancellationToken);
+
+        var owner = MaintenanceAttachments.TaskOwner(taskId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
+        }
+
         return true;
     }
 

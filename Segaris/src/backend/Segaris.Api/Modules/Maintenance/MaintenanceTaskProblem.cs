@@ -11,6 +11,20 @@ internal static class MaintenanceTaskProblem
         MaintenanceErrorCodes.TaskNotFound,
         "Maintenance task not found.");
 
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        MaintenanceErrorCodes.AttachmentNotFound,
+        "The requested attachment was not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        MaintenanceErrorCodes.AttachmentInvalid,
+        "The attachment is invalid.",
+        errors: errors ?? Errors(field, message));
+
     public static ApiProblemException From(MaintenanceValidationException exception) =>
         exception.Reason switch
         {

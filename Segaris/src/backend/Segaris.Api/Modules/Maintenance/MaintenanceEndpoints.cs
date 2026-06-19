@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Maintenance.Mutations;
 using Segaris.Api.Modules.Maintenance.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Maintenance;
@@ -58,6 +61,29 @@ internal static class MaintenanceEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteMaintenanceTask")
             .WithSummary("Deletes an accessible Maintenance task")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapGet(MaintenanceApiRoutes.TaskAttachments, ListAttachmentsAsync)
+            .WithName("ListMaintenanceTaskAttachments")
+            .WithSummary("Lists the attachments of an accessible Maintenance task")
+            .Produces<IReadOnlyList<MaintenanceTaskAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapPost(MaintenanceApiRoutes.TaskAttachments, UploadAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadMaintenanceTaskAttachment")
+            .WithSummary("Uploads one attachment for an accessible Maintenance task")
+            .Produces<MaintenanceTaskAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapGet(MaintenanceApiRoutes.TaskAttachmentById, DownloadAttachmentAsync)
+            .WithName("DownloadMaintenanceTaskAttachment")
+            .WithSummary("Downloads one attachment of an accessible Maintenance task")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapDelete(MaintenanceApiRoutes.TaskAttachmentById, DeleteAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteMaintenanceTaskAttachment")
+            .WithSummary("Removes one attachment of an accessible Maintenance task")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -198,6 +224,150 @@ internal static class MaintenanceEndpoints
 
         return TypedResults.NoContent();
     }
+
+    private static async Task<IResult> ListAttachmentsAsync(
+        int taskId,
+        MaintenanceTaskReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TaskAccessibleAsync(taskId, userId, cancellationToken))
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(MaintenanceAttachments.TaskOwner(taskId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadAttachmentAsync(
+        int taskId,
+        HttpRequest request,
+        MaintenanceTaskReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TaskAccessibleAsync(taskId, userId, cancellationToken))
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw MaintenanceTaskProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw MaintenanceTaskProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(MaintenanceAttachments.TaskOwner(taskId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw MaintenanceTaskProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/maintenance/tasks/{taskId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadAttachmentAsync(
+        int taskId,
+        int attachmentId,
+        MaintenanceTaskReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TaskAccessibleAsync(taskId, userId, cancellationToken))
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            MaintenanceAttachments.TaskOwner(taskId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw MaintenanceTaskProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteAttachmentAsync(
+        int taskId,
+        int attachmentId,
+        MaintenanceTaskReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.TaskAccessibleAsync(taskId, userId, cancellationToken))
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            MaintenanceAttachments.TaskOwner(taskId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw MaintenanceTaskProblem.AttachmentNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static MaintenanceTaskAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 
     private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw MaintenanceTypeProblem.NotFound();
 
