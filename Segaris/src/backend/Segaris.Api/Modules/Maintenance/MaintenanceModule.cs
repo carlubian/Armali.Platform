@@ -1,11 +1,11 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Maintenance.Attention;
 using Segaris.Api.Modules.Maintenance.Mutations;
 using Segaris.Api.Modules.Maintenance.Persistence;
 using Segaris.Api.Modules.Maintenance.Queries;
 using Segaris.Api.Modules.Maintenance.Seeding;
-using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Maintenance;

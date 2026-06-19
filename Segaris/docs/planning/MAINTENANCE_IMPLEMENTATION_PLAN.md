@@ -377,6 +377,11 @@ Exit criteria:
 
 ### Wave 9: End-To-End, Hardening, And Acceptance
 
+> **Status: complete.** The hardening and acceptance pass is recorded in
+> `docs/planning/MAINTENANCE_ACCEPTANCE.md`, which maps every Maintenance
+> requirement acceptance criterion to covering code and tests. The representative
+> Playwright journey lives in `tests/frontend/e2e/maintenance.spec.ts`.
+
 Validate the implemented behaviour across both providers and the deployed
 frontend/backend boundary.
 

@@ -6,8 +6,8 @@ using Segaris.Api.Modules.Maintenance.Contracts;
 using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
-using Segaris.Shared.Authorization;
 using Segaris.Shared.Attachments;
+using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Maintenance.Queries;

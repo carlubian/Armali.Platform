@@ -2,10 +2,10 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 2 - Functional Definition**. Capex, Opex, and Inventory
-are implemented and accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`,
-`docs/planning/OPEX_ACCEPTANCE.md`, and `docs/planning/INVENTORY_ACCEPTANCE.md`);
-the remaining business modules are still in functional definition.
+Current phase: **Phase 2 - Functional Definition**. Capex, Opex, Inventory,
+Travel, Assets, and Maintenance are implemented and accepted (see the matching
+acceptance records under `docs/planning/`); the remaining business modules are
+still in functional definition.
 
 ## Status Legend
 
@@ -204,6 +204,9 @@ Module purpose: Record repairs and other maintenance tasks over physical element
 | Resolved | Asset deletion guard | Deleting an asset referenced by tasks requires atomic reassignment of all those tasks (any status) to a compatible target asset, never clears the reference, and is blocked when no compatible target exists. Implemented by contract inversion so Assets never depends on Maintenance. Migrating the full history is correct because deletion-with-reassignment represents adjusting an asset's complete identity; the normal end-of-life flow uses `Retired` plus a new asset instead. |
 | Resolved | User workflow | Maintenance opens directly on a server-paginated table with search, filters, sorting, and a URL-aware popup editor. The launcher card requests attention when an accessible `Pending`/`InProgress` task is overdue or due within the next 7 days in `Europe/Madrid`. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-9 in `docs/planning/MAINTENANCE_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Maintenance implementation plan is delivered through Wave 9. All fourteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/MAINTENANCE_ACCEPTANCE.md`. |
+| Deferred | Second-user Maintenance privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`MaintenanceTaskWave2Tests`, `MaintenanceTaskWave3Tests`, `MaintenanceTaskAttachmentTests`, `MaintenanceAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, Inventory, Travel, and Assets patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 | Deferred | Recurrence, cost, and providers | Recurring or preventive schedules, cost/labour/parts, first-class service providers, an Assets-owned maintenance history, a user-editable completion date with activity timeline, and Analytics/Calendar integration are future versions. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
 
 ### Projects
