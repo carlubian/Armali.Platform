@@ -187,6 +187,14 @@ describe('application routing and session', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
   })
 
+  it('shows Maintenance in the launcher and navigates to it', async () => {
+    mockAuthenticatedFetch({ ...session, roles: ['User'] })
+    render(<App />)
+
+    const modules = await screen.findByRole('region', { name: 'Available modules' })
+    expect(within(modules).getByRole('button', { name: /Maintenance/i })).toBeVisible()
+  })
+
   it('treats exhausted startup server failures as unavailable', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({}, 503))
     render(<App />)

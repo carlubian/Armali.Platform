@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { maintenanceApi } from '@/app/api/maintenance'
+import { maintenanceApi, type MaintenanceTaskListQuery } from '@/app/api/maintenance'
 
 import { maintenanceKeys } from './contracts'
 
@@ -11,6 +11,13 @@ export function useMaintenanceTypes() {
     queryKey: maintenanceKeys.types(),
     queryFn: ({ signal }) => maintenanceApi.types(signal),
     staleTime: catalogStaleTime,
+  })
+}
+
+export function useMaintenanceTaskList(query: MaintenanceTaskListQuery) {
+  return useQuery({
+    queryKey: maintenanceKeys.taskList(query),
+    queryFn: ({ signal }) => maintenanceApi.listTasks(query, signal),
   })
 }
 
