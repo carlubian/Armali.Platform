@@ -1,10 +1,12 @@
 using Segaris.Api.Modules.Assets.Contracts;
+using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Assets.Queries;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Assets;
@@ -33,17 +35,37 @@ internal static class AssetsEndpoints
     private static void MapItemEndpoints(RouteGroupBuilder group)
     {
         var items = group.MapGroup("/items");
-        items.MapGet("", NotImplemented).WithName("ListAssets");
-        items.MapPost("", NotImplemented)
+        items.MapGet("", ListAssetsAsync)
+            .WithName("ListAssets")
+            .WithSummary("Returns a paginated, filtered, and sorted list of accessible assets")
+            .Produces<PaginatedResponse<AssetSummaryResponse>>();
+        items.MapPost("", CreateAssetAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("CreateAsset");
-        items.MapGet(AssetsApiRoutes.ItemById, NotImplemented).WithName("GetAsset");
-        items.MapPut(AssetsApiRoutes.ItemById, NotImplemented)
+            .WithName("CreateAsset")
+            .WithSummary("Creates an asset with catalog validation and a unique code")
+            .Produces<AssetResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        items.MapGet(AssetsApiRoutes.ItemById, GetAssetAsync)
+            .WithName("GetAsset")
+            .WithSummary("Returns the detail of an accessible asset")
+            .Produces<AssetResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapPut(AssetsApiRoutes.ItemById, UpdateAssetAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UpdateAsset");
-        items.MapDelete(AssetsApiRoutes.ItemById, NotImplemented)
+            .WithName("UpdateAsset")
+            .WithSummary("Replaces an accessible asset in one transaction")
+            .Produces<AssetResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        items.MapDelete(AssetsApiRoutes.ItemById, DeleteAssetAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteAsset");
+            .WithName("DeleteAsset")
+            .WithSummary("Physically deletes an asset and its attachments")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         items.MapGet(AssetsApiRoutes.ItemAttachments, NotImplemented).WithName("ListAssetAttachments");
         items.MapPost(AssetsApiRoutes.ItemAttachments, NotImplemented)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
@@ -87,6 +109,123 @@ internal static class AssetsEndpoints
         locations.MapGet(AssetsApiRoutes.LocationDeletionImpact, LocationImpactAsync).WithName("GetAssetLocationDeletionImpact").WithSummary("Returns privacy-neutral location deletion impact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         locations.MapDelete(AssetsApiRoutes.LocationById, DeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteAssetLocation").WithSummary("Deletes an unreferenced Assets location").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
         locations.MapPost(AssetsApiRoutes.LocationReplaceAndDelete, ReplaceAndDeleteLocationAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteAssetLocation").WithSummary("Migrates references and deletes an Assets location atomically").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static async Task<IResult> ListAssetsAsync(
+        [AsParameters] AssetListQuery query,
+        AssetReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var pagination = query.ToPagination();
+        var sort = query.ToSort();
+        var filter = query.ToFilter();
+
+        var result = await read.ListAssetsAsync(filter, pagination, sort, userId, cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetAssetAsync(
+        int assetId,
+        AssetReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var asset = await read.GetAssetAsync(assetId, userId, cancellationToken);
+        if (asset is null)
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        return TypedResults.Ok(asset);
+    }
+
+    private static async Task<IResult> CreateAssetAsync(
+        CreateAssetRequest request,
+        AssetWriteService write,
+        AssetReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int assetId;
+        try
+        {
+            assetId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (AssetValidationException exception)
+        {
+            throw AssetProblem.From(exception);
+        }
+
+        var created = await read.GetAssetAsync(assetId, userId, cancellationToken);
+        return TypedResults.Created($"/api/assets/items/{assetId}", created);
+    }
+
+    private static async Task<IResult> UpdateAssetAsync(
+        int assetId,
+        UpdateAssetRequest request,
+        AssetWriteService write,
+        AssetReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(assetId, request, userId, cancellationToken);
+        }
+        catch (AssetValidationException exception)
+        {
+            throw AssetProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        var asset = await read.GetAssetAsync(assetId, userId, cancellationToken);
+        return TypedResults.Ok(asset);
+    }
+
+    private static async Task<IResult> DeleteAssetAsync(
+        int assetId,
+        AssetWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(assetId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> ListCategoriesAsync(AssetReadService read, CancellationToken cancellationToken) =>

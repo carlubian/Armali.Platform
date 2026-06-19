@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Assets.Persistence;
 using Segaris.Api.Modules.Assets.Queries;
@@ -25,6 +26,8 @@ internal sealed class AssetsModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, AssetsModelContributor>();
         services.AddScoped<AssetsSeeder>();
         services.AddScoped<AssetReadService>();
+        services.AddScoped<AssetWriteService>();
+        services.AddScoped<AssetCatalogValidator>();
         services.AddScoped<AssetCategoryManagementService>();
         services.AddScoped<AssetLocationManagementService>();
     }

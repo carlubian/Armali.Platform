@@ -90,13 +90,13 @@ internal sealed class Asset
             UpdatedAt = now,
             UpdatedBy = creatorId.Value,
         };
-        asset.Apply(values, creatorId, now);
+        asset.Apply(values, creatorId, now, isCreation: true);
         return asset;
     }
 
     public void Update(AssetValues values, UserId actorId, DateTimeOffset now)
     {
-        Apply(values, actorId, now);
+        Apply(values, actorId, now, isCreation: false);
     }
 
     /// <summary>Marks the attachment that resolves the table thumbnail (Wave 3).</summary>
@@ -146,7 +146,7 @@ internal sealed class Asset
         StampModification(actorId, now);
     }
 
-    private void Apply(AssetValues values, UserId actorId, DateTimeOffset now)
+    private void Apply(AssetValues values, UserId actorId, DateTimeOffset now, bool isCreation)
     {
         ArgumentNullException.ThrowIfNull(values);
         EnsureUtc(now);
@@ -166,6 +166,15 @@ internal sealed class Asset
         if (values.CategoryId <= 0 || values.LocationId <= 0)
         {
             throw new AssetValidationException("Catalog identifiers must be positive.");
+        }
+
+        // Public records collaborate (any user may edit) but only the creator may
+        // change an asset's visibility, mirroring the platform visibility baseline.
+        if (!isCreation && values.Visibility != Visibility && actorId.Value != CreatedBy)
+        {
+            throw new AssetValidationException(
+                "Only the creator may change asset visibility.",
+                AssetValidationReason.VisibilityForbidden);
         }
 
         Name = name;
