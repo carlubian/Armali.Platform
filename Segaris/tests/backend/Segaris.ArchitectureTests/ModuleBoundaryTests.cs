@@ -20,7 +20,9 @@ public sealed class ModuleBoundaryTests
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
     private const string ClothesNamespace = "Segaris.Api.Modules.Clothes";
     private const string AssetsNamespace = "Segaris.Api.Modules.Assets";
+    private const string AssetsContractsNamespace = "Segaris.Api.Modules.Assets.Contracts";
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
+    private const string MaintenanceNamespace = "Segaris.Api.Modules.Maintenance";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -38,6 +40,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(ClothesNamespace));
         Assert.NotEmpty(TypesIn(AssetsNamespace));
         Assert.NotEmpty(TypesIn(MoodNamespace));
+        Assert.NotEmpty(TypesIn(MaintenanceNamespace));
     }
 
     [Fact]
@@ -84,6 +87,7 @@ public sealed class ModuleBoundaryTests
     public void Opex_does_not_depend_on_other_business_modules()
     {
         AssertNoDependency(OpexNamespace, CapexNamespace);
+        AssertNoDependency(OpexNamespace, MaintenanceNamespace);
     }
 
     [Fact]
@@ -110,6 +114,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(InventoryNamespace, CapexNamespace);
         AssertNoDependency(InventoryNamespace, OpexNamespace);
         AssertNoDependency(InventoryNamespace, TravelNamespace);
+        AssertNoDependency(InventoryNamespace, MaintenanceNamespace);
     }
 
     [Fact]
@@ -139,6 +144,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(TravelNamespace, ClothesNamespace);
         AssertNoDependency(TravelNamespace, AssetsNamespace);
         AssertNoDependency(TravelNamespace, MoodNamespace);
+        AssertNoDependency(TravelNamespace, MaintenanceNamespace);
     }
 
     [Fact]
@@ -168,6 +174,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(ClothesNamespace, TravelNamespace);
         AssertNoDependency(ClothesNamespace, AssetsNamespace);
         AssertNoDependency(ClothesNamespace, MoodNamespace);
+        AssertNoDependency(ClothesNamespace, MaintenanceNamespace);
     }
 
     [Fact]
@@ -231,6 +238,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(MoodNamespace, TravelNamespace);
         AssertNoDependency(MoodNamespace, ClothesNamespace);
         AssertNoDependency(MoodNamespace, AssetsNamespace);
+        AssertNoDependency(MoodNamespace, MaintenanceNamespace);
     }
 
     [Fact]
@@ -274,6 +282,97 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, ClothesNamespace);
         AssertNoDependency(LauncherNamespace, AssetsNamespace);
         AssertNoDependency(LauncherNamespace, MoodNamespace);
+        AssertNoDependency(LauncherNamespace, MaintenanceNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_maintenance()
+    {
+        AssertNoDependency(ConfigurationNamespace, MaintenanceNamespace);
+    }
+
+    [Fact]
+    public void Maintenance_depends_on_configuration_contracts()
+    {
+        // Maintenance owns the MaintenanceType catalogue surfaced through
+        // Configuration, so it consumes Configuration's published contracts. Its
+        // absence would mean the catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(MaintenanceNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Maintenance must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Maintenance_does_not_depend_on_other_business_modules()
+    {
+        // Maintenance is the first business module that references another business
+        // module: it may consume Assets (the optional live reference and the deletion
+        // guard) and contributes launcher attention, so it may reference the Assets
+        // and Launcher namespaces. It must remain independent from every other
+        // business module.
+        AssertNoDependency(MaintenanceNamespace, CapexNamespace);
+        AssertNoDependency(MaintenanceNamespace, OpexNamespace);
+        AssertNoDependency(MaintenanceNamespace, InventoryNamespace);
+        AssertNoDependency(MaintenanceNamespace, TravelNamespace);
+        AssertNoDependency(MaintenanceNamespace, ClothesNamespace);
+        AssertNoDependency(MaintenanceNamespace, MoodNamespace);
+    }
+
+    [Fact]
+    public void Maintenance_may_only_consume_assets_through_published_contracts()
+    {
+        // The Maintenance -> Assets seam is the first business-to-business
+        // dependency, so it is policed more strictly than the Configuration seam:
+        // Maintenance may reference only the Assets.Contracts namespace (the read
+        // contract and the deletion-reference contract) and never Assets domain,
+        // persistence, queries, or mutations.
+        var violations = TypesIn(MaintenanceNamespace)
+            .SelectMany(type => ReferencedTypes(type)
+                .Where(referenced => IsInNamespace(referenced, AssetsNamespace)
+                    && !IsInNamespace(referenced, AssetsContractsNamespace))
+                .Select(referenced => $"{type.FullName} -> {referenced.FullName}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            violations.Length == 0,
+            "Maintenance may consume Assets only through 'Assets.Contracts':"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, violations));
+    }
+
+    [Fact]
+    public void Assets_does_not_depend_on_maintenance()
+    {
+        // The deletion guard is implemented by contract inversion: Assets defines the
+        // read and deletion-reference contracts, Maintenance implements them, and
+        // Assets enumerates registered handlers without ever referencing Maintenance.
+        // This keeps the dependency direction Maintenance -> Assets.
+        AssertNoDependency(AssetsNamespace, MaintenanceNamespace);
+    }
+
+    [Fact]
+    public void Assets_publishes_the_cross_module_reference_contracts()
+    {
+        // The read contract and the deletion-reference contract are the cross-module
+        // seam. Keeping them in the Assets namespace is what preserves the
+        // Maintenance -> Assets direction when Maintenance consumes and implements
+        // them.
+        var reader = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Assets.Contracts.IAssetReferenceReader",
+            throwOnError: false);
+        var deletionHandler = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Assets.Contracts.IAssetDeletionReferenceHandler",
+            throwOnError: false);
+
+        Assert.NotNull(reader);
+        Assert.NotNull(deletionHandler);
+        Assert.True(IsInNamespace(reader!, AssetsContractsNamespace));
+        Assert.True(IsInNamespace(deletionHandler!, AssetsContractsNamespace));
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

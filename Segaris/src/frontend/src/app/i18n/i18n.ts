@@ -6,6 +6,7 @@ import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
+import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
 import { opex } from '@/modules/opex/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
@@ -26,6 +27,7 @@ void i18n.use(initReactI18next).init({
     'clothes',
     'configuration',
     'inventory',
+    'maintenance',
     'mood',
     'opex',
     'travel',
@@ -38,6 +40,7 @@ void i18n.use(initReactI18next).init({
       clothes,
       configuration,
       inventory,
+      maintenance,
       mood,
       opex,
       travel,

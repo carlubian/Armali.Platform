@@ -1,3 +1,4 @@
+using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Platform.Api;
 
@@ -40,6 +41,25 @@ internal static class AssetProblem
         StatusCodes.Status404NotFound,
         AssetsErrorCodes.AssetNotFound,
         "The requested asset was not found.");
+
+    public static ApiProblemException DeletionReferenced() => new(
+        StatusCodes.Status409Conflict,
+        AssetsErrorCodes.AssetDeletionReferenced,
+        "The asset is referenced by another module and must be reassigned before deletion.");
+
+    public static ApiProblemException InvalidReassignment(string message) => new(
+        StatusCodes.Status400BadRequest,
+        AssetsErrorCodes.AssetInvalidReassignment,
+        "The asset deletion reassignment is invalid.",
+        errors: new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["targetAssetId"] = [message],
+        });
+
+    public static ApiProblemException ReassignmentBlocked(AssetReassignmentBlockedException exception) => new(
+        StatusCodes.Status409Conflict,
+        exception.Code,
+        exception.Message);
 
     public static ApiProblemException AttachmentNotFound() => new(
         StatusCodes.Status404NotFound,

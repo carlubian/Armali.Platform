@@ -2,10 +2,10 @@
 
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
-Current phase: **Phase 2 - Functional Definition**. Capex, Opex, and Inventory
-are implemented and accepted (see `docs/planning/CAPEX_ACCEPTANCE.md`,
-`docs/planning/OPEX_ACCEPTANCE.md`, and `docs/planning/INVENTORY_ACCEPTANCE.md`);
-the remaining business modules are still in functional definition.
+Current phase: **Phase 2 - Functional Definition**. Capex, Opex, Inventory,
+Travel, Assets, and Maintenance are implemented and accepted (see the matching
+acceptance records under `docs/planning/`); the remaining business modules are
+still in functional definition.
 
 ## Status Legend
 
@@ -188,6 +188,7 @@ Module purpose: Manage objects where stock doesn't apply, like furniture, applia
 | Resolved | Attention | The launcher card requests attention when an accessible non-`Retired` asset has an expected end of life within the next 30 days in `Europe/Madrid` (upcoming window only). |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/ASSETS_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Implementation and acceptance | The Assets implementation plan is delivered through Wave 8. All twelve requirement acceptance criteria are mapped to covering code and tests in `docs/planning/ASSETS_ACCEPTANCE.md`. |
+| Resolved | Maintenance reference and deletion guard | The previously deferred question of whether Maintenance refers to assets is resolved: Maintenance optionally references one asset and Assets gains a deletion guard requiring atomic reassignment of referencing tasks before an asset can be deleted. The guard is implemented by contract inversion so Assets never depends on Maintenance, and is delivered in the Maintenance plan (`docs/planning/MAINTENANCE_IMPLEMENTATION_PLAN.md`, Wave 4). This supersedes the initial Assets statement that an asset can always be deleted with no deletion guard. |
 | Deferred | Second-user Assets privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`AssetMutationTests`, `AssetListTests`, `AssetAttachmentTests`, `AssetsAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, Inventory, and Travel patterns. |
 | Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 
@@ -197,8 +198,16 @@ Module purpose: Record repairs and other maintenance tasks over physical element
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, lifecycle. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | A single `MaintenanceTask` entity covers repair and maintenance work. It carries a required title, a required `MaintenanceType`, a fixed `Pending`/`InProgress`/`Completed`/`Cancelled` status, a required `Low`/`Medium`/`High` priority defaulting to `Medium`, an optional due date, a system-managed completion date, notes, attachments (no primary image), Public/Private visibility, and an optional live link to one `Asset`. Completed and cancelled tasks remain as history. No recurrence, cost, parts, or service providers. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
+| Resolved | Catalogues | Maintenance owns `MaintenanceType` (required, replace-only deletion) through Configuration, initialized once with the established module-owned catalogue pattern. Status and priority are fixed enums, not configurable. |
+| Resolved | Asset reference | A task may optionally reference one `Asset` through a live identifier (no snapshot). A `Public` task may reference only `Public` assets; a `Private` task may reference any asset its creator can access. This is the first cross-business-module reference; the dependency direction is Maintenance to Assets. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
+| Resolved | Asset deletion guard | Deleting an asset referenced by tasks requires atomic reassignment of all those tasks (any status) to a compatible target asset, never clears the reference, and is blocked when no compatible target exists. Implemented by contract inversion so Assets never depends on Maintenance. Migrating the full history is correct because deletion-with-reassignment represents adjusting an asset's complete identity; the normal end-of-life flow uses `Retired` plus a new asset instead. |
+| Resolved | User workflow | Maintenance opens directly on a server-paginated table with search, filters, sorting, and a URL-aware popup editor. The launcher card requests attention when an accessible `Pending`/`InProgress` task is overdue or due within the next 7 days in `Europe/Madrid`. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-9 in `docs/planning/MAINTENANCE_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Maintenance implementation plan is delivered through Wave 9. All fourteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/MAINTENANCE_ACCEPTANCE.md`. |
+| Deferred | Second-user Maintenance privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`MaintenanceTaskWave2Tests`, `MaintenanceTaskWave3Tests`, `MaintenanceTaskAttachmentTests`, `MaintenanceAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, Inventory, Travel, and Assets patterns. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
+| Deferred | Recurrence, cost, and providers | Recurring or preventive schedules, cost/labour/parts, first-class service providers, an Assets-owned maintenance history, a user-editable completion date with activity timeline, and Analytics/Calendar integration are future versions. See `docs/requirements/MAINTENANCE_REQUIREMENTS.md`. |
 
 ### Projects
 

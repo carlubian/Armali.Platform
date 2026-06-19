@@ -9,6 +9,8 @@ internal static class AssetsErrorCodes
     public static readonly ErrorCode AssetValidation = new("assets.asset.validation");
     public static readonly ErrorCode AssetVisibilityForbidden = new("assets.asset.visibility_forbidden");
     public static readonly ErrorCode AssetDuplicateCode = new("assets.asset.duplicate_code");
+    public static readonly ErrorCode AssetDeletionReferenced = new("assets.asset.deletion_referenced");
+    public static readonly ErrorCode AssetInvalidReassignment = new("assets.asset.invalid_reassignment");
 
     public static readonly ErrorCode UnknownCatalogReference = new("assets.catalog.unknown_reference");
 

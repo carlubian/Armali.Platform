@@ -172,6 +172,28 @@ export const assets = {
       cancel: 'Cancel',
       confirm: 'Delete asset',
       deleting: 'Deleting...',
+      close: 'Close',
+      loadingImpact: 'Checking references...',
+      loadingTargets: 'Loading replacement assets...',
+      impactError: 'The deletion impact could not be loaded. Please try again.',
+      reassignTitle: 'Reassign and delete {{name}}',
+      reassignDescription:
+        'This asset is referenced by maintenance tasks. Choose another compatible asset before deleting it.',
+      impactSummary_one:
+        '{{count}} maintenance task currently references this asset. The task will be moved to the replacement asset.',
+      impactSummary_other:
+        '{{count}} maintenance tasks currently reference this asset. They will be moved to the replacement asset.',
+      reassignmentLabel: 'Replacement asset',
+      reassignmentPlaceholder: 'Choose a compatible asset',
+      reassignmentRequired: 'Choose a replacement asset.',
+      reassignConfirm: 'Reassign and delete',
+      noCompatibleTarget:
+        'No compatible replacement asset is available. Add or update an asset before deleting this one.',
+      invalidReassignment: 'Choose a different accessible replacement asset.',
+      reassignmentBlocked:
+        'The selected asset is not compatible with every affected maintenance task.',
+      reassignmentError:
+        'The asset could not be deleted after reassignment. Please try again.',
     },
   },
   toast: {

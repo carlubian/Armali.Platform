@@ -54,6 +54,11 @@ internal static class AssetsEndpoints
             .WithSummary("Returns the detail of an accessible asset")
             .Produces<AssetResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapGet(AssetsApiRoutes.ItemDeletionImpact, GetAssetDeletionImpactAsync)
+            .WithName("GetAssetDeletionImpact")
+            .WithSummary("Returns privacy-neutral cross-module deletion impact for an accessible asset")
+            .Produces<AssetDeletionImpactResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
         items.MapPut(AssetsApiRoutes.ItemById, UpdateAssetAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdateAsset")
@@ -66,9 +71,18 @@ internal static class AssetsEndpoints
         items.MapDelete(AssetsApiRoutes.ItemById, DeleteAssetAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteAsset")
-            .WithSummary("Physically deletes an asset and its attachments")
+            .WithSummary("Physically deletes an unreferenced asset and its attachments")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        items.MapPost(AssetsApiRoutes.ItemReassignAndDelete, ReassignAndDeleteAssetAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("ReassignAndDeleteAsset")
+            .WithSummary("Atomically reassigns cross-module references and deletes an asset")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         items.MapGet(AssetsApiRoutes.ItemAttachments, ListAssetAttachmentsAsync)
             .WithName("ListAssetAttachments")
             .WithSummary("Lists the attachments of an accessible asset")
@@ -230,6 +244,26 @@ internal static class AssetsEndpoints
         return TypedResults.Ok(asset);
     }
 
+    private static async Task<IResult> GetAssetDeletionImpactAsync(
+        int assetId,
+        AssetWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var impact = await write.GetDeletionImpactAsync(assetId, userId, cancellationToken);
+        if (impact is null)
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        return TypedResults.Ok(impact);
+    }
+
     private static async Task<IResult> DeleteAssetAsync(
         int assetId,
         AssetWriteService write,
@@ -241,13 +275,53 @@ internal static class AssetsEndpoints
             return TypedResults.Unauthorized();
         }
 
-        var deleted = await write.DeleteAsync(assetId, userId, cancellationToken);
+        bool deleted;
+        try
+        {
+            deleted = await write.DeleteAsync(assetId, userId, cancellationToken);
+        }
+        catch (AssetReassignmentBlockedException exception)
+        {
+            throw AssetProblem.ReassignmentBlocked(exception);
+        }
         if (!deleted)
         {
             throw AssetProblem.NotFound();
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReassignAndDeleteAssetAsync(
+        int assetId,
+        AssetReassignmentDeletionRequest request,
+        AssetWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        AssetDeletionOutcome outcome;
+        try
+        {
+            outcome = await write.ReassignAndDeleteAsync(assetId, request, userId, cancellationToken);
+        }
+        catch (AssetReassignmentBlockedException exception)
+        {
+            throw AssetProblem.ReassignmentBlocked(exception);
+        }
+
+        return outcome switch
+        {
+            AssetDeletionOutcome.Deleted => TypedResults.NoContent(),
+            AssetDeletionOutcome.AssetNotFound => throw AssetProblem.NotFound(),
+            AssetDeletionOutcome.InvalidReassignment => throw AssetProblem.InvalidReassignment(
+                "Choose a different accessible target asset."),
+            _ => throw AssetProblem.InvalidReassignment("The requested reassignment cannot be applied."),
+        };
     }
 
     private static async Task<IResult> ListAssetAttachmentsAsync(

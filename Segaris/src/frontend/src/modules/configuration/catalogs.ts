@@ -26,6 +26,8 @@ import { assetsKeys } from '@/modules/assets/contracts'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
+import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
+import { maintenanceKeys } from '@/modules/maintenance/contracts'
 import { opexKeys } from '@/modules/opex/contracts'
 import { travelKeys } from '@/modules/travel/contracts'
 
@@ -44,6 +46,7 @@ export type CatalogKey =
   | 'clothingColors'
   | 'assetCategories'
   | 'assetLocations'
+  | 'maintenanceTypes'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -54,6 +57,7 @@ export type CatalogSectionId =
   | 'travel'
   | 'clothes'
   | 'assets'
+  | 'maintenance'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -283,6 +287,18 @@ export const assetLocationsDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(assetLocationsManagementApi),
 }
 
+export const maintenanceTypesDescriptor: CatalogDescriptor = {
+  key: 'maintenanceTypes',
+  section: 'maintenance',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: maintenanceKeys.types(),
+  dependentKeys: [maintenanceKeys.tasks()],
+  read: (signal) => maintenanceApi.types(signal),
+  management: asDescriptorClient(maintenanceTypesManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -322,6 +338,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   ...travelCatalogs,
   ...clothesCatalogs,
   ...assetsCatalogs,
+  maintenanceTypesDescriptor,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -353,6 +370,8 @@ export function sectionCatalogs(
       return clothesCatalogs
     case 'assets':
       return assetsCatalogs
+    case 'maintenance':
+      return [maintenanceTypesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

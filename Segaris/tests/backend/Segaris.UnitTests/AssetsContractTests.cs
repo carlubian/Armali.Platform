@@ -34,6 +34,8 @@ public sealed class AssetsContractTests
     {
         Assert.Equal("assets/items", AssetsApiRoutes.Items);
         Assert.Equal("/{assetId:int}", AssetsApiRoutes.ItemById);
+        Assert.Equal("/{assetId:int}/deletion-impact", AssetsApiRoutes.ItemDeletionImpact);
+        Assert.Equal("/{assetId:int}/reassign-and-delete", AssetsApiRoutes.ItemReassignAndDelete);
         Assert.Equal("/{assetId:int}/attachments", AssetsApiRoutes.ItemAttachments);
         Assert.Equal("/{assetId:int}/attachments/{attachmentId}", AssetsApiRoutes.ItemAttachmentById);
         Assert.Equal(
@@ -107,6 +109,8 @@ public sealed class AssetsContractTests
         Assert.Equal("assets.asset.validation", AssetsErrorCodes.AssetValidation.Value);
         Assert.Equal("assets.asset.visibility_forbidden", AssetsErrorCodes.AssetVisibilityForbidden.Value);
         Assert.Equal("assets.asset.duplicate_code", AssetsErrorCodes.AssetDuplicateCode.Value);
+        Assert.Equal("assets.asset.deletion_referenced", AssetsErrorCodes.AssetDeletionReferenced.Value);
+        Assert.Equal("assets.asset.invalid_reassignment", AssetsErrorCodes.AssetInvalidReassignment.Value);
         Assert.Equal("assets.catalog.unknown_reference", AssetsErrorCodes.UnknownCatalogReference.Value);
         Assert.Equal("assets.attachment.not_found", AssetsErrorCodes.AttachmentNotFound.Value);
         Assert.Equal("assets.attachment.invalid", AssetsErrorCodes.AttachmentInvalid.Value);

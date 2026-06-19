@@ -28,6 +28,7 @@ export const configuration = {
     travel: 'Travel',
     clothes: 'Clothes',
     assets: 'Assets',
+    maintenance: 'Maintenance',
   },
   catalogs: {
     label: 'Global catalogs',
@@ -190,6 +191,18 @@ export const configuration = {
       namePlaceholder: 'Location name',
       empty: 'No locations yet. Add the first one so assets can use it.',
       itemName: 'location',
+    },
+    maintenanceTypes: {
+      tab: 'Types',
+      title: 'Maintenance types',
+      description: 'Types that classify maintenance tasks.',
+      addAction: 'New type',
+      createTitle: 'New maintenance type',
+      editTitle: 'Edit maintenance type',
+      nameLabel: 'Name',
+      namePlaceholder: 'Maintenance type name',
+      empty: 'No maintenance types yet. Add the first one so tasks can use it.',
+      itemName: 'maintenance type',
     },
   },
   table: {

@@ -5,6 +5,7 @@ import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
+import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
 import { opex } from '@/modules/opex/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
@@ -21,6 +22,7 @@ const namespaces = [
   'clothes',
   'configuration',
   'inventory',
+  'maintenance',
   'mood',
   'opex',
   'travel',
@@ -67,6 +69,12 @@ describe('platform translations', () => {
   it('registers every inventory resource key', () => {
     for (const key of leafKeys(inventory)) {
       expect(i18n.exists(key, { ns: 'inventory', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every maintenance resource key', () => {
+    for (const key of leafKeys(maintenance)) {
+      expect(i18n.exists(key, { ns: 'maintenance', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

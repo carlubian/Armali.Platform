@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Archive,
   Boxes,
+  Hammer,
   Luggage,
   Receipt,
   Shirt,
@@ -112,6 +113,17 @@ export function LauncherPage() {
         tone: 'azure',
         attention: requiresAttention('assets'),
         attentionLabel: t('assets:launcher.attention'),
+      },
+      {
+        key: 'maintenance',
+        title: t('maintenance:launcher.title'),
+        description: t('maintenance:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/maintenance',
+        icon: Hammer,
+        tone: 'rose',
+        attention: requiresAttention('maintenance'),
+        attentionLabel: t('maintenance:launcher.attention'),
       },
       {
         key: 'profile',
