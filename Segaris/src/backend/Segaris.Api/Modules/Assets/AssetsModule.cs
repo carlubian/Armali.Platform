@@ -1,9 +1,11 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Assets.Attention;
 using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Assets.Persistence;
 using Segaris.Api.Modules.Assets.Queries;
 using Segaris.Api.Modules.Assets.Seeding;
+using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Assets;
@@ -30,6 +32,7 @@ internal sealed class AssetsModule : ISegarisModule
         services.AddScoped<AssetCatalogValidator>();
         services.AddScoped<AssetCategoryManagementService>();
         services.AddScoped<AssetLocationManagementService>();
+        services.AddScoped<ILauncherAttentionContributor, AssetsAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
