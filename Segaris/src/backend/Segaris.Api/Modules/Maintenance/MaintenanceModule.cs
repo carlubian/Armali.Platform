@@ -1,4 +1,6 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Launcher.Contracts;
+using Segaris.Api.Modules.Maintenance.Attention;
 using Segaris.Api.Modules.Maintenance.Mutations;
 using Segaris.Api.Modules.Maintenance.Persistence;
 using Segaris.Api.Modules.Maintenance.Queries;
@@ -36,6 +38,7 @@ internal sealed class MaintenanceModule : ISegarisModule
         services.AddScoped<MaintenanceTaskReadService>();
         services.AddScoped<MaintenanceTaskWriteService>();
         services.AddScoped<IAssetDeletionReferenceHandler, MaintenanceAssetDeletionReferenceHandler>();
+        services.AddScoped<ILauncherAttentionContributor, MaintenanceAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
