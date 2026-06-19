@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Maintenance.Contracts;
 using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Persistence;
@@ -12,7 +13,10 @@ namespace Segaris.Api.Modules.Maintenance.Mutations;
 /// Write-side operations on Maintenance tasks. Inaccessible tasks are reported as not
 /// found so private records are never disclosed.
 /// </summary>
-internal sealed class MaintenanceTaskWriteService(SegarisDbContext database, IClock clock)
+internal sealed class MaintenanceTaskWriteService(
+    SegarisDbContext database,
+    IClock clock,
+    IAssetReferenceReader assetReferences)
 {
     public async Task<int> CreateAsync(
         CreateMaintenanceTaskRequest request,
@@ -31,6 +35,7 @@ internal sealed class MaintenanceTaskWriteService(SegarisDbContext database, ICl
             request.AssetId,
             request.Visibility);
         await ValidateTypeAsync(values.MaintenanceTypeId, cancellationToken);
+        await ValidateAssetAsync(values, actorId, cancellationToken);
 
         var task = MaintenanceTask.Create(
             values,
@@ -69,6 +74,7 @@ internal sealed class MaintenanceTaskWriteService(SegarisDbContext database, ICl
             request.AssetId,
             request.Visibility);
         await ValidateTypeAsync(values.MaintenanceTypeId, cancellationToken);
+        await ValidateAssetAsync(values, actorId, cancellationToken);
 
         if (values.Visibility != task.Visibility && !MaintenanceTaskPolicies.CanChangeVisibility(task, actorId))
         {
@@ -99,6 +105,39 @@ internal sealed class MaintenanceTaskWriteService(SegarisDbContext database, ICl
         database.Remove(task);
         await database.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task ValidateAssetAsync(
+        MaintenanceTaskValues values,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        if (values.AssetId is not { } assetId)
+        {
+            return;
+        }
+
+        if (assetId <= 0)
+        {
+            throw new MaintenanceValidationException(
+                "Asset identifiers must be positive.",
+                MaintenanceValidationReason.AssetReference);
+        }
+
+        var asset = await assetReferences.FindAccessibleAsync(assetId, actorId, cancellationToken);
+        if (asset is null)
+        {
+            throw new MaintenanceValidationException(
+                "The asset does not exist or is not accessible.",
+                MaintenanceValidationReason.AssetReference);
+        }
+
+        if (values.Visibility == RecordVisibility.Public && asset.Visibility != RecordVisibility.Public)
+        {
+            throw new MaintenanceValidationException(
+                "A public maintenance task may only reference a public asset.",
+                MaintenanceValidationReason.AssetVisibilityForbidden);
+        }
     }
 
     private async Task ValidateTypeAsync(int maintenanceTypeId, CancellationToken cancellationToken)

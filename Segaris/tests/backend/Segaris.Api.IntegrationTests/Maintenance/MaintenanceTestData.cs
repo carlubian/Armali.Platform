@@ -38,6 +38,7 @@ internal static class MaintenanceTestData
         MaintenancePriority priority = MaintenancePriority.Medium,
         DateOnly? dueDate = null,
         string? notes = null,
+        int? assetId = null,
         RecordVisibility visibility = RecordVisibility.Public)
     {
         await using var scope = services.CreateAsyncScope();
@@ -55,7 +56,7 @@ internal static class MaintenanceTestData
                 priority,
                 dueDate,
                 notes,
-                AssetId: null,
+                assetId,
                 visibility),
             new UserId(creatorId),
             SeedNow,

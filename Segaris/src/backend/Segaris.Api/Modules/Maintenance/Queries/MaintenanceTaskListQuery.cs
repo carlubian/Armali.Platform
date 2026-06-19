@@ -17,6 +17,8 @@ internal sealed class MaintenanceTaskListQuery
 
     public string? Priority { get; init; }
 
+    public int? Asset { get; init; }
+
     public int? Creator { get; init; }
 
     public string? Visibility { get; init; }
@@ -77,7 +79,7 @@ internal sealed class MaintenanceTaskListQuery
         Throw(errors);
 
         var search = string.IsNullOrWhiteSpace(Search) ? null : Search.Trim();
-        return new MaintenanceTaskFilter(search, Type, status, priority, Creator, visibility);
+        return new MaintenanceTaskFilter(search, Type, status, priority, Asset, Creator, visibility);
     }
 
     private static TEnum? ParseEnum<TEnum>(
@@ -128,5 +130,6 @@ internal sealed record MaintenanceTaskFilter(
     int? TypeId,
     MaintenanceStatus? Status,
     MaintenancePriority? Priority,
+    int? AssetId,
     int? CreatorId,
     RecordVisibility? Visibility);
