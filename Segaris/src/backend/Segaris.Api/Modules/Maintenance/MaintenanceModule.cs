@@ -28,14 +28,14 @@ internal sealed class MaintenanceModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Wave 1 registers the persistence model, the one-time type initialization, and
-        // the module-owned type catalogue read and administrator management services
-        // surfaced through Configuration; later waves add the task read/write services,
-        // the launcher attention contributor, and the Assets deletion-reference handler.
+        // Wave 2 adds task read/write services; later waves add attachments, launcher
+        // attention, and the Assets deletion-reference handler.
         services.AddSingleton<ISegarisModelContributor, MaintenanceModelContributor>();
         services.AddScoped<MaintenanceSeeder>();
         services.AddScoped<MaintenanceTypeReadService>();
         services.AddScoped<MaintenanceTypeManagementService>();
+        services.AddScoped<MaintenanceTaskReadService>();
+        services.AddScoped<MaintenanceTaskWriteService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

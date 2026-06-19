@@ -2,19 +2,18 @@ using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Maintenance.Contracts;
+using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Maintenance.Mutations;
 using Segaris.Api.Modules.Maintenance.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Maintenance;
 
 /// <summary>
-/// Maps the Maintenance HTTP surface. Wave 1 exposes the module-owned
-/// <c>MaintenanceType</c> catalogue read and the administrator-only catalogue
-/// management routes surfaced through Configuration; later waves add the task and
-/// attachment routes. State-changing routes carry antiforgery protection and never
-/// expose EF Core entities.
+/// Maps the Maintenance HTTP surface. State-changing routes carry antiforgery
+/// protection and never expose EF Core entities.
 /// </summary>
 internal static class MaintenanceEndpoints
 {
@@ -23,9 +22,44 @@ internal static class MaintenanceEndpoints
         var group = endpoints.MapSegarisApiGroup("maintenance", MaintenanceApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapTaskEndpoints(group);
         MapTypeEndpoints(group);
 
         return endpoints;
+    }
+
+    private static void MapTaskEndpoints(RouteGroupBuilder group)
+    {
+        var tasks = group.MapGroup("/tasks");
+        tasks.MapGet("", ListTasksAsync)
+            .WithName("ListMaintenanceTasks")
+            .WithSummary("Returns a paginated, filtered, and sorted table of accessible Maintenance tasks")
+            .Produces<PaginatedResponse<MaintenanceTaskSummaryResponse>>();
+        tasks.MapPost("", CreateTaskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateMaintenanceTask")
+            .WithSummary("Creates a Maintenance task")
+            .Produces<MaintenanceTaskResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        tasks.MapGet(MaintenanceApiRoutes.TaskById, GetTaskAsync)
+            .WithName("GetMaintenanceTask")
+            .WithSummary("Returns the detail of an accessible Maintenance task")
+            .Produces<MaintenanceTaskResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapPut(MaintenanceApiRoutes.TaskById, UpdateTaskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateMaintenanceTask")
+            .WithSummary("Replaces an accessible Maintenance task")
+            .Produces<MaintenanceTaskResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        tasks.MapDelete(MaintenanceApiRoutes.TaskById, DeleteTaskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteMaintenanceTask")
+            .WithSummary("Deletes an accessible Maintenance task")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapTypeEndpoints(RouteGroupBuilder group)
@@ -46,6 +80,124 @@ internal static class MaintenanceEndpoints
 
     private static async Task<IResult> ListTypesAsync(MaintenanceTypeReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListAsync(cancellationToken));
+
+    private static async Task<IResult> ListTasksAsync(
+        [AsParameters] MaintenanceTaskListQuery query,
+        MaintenanceTaskReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListTasksAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetTaskAsync(
+        int taskId,
+        MaintenanceTaskReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var task = await read.GetTaskAsync(taskId, userId, cancellationToken);
+        if (task is null)
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        return TypedResults.Ok(task);
+    }
+
+    private static async Task<IResult> CreateTaskAsync(
+        CreateMaintenanceTaskRequest request,
+        MaintenanceTaskWriteService write,
+        MaintenanceTaskReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int taskId;
+        try
+        {
+            taskId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (MaintenanceValidationException exception)
+        {
+            throw MaintenanceTaskProblem.From(exception);
+        }
+
+        var created = await read.GetTaskAsync(taskId, userId, cancellationToken);
+        return TypedResults.Created($"/api/maintenance/tasks/{taskId}", created);
+    }
+
+    private static async Task<IResult> UpdateTaskAsync(
+        int taskId,
+        UpdateMaintenanceTaskRequest request,
+        MaintenanceTaskWriteService write,
+        MaintenanceTaskReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(taskId, request, userId, cancellationToken);
+        }
+        catch (MaintenanceValidationException exception)
+        {
+            throw MaintenanceTaskProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        var task = await read.GetTaskAsync(taskId, userId, cancellationToken);
+        return TypedResults.Ok(task);
+    }
+
+    private static async Task<IResult> DeleteTaskAsync(
+        int taskId,
+        MaintenanceTaskWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(taskId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw MaintenanceTaskProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw MaintenanceTypeProblem.NotFound();
 
