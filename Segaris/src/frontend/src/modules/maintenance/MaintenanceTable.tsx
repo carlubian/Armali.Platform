@@ -113,7 +113,11 @@ export function MaintenanceTable({
         </thead>
         <tbody>
           {tasks.map((task) => (
-            <tr key={task.id} className="seg-maint__row" onClick={() => onOpen(task.id)}>
+            <tr
+              key={task.id}
+              className="seg-maint__row"
+              onClick={() => onOpen(task.id)}
+            >
               <td className="seg-maint__name">
                 <button
                   type="button"
@@ -151,7 +155,7 @@ export function MaintenanceTable({
               <td>
                 {task.assetId == null
                   ? t('common.none')
-                  : task.assetName ?? t('common.unknownAsset')}
+                  : (task.assetName ?? t('common.unknownAsset'))}
               </td>
             </tr>
           ))}

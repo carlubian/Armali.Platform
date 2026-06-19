@@ -90,8 +90,7 @@ export function MaintenanceDialog({
   }
 
   if (mode === 'edit' && taskQuery.isError) {
-    const notFound =
-      isApiError(taskQuery.error) && taskQuery.error.kind === 'not-found'
+    const notFound = isApiError(taskQuery.error) && taskQuery.error.kind === 'not-found'
     return (
       <Dialog
         width={760}
@@ -275,7 +274,11 @@ function MaintenanceEditorForm({
   }
 
   const submitting = mutation.isPending
-  const assetOptions = buildAssetOptions(assets, task, t('taskEditor.fields.assetPlaceholder'))
+  const assetOptions = buildAssetOptions(
+    assets,
+    task,
+    t('taskEditor.fields.assetPlaceholder'),
+  )
 
   if (createdTask != null) {
     const finish = () => onSaved(createdTask, 'create')

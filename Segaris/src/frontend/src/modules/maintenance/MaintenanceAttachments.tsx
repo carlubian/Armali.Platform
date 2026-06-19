@@ -1,20 +1,9 @@
-import {
-  Download,
-  FileText,
-  Image,
-  Paperclip,
-  RotateCw,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Download, FileText, Image, Paperclip, RotateCw, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import {
-  maintenanceApi,
-  type MaintenanceTaskAttachment,
-} from '@/app/api/maintenance'
+import { maintenanceApi, type MaintenanceTaskAttachment } from '@/app/api/maintenance'
 import { Button, Spinner } from '@/components/ui'
 
 import {

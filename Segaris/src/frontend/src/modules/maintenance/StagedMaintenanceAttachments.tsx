@@ -51,9 +51,7 @@ export function StagedMaintenanceAttachments({
         <p className="seg-maint-attach__empty">{t('editor.attachments.empty')}</p>
       ) : (
         <>
-          <p className="seg-maint-editor__hint">
-            {t('editor.attachments.stagedHint')}
-          </p>
+          <p className="seg-maint-editor__hint">{t('editor.attachments.stagedHint')}</p>
           <ul className="seg-maint-attach__list">
             {files.map((file, index) => {
               const rejection = rejectionFor(file)

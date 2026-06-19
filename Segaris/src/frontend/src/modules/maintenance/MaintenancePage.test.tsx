@@ -3,10 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type {
-  MaintenanceTask,
-  MaintenanceTaskSummary,
-} from '@/app/api/maintenance'
+import type { MaintenanceTask, MaintenanceTaskSummary } from '@/app/api/maintenance'
 import type { AssetSummary } from '@/app/api/assets'
 
 const session = {
@@ -54,7 +51,10 @@ function makeTask(
   }
 }
 
-function makeTaskDetail(id: number, overrides: Partial<MaintenanceTask> = {}): MaintenanceTask {
+function makeTaskDetail(
+  id: number,
+  overrides: Partial<MaintenanceTask> = {},
+): MaintenanceTask {
   return {
     ...makeTask(id),
     completedDate: null,
@@ -89,17 +89,17 @@ function makeAsset(id: number, overrides: Partial<AssetSummary> = {}): AssetSumm
   }
 }
 
-function mockBackend(options: {
-  tasks?: MaintenanceTaskSummary[]
-  assets?: AssetSummary[]
-} = {}) {
+function mockBackend(
+  options: {
+    tasks?: MaintenanceTaskSummary[]
+    assets?: AssetSummary[]
+  } = {},
+) {
   const tasks = options.tasks ?? [makeTask(1)]
-  const assets =
-    options.assets ??
-    [
-      makeAsset(1, { name: 'Public boiler', visibility: 'Public' }),
-      makeAsset(2, { name: 'Private toolbox', visibility: 'Private' }),
-    ]
+  const assets = options.assets ?? [
+    makeAsset(1, { name: 'Public boiler', visibility: 'Public' }),
+    makeAsset(2, { name: 'Private toolbox', visibility: 'Private' }),
+  ]
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {

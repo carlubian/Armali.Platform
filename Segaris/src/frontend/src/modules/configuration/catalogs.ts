@@ -26,10 +26,7 @@ import { assetsKeys } from '@/modules/assets/contracts'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
-import {
-  maintenanceApi,
-  maintenanceTypesManagementApi,
-} from '@/app/api/maintenance'
+import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
 import { maintenanceKeys } from '@/modules/maintenance/contracts'
 import { opexKeys } from '@/modules/opex/contracts'
 import { travelKeys } from '@/modules/travel/contracts'

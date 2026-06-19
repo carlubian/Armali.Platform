@@ -242,7 +242,8 @@ function AssetEditorForm({
 
   const deletionImpactQuery = useQuery({
     queryKey: ['assets', 'deletion-impact', assetId] as const,
-    queryFn: ({ signal }) => assetsApi.getAssetDeletionImpact(assetId as number, signal),
+    queryFn: ({ signal }) =>
+      assetsApi.getAssetDeletionImpact(assetId as number, signal),
     enabled: confirmingDelete && mode === 'edit' && assetId != null,
     staleTime: 0,
     gcTime: 0,
@@ -274,7 +275,10 @@ function AssetEditorForm({
     },
     onError: (error) => {
       const message = mapReassignmentError(error, t)
-      if (isApiError(error) && error.problem?.code === 'assets.asset.invalid_reassignment') {
+      if (
+        isApiError(error) &&
+        error.problem?.code === 'assets.asset.invalid_reassignment'
+      ) {
         setTargetError(message)
         return
       }
@@ -697,7 +701,9 @@ function AssetDeleteDialog({
           <>
             {closeButton}
             <Button variant="danger" onClick={onDeleteDirectly} disabled={busy}>
-              {busy ? t('assetEditor.delete.deleting') : t('assetEditor.delete.confirm')}
+              {busy
+                ? t('assetEditor.delete.deleting')
+                : t('assetEditor.delete.confirm')}
             </Button>
           </>
         }
@@ -706,7 +712,8 @@ function AssetDeleteDialog({
   }
 
   const blocked =
-    !impact.hasReplacementCandidates || (!targetPending && targetCandidates.length === 0)
+    !impact.hasReplacementCandidates ||
+    (!targetPending && targetCandidates.length === 0)
   if (blocked) {
     return (
       <Dialog
