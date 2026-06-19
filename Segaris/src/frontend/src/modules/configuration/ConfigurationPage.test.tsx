@@ -57,6 +57,8 @@ interface BackendOptions {
   travelExpenseCategories?: Row[]
   clothingCategories?: Row[]
   clothingColors?: Row[]
+  assetCategories?: Row[]
+  assetLocations?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
@@ -73,6 +75,8 @@ const catalogPaths: Record<string, string> = {
   'travel/expense-categories': 'travelExpenseCategories',
   'clothes/categories': 'clothingCategories',
   'clothes/colors': 'clothingColors',
+  'assets/categories': 'assetCategories',
+  'assets/locations': 'assetLocations',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -104,6 +108,14 @@ function mockBackend(options: BackendOptions = {}) {
       { id: 1, name: 'Black', colorValue: '#111111', sortOrder: 1 },
       { id: 2, name: 'White', colorValue: '#FAFAFA', sortOrder: 2 },
     ],
+    assetCategories: options.assetCategories ?? [
+      { id: 1, name: 'Furniture', sortOrder: 1 },
+      { id: 2, name: 'Tools', sortOrder: 2 },
+    ],
+    assetLocations: options.assetLocations ?? [
+      { id: 1, name: 'Living room', sortOrder: 1 },
+      { id: 2, name: 'Garage', sortOrder: 2 },
+    ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
   let nextId = 1000
@@ -129,7 +141,7 @@ function mockBackend(options: BackendOptions = {}) {
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -305,6 +317,22 @@ describe('Configuration navigation and states', () => {
     expect(await screen.findByText('Black')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Colour' })).toBeInTheDocument()
     expect(screen.getByText('#111111')).toBeInTheDocument()
+  })
+
+  it('shows the Assets catalog tabs', async () => {
+    mockBackend()
+    renderAt('/configuration/assets?catalog=categories')
+    expect(
+      await screen.findByRole('heading', { name: 'Asset categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Furniture')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Locations' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Asset locations' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Garage')).toBeInTheDocument()
   })
 
   it('renders the empty state for a catalog with no rows', async () => {
@@ -562,6 +590,37 @@ describe('Configuration deletion', () => {
       expect(
         calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
       ).toEqual({ replacementId: null, clearReferences: true, exchangeRate: null }),
+    )
+  })
+
+  it('requires replacement for a referenced asset category', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'assetCategories:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: false,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/assets?catalog=categories')
+    await screen.findByText('Furniture')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Furniture' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Furniture' })
+
+    expect(
+      within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
+    ).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
     )
   })
 
