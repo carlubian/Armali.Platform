@@ -1,9 +1,11 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Identity;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 
@@ -14,11 +16,11 @@ namespace Segaris.Api.Modules.Assets.Queries;
 /// the paginated asset table, and asset detail. Every asset query is privacy-correct:
 /// it filters to the assets the supplied user may access before any projection,
 /// pagination, or detail lookup. Related catalog and audit display names are resolved
-/// through correlated sub-queries. The table thumbnail resolves through
-/// <see cref="AssetThumbnailResolver"/>; until Wave 3 wires attachments it is always
-/// the neutral placeholder and detail attachments are empty.
+/// through correlated sub-queries. Attachment descriptors are loaded after the
+/// privacy-filtered asset page/detail is known, then used to resolve primary-image
+/// thumbnails and attachment DTOs.
 /// </summary>
-internal sealed class AssetReadService(SegarisDbContext database)
+internal sealed class AssetReadService(SegarisDbContext database, IAttachmentService attachments)
 {
     public async Task<IReadOnlyList<AssetCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
@@ -69,12 +71,22 @@ internal sealed class AssetReadService(SegarisDbContext database)
                 asset.Status,
                 asset.ExpectedEndOfLifeDate,
                 asset.Visibility,
+                asset.PrimaryAttachmentId,
                 asset.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == asset.CreatedBy).Select(user => user.DisplayName).First()))
             .ToListAsync(cancellationToken);
 
-        var items = page.Select(ToSummary).ToArray();
+        var items = new AssetSummaryResponse[page.Count];
+        for (var index = 0; index < page.Count; index++)
+        {
+            var row = page[index];
+            var descriptors = await attachments.ListByOwnerAsync(
+                AssetsAttachments.AssetOwner(row.Id),
+                cancellationToken);
+            items[index] = ToSummary(row, descriptors);
+        }
+
         return PaginatedResponse<AssetSummaryResponse>.Create(items, pagination, totalCount);
     }
 
@@ -92,6 +104,35 @@ internal sealed class AssetReadService(SegarisDbContext database)
             .AsNoTracking()
             .Where(AssetPolicies.AccessibleTo(userId))
             .AnyAsync(asset => asset.Id == assetId, cancellationToken);
+
+    /// <summary>
+    /// Lists attachments for an accessible asset, flagging the stored primary image.
+    /// Returns <c>null</c> for missing or inaccessible assets to preserve not-found
+    /// privacy behaviour.
+    /// </summary>
+    public async Task<IReadOnlyList<AssetAttachmentResponse>?> ListAssetAttachmentsAsync(
+        int assetId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var asset = await database.Set<Asset>()
+            .AsNoTracking()
+            .Where(AssetPolicies.AccessibleTo(userId))
+            .Where(candidate => candidate.Id == assetId)
+            .Select(candidate => new { candidate.PrimaryAttachmentId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(
+            AssetsAttachments.AssetOwner(assetId),
+            cancellationToken);
+        return descriptors
+            .Select(descriptor => ToAttachmentResponse(descriptor, asset.PrimaryAttachmentId))
+            .ToArray();
+    }
 
     public async Task<AssetResponse?> GetAssetAsync(
         int assetId,
@@ -119,6 +160,7 @@ internal sealed class AssetReadService(SegarisDbContext database)
                 asset.ExpectedEndOfLifeDate,
                 asset.Notes,
                 asset.Visibility,
+                asset.PrimaryAttachmentId,
                 asset.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == asset.CreatedBy).Select(user => user.DisplayName).First(),
@@ -134,8 +176,9 @@ internal sealed class AssetReadService(SegarisDbContext database)
             return null;
         }
 
-        // Attachments and the resolved thumbnail arrive in Wave 3; until then detail
-        // carries no attachments and the neutral placeholder thumbnail.
+        var descriptors = await attachments.ListByOwnerAsync(
+            AssetsAttachments.AssetOwner(row.Id),
+            cancellationToken);
         return new AssetResponse(
             row.Id,
             row.Name,
@@ -151,8 +194,8 @@ internal sealed class AssetReadService(SegarisDbContext database)
             row.ExpectedEndOfLifeDate,
             row.Notes,
             row.Visibility.ToString(),
-            AssetThumbnailResolver.Placeholder(),
-            [],
+            AssetThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
+            descriptors.Select(descriptor => ToAttachmentResponse(descriptor, row.PrimaryAttachmentId)).ToArray(),
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -248,7 +291,9 @@ internal sealed class AssetReadService(SegarisDbContext database)
         return ordered.ThenBy(asset => asset.Id);
     }
 
-    private static AssetSummaryResponse ToSummary(SummaryRow row) => new(
+    private static AssetSummaryResponse ToSummary(
+        SummaryRow row,
+        IReadOnlyList<AttachmentDescriptor> descriptors) => new(
         row.Id,
         row.Name,
         row.Code,
@@ -259,9 +304,20 @@ internal sealed class AssetReadService(SegarisDbContext database)
         row.Status.ToString(),
         row.ExpectedEndOfLifeDate,
         row.Visibility.ToString(),
-        AssetThumbnailResolver.Placeholder(),
+        AssetThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
         row.CreatorId,
         row.CreatorName);
+
+    private static AssetAttachmentResponse ToAttachmentResponse(
+        AttachmentDescriptor descriptor,
+        int? primaryAttachmentId) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        descriptor.Id.Value == primaryAttachmentId);
 
     private static string Escape(string value) => value
         .Replace("\\", "\\\\", StringComparison.Ordinal)
@@ -279,6 +335,7 @@ internal sealed class AssetReadService(SegarisDbContext database)
         AssetStatus Status,
         DateOnly? ExpectedEndOfLifeDate,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatorId,
         string CreatorName);
 
@@ -297,6 +354,7 @@ internal sealed class AssetReadService(SegarisDbContext database)
         DateOnly? ExpectedEndOfLifeDate,
         string? Notes,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatedById,
         string CreatedByName,
         DateTimeOffset CreatedAt,

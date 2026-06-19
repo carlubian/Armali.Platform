@@ -128,6 +128,73 @@ internal sealed class AssetWriteService(
         return true;
     }
 
+    /// <summary>
+    /// Marks one image attachment as the asset primary image. Inaccessible assets are
+    /// reported as not found so private records are never disclosed.
+    /// </summary>
+    public async Task<AssetSetPrimaryResult> SetPrimaryAttachmentAsync(
+        int assetId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var asset = await database.Set<Asset>()
+            .Where(AssetPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == assetId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (asset is null)
+        {
+            return new(AssetSetPrimaryOutcome.AssetNotFound, null);
+        }
+
+        var owner = AssetsAttachments.AssetOwner(assetId);
+        var descriptor = await attachments.FindAsync(new(attachmentId), owner, cancellationToken);
+        if (descriptor is null)
+        {
+            return new(AssetSetPrimaryOutcome.AttachmentNotFound, null);
+        }
+
+        if (!AssetsAttachments.IsImageContentType(descriptor.ContentType))
+        {
+            return new(AssetSetPrimaryOutcome.NotImage, null);
+        }
+
+        asset.SetPrimaryAttachment(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return new(AssetSetPrimaryOutcome.Assigned, descriptor);
+    }
+
+    /// <summary>
+    /// Removes one attachment and clears the primary-image reference when that
+    /// attachment was selected.
+    /// </summary>
+    public async Task<AssetDeleteAttachmentOutcome> DeleteAttachmentAsync(
+        int assetId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var asset = await database.Set<Asset>()
+            .Where(AssetPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == assetId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (asset is null)
+        {
+            return AssetDeleteAttachmentOutcome.AssetNotFound;
+        }
+
+        var owner = AssetsAttachments.AssetOwner(assetId);
+        var removed = await attachments.DeleteAsync(new(attachmentId), owner, cancellationToken);
+        if (!removed)
+        {
+            return AssetDeleteAttachmentOutcome.AttachmentNotFound;
+        }
+
+        asset.ClearPrimaryAttachmentIf(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return AssetDeleteAttachmentOutcome.Deleted;
+    }
+
     private async Task EnsureUniqueCodeAsync(string? normalizedCode, int? excludeId, CancellationToken cancellationToken)
     {
         if (normalizedCode is null)
@@ -207,4 +274,26 @@ internal sealed class AssetWriteService(
 
         return parsed;
     }
+}
+
+/// <summary>Outcome of a primary-image assignment.</summary>
+internal enum AssetSetPrimaryOutcome
+{
+    AssetNotFound,
+    AttachmentNotFound,
+    NotImage,
+    Assigned,
+}
+
+/// <summary>Result of assigning an asset primary image.</summary>
+internal sealed record AssetSetPrimaryResult(
+    AssetSetPrimaryOutcome Outcome,
+    AttachmentDescriptor? Descriptor);
+
+/// <summary>Outcome of deleting an asset attachment.</summary>
+internal enum AssetDeleteAttachmentOutcome
+{
+    AssetNotFound,
+    AttachmentNotFound,
+    Deleted,
 }

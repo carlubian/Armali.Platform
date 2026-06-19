@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Assets.Mutations;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Assets;
@@ -66,17 +69,36 @@ internal static class AssetsEndpoints
             .WithSummary("Physically deletes an asset and its attachments")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
-        items.MapGet(AssetsApiRoutes.ItemAttachments, NotImplemented).WithName("ListAssetAttachments");
-        items.MapPost(AssetsApiRoutes.ItemAttachments, NotImplemented)
+        items.MapGet(AssetsApiRoutes.ItemAttachments, ListAssetAttachmentsAsync)
+            .WithName("ListAssetAttachments")
+            .WithSummary("Lists the attachments of an accessible asset")
+            .Produces<IReadOnlyList<AssetAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapPost(AssetsApiRoutes.ItemAttachments, UploadAssetAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UploadAssetAttachment");
-        items.MapGet(AssetsApiRoutes.ItemAttachmentById, NotImplemented).WithName("DownloadAssetAttachment");
-        items.MapDelete(AssetsApiRoutes.ItemAttachmentById, NotImplemented)
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadAssetAttachment")
+            .WithSummary("Uploads one attachment for an accessible asset")
+            .Produces<AssetAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapGet(AssetsApiRoutes.ItemAttachmentById, DownloadAssetAttachmentAsync)
+            .WithName("DownloadAssetAttachment")
+            .WithSummary("Downloads one attachment of an accessible asset")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapDelete(AssetsApiRoutes.ItemAttachmentById, DeleteAssetAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteAssetAttachment");
-        items.MapPut(AssetsApiRoutes.ItemPrimaryAttachment, NotImplemented)
+            .WithName("DeleteAssetAttachment")
+            .WithSummary("Removes one attachment of an accessible asset, clearing primary when needed")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        items.MapPut(AssetsApiRoutes.ItemPrimaryAttachment, SetAssetPrimaryAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("SetAssetPrimaryAttachment");
+            .WithName("SetAssetPrimaryAttachment")
+            .WithSummary("Marks one image attachment as the asset's primary image")
+            .Produces<AssetAttachmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -228,6 +250,163 @@ internal static class AssetsEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<IResult> ListAssetAttachmentsAsync(
+        int assetId,
+        AssetReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var attachments = await read.ListAssetAttachmentsAsync(assetId, userId, cancellationToken);
+        if (attachments is null)
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        return TypedResults.Ok(attachments);
+    }
+
+    private static async Task<IResult> UploadAssetAttachmentAsync(
+        int assetId,
+        HttpRequest request,
+        AssetReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AssetAccessibleAsync(assetId, userId, cancellationToken))
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw AssetProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw AssetProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(AssetsAttachments.AssetOwner(assetId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw AssetProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/assets/items/{assetId}/attachments/{created.Id.Value}",
+            ToAttachment(created, isPrimary: false));
+    }
+
+    private static async Task<IResult> DownloadAssetAttachmentAsync(
+        int assetId,
+        int attachmentId,
+        AssetReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AssetAccessibleAsync(assetId, userId, cancellationToken))
+        {
+            throw AssetProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            AssetsAttachments.AssetOwner(assetId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw AssetProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteAssetAttachmentAsync(
+        int assetId,
+        int attachmentId,
+        AssetWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var outcome = await write.DeleteAttachmentAsync(assetId, attachmentId, userId, cancellationToken);
+        return outcome switch
+        {
+            AssetDeleteAttachmentOutcome.AssetNotFound => throw AssetProblem.NotFound(),
+            AssetDeleteAttachmentOutcome.AttachmentNotFound => throw AssetProblem.AttachmentNotFound(),
+            _ => TypedResults.NoContent(),
+        };
+    }
+
+    private static async Task<IResult> SetAssetPrimaryAttachmentAsync(
+        int assetId,
+        int attachmentId,
+        AssetWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await write.SetPrimaryAttachmentAsync(assetId, attachmentId, userId, cancellationToken);
+        return result.Outcome switch
+        {
+            AssetSetPrimaryOutcome.AssetNotFound => throw AssetProblem.NotFound(),
+            AssetSetPrimaryOutcome.AttachmentNotFound => throw AssetProblem.AttachmentNotFound(),
+            AssetSetPrimaryOutcome.NotImage => throw AssetProblem.PrimaryNotImage(),
+            _ => TypedResults.Ok(ToAttachment(result.Descriptor!, isPrimary: true)),
+        };
+    }
+
+    private static AssetAttachmentResponse ToAttachment(AttachmentDescriptor descriptor, bool isPrimary) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        isPrimary);
+
     private static async Task<IResult> ListCategoriesAsync(AssetReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListCategoriesAsync(cancellationToken));
 
@@ -306,6 +485,4 @@ internal static class AssetsEndpoints
         return TypedResults.NoContent();
     }
 
-    private static IResult NotImplemented() =>
-        Results.StatusCode(StatusCodes.Status501NotImplemented);
 }
