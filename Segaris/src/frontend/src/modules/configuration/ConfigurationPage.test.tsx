@@ -374,6 +374,44 @@ describe('Configuration creation and editing', () => {
     expect(created?.body).toEqual({ name: 'Leroy Merlin' })
   })
 
+  it('creates an asset category through the Assets section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/assets?catalog=categories')
+    await screen.findByText('Furniture')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New category' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New category' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Appliances')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    expect(
+      calls.find(
+        (call) => call.method === 'POST' && call.url === '/api/assets/categories',
+      )?.body,
+    ).toEqual({ name: 'Appliances' })
+  })
+
+  it('updates an asset location through the Assets section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/assets?catalog=locations')
+    await screen.findByText('Living room')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Living room' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit location' })
+    const name = within(dialog).getByLabelText('Name')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Storage room')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(
+      calls.find(
+        (call) => call.method === 'PUT' && call.url === '/api/assets/locations/1',
+      )?.body,
+    ).toEqual({ name: 'Storage room' })
+  })
+
   it('validates the three-letter currency code on the client', async () => {
     mockBackend()
     renderAt('/configuration/global?catalog=currencies')
@@ -485,6 +523,23 @@ describe('Configuration reordering', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Move Amazon down' })).toHaveFocus(),
+    )
+  })
+
+  it('reorders asset locations through the Assets section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/assets?catalog=locations')
+    await screen.findByText('Living room')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move Living room down' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) =>
+            call.method === 'POST' && call.url === '/api/assets/locations/1/move',
+        )?.body,
+      ).toEqual({ direction: 'down' }),
     )
   })
 })
@@ -609,6 +664,37 @@ describe('Configuration deletion', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete Furniture' }))
     const dialog = await screen.findByRole('dialog', { name: 'Remove Furniture' })
+
+    expect(
+      within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
+    ).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
+    )
+  })
+
+  it('requires replacement for a referenced asset location', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'assetLocations:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: false,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/assets?catalog=locations')
+    await screen.findByText('Living room')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Living room' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Living room' })
 
     expect(
       within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
