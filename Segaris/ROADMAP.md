@@ -181,8 +181,12 @@ Module purpose: Manage objects where stock doesn't apply, like furniture, applia
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, asset code. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | A single `Asset` entity covers individually identified durable objects, distinguished by category. It carries a required name, `AssetCategory`, and `AssetLocation`, a fixed `Active`/`Stored`/`Retired` status, an optional unique manual code, optional brand/model and serial number, optional acquisition date and expected end of life, notes, attachments with an optional primary image, and Public/Private visibility. No stock, monetary value, cost, maintenance history, or cross-module references. See `docs/requirements/ASSETS_REQUIREMENTS.md`. |
+| Resolved | Catalogues | Assets owns `AssetCategory` and `AssetLocation` (both required, replace-only deletion) through Configuration, initialized once with the established module-owned catalogue pattern. |
+| Resolved | Expected end of life | A single optional civil date models the asset's expected end of life, surfaced to the user as "Expected end of life" rather than "warranty". |
+| Resolved | User workflow | Assets opens directly on a server-paginated table with a thumbnail column, search, filters, sorting, and a URL-aware popup editor. See `docs/requirements/ASSETS_REQUIREMENTS.md`. |
+| Resolved | Attention | The launcher card requests attention when an accessible non-`Retired` asset has an expected end of life within the next 30 days in `Europe/Madrid` (upcoming window only). |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/ASSETS_IMPLEMENTATION_PLAN.md`. |
 
 ### Maintenance
 
