@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -65,14 +65,27 @@ function makeAssetDetail(id: number): Asset {
   }
 }
 
-function mockBackend(options: { assets?: AssetSummary[] } = {}) {
+function mockBackend(
+  options: {
+    assets?: AssetSummary[]
+    deletionImpact?: {
+      isReferenced: boolean
+      referenceCount: number
+      canDeleteDirectly: boolean
+      requiresReassignment: boolean
+      hasReplacementCandidates: boolean
+    }
+  } = {},
+) {
   const assets = options.assets ?? [makeAsset(1)]
-  const requests: Array<{ method: string; url: string }> = []
+  const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     await Promise.resolve()
     const url = urlOf(input)
     const method = init?.method ?? 'GET'
+    const body: unknown =
+      typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
 
     if (url === '/api/session/antiforgery') return json({ csrfToken: 'token' })
     if (url === '/api/session' && method === 'GET') return json(session)
@@ -91,6 +104,25 @@ function mockBackend(options: { assets?: AssetSummary[] } = {}) {
     }
     if (url.startsWith('/api/assets/locations')) {
       return json([{ id: 1, name: 'Storage', sortOrder: 1 }])
+    }
+    if (url.match(/^\/api\/assets\/items\/\d+\/deletion-impact$/) && method === 'GET') {
+      requests.push({ method, url })
+      return json(
+        options.deletionImpact ?? {
+          isReferenced: false,
+          referenceCount: 0,
+          canDeleteDirectly: true,
+          requiresReassignment: false,
+          hasReplacementCandidates: false,
+        },
+      )
+    }
+    if (
+      url.match(/^\/api\/assets\/items\/\d+\/reassign-and-delete$/) &&
+      method === 'POST'
+    ) {
+      requests.push({ method, url, body })
+      return new Response(null, { status: 204 })
     }
     if (url.startsWith('/api/assets/items/') && method === 'GET') {
       requests.push({ method, url })
@@ -162,5 +194,80 @@ describe('Assets page', () => {
     expect(await screen.findByRole('dialog', { name: 'New asset' })).toBeInTheDocument()
     expect(window.location.search).toContain('search=Asset+01')
     expect(window.location.search).toContain('newAsset=true')
+  })
+
+  it('reassigns maintenance references before deleting a referenced asset', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      assets: [makeAsset(1), makeAsset(2, { name: 'Replacement asset', code: 'R-2' })],
+      deletionImpact: {
+        isReferenced: true,
+        referenceCount: 3,
+        canDeleteDirectly: false,
+        requiresReassignment: true,
+        hasReplacementCandidates: true,
+      },
+    })
+    render(<App />)
+
+    await screen.findByText('Asset 01')
+    await user.click(screen.getByRole('button', { name: 'Open asset Asset 01' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit asset' })
+    await user.click(within(editor).getByRole('button', { name: 'Delete asset' }))
+
+    const deleteDialog = await screen.findByRole('dialog', {
+      name: 'Reassign and delete Asset 01',
+    })
+    expect(
+      await within(deleteDialog).findByText(
+        '3 maintenance tasks currently reference this asset. They will be moved to the replacement asset.',
+      ),
+    ).toBeInTheDocument()
+
+    await user.selectOptions(
+      within(deleteDialog).getByRole('combobox', { name: 'Replacement asset' }),
+      '2',
+    )
+    await user.click(
+      within(deleteDialog).getByRole('button', { name: 'Reassign and delete' }),
+    )
+
+    await waitFor(() =>
+      expect(
+        requests.find((request) =>
+          request.url.endsWith('/api/assets/items/1/reassign-and-delete'),
+        )?.body,
+      ).toEqual({ targetAssetId: 2 }),
+    )
+  })
+
+  it('shows a blocked deletion state when a referenced asset has no replacement', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      assets: [makeAsset(1)],
+      deletionImpact: {
+        isReferenced: true,
+        referenceCount: 1,
+        canDeleteDirectly: false,
+        requiresReassignment: true,
+        hasReplacementCandidates: false,
+      },
+    })
+    render(<App />)
+
+    await screen.findByText('Asset 01')
+    await user.click(screen.getByRole('button', { name: 'Open asset Asset 01' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit asset' })
+    await user.click(within(editor).getByRole('button', { name: 'Delete asset' }))
+
+    const deleteDialog = await screen.findByRole('dialog', {
+      name: 'Reassign and delete Asset 01',
+    })
+    expect(
+      await within(deleteDialog).findByText(
+        'No compatible replacement asset is available. Add or update an asset before deleting this one.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(deleteDialog).queryByRole('combobox')).not.toBeInTheDocument()
   })
 })

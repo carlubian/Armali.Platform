@@ -59,6 +59,7 @@ interface BackendOptions {
   clothingColors?: Row[]
   assetCategories?: Row[]
   assetLocations?: Row[]
+  maintenanceTypes?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
@@ -77,6 +78,7 @@ const catalogPaths: Record<string, string> = {
   'clothes/colors': 'clothingColors',
   'assets/categories': 'assetCategories',
   'assets/locations': 'assetLocations',
+  'maintenance/types': 'maintenanceTypes',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -116,6 +118,10 @@ function mockBackend(options: BackendOptions = {}) {
       { id: 1, name: 'Living room', sortOrder: 1 },
       { id: 2, name: 'Garage', sortOrder: 2 },
     ],
+    maintenanceTypes: options.maintenanceTypes ?? [
+      { id: 1, name: 'Repair', sortOrder: 1 },
+      { id: 2, name: 'Inspection', sortOrder: 2 },
+    ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
   let nextId = 1000
@@ -141,7 +147,7 @@ function mockBackend(options: BackendOptions = {}) {
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -335,6 +341,15 @@ describe('Configuration navigation and states', () => {
     expect(await screen.findByText('Garage')).toBeInTheDocument()
   })
 
+  it('shows the Maintenance types section', async () => {
+    mockBackend()
+    renderAt('/configuration/maintenance')
+    expect(
+      await screen.findByRole('heading', { name: 'Maintenance types' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Repair')).toBeInTheDocument()
+  })
+
   it('renders the empty state for a catalog with no rows', async () => {
     mockBackend({ suppliers: [] })
     renderAt(suppliersHome)
@@ -410,6 +425,26 @@ describe('Configuration creation and editing', () => {
         (call) => call.method === 'PUT' && call.url === '/api/assets/locations/1',
       )?.body,
     ).toEqual({ name: 'Storage room' })
+  })
+
+  it('creates a maintenance type through the Maintenance section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/maintenance')
+    await screen.findByText('Repair')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New type' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'New maintenance type',
+    })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Preventive')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    expect(
+      calls.find(
+        (call) => call.method === 'POST' && call.url === '/api/maintenance/types',
+      )?.body,
+    ).toEqual({ name: 'Preventive' })
   })
 
   it('validates the three-letter currency code on the client', async () => {
@@ -538,6 +573,23 @@ describe('Configuration reordering', () => {
         calls.find(
           (call) =>
             call.method === 'POST' && call.url === '/api/assets/locations/1/move',
+        )?.body,
+      ).toEqual({ direction: 'down' }),
+    )
+  })
+
+  it('reorders maintenance types through the Maintenance section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/maintenance')
+    await screen.findByText('Repair')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move Repair down' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) =>
+            call.method === 'POST' && call.url === '/api/maintenance/types/1/move',
         )?.body,
       ).toEqual({ direction: 'down' }),
     )
@@ -690,6 +742,7 @@ describe('Configuration deletion', () => {
         },
       },
     })
+
     renderAt('/configuration/assets?catalog=locations')
     await screen.findByText('Living room')
 
@@ -706,6 +759,38 @@ describe('Configuration deletion', () => {
     await waitFor(() =>
       expect(
         calls.find((call) => call.url.endsWith('/replace-and-delete'))?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
+    )
+  })
+
+  it('requires replacement for a referenced maintenance type', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'maintenanceTypes:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: false,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/maintenance')
+    await screen.findByText('Repair')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Repair' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Repair' })
+
+    expect(
+      within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
+    ).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url === '/api/maintenance/types/1/replace-and-delete')
+          ?.body,
       ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
     )
   })

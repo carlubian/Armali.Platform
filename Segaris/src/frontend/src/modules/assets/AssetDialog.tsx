@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next'
 import {
   assetsApi,
   type Asset,
+  type AssetDeletionImpact,
+  type AssetSummary,
   type AssetStatus,
   type AssetVisibility,
   type CreateAssetRequest,
@@ -206,6 +208,8 @@ function AssetEditorForm({
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [targetAssetId, setTargetAssetId] = useState<string>('')
+  const [targetError, setTargetError] = useState<string | null>(null)
   const [stagedFiles, setStagedFiles] = useState<File[]>([])
   const [createdAsset, setCreatedAsset] = useState<Asset | null>(null)
   const editedRef = useRef(false)
@@ -236,6 +240,48 @@ function AssetEditorForm({
     },
   })
 
+  const deletionImpactQuery = useQuery({
+    queryKey: ['assets', 'deletion-impact', assetId] as const,
+    queryFn: ({ signal }) => assetsApi.getAssetDeletionImpact(assetId as number, signal),
+    enabled: confirmingDelete && mode === 'edit' && assetId != null,
+    staleTime: 0,
+    gcTime: 0,
+  })
+
+  const targetAssetsQuery = useQuery({
+    queryKey: assetsKeys.assetList({
+      page: 1,
+      pageSize: 100,
+      sort: 'name',
+      sortDirection: 'asc',
+    }),
+    queryFn: ({ signal }) =>
+      assetsApi.listAssets(
+        { page: 1, pageSize: 100, sort: 'name', sortDirection: 'asc' },
+        signal,
+      ),
+    enabled:
+      confirmingDelete &&
+      deletionImpactQuery.data?.requiresReassignment === true &&
+      deletionImpactQuery.data.hasReplacementCandidates,
+  })
+
+  const reassignDeleteMutation = useMutation({
+    mutationFn: (targetId: number) =>
+      assetsApi.reassignAndDeleteAsset(assetId as number, { targetAssetId: targetId }),
+    onSuccess: () => {
+      if (asset != null) onDeleted(asset)
+    },
+    onError: (error) => {
+      const message = mapReassignmentError(error, t)
+      if (isApiError(error) && error.problem?.code === 'assets.asset.invalid_reassignment') {
+        setTargetError(message)
+        return
+      }
+      setServerError(message)
+    },
+  })
+
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     void handleSubmit((values) => {
       setServerError(null)
@@ -255,6 +301,9 @@ function AssetEditorForm({
     rows.map((row) => ({ value: String(row.id), label: row.name }))
 
   const submitting = mutation.isPending
+  const deleteBusy = deleteMutation.isPending || reassignDeleteMutation.isPending
+  const targetCandidates =
+    targetAssetsQuery.data?.items.filter((candidate) => candidate.id !== assetId) ?? []
 
   if (createdAsset != null) {
     const finish = () => onSaved(createdAsset, 'create')
@@ -479,32 +528,39 @@ function AssetEditorForm({
       )}
 
       {confirmingDelete && (
-        <Dialog
-          width={460}
-          title={t('assetEditor.delete.title')}
-          description={t('assetEditor.delete.description')}
-          onClose={() => setConfirmingDelete(false)}
-          closeLabel={t('assetEditor.delete.cancel')}
-          footer={
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmingDelete(false)}
-                disabled={deleteMutation.isPending}
-              >
-                {t('assetEditor.delete.cancel')}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending
-                  ? t('assetEditor.delete.deleting')
-                  : t('assetEditor.delete.confirm')}
-              </Button>
-            </>
-          }
+        <AssetDeleteDialog
+          assetName={asset?.name ?? ''}
+          impact={deletionImpactQuery.data}
+          impactPending={deletionImpactQuery.isPending}
+          impactError={deletionImpactQuery.isError}
+          targetCandidates={targetCandidates}
+          targetPending={targetAssetsQuery.isPending}
+          targetError={targetError}
+          targetAssetId={targetAssetId}
+          busy={deleteBusy}
+          onTargetChange={(value) => {
+            setTargetAssetId(value)
+            setTargetError(null)
+            setServerError(null)
+          }}
+          onClose={() => {
+            setConfirmingDelete(false)
+            setTargetAssetId('')
+            setTargetError(null)
+          }}
+          onDeleteDirectly={() => {
+            setServerError(null)
+            deleteMutation.mutate()
+          }}
+          onReassignAndDelete={() => {
+            setServerError(null)
+            setTargetError(null)
+            if (targetAssetId === '') {
+              setTargetError(t('assetEditor.delete.reassignmentRequired'))
+              return
+            }
+            reassignDeleteMutation.mutate(Number(targetAssetId))
+          }}
         />
       )}
     </>
@@ -559,6 +615,165 @@ function ToggleField({ id, label, hint, children }: ToggleFieldProps) {
   )
 }
 
+interface AssetDeleteDialogProps {
+  assetName: string
+  impact?: AssetDeletionImpact
+  impactPending: boolean
+  impactError: boolean
+  targetCandidates: AssetSummary[]
+  targetPending: boolean
+  targetError: string | null
+  targetAssetId: string
+  busy: boolean
+  onTargetChange: (value: string) => void
+  onClose: () => void
+  onDeleteDirectly: () => void
+  onReassignAndDelete: () => void
+}
+
+function AssetDeleteDialog({
+  assetName,
+  impact,
+  impactPending,
+  impactError,
+  targetCandidates,
+  targetPending,
+  targetError,
+  targetAssetId,
+  busy,
+  onTargetChange,
+  onClose,
+  onDeleteDirectly,
+  onReassignAndDelete,
+}: AssetDeleteDialogProps) {
+  const { t } = useTranslation('assets')
+  const closeButton = (
+    <Button variant="ghost" onClick={onClose} disabled={busy}>
+      {t('assetEditor.delete.cancel')}
+    </Button>
+  )
+
+  if (impactPending) {
+    return (
+      <Dialog
+        width={460}
+        title={t('assetEditor.delete.title')}
+        onClose={onClose}
+        closeLabel={t('assetEditor.delete.cancel')}
+      >
+        <div className="seg-assets-editor__status">
+          <Spinner />
+          <span>{t('assetEditor.delete.loadingImpact')}</span>
+        </div>
+      </Dialog>
+    )
+  }
+
+  if (impactError || impact == null) {
+    return (
+      <Dialog
+        width={460}
+        title={t('assetEditor.delete.title')}
+        onClose={onClose}
+        closeLabel={t('assetEditor.delete.cancel')}
+        footer={<Button onClick={onClose}>{t('assetEditor.delete.cancel')}</Button>}
+      >
+        <p className="seg-assets-editor__error" role="alert">
+          {t('assetEditor.delete.impactError')}
+        </p>
+      </Dialog>
+    )
+  }
+
+  if (!impact.requiresReassignment) {
+    return (
+      <Dialog
+        width={460}
+        title={t('assetEditor.delete.title')}
+        description={t('assetEditor.delete.description')}
+        onClose={onClose}
+        closeLabel={t('assetEditor.delete.cancel')}
+        footer={
+          <>
+            {closeButton}
+            <Button variant="danger" onClick={onDeleteDirectly} disabled={busy}>
+              {busy ? t('assetEditor.delete.deleting') : t('assetEditor.delete.confirm')}
+            </Button>
+          </>
+        }
+      />
+    )
+  }
+
+  const blocked =
+    !impact.hasReplacementCandidates || (!targetPending && targetCandidates.length === 0)
+  if (blocked) {
+    return (
+      <Dialog
+        width={500}
+        title={t('assetEditor.delete.reassignTitle', { name: assetName })}
+        onClose={onClose}
+        closeLabel={t('assetEditor.delete.cancel')}
+        footer={<Button onClick={onClose}>{t('assetEditor.delete.close')}</Button>}
+      >
+        <p>{t('assetEditor.delete.impactSummary', { count: impact.referenceCount })}</p>
+        <p className="seg-assets-editor__error" role="alert">
+          {t('assetEditor.delete.noCompatibleTarget')}
+        </p>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Dialog
+      width={520}
+      title={t('assetEditor.delete.reassignTitle', { name: assetName })}
+      description={t('assetEditor.delete.reassignDescription')}
+      onClose={onClose}
+      closeLabel={t('assetEditor.delete.cancel')}
+      footer={
+        <>
+          {closeButton}
+          <Button variant="danger" onClick={onReassignAndDelete} disabled={busy}>
+            {busy
+              ? t('assetEditor.delete.deleting')
+              : t('assetEditor.delete.reassignConfirm')}
+          </Button>
+        </>
+      }
+    >
+      <p>{t('assetEditor.delete.impactSummary', { count: impact.referenceCount })}</p>
+      {targetPending ? (
+        <div className="seg-assets-editor__status">
+          <Spinner />
+          <span>{t('assetEditor.delete.loadingTargets')}</span>
+        </div>
+      ) : (
+        <Field
+          label={t('assetEditor.delete.reassignmentLabel')}
+          error={targetError ?? undefined}
+        >
+          <Select
+            value={targetAssetId}
+            aria-invalid={targetError != null}
+            onChange={(event) => onTargetChange(event.target.value)}
+            options={[
+              { value: '', label: t('assetEditor.delete.reassignmentPlaceholder') },
+              ...targetCandidates.map((candidate) => ({
+                value: String(candidate.id),
+                label:
+                  candidate.code == null
+                    ? candidate.name
+                    : `${candidate.name} (${candidate.code})`,
+              })),
+            ]}
+          />
+        </Field>
+      )}
+    </Dialog>
+  )
+}
+
 function mapServerError(error: unknown, t: (key: string) => string): string {
   if (isApiError(error)) {
     switch (error.problem?.code) {
@@ -577,4 +792,17 @@ function mapServerError(error: unknown, t: (key: string) => string): string {
     }
   }
   return t('assetEditor.errors.generic')
+}
+
+function mapReassignmentError(error: unknown, t: (key: string) => string): string {
+  if (isApiError(error)) {
+    switch (error.problem?.code) {
+      case 'assets.asset.invalid_reassignment':
+        return t('assetEditor.delete.invalidReassignment')
+      case 'assets.asset.deletion_referenced':
+        return t('assetEditor.delete.reassignmentBlocked')
+    }
+    if (error.kind === 'not-found') return t('assetEditor.notFound')
+  }
+  return t('assetEditor.delete.reassignmentError')
 }
