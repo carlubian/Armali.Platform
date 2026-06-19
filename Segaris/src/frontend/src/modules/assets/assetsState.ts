@@ -40,6 +40,10 @@ export interface AssetsState {
   pageSize: AssetPageSize
 }
 
+export type AssetsFilterPatch = Partial<
+  Omit<AssetsState, 'page' | 'sort' | 'sortDirection' | 'pageSize'>
+>
+
 export type AssetDialogState =
   | { mode: 'closed' }
   | { mode: 'create' }
@@ -108,6 +112,43 @@ export function toListQuery(
   }
 }
 
+function writeState(state: AssetsState, currentUserId: number | null): URLSearchParams {
+  const params = new URLSearchParams()
+  const set = (key: string, value: string | number | null | undefined) => {
+    if (value == null) return
+    const text = String(value)
+    if (text.length > 0) params.set(key, text)
+  }
+
+  set('search', state.search.trim() === '' ? null : state.search.trim())
+  set('category', state.category)
+  set('location', state.location)
+  set('status', state.status === '' ? null : state.status)
+  set('visibility', state.visibility === '' ? null : state.visibility)
+  set('creator', state.mine && currentUserId != null ? currentUserId : null)
+  if (state.sort !== defaultSort) set('sort', state.sort)
+  if (state.sortDirection !== defaultSortDirection) {
+    set('sortDirection', state.sortDirection)
+  }
+  if (state.page !== 1) set('page', state.page)
+  if (state.pageSize !== defaultPageSize) set('pageSize', state.pageSize)
+
+  return params
+}
+
+const LIST_PARAMS = new Set([
+  'search',
+  'category',
+  'location',
+  'status',
+  'visibility',
+  'creator',
+  'sort',
+  'sortDirection',
+  'page',
+  'pageSize',
+])
+
 export function useAssetsState(currentUserId: number | null) {
   const [searchParams, setSearchParams] = useSearchParams()
   const state = useMemo(
@@ -130,13 +171,87 @@ export function useAssetsState(currentUserId: number | null) {
     [setSearchParams],
   )
 
+  const commit = useCallback(
+    (next: AssetsState, options?: { replace?: boolean }) => {
+      setSearchParams(
+        (current) => {
+          const merged = writeState(next, currentUserId)
+          for (const [key, value] of current.entries()) {
+            if (!LIST_PARAMS.has(key)) merged.set(key, value)
+          }
+          return merged
+        },
+        { replace: options?.replace ?? false },
+      )
+    },
+    [setSearchParams, currentUserId],
+  )
+
+  const setFilters = useCallback(
+    (patch: AssetsFilterPatch) => {
+      const replace = 'search' in patch && Object.keys(patch).length === 1
+      commit({ ...state, ...patch, page: 1 }, { replace })
+    },
+    [commit, state],
+  )
+
+  const setSort = useCallback(
+    (sort: AssetSortField) => {
+      const sortDirection =
+        state.sort === sort && state.sortDirection === 'asc' ? 'desc' : 'asc'
+      commit({ ...state, sort, sortDirection, page: 1 })
+    },
+    [commit, state],
+  )
+
+  const setPage = useCallback(
+    (page: number) => commit({ ...state, page }),
+    [commit, state],
+  )
+
+  const setPageSize = useCallback(
+    (pageSize: AssetPageSize) => commit({ ...state, pageSize, page: 1 }),
+    [commit, state],
+  )
+
+  const clearFilters = useCallback(
+    () =>
+      commit({
+        ...state,
+        search: '',
+        category: null,
+        location: null,
+        status: '',
+        visibility: '',
+        mine: false,
+        page: 1,
+      }),
+    [commit, state],
+  )
+
   return {
     state,
     dialog,
     listQuery: toListQuery(state, currentUserId),
+    setFilters,
+    setSort,
+    setPage,
+    setPageSize,
+    clearFilters,
     openCreateDialog: () => setDialogParams({ newAsset: 'true', assetId: null }),
     openEditDialog: (assetId: number) =>
       setDialogParams({ newAsset: null, assetId: String(assetId) }),
     closeDialog: () => setDialogParams({ newAsset: null, assetId: null }),
   }
+}
+
+export function activeAssetFilterCount(state: AssetsState): number {
+  let count = 0
+  if (state.search.trim() !== '') count += 1
+  if (state.category != null) count += 1
+  if (state.location != null) count += 1
+  if (state.status !== '') count += 1
+  if (state.visibility !== '') count += 1
+  if (state.mine) count += 1
+  return count
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { assets } from '@/modules/assets/i18n/resources'
 import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
@@ -15,6 +16,7 @@ import { platform } from './resources'
 // namespace (for example `capex:launcher.title`) resolve directly via i18next.
 const namespaces = [
   'platform',
+  'assets',
   'capex',
   'clothes',
   'configuration',
@@ -35,6 +37,12 @@ describe('platform translations', () => {
   it('registers every platform resource key', () => {
     for (const key of leafKeys(platform)) {
       expect(i18n.exists(key, { ns: 'platform', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every assets resource key', () => {
+    for (const key of leafKeys(assets)) {
+      expect(i18n.exists(key, { ns: 'assets', lng: 'en-GB' }), key).toBe(true)
     }
   })
 
