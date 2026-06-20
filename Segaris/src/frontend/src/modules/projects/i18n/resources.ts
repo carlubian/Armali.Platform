@@ -1,7 +1,8 @@
 export const projects = {
   launcher: {
     title: 'Projects',
-    description: 'Browse programmes, axes, projects, activities, risks, and result files.',
+    description:
+      'Browse programmes, axes, projects, activities, risks, and result files.',
     attention: 'Projects do not currently require attention.',
   },
   page: {
@@ -15,7 +16,8 @@ export const projects = {
   tree: {
     label: 'Projects hierarchy',
     title: 'Project tree',
-    description: 'Expand a programme to load axes, then expand an axis to load work items.',
+    description:
+      'Expand a programme to load axes, then expand an axis to load work items.',
     loading: 'Loading project tree...',
     loadingAxes: 'Loading axes...',
     loadingItems: 'Loading projects and activities...',
@@ -28,6 +30,8 @@ export const projects = {
     newItem: 'New item',
     openProject: 'Open project {{identifier}}',
     openActivity: 'Open activity {{identifier}}',
+    selectProject: 'Select project {{identifier}}',
+    selectActivity: 'Select activity {{identifier}}',
   },
   kind: {
     Project: 'Project',
@@ -59,6 +63,47 @@ export const projects = {
   itemEditor: {
     fields: {
       type: 'Type',
+    },
+  },
+  details: {
+    loading: 'Loading details...',
+    loadError: 'The details could not be loaded.',
+    empty: {
+      title: 'Choose a tree node',
+      description:
+        'Select a programme, axis, project, or activity to review structure and item details without opening an editor.',
+    },
+    structure: {
+      alwaysPublic: 'Always public',
+      unknownParent: 'Unknown parent',
+      configurationTitle: 'Managed in Configuration',
+      configurationBody:
+        'Programmes and axes are structural nodes. Rename, recode, delete, and reassign them from Configuration.',
+    },
+    program: {
+      eyebrow: 'Programme · structure',
+      axes: 'Axes',
+      notFound: 'This programme could not be found.',
+    },
+    axis: {
+      eyebrow: 'Axis · structure',
+      items: 'Projects and activities',
+      notFound: 'This axis could not be found.',
+    },
+    item: {
+      context: 'Context and audit',
+      number: 'Number',
+      axis: 'Axis',
+      program: 'Programme',
+      owner: 'Creator',
+      created: 'Created',
+      updated: 'Updated',
+      neverUpdated: 'Not updated yet',
+    },
+    activity: {
+      title: 'Lightweight unit of work',
+      description:
+        'Activities carry their own name, status, visibility, and audit metadata. Risks and result files belong to projects.',
     },
   },
   validation: {
@@ -135,7 +180,8 @@ export const projects = {
   },
   risks: {
     title: 'Project risks',
-    description: 'Maintain the project risk table. Scores are computed from the factors.',
+    description:
+      'Maintain the project risk table. Scores are computed from the factors.',
     open: 'Open risks',
     openFor: 'Open risks for {{identifier}}',
     new: 'New risk',
@@ -148,7 +194,8 @@ export const projects = {
       medium: 'Medium {{count}}',
       high: 'High {{count}}',
     },
-    factors: 'Probability {{probability}} · Impact {{impact}} · Mitigation {{mitigation}}',
+    factors:
+      'Probability {{probability}} · Impact {{impact}} · Mitigation {{mitigation}}',
     score: '{{score}} · {{band}}',
     band: {
       Low: 'Low',

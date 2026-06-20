@@ -16,7 +16,12 @@ import {
   projectRiskRequestSchema,
   projectsKeys,
 } from './contracts'
-import { axisRefValue, parseProjectsDialogState } from './projectsState'
+import {
+  axisRefValue,
+  parseProjectsDialogState,
+  parseProjectsSelectionState,
+  selectionRefValue,
+} from './projectsState'
 
 describe('projects contracts', () => {
   it('freezes route and vocabulary constants', () => {
@@ -118,7 +123,40 @@ describe('projects contracts', () => {
     )
   })
 
-  it('parses URL-backed dialog state for projects, activities, and risks', () => {
+  it('parses URL-backed selection independently from dialog state', () => {
+    expect(parseProjectsSelectionState(new URLSearchParams())).toEqual({
+      kind: 'none',
+    })
+    expect(
+      parseProjectsSelectionState(
+        new URLSearchParams(
+          `selected=${selectionRefValue({ kind: 'program', programId: 123 })}`,
+        ),
+      ),
+    ).toEqual({ kind: 'program', programId: 123 })
+    expect(
+      parseProjectsSelectionState(new URLSearchParams('selected=axis-456')),
+    ).toEqual({
+      kind: 'axis',
+      axisId: 456,
+    })
+    expect(
+      parseProjectsSelectionState(
+        new URLSearchParams('selected=project-789&editProjectId=789'),
+      ),
+    ).toEqual({ kind: 'project', projectId: 789 })
+    expect(
+      parseProjectsSelectionState(
+        new URLSearchParams('selected=activity-321&riskProjectId=789'),
+      ),
+    ).toEqual({ kind: 'activity', activityId: 321 })
+    expect(parseProjectsSelectionState(new URLSearchParams('projectId=123'))).toEqual({
+      kind: 'project',
+      projectId: 123,
+    })
+  })
+
+  it('parses URL-backed dialog state for creates, explicit edits, and risks', () => {
     expect(parseProjectsDialogState(new URLSearchParams())).toEqual({
       mode: 'closed',
     })
@@ -131,19 +169,24 @@ describe('projects contracts', () => {
     expect(
       parseProjectsDialogState(new URLSearchParams('newActivity=axis-789')),
     ).toEqual({ mode: 'createItem', axisId: 789, itemMode: 'activity' })
-    expect(parseProjectsDialogState(new URLSearchParams('projectId=123'))).toEqual({
+    expect(parseProjectsDialogState(new URLSearchParams('editProjectId=123'))).toEqual({
       mode: 'editProject',
       projectId: 123,
-      risks: false,
+    })
+    expect(parseProjectsDialogState(new URLSearchParams('riskProjectId=123'))).toEqual({
+      mode: 'projectRisks',
+      projectId: 123,
     })
     expect(
       parseProjectsDialogState(new URLSearchParams('projectId=123&risks=true')),
-    ).toEqual({ mode: 'editProject', projectId: 123, risks: true })
-    expect(parseProjectsDialogState(new URLSearchParams('activityId=456'))).toEqual({
-      mode: 'editActivity',
-      activityId: 456,
-    })
-    expect(parseProjectsDialogState(new URLSearchParams('projectId=0'))).toEqual({
+    ).toEqual({ mode: 'projectRisks', projectId: 123 })
+    expect(parseProjectsDialogState(new URLSearchParams('editActivityId=456'))).toEqual(
+      {
+        mode: 'editActivity',
+        activityId: 456,
+      },
+    )
+    expect(parseProjectsDialogState(new URLSearchParams('editProjectId=0'))).toEqual({
       mode: 'closed',
     })
   })

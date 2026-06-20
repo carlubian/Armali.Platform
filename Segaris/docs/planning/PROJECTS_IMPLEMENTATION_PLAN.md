@@ -393,6 +393,112 @@ Exit criteria:
   journey succeeds, and every accepted Projects requirement is implemented or
   explicitly deferred.
 
+### Wave 9: Projects Workspace Detail Pane Correction
+
+Realign the Projects page with the original UI reference under
+`docs/ui-design/segaris/screens-projects.jsx`: the tree is the left navigation
+column, and a persistent details pane occupies the right side of the same page.
+
+Current correction target:
+
+- Selecting a program, axis, project, or activity in the tree updates page
+  selection only; it must not open the edit dialog or the risks dialog.
+- The details pane is empty until a node is selected, then shows structure
+  details for programs and axes or item details for projects and activities.
+- Project and activity editing is opened from a dedicated details-pane action.
+- Project risks are opened from a separate details-pane action, not from the edit
+  dialog or directly from the tree.
+
+Tasks:
+
+1. Split the Projects workspace into a two-column layout with the lazily expanded
+   tree on the left and a persistent details pane on the right, preserving the
+   existing page header, loading, error, and empty-tree states.
+2. Introduce URL-backed selection state that is independent from dialog state, so
+   selected program, axis, project, or activity state survives reloads and dialog
+   open/close without treating selection as an edit intent.
+3. Keep create-item state URL-backed, but move project/activity edit state behind
+   explicit details-pane actions instead of tree-row clicks.
+4. Load project and activity detail data for the selected item and render its
+   identifier, name, status, visibility, parent context, audit metadata, and
+   project-only sections in the right pane.
+5. Render program and axis details in the right pane with a Configuration note,
+   structural code, child count/list, and navigation to child nodes where already
+   loaded.
+6. Add details-pane actions: edit for projects and activities; open risk table
+   for projects only; attachments remain visible in the project details pane.
+7. Preserve existing mutation, deletion, attachment, and risk CRUD behaviour while
+   reanchoring their entry points to the new details-pane flow.
+
+Tests:
+
+- Component tests for selecting programs, axes, projects, and activities without
+  opening dialogs.
+- Component tests for empty details state, structure details, project details,
+  activity details, and project-only risk/attachment sections.
+- URL-state tests proving selection survives edit/risk dialog open and close.
+- Regression tests proving risks can be opened from the project details pane and
+  not from the tree or edit dialog.
+
+Exit criteria:
+
+- The Projects page always shows both the tree column and the details pane on
+  desktop widths, and tree clicks only change selection.
+- Edit and risk workflows remain functional but are launched from the details
+  pane.
+
+### Wave 10: Projects Tree Visual Design Correction
+
+Bring the Projects tree closer to the original design while keeping the backend
+tree contracts unchanged.
+
+Fixed visual rules:
+
+- Tree nodes are inline rows, not nested card-like containers.
+- Program and axis codes, and project/activity unified codes, appear as coloured
+  code pills inside each node.
+- Risk summary and risk band information are removed from the tree and shown only
+  in the selected project's details pane.
+- Project/activity type is represented by a left-side icon instead of a right-side
+  kind pill.
+- Project/activity status is represented by the icon colour:
+  Planning = blue, Active = teal, Completed = green, On hold = yellow, and
+  Cancelled = red.
+
+Tasks:
+
+1. Restyle program, axis, project, and activity rows to remove the current
+   card-like borders/backgrounds from individual nodes while preserving focus,
+   hover, selected, and keyboard-visible states.
+2. Replace right-side kind/status/visibility badge clusters in leaf tree rows with
+   a compact left icon, code pill, and item name.
+3. Apply the fixed status-to-colour mapping to the project/activity type icon and
+   reuse design tokens rather than hard-coded colours where possible.
+4. Keep program and axis structural affordances distinct with folder/branch icons
+   and code pills, but do not add risk or visibility information to structural
+   nodes.
+5. Remove tree-level risk-summary buttons and risk-summary rendering; keep all
+   risk counts, bands, and actions in the project details pane.
+6. Update responsive behaviour so the two-column workspace can collapse safely on
+   narrow widths without reintroducing tree cards or tree-launched edit actions.
+
+Tests:
+
+- Component tests asserting tree leaf rows show one type icon, the identifier/code
+  pill, and name, but no risk summary or kind/status badge cluster.
+- Component tests for the fixed status-to-icon-colour mapping across all project
+  statuses.
+- Accessibility tests for tree keyboard selection, selected-state announcement,
+  focus visibility, and risk/edit buttons in the details pane.
+- Visual or DOM regression coverage for the desktop two-column workspace and the
+  narrow-width collapsed layout.
+
+Exit criteria:
+
+- The tree visually matches the original hierarchy concept: compact rows with
+  code pills and status-coloured item icons, with risks visible only after
+  selecting a project.
+
 ## Suggested Pull Request Boundaries
 
 1. Projects contracts, hierarchy persistence, and numbering (Waves 0-1).
@@ -401,6 +507,8 @@ Exit criteria:
 3. Risks and attachments (Waves 4-5).
 4. Projects tree frontend and Configuration frontend (Waves 6-7).
 5. End-to-end, hardening, and acceptance (Wave 8).
+6. Projects workspace/detail-pane correction and tree visual correction
+   (Waves 9-10).
 
 ## Plan Completion Criteria
 
@@ -410,4 +518,5 @@ intent.
 
 Due dates and scheduling, cost, cross-module references, Processes integration, a
 richer risk model, promotable activities, and tree search remain separate future
-planning topics.
+planning topics. Post-acceptance visual corrections are complete when Waves 9-10
+meet their exit criteria without changing backend contracts.

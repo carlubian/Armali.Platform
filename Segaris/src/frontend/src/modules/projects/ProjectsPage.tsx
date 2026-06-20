@@ -5,14 +5,19 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronRight,
+  CircleDot,
+  GitBranch,
   FolderTree,
   Globe,
+  Hash,
   Lock,
+  Pencil,
   Plus,
+  Settings2,
   ShieldAlert,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -23,6 +28,7 @@ import {
   projectVisibilities,
   projectsApi,
   projectsStructureApi,
+  type ProjectStatus,
   type Activity,
   type AxisNode,
   type CreateActivityRequest,
@@ -51,7 +57,11 @@ import {
 
 import { projectRiskRequestSchema, projectsKeys } from './contracts'
 import { ProjectAttachments } from './ProjectAttachments'
-import { useProjectsDialogState } from './projectsState'
+import {
+  useProjectsDialogState,
+  useProjectsSelectionState,
+  type ProjectsSelectionState,
+} from './projectsState'
 
 import './ProjectsPage.css'
 
@@ -73,6 +83,13 @@ interface ToastState {
 }
 
 const itemModes = ['project', 'activity'] as const
+const treeItemStatusClass: Record<ProjectStatus, string> = {
+  Planning: 'planning',
+  Active: 'active',
+  Completed: 'completed',
+  OnHold: 'on-hold',
+  Cancelled: 'cancelled',
+}
 
 function isItemMode(value: string): value is ItemMode {
   return itemModes.some((itemMode) => itemMode === value)
@@ -87,6 +104,7 @@ export function ProjectsPage() {
   const { session } = useSession()
   const queryClient = useQueryClient()
   const dialogState = useProjectsDialogState()
+  const selectionState = useProjectsSelectionState()
   const [expandedPrograms, setExpandedPrograms] = useState<Set<number>>(new Set())
   const [expandedAxes, setExpandedAxes] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<ToastState | null>(null)
@@ -105,11 +123,16 @@ export function ProjectsPage() {
     if (item != null) {
       if ('riskSummary' in item)
         void queryClient.invalidateQueries({ queryKey: projectsKeys.project(item.id) })
-      else void queryClient.invalidateQueries({ queryKey: projectsKeys.activity(item.id) })
+      else
+        void queryClient.invalidateQueries({ queryKey: projectsKeys.activity(item.id) })
     }
   }
 
-  const handleSaved = (item: Project | Activity, itemMode: ItemMode, saveMode: SaveMode) => {
+  const handleSaved = (
+    item: Project | Activity,
+    itemMode: ItemMode,
+    saveMode: SaveMode,
+  ) => {
     invalidateTree(item)
     setToast({
       kind:
@@ -122,6 +145,8 @@ export function ProjectsPage() {
             : 'activityUpdated',
       name: item.name,
     })
+    if (itemMode === 'project') selectionState.selectProject(item.id)
+    else selectionState.selectActivity(item.id)
     dialogState.closeDialog()
   }
 
@@ -131,6 +156,16 @@ export function ProjectsPage() {
       kind: itemMode === 'project' ? 'projectDeleted' : 'activityDeleted',
       name: item.name,
     })
+    if (
+      (itemMode === 'project' &&
+        selectionState.selection.kind === 'project' &&
+        selectionState.selection.projectId === item.id) ||
+      (itemMode === 'activity' &&
+        selectionState.selection.kind === 'activity' &&
+        selectionState.selection.activityId === item.id)
+    ) {
+      selectionState.clearSelection()
+    }
     dialogState.closeDialog()
   }
 
@@ -149,7 +184,9 @@ export function ProjectsPage() {
           <h1>{t('page.title')}</h1>
           <p>{t('page.description')}</p>
         </div>
-        <Badge tone="neutral">{t('page.programCount', { count: programsQuery.data?.length ?? 0 })}</Badge>
+        <Badge tone="neutral">
+          {t('page.programCount', { count: programsQuery.data?.length ?? 0 })}
+        </Badge>
       </section>
 
       <section className="seg-projects__workspace">
@@ -159,7 +196,9 @@ export function ProjectsPage() {
               <h2>{t('tree.title')}</h2>
               <p>{t('tree.description')}</p>
             </div>
-            {programsQuery.isFetching && !programsQuery.isPending && <Spinner size={18} />}
+            {programsQuery.isFetching && !programsQuery.isPending && (
+              <Spinner size={18} />
+            )}
           </div>
 
           {programsQuery.isPending ? (
@@ -184,14 +223,27 @@ export function ProjectsPage() {
                   onToggle={() => toggleProgram(program.id)}
                   onToggleAxis={toggleAxis}
                   onCreateItem={dialogState.openCreateItem}
-                  onOpenProject={dialogState.openProject}
-                  onOpenProjectRisks={dialogState.openProjectRisks}
-                  onOpenActivity={dialogState.openActivity}
+                  selection={selectionState.selection}
+                  onSelectProgram={selectionState.selectProgram}
+                  onSelectAxis={selectionState.selectAxis}
+                  onSelectProject={selectionState.selectProject}
+                  onSelectActivity={selectionState.selectActivity}
                 />
               ))}
             </ul>
           )}
         </div>
+        <ProjectDetailsPane
+          selection={selectionState.selection}
+          programs={programsQuery.data ?? []}
+          onSelectAxis={selectionState.selectAxis}
+          onSelectProject={selectionState.selectProject}
+          onSelectActivity={selectionState.selectActivity}
+          onCreateItem={dialogState.openCreateItem}
+          onEditProject={dialogState.openProject}
+          onEditActivity={dialogState.openActivity}
+          onOpenProjectRisks={dialogState.openProjectRisks}
+        />
       </section>
 
       {dialogState.dialog.mode === 'createItem' && (
@@ -205,31 +257,17 @@ export function ProjectsPage() {
           onDeleted={handleDeleted}
         />
       )}
-      {dialogState.dialog.mode === 'editProject' &&
-        (() => {
-          const projectId = dialogState.dialog.projectId
-          return (
-            <>
-              <ProjectItemDialog
-                mode="edit"
-                itemMode="project"
-                itemId={projectId}
-                currentUserId={session?.userId ?? null}
-                onClose={dialogState.closeDialog}
-                onSaved={handleSaved}
-                onDeleted={handleDeleted}
-                onOpenRisks={() => dialogState.openProjectRisks(projectId)}
-              />
-              {dialogState.dialog.risks && (
-                <ProjectRiskDialog
-                  projectId={projectId}
-                  onClose={() => dialogState.closeProjectRisks(projectId)}
-                  onChanged={(kind, name) => setToast({ kind, name })}
-                />
-              )}
-            </>
-          )
-        })()}
+      {dialogState.dialog.mode === 'editProject' && (
+        <ProjectItemDialog
+          mode="edit"
+          itemMode="project"
+          itemId={dialogState.dialog.projectId}
+          currentUserId={session?.userId ?? null}
+          onClose={dialogState.closeDialog}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
+      )}
       {dialogState.dialog.mode === 'editActivity' && (
         <ProjectItemDialog
           mode="edit"
@@ -239,6 +277,13 @@ export function ProjectsPage() {
           onClose={dialogState.closeDialog}
           onSaved={handleSaved}
           onDeleted={handleDeleted}
+        />
+      )}
+      {dialogState.dialog.mode === 'projectRisks' && (
+        <ProjectRiskDialog
+          projectId={dialogState.dialog.projectId}
+          onClose={dialogState.closeDialog}
+          onChanged={(kind, name) => setToast({ kind, name })}
         />
       )}
 
@@ -272,9 +317,11 @@ interface ProgramBranchProps {
   onToggle: () => void
   onToggleAxis: (axisId: number) => void
   onCreateItem: (axisId: number) => void
-  onOpenProject: (projectId: number) => void
-  onOpenProjectRisks: (projectId: number) => void
-  onOpenActivity: (activityId: number) => void
+  selection: ProjectsSelectionState
+  onSelectProgram: (programId: number) => void
+  onSelectAxis: (axisId: number) => void
+  onSelectProject: (projectId: number) => void
+  onSelectActivity: (activityId: number) => void
 }
 
 function ProgramBranch({
@@ -284,9 +331,11 @@ function ProgramBranch({
   onToggle,
   onToggleAxis,
   onCreateItem,
-  onOpenProject,
-  onOpenProjectRisks,
-  onOpenActivity,
+  selection,
+  onSelectProgram,
+  onSelectAxis,
+  onSelectProject,
+  onSelectActivity,
 }: ProgramBranchProps) {
   const { t } = useTranslation('projects')
   const axesQuery = useQuery({
@@ -300,12 +349,20 @@ function ProgramBranch({
       <button
         type="button"
         className="seg-projects-tree__toggle seg-projects-tree__toggle--program"
-        onClick={onToggle}
+        onClick={() => {
+          onSelectProgram(program.id)
+          onToggle()
+        }}
         aria-expanded={expanded}
+        aria-current={
+          selection.kind === 'program' && selection.programId === program.id
+            ? 'true'
+            : undefined
+        }
       >
         {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         <FolderTree size={18} aria-hidden="true" />
-        <span className="seg-projects-tree__node-title">{program.code}</span>
+        <span className="seg-projects-tree__code-pill">{program.code}</span>
         <span className="seg-projects-tree__node-name">{program.name}</span>
       </button>
 
@@ -326,9 +383,10 @@ function ProgramBranch({
                   expanded={expandedAxes.has(axis.id)}
                   onToggle={() => onToggleAxis(axis.id)}
                   onCreateItem={onCreateItem}
-                  onOpenProject={onOpenProject}
-                  onOpenProjectRisks={onOpenProjectRisks}
-                  onOpenActivity={onOpenActivity}
+                  selection={selection}
+                  onSelectAxis={onSelectAxis}
+                  onSelectProject={onSelectProject}
+                  onSelectActivity={onSelectActivity}
                 />
               ))}
             </ul>
@@ -344,9 +402,10 @@ interface AxisBranchProps {
   expanded: boolean
   onToggle: () => void
   onCreateItem: (axisId: number) => void
-  onOpenProject: (projectId: number) => void
-  onOpenProjectRisks: (projectId: number) => void
-  onOpenActivity: (activityId: number) => void
+  selection: ProjectsSelectionState
+  onSelectAxis: (axisId: number) => void
+  onSelectProject: (projectId: number) => void
+  onSelectActivity: (activityId: number) => void
 }
 
 function AxisBranch({
@@ -354,9 +413,10 @@ function AxisBranch({
   expanded,
   onToggle,
   onCreateItem,
-  onOpenProject,
-  onOpenProjectRisks,
-  onOpenActivity,
+  selection,
+  onSelectAxis,
+  onSelectProject,
+  onSelectActivity,
 }: AxisBranchProps) {
   const { t } = useTranslation('projects')
   const itemsQuery = useQuery({
@@ -371,11 +431,20 @@ function AxisBranch({
         <button
           type="button"
           className="seg-projects-tree__toggle"
-          onClick={onToggle}
+          onClick={() => {
+            onSelectAxis(axis.id)
+            onToggle()
+          }}
           aria-expanded={expanded}
+          aria-current={
+            selection.kind === 'axis' && selection.axisId === axis.id
+              ? 'true'
+              : undefined
+          }
         >
           {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-          <span className="seg-projects-tree__node-title">{axis.code}</span>
+          <GitBranch size={17} aria-hidden="true" />
+          <span className="seg-projects-tree__code-pill">{axis.code}</span>
           <span className="seg-projects-tree__node-name">{axis.name}</span>
         </button>
         <div className="seg-projects-tree__axis-actions">
@@ -404,9 +473,16 @@ function AxisBranch({
                 <ProjectTreeItemRow
                   key={`${item.kind}-${item.id}`}
                   item={item}
-                  onOpenProject={onOpenProject}
-                  onOpenProjectRisks={onOpenProjectRisks}
-                  onOpenActivity={onOpenActivity}
+                  selected={
+                    (item.kind === 'Project' &&
+                      selection.kind === 'project' &&
+                      selection.projectId === item.id) ||
+                    (item.kind === 'Activity' &&
+                      selection.kind === 'activity' &&
+                      selection.activityId === item.id)
+                  }
+                  onSelectProject={onSelectProject}
+                  onSelectActivity={onSelectActivity}
                 />
               ))}
             </ul>
@@ -419,49 +495,47 @@ function AxisBranch({
 
 interface ProjectTreeItemRowProps {
   item: ProjectTreeItem
-  onOpenProject: (projectId: number) => void
-  onOpenProjectRisks: (projectId: number) => void
-  onOpenActivity: (activityId: number) => void
+  selected: boolean
+  onSelectProject: (projectId: number) => void
+  onSelectActivity: (activityId: number) => void
 }
 
 function ProjectTreeItemRow({
   item,
-  onOpenProject,
-  onOpenProjectRisks,
-  onOpenActivity,
+  selected,
+  onSelectProject,
+  onSelectActivity,
 }: ProjectTreeItemRowProps) {
   const { t } = useTranslation('projects')
   const isProject = item.kind === 'Project'
+  const statusClass = treeItemStatusClass[item.status]
 
   return (
     <li className="seg-projects-tree__item">
       <button
         type="button"
-        className="seg-projects-tree__item-open"
-        onClick={() => (isProject ? onOpenProject(item.id) : onOpenActivity(item.id))}
-        aria-label={t(isProject ? 'tree.openProject' : 'tree.openActivity', {
+        className="seg-projects-tree__item-open seg-projects-tree__leaf-row"
+        onClick={() =>
+          isProject ? onSelectProject(item.id) : onSelectActivity(item.id)
+        }
+        aria-label={t(isProject ? 'tree.selectProject' : 'tree.selectActivity', {
           identifier: item.identifier,
         })}
+        aria-current={selected ? 'true' : undefined}
       >
-        <span className="seg-projects-tree__identifier">{item.identifier}</span>
-        <span className="seg-projects-tree__meta">
-          <Badge tone={isProject ? 'aqua' : 'neutral'}>{t(`kind.${item.kind}`)}</Badge>
-          <Badge tone="neutral">{t(`status.${item.status}`)}</Badge>
-          <Badge tone={item.visibility === 'Private' ? 'neutral' : 'success'}>
-            {t(`visibility.${item.visibility}`)}
-          </Badge>
+        <span
+          className={`seg-projects-tree__type-icon seg-projects-tree__type-icon--${statusClass}`}
+          title={`${t(`kind.${item.kind}`)} · ${t(`status.${item.status}`)}`}
+          aria-hidden="true"
+        >
+          {isProject ? <ClipboardList size={15} /> : <CircleDot size={15} />}
+        </span>
+        <span className="seg-projects-tree__code-pill">{item.identifier}</span>
+        <span className="seg-projects-tree__leaf-name">{item.name}</span>
+        <span className="seg-projects-tree__sr-status">
+          {t(`kind.${item.kind}`)} · {t(`status.${item.status}`)}
         </span>
       </button>
-      {isProject && item.riskSummary != null && (
-        <button
-          type="button"
-          className="seg-projects-risk-summary"
-          onClick={() => onOpenProjectRisks(item.id)}
-          aria-label={t('risks.openFor', { identifier: item.identifier })}
-        >
-          <RiskSummary summary={item.riskSummary} />
-        </button>
-      )}
     </li>
   )
 }
@@ -469,9 +543,14 @@ function ProjectTreeItemRow({
 function RiskSummary({ summary }: { summary: ProjectRiskBandSummary }) {
   const { t } = useTranslation('projects')
   return (
-    <span className="seg-projects-risk-summary__pills" aria-label={t('risks.summaryLabel')}>
+    <span
+      className="seg-projects-risk-summary__pills"
+      aria-label={t('risks.summaryLabel')}
+    >
       <span data-band="Low">{t('risks.summary.low', { count: summary.low })}</span>
-      <span data-band="Medium">{t('risks.summary.medium', { count: summary.medium })}</span>
+      <span data-band="Medium">
+        {t('risks.summary.medium', { count: summary.medium })}
+      </span>
       <span data-band="High">{t('risks.summary.high', { count: summary.high })}</span>
     </span>
   )
@@ -491,6 +570,463 @@ function InlineState({
   )
 }
 
+interface ProjectDetailsPaneProps {
+  selection: ProjectsSelectionState
+  programs: ProgramNode[]
+  onSelectAxis: (axisId: number) => void
+  onSelectProject: (projectId: number) => void
+  onSelectActivity: (activityId: number) => void
+  onCreateItem: (axisId: number) => void
+  onEditProject: (projectId: number) => void
+  onEditActivity: (activityId: number) => void
+  onOpenProjectRisks: (projectId: number) => void
+}
+
+function ProjectDetailsPane({
+  selection,
+  programs,
+  onSelectAxis,
+  onSelectProject,
+  onSelectActivity,
+  onCreateItem,
+  onEditProject,
+  onEditActivity,
+  onOpenProjectRisks,
+}: ProjectDetailsPaneProps) {
+  const { t } = useTranslation('projects')
+  const selectedProgramId = selection.kind === 'program' ? selection.programId : null
+  const selectedAxisId = selection.kind === 'axis' ? selection.axisId : null
+  const selectedProjectId = selection.kind === 'project' ? selection.projectId : null
+  const selectedActivityId = selection.kind === 'activity' ? selection.activityId : null
+  const programAxesQuery = useQuery({
+    queryKey: projectsKeys.axes(selectedProgramId ?? 0),
+    queryFn: ({ signal }) => projectsApi.axes(selectedProgramId as number, signal),
+    enabled: selectedProgramId != null,
+  })
+  const axisItemsQuery = useQuery({
+    queryKey: projectsKeys.items(selectedAxisId ?? 0),
+    queryFn: ({ signal }) => projectsApi.items(selectedAxisId as number, signal),
+    enabled: selectedAxisId != null,
+  })
+  const structureAxesQuery = useQuery({
+    queryKey: projectsKeys.structureAxes(),
+    queryFn: ({ signal }) => projectsStructureApi.listAxes(signal),
+    enabled:
+      selection.kind === 'axis' ||
+      selection.kind === 'project' ||
+      selection.kind === 'activity',
+  })
+  const projectQuery = useQuery({
+    queryKey: projectsKeys.project(selectedProjectId ?? 0),
+    queryFn: ({ signal }) =>
+      projectsApi.getProject(selectedProjectId as number, signal),
+    enabled: selectedProjectId != null,
+  })
+  const activityQuery = useQuery({
+    queryKey: projectsKeys.activity(selectedActivityId ?? 0),
+    queryFn: ({ signal }) =>
+      projectsApi.getActivity(selectedActivityId as number, signal),
+    enabled: selectedActivityId != null,
+  })
+
+  const axes = structureAxesQuery.data ?? []
+  const selectedProgram =
+    programs.find((program) => program.id === selectedProgramId) ?? null
+  const selectedAxis = axes.find((axis) => axis.id === selectedAxisId) ?? null
+  const selectedAxisProgram =
+    selectedAxis == null
+      ? null
+      : (programs.find((program) => program.id === selectedAxis.programId) ?? null)
+  const selectedItem = projectQuery.data ?? activityQuery.data ?? null
+  const itemAxis =
+    selectedItem == null
+      ? null
+      : (axes.find((axis) => axis.id === selectedItem.axisId) ?? null)
+  const itemProgram =
+    itemAxis == null
+      ? null
+      : (programs.find((program) => program.id === itemAxis.programId) ?? null)
+
+  if (selection.kind === 'none') {
+    return (
+      <aside className="seg-projects-detail seg-projects-detail--empty">
+        <FolderTree size={34} aria-hidden="true" />
+        <h2>{t('details.empty.title')}</h2>
+        <p>{t('details.empty.description')}</p>
+      </aside>
+    )
+  }
+
+  if (selection.kind === 'program') {
+    if (selectedProgram == null)
+      return <DetailsError message={t('details.program.notFound')} />
+    return (
+      <aside className="seg-projects-detail">
+        <DetailHeader
+          eyebrow={t('details.program.eyebrow')}
+          title={selectedProgram.name}
+          badges={[selectedProgram.code, t('details.structure.alwaysPublic')]}
+        />
+        <ConfigurationNote />
+        <section className="seg-projects-detail__card">
+          <DetailCardHeader
+            title={t('details.program.axes')}
+            count={programAxesQuery.data?.length ?? 0}
+          />
+          {programAxesQuery.isPending ? (
+            <InlineState>{t('tree.loadingAxes')}</InlineState>
+          ) : programAxesQuery.isError ? (
+            <InlineState tone="error">{t('tree.axesLoadError')}</InlineState>
+          ) : (
+            <ChildList
+              empty={t('tree.noAxes')}
+              items={(programAxesQuery.data ?? []).map((axis) => ({
+                id: axis.id,
+                label: axis.name,
+                meta: axis.code,
+                icon: <ChevronRight size={15} />,
+                onClick: () => onSelectAxis(axis.id),
+              }))}
+            />
+          )}
+        </section>
+      </aside>
+    )
+  }
+
+  if (selection.kind === 'axis') {
+    if (structureAxesQuery.isPending)
+      return <DetailsLoading message={t('details.loading')} />
+    if (structureAxesQuery.isError)
+      return <DetailsError message={t('details.loadError')} />
+    if (selectedAxis == null)
+      return <DetailsError message={t('details.axis.notFound')} />
+    return (
+      <aside className="seg-projects-detail">
+        <DetailHeader
+          eyebrow={t('details.axis.eyebrow')}
+          title={selectedAxis.name}
+          badges={[
+            selectedAxis.code,
+            selectedAxisProgram?.name ?? t('details.structure.unknownParent'),
+          ]}
+        />
+        <ConfigurationNote />
+        <section className="seg-projects-detail__card">
+          <div className="seg-projects-detail__card-head">
+            <DetailCardHeader
+              title={t('details.axis.items')}
+              count={axisItemsQuery.data?.length ?? 0}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              iconLeft={<Plus size={15} />}
+              onClick={() => onCreateItem(selectedAxis.id)}
+            >
+              {t('tree.newItem')}
+            </Button>
+          </div>
+          {axisItemsQuery.isPending ? (
+            <InlineState>{t('tree.loadingItems')}</InlineState>
+          ) : axisItemsQuery.isError ? (
+            <InlineState tone="error">{t('tree.itemsLoadError')}</InlineState>
+          ) : (
+            <ChildList
+              empty={t('tree.noItems')}
+              items={(axisItemsQuery.data ?? []).map((item) => ({
+                id: `${item.kind}-${item.id}`,
+                label: item.name,
+                meta: item.identifier,
+                icon:
+                  item.kind === 'Project' ? (
+                    <FolderTree size={15} />
+                  ) : (
+                    <CircleDot size={15} />
+                  ),
+                onClick: () =>
+                  item.kind === 'Project'
+                    ? onSelectProject(item.id)
+                    : onSelectActivity(item.id),
+              }))}
+            />
+          )}
+        </section>
+      </aside>
+    )
+  }
+
+  if (selection.kind === 'project') {
+    if (projectQuery.isPending || structureAxesQuery.isPending)
+      return <DetailsLoading message={t('projectEditor.loading')} />
+    if (projectQuery.isError || structureAxesQuery.isError)
+      return <DetailsError message={t('projectEditor.loadError')} />
+    if (projectQuery.data == null)
+      return <DetailsError message={t('projectEditor.notFound')} />
+    return (
+      <ItemDetails
+        item={projectQuery.data}
+        itemMode="project"
+        axis={itemAxis}
+        program={itemProgram}
+        onEdit={() => onEditProject(projectQuery.data.id)}
+        onOpenProjectRisks={() => onOpenProjectRisks(projectQuery.data.id)}
+      />
+    )
+  }
+
+  if (activityQuery.isPending || structureAxesQuery.isPending)
+    return <DetailsLoading message={t('activityEditor.loading')} />
+  if (activityQuery.isError || structureAxesQuery.isError)
+    return <DetailsError message={t('activityEditor.loadError')} />
+  if (activityQuery.data == null)
+    return <DetailsError message={t('activityEditor.notFound')} />
+  return (
+    <ItemDetails
+      item={activityQuery.data}
+      itemMode="activity"
+      axis={itemAxis}
+      program={itemProgram}
+      onEdit={() => onEditActivity(activityQuery.data.id)}
+    />
+  )
+}
+
+function DetailHeader({
+  eyebrow,
+  title,
+  badges,
+}: {
+  eyebrow: string
+  title: string
+  badges: string[]
+}) {
+  return (
+    <header className="seg-projects-detail__head">
+      <div className="armali-eyebrow">{eyebrow}</div>
+      <h2>{title}</h2>
+      <div className="seg-projects-detail__badges">
+        {badges.map((badge) => (
+          <Badge key={badge} tone="neutral">
+            {badge}
+          </Badge>
+        ))}
+      </div>
+    </header>
+  )
+}
+
+function DetailCardHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <div>
+      <h3>{title}</h3>
+      <span className="seg-projects-detail__subtle">{count}</span>
+    </div>
+  )
+}
+
+function ConfigurationNote() {
+  const { t } = useTranslation('projects')
+  return (
+    <section className="seg-projects-detail__card seg-projects-detail__note">
+      <Settings2 size={18} aria-hidden="true" />
+      <div>
+        <strong>{t('details.structure.configurationTitle')}</strong>
+        <p>{t('details.structure.configurationBody')}</p>
+      </div>
+    </section>
+  )
+}
+
+function ChildList({
+  empty,
+  items,
+}: {
+  empty: string
+  items: Array<{
+    id: string | number
+    label: string
+    meta: string
+    icon: ReactNode
+    onClick: () => void
+  }>
+}) {
+  if (items.length === 0) return <p className="seg-projects-detail__empty">{empty}</p>
+  return (
+    <ul className="seg-projects-detail__children">
+      {items.map((item) => (
+        <li key={item.id}>
+          <button type="button" onClick={item.onClick}>
+            {item.icon}
+            <span>{item.label}</span>
+            <small>{item.meta}</small>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ItemDetails({
+  item,
+  itemMode,
+  axis,
+  program,
+  onEdit,
+  onOpenProjectRisks,
+}: {
+  item: Project | Activity
+  itemMode: ItemMode
+  axis: AxisNode | null
+  program: ProgramNode | null
+  onEdit: () => void
+  onOpenProjectRisks?: () => void
+}) {
+  const { t, i18n } = useTranslation('projects')
+  const project = itemMode === 'project' && 'riskSummary' in item ? item : null
+  const isProject = project != null
+  return (
+    <aside className="seg-projects-detail">
+      <header className="seg-projects-detail__head">
+        <div className="seg-projects-detail__crumbs">
+          <span>{program?.name ?? t('details.structure.unknownParent')}</span>
+          <ChevronRight size={13} aria-hidden="true" />
+          <span>{axis?.name ?? t('details.structure.unknownParent')}</span>
+        </div>
+        <div className="seg-projects-detail__title-row">
+          <h2>{item.name}</h2>
+          <Badge tone={isProject ? 'aqua' : 'neutral'}>
+            {t(`kind.${isProject ? 'Project' : 'Activity'}`)}
+          </Badge>
+        </div>
+        <div className="seg-projects-detail__identifier">
+          <Hash size={15} aria-hidden="true" />
+          <code>{item.identifier}</code>
+        </div>
+        <div className="seg-projects-detail__badges">
+          <Badge tone="neutral" dot>
+            {t(`status.${item.status}`)}
+          </Badge>
+          <Badge tone={item.visibility === 'Private' ? 'neutral' : 'success'}>
+            {t(`visibility.${item.visibility}`)}
+          </Badge>
+        </div>
+        <div className="seg-projects-detail__actions">
+          {isProject && onOpenProjectRisks != null && (
+            <Button
+              variant="outline"
+              iconLeft={<ShieldAlert size={16} />}
+              onClick={onOpenProjectRisks}
+            >
+              {t('risks.open')}
+            </Button>
+          )}
+          <Button iconLeft={<Pencil size={16} />} onClick={onEdit}>
+            {t('actions.edit')}
+          </Button>
+        </div>
+      </header>
+
+      <section className="seg-projects-detail__card">
+        <h3>{t('details.item.context')}</h3>
+        <div className="seg-projects-detail__meta">
+          <MetaCell
+            label={t('details.item.number')}
+            value={String(item.number).padStart(6, '0')}
+          />
+          <MetaCell label={t('details.item.axis')} value={axis?.name ?? '-'} />
+          <MetaCell label={t('details.item.program')} value={program?.name ?? '-'} />
+          <MetaCell label={t('details.item.owner')} value={item.createdByName} />
+          <MetaCell
+            label={t('details.item.created')}
+            value={formatTimestamp(item.createdAt, i18n.language)}
+          />
+          <MetaCell
+            label={t('details.item.updated')}
+            value={
+              item.updatedAt == null
+                ? t('details.item.neverUpdated')
+                : formatTimestamp(item.updatedAt, i18n.language)
+            }
+          />
+        </div>
+      </section>
+
+      {isProject ? (
+        <>
+          <section className="seg-projects-detail__card">
+            <div className="seg-projects-detail__card-head">
+              <div>
+                <h3>{t('projectEditor.sections.risks')}</h3>
+                <p>{t('risks.description')}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                iconLeft={<ShieldAlert size={15} />}
+                onClick={onOpenProjectRisks}
+              >
+                {t('risks.open')}
+              </Button>
+            </div>
+            <RiskSummary summary={project.riskSummary} />
+          </section>
+          <section className="seg-projects-detail__card">
+            <h3>{t('projectEditor.sections.attachments')}</h3>
+            <p>{t('attachments.hint')}</p>
+            <ProjectAttachments projectId={project.id} />
+          </section>
+        </>
+      ) : (
+        <section className="seg-projects-detail__card seg-projects-detail__note">
+          <CircleDot size={18} aria-hidden="true" />
+          <div>
+            <strong>{t('details.activity.title')}</strong>
+            <p>{t('details.activity.description')}</p>
+          </div>
+        </section>
+      )}
+    </aside>
+  )
+}
+
+function MetaCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="seg-projects-detail__meta-cell">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function DetailsLoading({ message }: { message: string }) {
+  return (
+    <aside className="seg-projects-detail">
+      <div className="seg-projects__loading">
+        <Spinner />
+        <span>{message}</span>
+      </div>
+    </aside>
+  )
+}
+
+function DetailsError({ message }: { message: string }) {
+  return (
+    <aside className="seg-projects-detail">
+      <p className="seg-projects__error" role="alert">
+        {message}
+      </p>
+    </aside>
+  )
+}
+
+function formatTimestamp(value: string, language: string): string {
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 interface ProjectItemDialogProps {
   mode: SaveMode
   itemMode: ItemMode
@@ -500,7 +1036,6 @@ interface ProjectItemDialogProps {
   onClose: () => void
   onSaved: (item: Project | Activity, itemMode: ItemMode, saveMode: SaveMode) => void
   onDeleted: (item: Project | Activity, itemMode: ItemMode) => void
-  onOpenRisks?: () => void
 }
 
 function ProjectItemDialog({
@@ -512,13 +1047,9 @@ function ProjectItemDialog({
   onClose,
   onSaved,
   onDeleted,
-  onOpenRisks,
 }: ProjectItemDialogProps) {
   const { t } = useTranslation('projects')
   const [createItemMode, setCreateItemMode] = useState<ItemMode>(itemMode)
-  useEffect(() => {
-    if (mode === 'create') setCreateItemMode(itemMode)
-  }, [axisId, itemMode, mode])
 
   const effectiveItemMode = mode === 'create' ? createItemMode : itemMode
   const title = t(`${effectiveItemMode}Editor.${mode}Title`)
@@ -617,7 +1148,6 @@ function ProjectItemDialog({
       onClose={onClose}
       onSaved={onSaved}
       onDeleted={onDeleted}
-      onOpenRisks={onOpenRisks}
     />
   )
 }
@@ -658,7 +1188,6 @@ interface ProjectItemFormProps {
   onClose: () => void
   onSaved: (item: Project | Activity, itemMode: ItemMode, saveMode: SaveMode) => void
   onDeleted: (item: Project | Activity, itemMode: ItemMode) => void
-  onOpenRisks?: () => void
 }
 
 const visibilityMeta: Record<
@@ -683,7 +1212,6 @@ function ProjectItemForm({
   onClose,
   onSaved,
   onDeleted,
-  onOpenRisks,
 }: ProjectItemFormProps) {
   const { t } = useTranslation('projects')
   const [serverError, setServerError] = useState<string | null>(null)
@@ -813,12 +1341,16 @@ function ProjectItemForm({
               <Input
                 label={t(`${itemMode}Editor.fields.name`)}
                 required
-                error={formState.errors.name != null ? t('validation.nameRequired') : null}
+                error={
+                  formState.errors.name != null ? t('validation.nameRequired') : null
+                }
                 {...register('name')}
               />
               <Field
                 label={t(`${itemMode}Editor.fields.axis`)}
-                error={formState.errors.axisId != null ? t('validation.axisRequired') : null}
+                error={
+                  formState.errors.axisId != null ? t('validation.axisRequired') : null
+                }
               >
                 <Select
                   aria-label={t(`${itemMode}Editor.fields.axis`)}
@@ -853,32 +1385,6 @@ function ProjectItemForm({
               </Field>
             </div>
           </section>
-
-          {itemMode === 'project' && mode === 'edit' && item != null && 'riskSummary' in item && (
-            <section className="seg-projects-editor__section">
-              <div className="seg-projects-editor__section-head">
-                <h3>{t('projectEditor.sections.risks')}</h3>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  iconLeft={<ShieldAlert size={15} />}
-                  onClick={onOpenRisks}
-                >
-                  {t('risks.open')}
-                </Button>
-              </div>
-              <RiskSummary summary={item.riskSummary} />
-            </section>
-          )}
-
-          {itemMode === 'project' && mode === 'edit' && item != null && (
-            <section className="seg-projects-editor__section">
-              <h3>{t('projectEditor.sections.attachments')}</h3>
-              <p className="seg-projects-editor__hint">{t('attachments.hint')}</p>
-              <ProjectAttachments projectId={item.id} />
-            </section>
-          )}
 
           <button type="submit" hidden />
         </form>
@@ -981,7 +1487,9 @@ function ProjectRiskDialog({ projectId, onClose, onChanged }: ProjectRiskDialogP
   const risks = risksQuery.data ?? []
   const summary = summarizeRisks(risks)
   const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: projectsKeys.projectRisks(projectId) })
+    await queryClient.invalidateQueries({
+      queryKey: projectsKeys.projectRisks(projectId),
+    })
     await queryClient.invalidateQueries({ queryKey: projectsKeys.project(projectId) })
     await queryClient.invalidateQueries({ queryKey: projectsKeys.tree() })
   }
@@ -1044,7 +1552,11 @@ function ProjectRiskDialog({ projectId, onClose, onChanged }: ProjectRiskDialogP
                   </span>
                 </div>
                 <RiskScore score={risk.score} band={risk.band} />
-                <Button size="sm" variant="outline" onClick={() => setEditingRisk(risk)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingRisk(risk)}
+                >
                   {t('actions.edit')}
                 </Button>
               </li>
@@ -1216,7 +1728,9 @@ function RiskEditor({
                 key={field}
                 label={t(`riskEditor.fields.${field}`)}
                 error={
-                  form.formState.errors[field] != null ? t('validation.factorRange') : null
+                  form.formState.errors[field] != null
+                    ? t('validation.factorRange')
+                    : null
                 }
               >
                 <Select
