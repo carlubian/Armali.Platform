@@ -232,8 +232,12 @@ Module purpose: Multi-step tasks that need to be completed in order by a given d
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, step model. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | A `Process` root owns an ordered list of `Step` children. A process carries a required name, a required `ProcessCategory`, an optional global due date, optional notes, attachments (no primary image), and Public/Private visibility. A step carries a required description, an optional due date, optional notes, an optional/skippable flag, and a `Pending`/`Completed`/`Skipped` execution state (`Skipped` only for optional steps). Steps have no attachments and no completion date. A process may be empty (0..N steps). Processes is independent of Projects. See `docs/requirements/PROCESSES_REQUIREMENTS.md`. |
+| Resolved | Status model | The process status is derived from its steps (`NotStarted`/`InProgress`/`Completed`) and is never accepted from the client, with a manual terminal `Cancelled` override for denied or abandoned procedures that takes precedence and is reversible. |
+| Resolved | Sequential execution | Strict frontier model: only the next pending step can be completed (or skipped, if optional), only the most recently resolved step can be undone, and resolved steps always form a contiguous prefix. The step list is editable at any time, including while in progress, preserving step state by identity and re-validating the contiguity invariant. |
+| Resolved | Catalogue | Processes owns `ProcessCategory` (required, replace-only deletion) through Configuration, initialized once with the established module-owned catalogue pattern. Status, execution state, and the optional flag are fixed, not configurable. |
+| Resolved | User workflow | Processes opens directly on a server-paginated table with search, filters, sorting, and a URL-aware popup editor for process fields, plus a dedicated step-timeline popup for completing, skipping, undoing, and restructuring steps. The launcher card requests attention when an accessible open process has a global due date or next pending step due date that is overdue or within the next 7 days in `Europe/Madrid`. See `docs/requirements/PROCESSES_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/PROCESSES_IMPLEMENTATION_PLAN.md`. |
 
 ### Archive
 
