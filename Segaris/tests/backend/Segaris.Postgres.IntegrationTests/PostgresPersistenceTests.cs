@@ -1291,7 +1291,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'maintenance_%'";
         Assert.Equal(2L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'projects_%'";
-        Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
+        Assert.Equal(6L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]
