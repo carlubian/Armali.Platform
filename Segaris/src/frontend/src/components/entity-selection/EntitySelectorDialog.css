@@ -12,15 +12,26 @@
 }
 
 /* ---- Filter bar ------------------------------------------- */
+/* Two fixed columns are the shared standard so the bar stays compact and
+   leaves room for the table; each specialization drops its search and filters
+   in, flowing top-to-bottom and potentially leaving the last cell empty when
+   the filter count is odd. The search spans the full width as a stable anchor. */
 .seg-selector__filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: var(--space-3);
 }
 .seg-selector__search {
-  flex: 1 1 220px;
-  min-width: 180px;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Collapse to a single column on narrow viewports so controls do not crush. */
+@media (max-width: 640px) {
+  .seg-selector__filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ---- Count + chips strip ---------------------------------- */
