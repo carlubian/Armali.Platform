@@ -1,0 +1,274 @@
+/* ============================================================
+   Entity selector dialog — top-filter-bar layout: search and
+   filter controls, active-filter chips, a sortable table, result
+   counts, and numbered pagination. Shared, business-agnostic.
+   Adapted from the entity-selector reference (`CapexSelector`).
+   ============================================================ */
+
+.seg-selector__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+/* ---- Filter bar ------------------------------------------- */
+.seg-selector__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.seg-selector__search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+/* ---- Count + chips strip ---------------------------------- */
+.seg-selector__strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.seg-selector__count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.seg-selector__count b {
+  color: var(--text-primary);
+}
+.seg-selector__busy {
+  color: var(--accent);
+}
+.seg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.seg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.3em 0.55em 0.3em 0.7em;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--aqua-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  white-space: nowrap;
+}
+.seg-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.seg-chip__x:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.seg-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-link);
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.seg-linkbtn:hover {
+  text-decoration: underline;
+}
+
+/* ---- Scroll region + table -------------------------------- */
+.seg-selector__scroll {
+  margin-top: var(--space-4);
+  min-height: 240px;
+}
+.seg-seltable {
+  display: flex;
+  flex-direction: column;
+}
+.seg-selhead,
+.seg-selrow {
+  display: grid;
+  grid-template-columns: var(--seg-sel-cols);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+}
+.seg-selhead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-overlay);
+  -webkit-backdrop-filter: var(--blur-chip);
+  backdrop-filter: var(--blur-chip);
+  border-bottom: 1px solid var(--border-default);
+}
+.seg-selth {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.seg-selth--end {
+  justify-self: end;
+  text-align: right;
+}
+.seg-sorth {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.seg-sorth:hover {
+  color: var(--text-primary);
+}
+.seg-sorth.is-active {
+  color: var(--accent-press);
+}
+.seg-sorth__chev {
+  display: inline-flex;
+  opacity: 0.35;
+  transition:
+    transform var(--dur-fast) var(--ease-soft),
+    opacity var(--dur-fast) var(--ease-soft);
+}
+.seg-sorth__chev.is-active {
+  opacity: 1;
+}
+.seg-sorth__chev.is-desc {
+  transform: rotate(180deg);
+}
+
+.seg-selrow {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.seg-selrow:hover {
+  background: var(--surface-frost);
+}
+.seg-selrow.is-current {
+  background: var(--accent-soft);
+}
+.seg-selcell {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seg-selcell--end {
+  justify-self: end;
+  text-align: right;
+}
+.seg-selrow__act {
+  justify-self: end;
+}
+.seg-current-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  color: var(--accent-press);
+}
+
+/* ---- Empty / loading / error states ----------------------- */
+.seg-selstate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: 240px;
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--space-7);
+}
+.seg-selstate--error {
+  color: var(--terracotta-600);
+}
+
+/* ---- Footer: page info, pager, cancel --------------------- */
+.seg-selector__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+.seg-pageinfo {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+.seg-pageinfo b {
+  color: var(--text-primary);
+}
+.seg-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.seg-pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.seg-pager__btn:hover:not(:disabled) {
+  background: var(--surface-frost);
+  color: var(--text-primary);
+}
+.seg-pager__btn.is-active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.seg-pager__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.seg-pager__gap {
+  padding: 0 var(--space-1);
+  color: var(--text-muted);
+}

@@ -57,4 +57,25 @@ describe('Dialog', () => {
 
     expect(onClose).toHaveBeenCalledTimes(3)
   })
+
+  it('only closes the topmost dialog on Escape when dialogs are stacked', async () => {
+    const user = userEvent.setup()
+    const onCloseEditor = vi.fn()
+    const onCloseSelector = vi.fn()
+    render(
+      <>
+        <Dialog title="Editor" onClose={onCloseEditor}>
+          Editor body
+        </Dialog>
+        <Dialog title="Selector" onClose={onCloseSelector}>
+          Selector body
+        </Dialog>
+      </>,
+    )
+
+    await user.keyboard('{Escape}')
+
+    expect(onCloseSelector).toHaveBeenCalledTimes(1)
+    expect(onCloseEditor).not.toHaveBeenCalled()
+  })
 })

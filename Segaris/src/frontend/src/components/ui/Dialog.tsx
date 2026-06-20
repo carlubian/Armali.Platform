@@ -25,11 +25,19 @@ export interface DialogProps extends Omit<ComponentPropsWithRef<'div'>, 'title'>
 }
 
 /**
+ * Open dialogs in mount order. Only the top of the stack reacts to Escape, so a
+ * selector opened from inside an editor closes by itself first instead of
+ * dismissing every stacked dialog at once.
+ */
+const dialogStack: string[] = []
+
+/**
  * Project Armali frosted modal dialog.
  *
  * Ported from the design-system reference (`components/overlay/Dialog.jsx`),
  * extended with Escape-to-close, initial focus on the panel, and focus
- * restoration when it unmounts.
+ * restoration when it unmounts. Stacked dialogs are supported: Escape only
+ * closes the topmost one.
  */
 export function Dialog({
   open = true,
@@ -57,15 +65,21 @@ export function Dialog({
     const previouslyFocused = document.activeElement as HTMLElement | null
     panelRef.current?.focus()
 
+    dialogStack.push(labelId)
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current?.()
+      if (event.key !== 'Escape') return
+      // Only the topmost dialog dismisses, so a stacked selector closes before
+      // the editor underneath it.
+      if (dialogStack[dialogStack.length - 1] === labelId) onCloseRef.current?.()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      const index = dialogStack.lastIndexOf(labelId)
+      if (index !== -1) dialogStack.splice(index, 1)
       previouslyFocused?.focus?.()
     }
-  }, [open])
+  }, [open, labelId])
 
   if (!open) return null
 

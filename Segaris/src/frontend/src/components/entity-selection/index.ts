@@ -8,3 +8,15 @@
 
 export { EntityReferenceField } from './EntityReferenceField'
 export type { EntityReference, EntityReferenceFieldProps } from './EntityReferenceField'
+
+export { EntitySelectorDialog } from './EntitySelectorDialog'
+export type {
+  EntityQueryResult,
+  EntitySelectorColumn,
+  EntitySelectorDialogProps,
+  EntitySelectorFilter,
+  EntitySelectorFilterOption,
+  EntitySelectorLabels,
+  EntitySelectorState,
+  SortDirection,
+} from './EntitySelectorDialog'
