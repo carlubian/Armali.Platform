@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace Segaris.Api.Modules.Projects.Contracts;
 
 /// <summary>
@@ -51,7 +54,11 @@ internal sealed record ProjectRiskRequest(
     string? Description,
     int Probability,
     int Impact,
-    int Mitigation);
+    int Mitigation)
+{
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? ExtensionData { get; init; }
+}
 
 /// <summary>
 /// Frozen request contract for creating and updating a <c>Program</c> through the

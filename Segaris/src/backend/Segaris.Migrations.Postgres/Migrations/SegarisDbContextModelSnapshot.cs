@@ -1912,6 +1912,68 @@ namespace Segaris.Migrations.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Projects.Domain.ProjectRisk", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Impact")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Mitigation")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Probability")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("Score");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("ProjectId", "Id");
+
+                    b.ToTable("projects_risks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_projects_risks_impact", "\"Impact\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_projects_risks_mitigation", "\"Mitigation\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_projects_risks_probability", "\"Probability\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_projects_risks_score", "\"Score\" BETWEEN 1 AND 125");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Travel.Domain.TravelExpense", b =>
                 {
                     b.Property<int>("Id")
@@ -2773,6 +2835,27 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Projects.Domain.ProjectRisk", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Projects.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)

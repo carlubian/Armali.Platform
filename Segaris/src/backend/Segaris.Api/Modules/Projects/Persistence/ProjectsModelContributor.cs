@@ -53,6 +53,7 @@ internal sealed class ProjectsModelContributor : ISegarisModelContributor
 
         ConfigureProjectItem<Project>(modelBuilder, "projects_projects");
         ConfigureProjectItem<Activity>(modelBuilder, "projects_activities");
+        ConfigureProjectRisk(modelBuilder);
 
         modelBuilder.Entity<ProjectNumberAllocation>(builder =>
         {
@@ -96,6 +97,45 @@ internal sealed class ProjectsModelContributor : ISegarisModelContributor
             builder.HasIndex(item => new { item.CreatedBy, item.Visibility, item.Id });
             builder.HasIndex(item => item.Visibility);
             builder.HasIndex(item => item.UpdatedBy);
+        });
+    }
+
+    private static void ConfigureProjectRisk(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProjectRisk>(builder =>
+        {
+            builder.ToTable("projects_risks");
+            builder.HasKey(risk => risk.Id);
+            builder.Property(risk => risk.Id).ValueGeneratedOnAdd();
+            builder.Property(risk => risk.ProjectId).IsRequired();
+            builder.Property(risk => risk.Description).HasMaxLength(ProjectsValidation.RiskDescriptionMaximumLength).IsRequired();
+            builder.Property(risk => risk.Probability).IsRequired();
+            builder.Property(risk => risk.Impact).IsRequired();
+            builder.Property(risk => risk.Mitigation).IsRequired();
+            builder.Property(risk => risk.Score).IsRequired();
+            builder.Property(risk => risk.CreatedAt).IsRequired();
+            builder.Property(risk => risk.UpdatedAt).IsRequired();
+            builder.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_projects_risks_probability",
+                    "\"Probability\" BETWEEN 1 AND 5");
+                table.HasCheckConstraint(
+                    "CK_projects_risks_impact",
+                    "\"Impact\" BETWEEN 1 AND 5");
+                table.HasCheckConstraint(
+                    "CK_projects_risks_mitigation",
+                    "\"Mitigation\" BETWEEN 1 AND 5");
+                table.HasCheckConstraint(
+                    "CK_projects_risks_score",
+                    "\"Score\" BETWEEN 1 AND 125");
+            });
+            builder.HasOne<Project>().WithMany().HasForeignKey(risk => risk.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne<SegarisUser>().WithMany().HasForeignKey(risk => risk.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<SegarisUser>().WithMany().HasForeignKey(risk => risk.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
+            builder.HasIndex(risk => new { risk.ProjectId, risk.Id });
+            builder.HasIndex(risk => risk.Score);
+            builder.HasIndex(risk => risk.UpdatedBy);
         });
     }
 }

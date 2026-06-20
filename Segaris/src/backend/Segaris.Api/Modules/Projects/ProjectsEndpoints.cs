@@ -75,6 +75,41 @@ internal static class ProjectsEndpoints
             .WithSummary("Deletes an accessible Project")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapGet(ProjectsApiRoutes.ProjectRisks, ListProjectRisksAsync)
+            .WithName("ListProjectRisks")
+            .WithSummary("Returns risks owned by an accessible Project")
+            .Produces<IReadOnlyList<ProjectRiskResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapPost(ProjectsApiRoutes.ProjectRisks, CreateProjectRiskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateProjectRisk")
+            .WithSummary("Creates a risk owned by an accessible Project")
+            .Produces<ProjectRiskResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapGet(ProjectsApiRoutes.ProjectRiskById, GetProjectRiskAsync)
+            .WithName("GetProjectRisk")
+            .WithSummary("Returns a Project risk")
+            .Produces<ProjectRiskResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapPut(ProjectsApiRoutes.ProjectRiskById, UpdateProjectRiskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateProjectRisk")
+            .WithSummary("Updates a Project risk")
+            .Produces<ProjectRiskResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapDelete(ProjectsApiRoutes.ProjectRiskById, DeleteProjectRiskAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProjectRisk")
+            .WithSummary("Deletes a Project risk")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapActivityEndpoints(RouteGroupBuilder group)
@@ -224,6 +259,89 @@ internal static class ProjectsEndpoints
         if (!await write.DeleteProjectAsync(projectId, userId, token))
         {
             throw ProjectsProblem.ProjectNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListProjectRisksAsync(int projectId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await read.ListRisksAsync(projectId, userId, token));
+    }
+
+    private static async Task<IResult> GetProjectRiskAsync(int projectId, int riskId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return await read.GetRiskAsync(projectId, riskId, userId, token) is { } risk
+            ? TypedResults.Ok(risk)
+            : throw ProjectsProblem.RiskNotFound();
+    }
+
+    private static async Task<IResult> CreateProjectRiskAsync(int projectId, ProjectRiskRequest request, ProjectRiskWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int riskId;
+        try
+        {
+            riskId = await write.CreateRiskAsync(projectId, request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromRiskValidation(exception);
+        }
+
+        var risk = await read.GetRiskAsync(projectId, riskId, userId, token);
+        return TypedResults.Created($"/api/projects/projects/{projectId}/risks/{riskId}", risk);
+    }
+
+    private static async Task<IResult> UpdateProjectRiskAsync(int projectId, int riskId, ProjectRiskRequest request, ProjectRiskWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateRiskAsync(projectId, riskId, request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromRiskValidation(exception);
+        }
+
+        if (!updated)
+        {
+            throw ProjectsProblem.RiskNotFound();
+        }
+
+        return TypedResults.Ok(await read.GetRiskAsync(projectId, riskId, userId, token));
+    }
+
+    private static async Task<IResult> DeleteProjectRiskAsync(int projectId, int riskId, ProjectRiskWriteService write, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await write.DeleteRiskAsync(projectId, riskId, userId, token))
+        {
+            throw ProjectsProblem.RiskNotFound();
         }
 
         return TypedResults.NoContent();

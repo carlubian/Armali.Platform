@@ -52,8 +52,9 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
                 project.Name,
                 project.Status,
                 project.Visibility,
-                new ProjectRiskBandSummaryResponse(0, 0, 0)))
+                null))
             .ToArrayAsync(cancellationToken);
+        var riskSummaries = await RiskSummariesByProjectAsync(projects.Select(project => project.Id), cancellationToken);
         var activities = await database.Set<Activity>()
             .AsNoTracking()
             .Where(ProjectItemPolicies.AccessibleTo<Activity>(userId))
@@ -73,7 +74,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
             .OrderBy(item => item.Number)
             .ThenBy(item => item.Kind, StringComparer.Ordinal)
             .ThenBy(item => item.Id)
-            .Select(item => item.ToTreeResponse(axis.ProgramCode, axis.AxisCode))
+            .Select(item => item.ToTreeResponse(axis.ProgramCode, axis.AxisCode, riskSummaries))
             .ToArray();
     }
 
@@ -107,6 +108,65 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
                 project.UpdatedBy,
                 database.Set<SegarisUser>().Where(user => user.Id == project.UpdatedBy).Select(user => user.DisplayName).First(),
                 project.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var riskSummary = await RiskSummaryForProjectAsync(projectId, cancellationToken);
+        return row.ToResponse(riskSummary);
+    }
+
+    public async Task<IReadOnlyList<ProjectRiskResponse>> ListRisksAsync(
+        int projectId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectIsAccessibleAsync(projectId, userId, cancellationToken))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        var risks = await database.Set<ProjectRisk>()
+            .AsNoTracking()
+            .Where(risk => risk.ProjectId == projectId)
+            .OrderBy(risk => risk.Id)
+            .Select(risk => new RiskRow(
+                risk.Id,
+                risk.Description,
+                risk.Probability,
+                risk.Impact,
+                risk.Mitigation,
+                risk.Score))
+            .ToArrayAsync(cancellationToken);
+
+        return risks.Select(static risk => risk.ToResponse()).ToArray();
+    }
+
+    public async Task<ProjectRiskResponse?> GetRiskAsync(
+        int projectId,
+        int riskId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectIsAccessibleAsync(projectId, userId, cancellationToken))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        var row = await database.Set<ProjectRisk>()
+            .AsNoTracking()
+            .Where(risk => risk.ProjectId == projectId)
+            .Where(risk => risk.Id == riskId)
+            .Select(risk => new RiskRow(
+                risk.Id,
+                risk.Description,
+                risk.Probability,
+                risk.Impact,
+                risk.Mitigation,
+                risk.Score))
             .FirstOrDefaultAsync(cancellationToken);
 
         return row?.ToResponse();
@@ -168,7 +228,10 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         Segaris.Shared.Authorization.RecordVisibility Visibility,
         ProjectRiskBandSummaryResponse? RiskSummary)
     {
-        public ProjectTreeItemResponse ToTreeResponse(string programCode, string axisCode) => new(
+        public ProjectTreeItemResponse ToTreeResponse(
+            string programCode,
+            string axisCode,
+            IReadOnlyDictionary<int, ProjectRiskBandSummaryResponse> riskSummaries) => new(
             Id,
             Kind,
             Number,
@@ -176,7 +239,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
             Name,
             Status.ToString(),
             Visibility.ToString(),
-            RiskSummary);
+            Kind == "Project" ? riskSummaries.GetValueOrDefault(Id, EmptyRiskSummary) : RiskSummary);
     }
 
     private sealed record ProjectDetailRow(
@@ -195,7 +258,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         string UpdatedByName,
         DateTimeOffset UpdatedAt)
     {
-        public ProjectResponse ToResponse() => new(
+        public ProjectResponse ToResponse(ProjectRiskBandSummaryResponse riskSummary) => new(
             Id,
             Number,
             ProjectIdentifier.Format(ProgramCode, AxisCode, Number, Name),
@@ -203,7 +266,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
             Status.ToString(),
             Visibility.ToString(),
             AxisId,
-            new ProjectRiskBandSummaryResponse(0, 0, 0),
+            riskSummary,
             [],
             CreatedById,
             CreatedByName,
@@ -243,5 +306,65 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
             UpdatedById,
             UpdatedByName,
             UpdatedAt);
+    }
+
+    private static readonly ProjectRiskBandSummaryResponse EmptyRiskSummary = new(0, 0, 0);
+
+    private async Task<bool> ProjectIsAccessibleAsync(int projectId, UserId userId, CancellationToken cancellationToken) =>
+        await database.Set<Project>()
+            .AsNoTracking()
+            .Where(ProjectItemPolicies.AccessibleTo<Project>(userId))
+            .AnyAsync(project => project.Id == projectId, cancellationToken);
+
+    private async Task<ProjectRiskBandSummaryResponse> RiskSummaryForProjectAsync(
+        int projectId,
+        CancellationToken cancellationToken)
+    {
+        var summaries = await RiskSummariesByProjectAsync([projectId], cancellationToken);
+        return summaries.GetValueOrDefault(projectId, EmptyRiskSummary);
+    }
+
+    private async Task<IReadOnlyDictionary<int, ProjectRiskBandSummaryResponse>> RiskSummariesByProjectAsync(
+        IEnumerable<int> projectIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = projectIds.Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return new Dictionary<int, ProjectRiskBandSummaryResponse>();
+        }
+
+        var risks = await database.Set<ProjectRisk>()
+            .AsNoTracking()
+            .Where(risk => ids.Contains(risk.ProjectId))
+            .Select(risk => new { risk.ProjectId, risk.Score })
+            .ToArrayAsync(cancellationToken);
+
+        return risks
+            .GroupBy(risk => risk.ProjectId)
+            .ToDictionary(
+                group => group.Key,
+                group => new ProjectRiskBandSummaryResponse(
+                    group.Count(risk => ProjectRiskScoring.BandFor(risk.Score) == RiskBand.Low),
+                    group.Count(risk => ProjectRiskScoring.BandFor(risk.Score) == RiskBand.Medium),
+                    group.Count(risk => ProjectRiskScoring.BandFor(risk.Score) == RiskBand.High)));
+    }
+
+    private sealed record RiskRow(
+        int Id,
+        string Description,
+        int Probability,
+        int Impact,
+        int Mitigation,
+        int Score)
+    {
+        public ProjectRiskResponse ToResponse() => new(
+            Id,
+            Description,
+            Probability,
+            Impact,
+            Mitigation,
+            Score,
+            ProjectRiskScoring.BandFor(Score).ToString());
     }
 }

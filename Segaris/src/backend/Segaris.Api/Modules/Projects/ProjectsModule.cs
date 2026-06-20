@@ -32,6 +32,7 @@ internal sealed class ProjectsModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, ProjectsModelContributor>();
         services.AddScoped<ProjectNumberAllocator>();
         services.AddScoped<ProjectItemWriteService>();
+        services.AddScoped<ProjectRiskWriteService>();
         services.AddScoped<ProjectsReadService>();
         services.AddScoped<ProjectsStructureManagementService>();
         services.AddScoped<ILauncherAttentionContributor, ProjectsAttentionContributor>();

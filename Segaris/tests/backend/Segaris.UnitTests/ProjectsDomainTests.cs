@@ -111,6 +111,47 @@ public sealed class ProjectsDomainTests
     }
 
     [Fact]
+    public void Project_risk_trims_description_validates_factors_and_computes_score()
+    {
+        var risk = ProjectRisk.Create(
+            1,
+            new ProjectRiskValues("  Boundary risk  ", Probability: 3, Impact: 4, Mitigation: 5),
+            new UserId(1),
+            Now);
+
+        Assert.Equal("Boundary risk", risk.Description);
+        Assert.Equal(60, risk.Score);
+        Assert.Equal(RiskBand.Medium, risk.Band);
+        Assert.Equal(1, risk.CreatedBy);
+        Assert.Equal(Now, risk.CreatedAt);
+
+        risk.Update(
+            new ProjectRiskValues("High risk", Probability: 5, Impact: 5, Mitigation: 4),
+            new UserId(2),
+            Now.AddMinutes(1));
+
+        Assert.Equal(100, risk.Score);
+        Assert.Equal(RiskBand.High, risk.Band);
+        Assert.Equal(2, risk.UpdatedBy);
+    }
+
+    [Theory]
+    [InlineData(null, 1, 1, 1)]
+    [InlineData("   ", 1, 1, 1)]
+    [InlineData("Risk", 0, 1, 1)]
+    [InlineData("Risk", 1, 6, 1)]
+    [InlineData("Risk", 1, 1, -1)]
+    public void Project_risk_rejects_invalid_values(string? description, int probability, int impact, int mitigation)
+    {
+        Assert.Throws<ProjectsValidationException>(() =>
+            ProjectRisk.Create(
+                1,
+                new ProjectRiskValues(description, probability, impact, mitigation),
+                new UserId(1),
+                Now));
+    }
+
+    [Fact]
     public async Task Sqlite_persists_the_hierarchy_and_enforces_code_uniqueness()
     {
         await using var fixture = await ProjectsFixture.CreateAsync();
@@ -124,6 +165,8 @@ public sealed class ProjectsDomainTests
         var projectNumber = await allocator.AllocateAsync(CancellationToken.None);
         var activityNumber = await allocator.AllocateAsync(CancellationToken.None);
         fixture.Database.Add(Project.Create(Values() with { AxisId = axis.Id }, projectNumber, new UserId(1), Now));
+        var project = Project.Create(Values() with { AxisId = axis.Id, Name = "Risked project" }, projectNumber + 10, new UserId(1), Now);
+        fixture.Database.Add(project);
         fixture.Database.Add(Activity.Create(
             Values() with { AxisId = axis.Id, Name = "Paint room" },
             activityNumber,
@@ -132,11 +175,20 @@ public sealed class ProjectsDomainTests
         await fixture.Database.SaveChangesAsync();
         fixture.Database.ChangeTracker.Clear();
 
-        var storedProject = await fixture.Database.Set<Project>().SingleAsync();
+        var storedProject = await fixture.Database.Set<Project>().SingleAsync(value => value.Number == projectNumber);
         var storedActivity = await fixture.Database.Set<Activity>().SingleAsync();
         Assert.Equal(projectNumber, storedProject.Number);
         Assert.Equal(activityNumber, storedActivity.Number);
         Assert.NotEqual(storedProject.Number, storedActivity.Number);
+
+        fixture.Database.Add(ProjectRisk.Create(
+            project.Id,
+            new ProjectRiskValues("Persisted risk", Probability: 5, Impact: 5, Mitigation: 5),
+            new UserId(1),
+            Now));
+        await fixture.Database.SaveChangesAsync();
+        fixture.Database.ChangeTracker.Clear();
+        Assert.Equal(125, await fixture.Database.Set<ProjectRisk>().Select(risk => risk.Score).SingleAsync());
 
         fixture.Database.Add(ProjectProgram.Create("Duplicate", "INFR", new UserId(1), Now));
         await Assert.ThrowsAsync<DbUpdateException>(() => fixture.Database.SaveChangesAsync());

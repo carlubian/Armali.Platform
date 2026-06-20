@@ -7,6 +7,9 @@ internal static class ProjectsValidation
 {
     public const int NameMaximumLength = ProjectsDefaults.NameMaximumLength;
     public const int CodeLength = ProjectsDefaults.CodeLength;
+    public const int RiskDescriptionMaximumLength = 1_000;
+    public const int RiskFactorMinimum = 1;
+    public const int RiskFactorMaximum = 5;
 
     public static string ValidateName(string? value)
     {
@@ -48,6 +51,27 @@ internal static class ProjectsValidation
         if (value <= 0)
         {
             throw new ProjectsValidationException($"{field} must be positive.");
+        }
+    }
+
+    public static string ValidateRiskDescription(string? value)
+    {
+        var trimmed = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed) || trimmed.Length > RiskDescriptionMaximumLength)
+        {
+            throw new ProjectsValidationException(
+                $"Risk description is required and may contain at most {RiskDescriptionMaximumLength} characters.");
+        }
+
+        return trimmed;
+    }
+
+    public static void EnsureRiskFactorInRange(int value, string field)
+    {
+        if (value is < RiskFactorMinimum or > RiskFactorMaximum)
+        {
+            throw new ProjectsValidationException(
+                $"{field} must be an integer between {RiskFactorMinimum} and {RiskFactorMaximum}.");
         }
     }
 

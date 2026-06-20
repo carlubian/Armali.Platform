@@ -15,6 +15,11 @@ internal static class ProjectsProblem
         ProjectsErrorCodes.ActivityNotFound,
         "The requested activity was not found.");
 
+    public static ApiProblemException RiskNotFound() => new(
+        StatusCodes.Status404NotFound,
+        ProjectsErrorCodes.RiskNotFound,
+        "The requested project risk was not found.");
+
     public static ApiProblemException FromProjectValidation(ProjectsValidationException exception) =>
         exception.Reason == ProjectsValidationReason.VisibilityForbidden
             ? new ApiProblemException(
@@ -36,4 +41,9 @@ internal static class ProjectsProblem
                 StatusCodes.Status400BadRequest,
                 ProjectsErrorCodes.ActivityValidation,
                 exception.Message);
+
+    public static ApiProblemException FromRiskValidation(ProjectsValidationException exception) => new(
+        StatusCodes.Status400BadRequest,
+        ProjectsErrorCodes.RiskValidation,
+        exception.Message);
 }
