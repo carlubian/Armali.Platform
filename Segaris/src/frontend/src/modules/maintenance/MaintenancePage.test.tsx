@@ -481,7 +481,11 @@ describe('Maintenance page', () => {
     const user = userEvent.setup()
     mockBackend({
       tasks: [
-        makeTask(1, { assetId: 77, assetName: 'Archived press', visibility: 'Private' }),
+        makeTask(1, {
+          assetId: 77,
+          assetName: 'Archived press',
+          visibility: 'Private',
+        }),
       ],
     })
     render(<App />)
