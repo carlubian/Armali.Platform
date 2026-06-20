@@ -20,6 +20,20 @@ internal static class ProjectsProblem
         ProjectsErrorCodes.RiskNotFound,
         "The requested project risk was not found.");
 
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        ProjectsErrorCodes.AttachmentNotFound,
+        "The requested project attachment was not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        ProjectsErrorCodes.AttachmentInvalid,
+        "The attachment is invalid.",
+        errors: errors ?? Errors(field, message));
+
     public static ApiProblemException FromProjectValidation(ProjectsValidationException exception) =>
         exception.Reason == ProjectsValidationReason.VisibilityForbidden
             ? new ApiProblemException(
@@ -46,4 +60,10 @@ internal static class ProjectsProblem
         StatusCodes.Status400BadRequest,
         ProjectsErrorCodes.RiskValidation,
         exception.Message);
+
+    private static Dictionary<string, string[]> Errors(string field, string message) =>
+        new(StringComparer.Ordinal)
+        {
+            [field] = [message],
+        };
 }

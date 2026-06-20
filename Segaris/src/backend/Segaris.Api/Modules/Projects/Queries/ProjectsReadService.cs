@@ -1,13 +1,15 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Projects.Contracts;
 using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Projects.Queries;
 
-internal sealed class ProjectsReadService(SegarisDbContext database)
+internal sealed class ProjectsReadService(SegarisDbContext database, IAttachmentService attachments)
 {
     public async Task<IReadOnlyList<ProgramNodeResponse>> ListProgramsAsync(CancellationToken cancellationToken) =>
         await database.Set<ProjectProgram>()
@@ -116,7 +118,10 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         }
 
         var riskSummary = await RiskSummaryForProjectAsync(projectId, cancellationToken);
-        return row.ToResponse(riskSummary);
+        var projectAttachments = await attachments.ListByOwnerAsync(
+            ProjectsAttachments.ProjectOwner(projectId),
+            cancellationToken);
+        return row.ToResponse(riskSummary, projectAttachments.Select(ToAttachment).ToArray());
     }
 
     public async Task<IReadOnlyList<ProjectRiskResponse>> ListRisksAsync(
@@ -124,7 +129,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         UserId userId,
         CancellationToken cancellationToken)
     {
-        if (!await ProjectIsAccessibleAsync(projectId, userId, cancellationToken))
+        if (!await ProjectAccessibleAsync(projectId, userId, cancellationToken))
         {
             throw ProjectsProblem.ProjectNotFound();
         }
@@ -151,7 +156,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         UserId userId,
         CancellationToken cancellationToken)
     {
-        if (!await ProjectIsAccessibleAsync(projectId, userId, cancellationToken))
+        if (!await ProjectAccessibleAsync(projectId, userId, cancellationToken))
         {
             throw ProjectsProblem.ProjectNotFound();
         }
@@ -258,7 +263,9 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
         string UpdatedByName,
         DateTimeOffset UpdatedAt)
     {
-        public ProjectResponse ToResponse(ProjectRiskBandSummaryResponse riskSummary) => new(
+        public ProjectResponse ToResponse(
+            ProjectRiskBandSummaryResponse riskSummary,
+            IReadOnlyList<ProjectAttachmentResponse> attachments) => new(
             Id,
             Number,
             ProjectIdentifier.Format(ProgramCode, AxisCode, Number, Name),
@@ -267,7 +274,7 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
             Visibility.ToString(),
             AxisId,
             riskSummary,
-            [],
+            attachments,
             CreatedById,
             CreatedByName,
             CreatedAt,
@@ -310,7 +317,15 @@ internal sealed class ProjectsReadService(SegarisDbContext database)
 
     private static readonly ProjectRiskBandSummaryResponse EmptyRiskSummary = new(0, 0, 0);
 
-    private async Task<bool> ProjectIsAccessibleAsync(int projectId, UserId userId, CancellationToken cancellationToken) =>
+    private static ProjectAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
+
+    public async Task<bool> ProjectAccessibleAsync(int projectId, UserId userId, CancellationToken cancellationToken) =>
         await database.Set<Project>()
             .AsNoTracking()
             .Where(ProjectItemPolicies.AccessibleTo<Project>(userId))

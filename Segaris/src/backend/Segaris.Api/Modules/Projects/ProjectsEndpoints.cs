@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Projects.Contracts;
@@ -5,6 +6,8 @@ using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Modules.Projects.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Projects;
@@ -73,6 +76,33 @@ internal static class ProjectsEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteProject")
             .WithSummary("Deletes an accessible Project")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapGet(ProjectsApiRoutes.ProjectAttachments, ListProjectAttachmentsAsync)
+            .WithName("ListProjectAttachments")
+            .WithSummary("Lists the result attachments of an accessible Project")
+            .Produces<IReadOnlyList<ProjectAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapPost(ProjectsApiRoutes.ProjectAttachments, UploadProjectAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadProjectAttachment")
+            .WithSummary("Uploads one result attachment for an accessible Project")
+            .Produces<ProjectAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapGet(ProjectsApiRoutes.ProjectAttachmentById, DownloadProjectAttachmentAsync)
+            .WithName("DownloadProjectAttachment")
+            .WithSummary("Downloads one result attachment of an accessible Project")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapDelete(ProjectsApiRoutes.ProjectAttachmentById, DeleteProjectAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProjectAttachment")
+            .WithSummary("Removes one result attachment of an accessible Project")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -175,6 +205,14 @@ internal static class ProjectsEndpoints
 
     private static UserId Actor(ICurrentUser currentUser) => currentUser.UserId ?? throw ProjectsStructureProblem.ProgramNotFound();
 
+    private static ProjectAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
+
     private static async Task<IResult> ListTreeProgramsAsync(ProjectsReadService read, CancellationToken token) =>
         TypedResults.Ok(await read.ListProgramsAsync(token));
 
@@ -259,6 +297,142 @@ internal static class ProjectsEndpoints
         if (!await write.DeleteProjectAsync(projectId, userId, token))
         {
             throw ProjectsProblem.ProjectNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListProjectAttachmentsAsync(
+        int projectId,
+        ProjectsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ProjectAccessibleAsync(projectId, userId, token))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(ProjectsAttachments.ProjectOwner(projectId), token);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadProjectAttachmentAsync(
+        int projectId,
+        HttpRequest request,
+        ProjectsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ProjectAccessibleAsync(projectId, userId, token))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw ProjectsProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(token);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw ProjectsProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(ProjectsAttachments.ProjectOwner(projectId), file.FileName, file.ContentType, stream),
+                    userId,
+                    token);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw ProjectsProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/projects/projects/{projectId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadProjectAttachmentAsync(
+        int projectId,
+        int attachmentId,
+        ProjectsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ProjectAccessibleAsync(projectId, userId, token))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            ProjectsAttachments.ProjectOwner(projectId),
+            token);
+        if (download is null)
+        {
+            throw ProjectsProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteProjectAttachmentAsync(
+        int projectId,
+        int attachmentId,
+        ProjectsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.ProjectAccessibleAsync(projectId, userId, token))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            ProjectsAttachments.ProjectOwner(projectId),
+            token);
+        if (!removed)
+        {
+            throw ProjectsProblem.AttachmentNotFound();
         }
 
         return TypedResults.NoContent();

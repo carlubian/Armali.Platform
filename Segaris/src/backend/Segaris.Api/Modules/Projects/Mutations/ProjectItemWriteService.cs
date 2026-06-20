@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Projects.Contracts;
 using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -11,7 +12,8 @@ namespace Segaris.Api.Modules.Projects.Mutations;
 internal sealed class ProjectItemWriteService(
     SegarisDbContext database,
     ProjectNumberAllocator numberAllocator,
-    IClock clock)
+    IClock clock,
+    IAttachmentService attachments)
 {
     public async Task<int> CreateProjectAsync(
         CreateProjectRequest request,
@@ -68,6 +70,14 @@ internal sealed class ProjectItemWriteService(
 
         database.Remove(project);
         await database.SaveChangesAsync(cancellationToken);
+
+        var owner = ProjectsAttachments.ProjectOwner(projectId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
+        }
+
         return true;
     }
 
