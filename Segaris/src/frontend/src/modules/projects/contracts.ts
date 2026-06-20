@@ -29,6 +29,8 @@ export const projectsKeys = {
   activities: () => [...projectsKeys.all, 'activities'] as const,
   activity: (activityId: number) => [...projectsKeys.activities(), activityId] as const,
   structure: () => [...projectsKeys.all, 'structure'] as const,
+  structurePrograms: () => [...projectsKeys.structure(), 'programs'] as const,
+  structureAxes: () => [...projectsKeys.structure(), 'axes'] as const,
 }
 
 const name = z.string().trim().min(1).max(200)

@@ -29,6 +29,7 @@ export const configuration = {
     clothes: 'Clothes',
     assets: 'Assets',
     maintenance: 'Maintenance',
+    projects: 'Projects',
   },
   catalogs: {
     label: 'Global catalogs',
@@ -205,6 +206,84 @@ export const configuration = {
       itemName: 'maintenance type',
     },
   },
+  projectsStructure: {
+    tabsLabel: 'Projects structure catalogs',
+    programsTab: 'Programs',
+    axesTab: 'Axes',
+    programs: {
+      title: 'Project programs',
+      description:
+        'Top-level containers for the Projects hierarchy. Codes are four letters and appear in every project identifier.',
+      addAction: 'New program',
+      createTitle: 'New program',
+      editTitle: 'Edit program',
+      nameLabel: 'Name',
+      namePlaceholder: 'Program name',
+      codeLabel: 'Code',
+      codePlaceholder: 'HOME',
+      empty: 'No programs yet. Add a program before creating axes.',
+      itemName: 'program',
+    },
+    axes: {
+      title: 'Project axes',
+      description:
+        'Second-level containers inside a program. Projects and activities live under axes.',
+      addAction: 'New axis',
+      createTitle: 'New axis',
+      editTitle: 'Edit axis',
+      nameLabel: 'Name',
+      namePlaceholder: 'Axis name',
+      codeLabel: 'Code',
+      codePlaceholder: 'PLAN',
+      programLabel: 'Program',
+      programPlaceholder: 'Choose a program',
+      empty: 'No axes yet. Add an axis under a program before creating work items.',
+      itemName: 'axis',
+    },
+    table: {
+      parentProgram: 'Program',
+      edit: 'Edit {{name}}',
+      delete: 'Delete {{name}}',
+    },
+    form: {
+      nameRequired: 'Enter a name.',
+      nameTooLong: 'The name must be 200 characters or fewer.',
+      codeInvalid: 'Use exactly four uppercase letters, for example HOME.',
+      programRequired: 'Choose a program.',
+      duplicateName: 'Another entry already uses this name.',
+      duplicateCode: 'Another entry already uses this code.',
+      genericError:
+        'The change could not be saved. Please review the form and try again.',
+    },
+    remove: {
+      directTitle: 'Delete {{name}}?',
+      directDescription:
+        'This {{kind}} has no children and will be permanently removed.',
+      referencedTitle: 'Reassign and remove {{name}}',
+      referencedDescription:
+        'This {{kind}} contains {{count}} child item. Move every child to one compatible target before deleting it.',
+      referencedDescription_other:
+        'This {{kind}} contains {{count}} child items. Move every child to one compatible target before deleting it.',
+      targetLabel: 'Reassign children to',
+      targetPlaceholder: 'Choose a target',
+      targetRequired: 'Choose a compatible target.',
+      blockedTitle: 'Cannot remove {{name}}',
+      blockedDescription:
+        'This {{kind}} contains {{count}} child item, but there is no compatible target. Create another {{targetKind}} or empty it first.',
+      blockedDescription_other:
+        'This {{kind}} contains {{count}} child items, but there is no compatible target. Create another {{targetKind}} or empty it first.',
+      impactSummary:
+        'Impact summary: {{count}} child will be reassigned. No private item details are shown.',
+      impactSummary_other:
+        'Impact summary: {{count}} children will be reassigned. No private item details are shown.',
+      confirm: 'Delete',
+      reassignConfirm: 'Reassign and delete',
+      deleting: 'Deleting…',
+      cancel: 'Cancel',
+      close: 'Close',
+      error: 'The structure node could not be removed. Please try again.',
+    },
+  },
   table: {
     columns: {
       order: 'Order',
@@ -285,6 +364,8 @@ export const configuration = {
     updatedBody: '“{{name}}” was updated.',
     removed: 'Removed',
     removedBody: '“{{name}}” was removed.',
+    reassigned: 'Reassigned',
+    reassignedBody: '“{{name}}” was reassigned and removed.',
     close: 'Close',
   },
   states: {

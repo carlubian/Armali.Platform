@@ -1,5 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { projectsKeys } from '@/modules/projects/contracts'
+
 import type { CatalogDescriptor } from './catalogs'
 
 /**
@@ -24,4 +26,12 @@ export function invalidateCatalog(
     }
   }
   return Promise.all(work).then(() => undefined)
+}
+
+export function invalidateProjectsStructure(queryClient: QueryClient): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: projectsKeys.all }),
+    queryClient.invalidateQueries({ queryKey: projectsKeys.structure() }),
+    queryClient.invalidateQueries({ queryKey: projectsKeys.tree() }),
+  ]).then(() => undefined)
 }

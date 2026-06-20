@@ -58,6 +58,7 @@ export type CatalogSectionId =
   | 'clothes'
   | 'assets'
   | 'maintenance'
+  | 'projects'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -372,6 +373,8 @@ export function sectionCatalogs(
       return assetsCatalogs
     case 'maintenance':
       return [maintenanceTypesDescriptor]
+    case 'projects':
+      return []
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

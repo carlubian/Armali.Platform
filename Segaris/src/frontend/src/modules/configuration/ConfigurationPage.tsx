@@ -13,6 +13,10 @@ import {
   sectionCatalogs,
   type CatalogSectionId,
 } from './catalogs'
+import {
+  ProjectsStructureSection,
+  type ProjectsStructureToastKind,
+} from './ProjectsStructureSection'
 
 import './ConfigurationPage.css'
 
@@ -25,10 +29,11 @@ const sections: CatalogSectionId[] = [
   'clothes',
   'assets',
   'maintenance',
+  'projects',
 ]
 
 interface ToastState {
-  kind: CatalogToastKind
+  kind: CatalogToastKind | ProjectsStructureToastKind
   name: string
 }
 
@@ -67,7 +72,10 @@ export function ConfigurationPage() {
   }
   const activeSection = section as CatalogSectionId
 
-  const handleToast = (kind: CatalogToastKind, name: string) => setToast({ kind, name })
+  const handleToast = (
+    kind: CatalogToastKind | ProjectsStructureToastKind,
+    name: string,
+  ) => setToast({ kind, name })
 
   const sectionTabs = sections.map((id) => ({
     value: id,
@@ -81,7 +89,9 @@ export function ConfigurationPage() {
 
   const catalogs = sectionCatalogs(activeSection)
   let body: ReactNode
-  if (catalogs.length > 1) {
+  if (activeSection === 'projects') {
+    body = <ProjectsStructureSection onToast={handleToast} />
+  } else if (catalogs.length > 1) {
     const slug = searchParams.get('catalog')
     const descriptor = catalogBySlug(activeSection, slug)
     // An unknown catalog slug falls back to the section's default tab.
