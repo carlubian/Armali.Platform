@@ -86,6 +86,7 @@ export function useProjectsDialogState() {
     openProject: (projectId: number) => apply({ projectId: String(projectId) }),
     openProjectRisks: (projectId: number) =>
       apply({ projectId: String(projectId), risks: 'true' }),
+    closeProjectRisks: (projectId: number) => apply({ projectId: String(projectId) }),
     openActivity: (activityId: number) => apply({ activityId: String(activityId) }),
     closeDialog: () => apply({}),
   }
