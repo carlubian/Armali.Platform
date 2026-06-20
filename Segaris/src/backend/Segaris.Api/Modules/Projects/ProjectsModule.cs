@@ -30,12 +30,12 @@ internal sealed class ProjectsModule : ISegarisModule
     {
         services.AddSingleton<ISegarisModelContributor, ProjectsModelContributor>();
         services.AddScoped<ProjectNumberAllocator>();
+        services.AddScoped<ProjectsStructureManagementService>();
         services.AddScoped<ILauncherAttentionContributor, ProjectsAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // Wave 2 onward maps the program/axis, tree, project, activity, risk, and
-        // attachment HTTP surface frozen in ProjectsApiRoutes.
+        endpoints.MapProjectsEndpoints();
     }
 }
