@@ -57,6 +57,12 @@ const MaintenancePage = lazy(() =>
   })),
 )
 
+const ProjectsPage = lazy(() =>
+  import('@/modules/projects/ProjectsPage').then((module) => ({
+    default: module.ProjectsPage,
+  })),
+)
+
 // The Mood module's two immersive screens are lazily loaded so their week board,
 // charts, and entry dialog stay out of the initial platform bundle.
 const MoodLogPage = lazy(() =>
@@ -182,6 +188,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <AssetsPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="projects"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <ProjectsPage />
               </Suspense>
             </ModuleBoundary>
           }

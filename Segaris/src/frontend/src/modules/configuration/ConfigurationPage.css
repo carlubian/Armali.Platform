@@ -40,6 +40,9 @@
   gap: var(--space-6);
   margin-bottom: var(--space-5);
 }
+.seg-catalog__head--tabbed {
+  margin-top: var(--space-5);
+}
 .seg-catalog__head h2 {
   font-size: var(--text-xl);
 }
@@ -130,6 +133,10 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--tracking-wide);
   color: var(--text-secondary);
+}
+.seg-catalog__muted {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 .seg-catalog__col-order {
   width: 1%;

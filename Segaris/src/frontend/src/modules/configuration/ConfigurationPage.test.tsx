@@ -12,6 +12,7 @@ interface Row {
   code?: string
   colorValue?: string
   sortOrder: number
+  programId?: number
 }
 
 const adminSession = {
@@ -46,6 +47,11 @@ const defaultImpact: CatalogDeletionImpact = {
   hasReplacementCandidates: true,
 }
 
+const defaultStructureImpact = {
+  childCount: 0,
+  hasCompatibleTarget: true,
+}
+
 interface BackendOptions {
   roles?: string[]
   suppliers?: Row[]
@@ -60,10 +66,16 @@ interface BackendOptions {
   assetCategories?: Row[]
   assetLocations?: Row[]
   maintenanceTypes?: Row[]
+  programs?: Row[]
+  axes?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
   impacts?: Record<string, Partial<CatalogDeletionImpact>>
+  /** Projects structure impact override keyed by `programs:${id}` or `axes:${id}`. */
+  structureImpacts?: Record<string, Partial<typeof defaultStructureImpact>>
   /** Force a create response (e.g. a duplicate-name conflict). */
   createResponse?: () => Response
+  /** Force a Projects structure create response (e.g. a duplicate-code conflict). */
+  structureCreateResponse?: () => Response
 }
 
 const catalogPaths: Record<string, string> = {
@@ -122,6 +134,14 @@ function mockBackend(options: BackendOptions = {}) {
       { id: 1, name: 'Repair', sortOrder: 1 },
       { id: 2, name: 'Inspection', sortOrder: 2 },
     ],
+    programs: options.programs ?? [
+      { id: 1, code: 'HOME', name: 'Household', sortOrder: 1 },
+      { id: 2, code: 'WORK', name: 'Work', sortOrder: 2 },
+    ],
+    axes: options.axes ?? [
+      { id: 10, code: 'PLAN', name: 'Planning', programId: 1, sortOrder: 1 },
+      { id: 11, code: 'OPSX', name: 'Operations', programId: 2, sortOrder: 2 },
+    ],
   }
   const calls: Array<{ method: string; url: string; body?: unknown }> = []
   let nextId = 1000
@@ -145,6 +165,57 @@ function mockBackend(options: BackendOptions = {}) {
         })
       }
       if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
+
+      const structureMatch = url.match(
+        /^\/api\/projects\/(programs|axes)(?:\/(\d+)(\/deletion-impact|\/reassign-and-delete)?)?(?:\?.*)?$/,
+      )
+      if (structureMatch) {
+        const key = structureMatch[1]
+        const id = structureMatch[2] != null ? Number(structureMatch[2]) : null
+        const suffix = structureMatch[3]
+        const rows = data[key]
+
+        if (id == null && method === 'GET') return json(rows)
+        if (id == null && method === 'POST') {
+          calls.push({ method, url, body })
+          if (options.structureCreateResponse) return options.structureCreateResponse()
+          const input = body as { name: string; code: string; programId?: number }
+          const created: Row = {
+            id: nextId++,
+            name: input.name,
+            code: input.code,
+            programId: input.programId,
+            sortOrder: rows.length + 1,
+          }
+          rows.push(created)
+          return json(created, 201)
+        }
+        if (id != null && suffix === '/deletion-impact' && method === 'GET') {
+          return json({
+            ...defaultStructureImpact,
+            ...(options.structureImpacts?.[`${key}:${id}`] ?? {}),
+          })
+        }
+        if (id != null && suffix === '/reassign-and-delete' && method === 'POST') {
+          calls.push({ method, url, body })
+          return new Response(null, { status: 204 })
+        }
+        if (id != null && suffix == null && method === 'PUT') {
+          calls.push({ method, url, body })
+          const input = body as { name: string; code: string; programId?: number }
+          const target = rows.find((row) => row.id === id)
+          if (target != null) {
+            target.name = input.name
+            target.code = input.code
+            if (input.programId != null) target.programId = input.programId
+          }
+          return json(target ?? {})
+        }
+        if (id != null && suffix == null && method === 'DELETE') {
+          calls.push({ method, url })
+          return new Response(null, { status: 204 })
+        }
+      }
 
       const match = url.match(
         /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
@@ -350,6 +421,37 @@ describe('Configuration navigation and states', () => {
     expect(await screen.findByText('Repair')).toBeInTheDocument()
   })
 
+  it('shows the Projects programs and axes tabs ordered by code', async () => {
+    mockBackend({
+      programs: [
+        { id: 1, code: 'WORK', name: 'Work', sortOrder: 1 },
+        { id: 2, code: 'HOME', name: 'Household', sortOrder: 2 },
+      ],
+      axes: [
+        { id: 10, code: 'ZZZZ', name: 'Later', programId: 1, sortOrder: 1 },
+        { id: 11, code: 'AAAA', name: 'First', programId: 2, sortOrder: 2 },
+      ],
+    })
+    renderAt('/configuration/projects')
+    expect(
+      await screen.findByRole('heading', { name: 'Project programs' }),
+    ).toBeInTheDocument()
+    await screen.findByText('Household')
+    const programRows = screen.getAllByRole('row')
+    expect(within(programRows[1]).getByText('HOME')).toBeInTheDocument()
+    expect(within(programRows[2]).getByText('WORK')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Axes' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Project axes' }),
+    ).toBeInTheDocument()
+    const axisRows = screen.getAllByRole('row')
+    expect(within(axisRows[1]).getByText('AAAA')).toBeInTheDocument()
+    expect(within(axisRows[1]).getByText('HOME - Household')).toBeInTheDocument()
+    expect(within(axisRows[2]).getByText('ZZZZ')).toBeInTheDocument()
+  })
+
   it('renders the empty state for a catalog with no rows', async () => {
     mockBackend({ suppliers: [] })
     renderAt(suppliersHome)
@@ -445,6 +547,81 @@ describe('Configuration creation and editing', () => {
         (call) => call.method === 'POST' && call.url === '/api/maintenance/types',
       )?.body,
     ).toEqual({ name: 'Preventive' })
+  })
+
+  it('creates a Projects program and refetches Projects structure caches', async () => {
+    const { calls, fetchMock } = mockBackend()
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New program' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New program' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Growth')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'grow')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.url === '/api/projects/programs')?.body).toEqual(
+        {
+          name: 'Growth',
+          code: 'GROW',
+        },
+      ),
+    )
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([input]) =>
+          urlOf(input).endsWith('/api/projects/programs'),
+        ).length,
+      ).toBeGreaterThan(1),
+    )
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        urlOf(input).endsWith('/api/projects/axes'),
+      ).length,
+    ).toBeGreaterThan(1)
+  })
+
+  it('updates a Projects axis and preserves the selected parent program', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+    await userEvent.click(screen.getByRole('tab', { name: 'Axes' }))
+    await screen.findByText('Planning')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Planning' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit axis' })
+    await userEvent.clear(within(dialog).getByLabelText('Name'))
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Roadmap')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.url === '/api/projects/axes/10')?.body).toEqual({
+        name: 'Roadmap',
+        code: 'PLAN',
+        programId: 1,
+      }),
+    )
+  })
+
+  it('maps a Projects duplicate-code server error onto the code field', async () => {
+    mockBackend({
+      structureCreateResponse: () =>
+        json({ code: 'projects.program.duplicate_code' }, 409),
+    })
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New program' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New program' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Duplicate')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'HOME')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(
+      await within(dialog).findByText('Another entry already uses this code.'),
+    ).toBeInTheDocument()
   })
 
   it('validates the three-letter currency code on the client', async () => {
@@ -793,6 +970,83 @@ describe('Configuration deletion', () => {
           ?.body,
       ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
     )
+  })
+
+  it('deletes an empty Projects program directly', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Work?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) => call.method === 'DELETE' && call.url === '/api/projects/programs/2',
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('reassigns children before deleting a non-empty Projects program', async () => {
+    const { calls } = mockBackend({
+      structureImpacts: {
+        'programs:1': { childCount: 2, hasCompatibleTarget: true },
+      },
+    })
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Household' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Reassign and remove Household',
+    })
+    expect(
+      within(dialog).getByText(
+        'Impact summary: 2 children will be reassigned. No private item details are shown.',
+      ),
+    ).toBeInTheDocument()
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Reassign and delete' }),
+    )
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) => call.url === '/api/projects/programs/1/reassign-and-delete',
+        )?.body,
+      ).toEqual({ targetNodeId: 2 }),
+    )
+    expect(await screen.findByText('Reassigned')).toBeInTheDocument()
+  })
+
+  it('blocks deletion of a non-empty Projects axis when no target exists', async () => {
+    const { calls } = mockBackend({
+      axes: [{ id: 10, code: 'PLAN', name: 'Planning', programId: 1, sortOrder: 1 }],
+      structureImpacts: {
+        'axes:10': { childCount: 1, hasCompatibleTarget: false },
+      },
+    })
+    renderAt('/configuration/projects')
+    await screen.findByText('Household')
+    await userEvent.click(screen.getByRole('tab', { name: 'Axes' }))
+    await screen.findByText('Planning')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Planning' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Cannot remove Planning',
+    })
+
+    expect(
+      within(dialog).getByText(
+        'Impact summary: 1 child will be reassigned. No private item details are shown.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
+    expect(calls.some((call) => call.url.includes('reassign-and-delete'))).toBe(false)
   })
 
   it('converts a referenced currency with a matching formula and command', async () => {

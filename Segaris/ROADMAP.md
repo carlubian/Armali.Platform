@@ -216,8 +216,15 @@ Module purpose: Manage a tree structure to organize personal projects, each with
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties, program/axis/project hierarchy. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Hierarchy and entities | A four-level containment tree `Program` → `Axis` → (`Project` or `Activity`). `Program` and `Axis` carry only a name and a globally unique four-uppercase-letter code, are always public, and are managed through Configuration. `Project` and `Activity` carry a required name, a fixed status (`Planning`/`Active`/`Completed`/`OnHold`/`Cancelled`), Public/Private visibility, and a globally unique incremental number shared by both kinds; a project additionally owns a risk table and result attachments while an activity owns neither. Parents are mandatory but containers may be empty. Projects is independent of Processes. See `docs/requirements/PROJECTS_REQUIREMENTS.md`. |
+| Resolved | Unified identifier | Every project/activity is shown as `PPPPAAAA-123456 nnnn` (program code, axis code, six-digit number, name), computed on demand from current ancestor state and never persisted, so renames and reparenting are reflected live while the number stays stable. |
+| Resolved | Risk analysis | Each project owns a popup risk table. A risk has a description and `probability`, `impact`, and `mitigation` integers in 1–5, with a system-computed `score = p × i × m` banded high (`>= 100`, red), medium (`>= 60`, yellow), and low (`< 60`, green), surfaced as a per-project band summary. |
+| Resolved | User workflow | Projects opens on a lazily expanded tree with no search/filter. Programs and axes are read-only structure in the tree (managed in Configuration, including reassignment of children to a compatible target before deleting a non-empty node); projects and activities are created and edited from the Projects page through URL-aware popups. The launcher card never requests attention. See `docs/requirements/PROJECTS_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/PROJECTS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Projects implementation plan is delivered through Wave 8. All twelve requirement acceptance criteria are mapped to covering code and tests in `docs/planning/PROJECTS_ACCEPTANCE.md`. |
+| Deferred | Second-user Projects privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`ProjectsItemEndpointTests`, `ProjectsRiskEndpointTests`, `ProjectsAttachmentEndpointTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred Capex, Configuration, Opex, Inventory, Travel, Assets, and Maintenance patterns. |
+| Deferred | PostgreSQL representative-volume tree query-plan benchmark | The recommended indexes exist in both providers and tree/detail queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
+| Deferred | Future Projects scope | Due dates, schedules, milestones, dependencies, effort, progress, cost, cross-module references, Processes integration, richer risk models, promotable activities, and tree search/filtering remain future versions. See `docs/requirements/PROJECTS_REQUIREMENTS.md`. |
 
 ### Processes
 

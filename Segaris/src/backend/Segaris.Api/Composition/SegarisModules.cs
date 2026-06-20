@@ -8,6 +8,7 @@ using Segaris.Api.Modules.Launcher;
 using Segaris.Api.Modules.Maintenance;
 using Segaris.Api.Modules.Mood;
 using Segaris.Api.Modules.Opex;
+using Segaris.Api.Modules.Projects;
 using Segaris.Api.Modules.Travel;
 using Segaris.Api.Platform;
 
@@ -28,6 +29,7 @@ internal static class SegarisModules
         new AssetsModule(),
         new MoodModule(),
         new MaintenanceModule(),
+        new ProjectsModule(),
         new LauncherModule(),
     ];
 

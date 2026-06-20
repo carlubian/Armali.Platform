@@ -25,6 +25,8 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Clothes", names);
         Assert.Contains("Assets", names);
         Assert.Contains("Mood", names);
+        Assert.Contains("Maintenance", names);
+        Assert.Contains("Projects", names);
         Assert.Contains("Launcher", names);
     }
 
@@ -108,5 +110,18 @@ public sealed class ModuleRegistrationTests
         Assert.True(
             names.IndexOf("Mood") < names.IndexOf("Launcher"),
             "Mood must be registered before Launcher.");
+    }
+
+    [Fact]
+    public void Projects_is_registered_after_maintenance_and_before_launcher()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Maintenance") < names.IndexOf("Projects"),
+            "Projects must be registered after Maintenance.");
+        Assert.True(
+            names.IndexOf("Projects") < names.IndexOf("Launcher"),
+            "Projects must be registered before Launcher.");
     }
 }

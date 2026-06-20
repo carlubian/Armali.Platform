@@ -1,7 +1,7 @@
 /* global React, ReactDOM */
 (() => {
 const { DesignCanvas, DCSection, DCArtboard } = window;
-const { useTweaks, TweaksPanel, TweakSection, TweakColor, TweakSlider } = window;
+const { useTweaks, TweaksPanel, TweakSection, TweakColor, TweakSlider, TweakToggle } = window;
 
 const ACCENTS = {
   aqua: {
@@ -31,7 +31,8 @@ const ACCENT_SWATCH = { "#16A6A6": "aqua", "#DBA63E": "gold", "#3A7CA5": "azure"
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#16A6A6",
   "aurora": 40,
-  "glass": 18
+  "glass": 18,
+  "projCodes": true
 }/*EDITMODE-END*/;
 
 // Keep lucide icons upgraded as React mounts/updates nodes anywhere
@@ -151,6 +152,13 @@ function App() {
           <DCArtboard id="mood-dash-criteria" label="B · Criteria emphasis" width={1320} height={940}><Frame><window.MoodDashCriteria /></Frame></DCArtboard>
         </DCSection>
 
+        <DCSection id="projects" title="Projects" subtitle="Program → Axis → (Project | Activity) · tree + details, edit popup, risk popup">
+          <DCArtboard id="proj-main" label="A · Tree + project details" width={1320} height={900}><Frame><window.ProjectsMain showCodes={t.projCodes !== false} /></Frame></DCArtboard>
+          <DCArtboard id="proj-activity" label="B · Tree + activity details" width={1320} height={900}><Frame><window.ProjectsActivity showCodes={t.projCodes !== false} /></Frame></DCArtboard>
+          <DCArtboard id="proj-edit" label="C · Create / edit popup" width={1320} height={900}><Frame><window.ProjectsEdit showCodes={t.projCodes !== false} /></Frame></DCArtboard>
+          <DCArtboard id="proj-risk" label="D · Risk analysis popup" width={1320} height={900}><Frame><window.ProjectsRisk showCodes={t.projCodes !== false} /></Frame></DCArtboard>
+        </DCSection>
+
         <DCSection id="states" title="System states" subtitle="Explicit failure & not-found experiences">
           <DCArtboard id="unavailable" label="Service unavailable" width={1080} height={680}><Frame><window.ServiceUnavailable /></Frame></DCArtboard>
           <DCArtboard id="notfound" label="404 · Not found" width={1080} height={680}><Frame><window.NotFound /></Frame></DCArtboard>
@@ -167,6 +175,9 @@ function App() {
           onChange={(v) => setTweak("aurora", v)} />
         <TweakSlider label="Glass frost" value={t.glass} min={2} max={28} unit="px"
           onChange={(v) => setTweak("glass", v)} />
+        <TweakSection label="Projects" />
+        <TweakToggle label="Show identifier codes in tree" value={t.projCodes !== false}
+          onChange={(v) => setTweak("projCodes", v)} />
       </TweaksPanel>
     </React.Fragment>
   );
