@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Globe, Lock, Trash2 } from 'lucide-react'
+import { Globe, Link2, Lock, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -17,6 +17,10 @@ import {
 } from '@/app/api/maintenance'
 import { formatDate } from '@/app/i18n/formatters'
 import {
+  EntityReferenceField,
+  type EntityReference,
+} from '@/components/entity-selection'
+import {
   Button,
   Dialog,
   Input,
@@ -25,6 +29,11 @@ import {
   Spinner,
   type SegmentTone,
 } from '@/components/ui'
+import {
+  AssetEntitySelector,
+  assetReference,
+} from '@/modules/assets/AssetEntitySelector'
+import { assetsKeys } from '@/modules/assets/contracts'
 
 import { MaintenanceAttachments } from './MaintenanceAttachments'
 import { StagedMaintenanceAttachments } from './StagedMaintenanceAttachments'
@@ -204,33 +213,72 @@ function MaintenanceEditorForm({
   const editedRef = useRef(false)
   const visibility = useWatch({ control, name: 'visibility' })
   const assetId = useWatch({ control, name: 'assetId' })
+  const [selectorOpen, setSelectorOpen] = useState(false)
+  const [pickedAsset, setPickedAsset] = useState<AssetSummary | null>(null)
 
-  const assetOptionsQuery = useQuery({
-    queryKey: ['maintenance', 'asset-picker-options', visibility],
-    queryFn: ({ signal }) =>
-      assetsApi.listAssets(
-        {
-          page: 1,
-          pageSize: 100,
-          sort: 'name',
-          sortDirection: 'asc',
-          visibility: visibility === 'Public' ? 'Public' : null,
-        },
-        signal,
-      ),
+  const assetIdNum = assetId === '' ? null : Number(assetId)
+  const initialAssetId = task?.assetId ?? null
+
+  // Resolve the originally-linked asset independently of any list page, so an
+  // existing link stays valid even when it is absent from the current selector
+  // page. The Assets API remains the authoritative integrity boundary.
+  const linkResolution = useQuery({
+    queryKey: assetsKeys.asset(initialAssetId ?? 0),
+    queryFn: ({ signal }) => assetsApi.getAsset(initialAssetId as number, signal),
+    enabled: initialAssetId != null,
+    retry: false,
   })
 
-  const assets = useMemo(
-    () => assetOptionsQuery.data?.items ?? [],
-    [assetOptionsQuery.data?.items],
-  )
+  // The asset currently backing the form's assetId, when its details are known.
+  const linkedAsset: AssetSummary | undefined =
+    pickedAsset?.id === assetIdNum
+      ? pickedAsset
+      : initialAssetId === assetIdNum
+        ? linkResolution.data
+        : undefined
+
+  // A Public task can only link a Public asset. Once the linked asset is known to
+  // be incompatible, clear it; never clear merely because it is off the current
+  // selector page.
   useEffect(() => {
-    if (visibility !== 'Public' || assetId === '') return
-    if (!assets.some((asset) => String(asset.id) === assetId)) {
+    if (
+      visibility === 'Public' &&
+      linkedAsset != null &&
+      linkedAsset.visibility !== 'Public'
+    ) {
       setValue('assetId', '', { shouldDirty: true, shouldValidate: true })
       editedRef.current = true
     }
-  }, [assetId, assets, setValue, visibility])
+  }, [visibility, linkedAsset, setValue])
+
+  const selectAsset = (asset: AssetSummary) => {
+    setPickedAsset(asset)
+    setValue('assetId', String(asset.id), { shouldDirty: true, shouldValidate: true })
+    editedRef.current = true
+    setSelectorOpen(false)
+  }
+
+  const clearAsset = () => {
+    setPickedAsset(null)
+    setValue('assetId', '', { shouldDirty: true, shouldValidate: true })
+    editedRef.current = true
+  }
+
+  // Map the current link onto the reference control's display states.
+  let assetReferenceValue: EntityReference | null = null
+  let resolvingAsset = false
+  if (assetIdNum != null) {
+    if (linkedAsset != null) {
+      assetReferenceValue = assetReference(linkedAsset)
+    } else if (initialAssetId === assetIdNum && linkResolution.isLoading) {
+      resolvingAsset = true
+    } else {
+      assetReferenceValue = {
+        primary: task?.assetName ?? t('common.unknownAsset'),
+        unavailable: true,
+      }
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (request: CreateMaintenanceTaskRequest) =>
@@ -274,11 +322,6 @@ function MaintenanceEditorForm({
   }
 
   const submitting = mutation.isPending
-  const assetOptions = buildAssetOptions(
-    assets,
-    task,
-    t('taskEditor.fields.assetPlaceholder'),
-  )
 
   if (createdTask != null) {
     const finish = () => onSaved(createdTask, 'create')
@@ -408,17 +451,6 @@ function MaintenanceEditorForm({
                   readOnly
                 />
               )}
-              <Field
-                label={t('taskEditor.fields.asset')}
-                hint={t('editor.visibilityHint.publicAssetOnly')}
-              >
-                <Select
-                  {...register('assetId')}
-                  aria-invalid={formState.errors.assetId != null}
-                  disabled={assetOptionsQuery.isPending}
-                  options={assetOptions}
-                />
-              </Field>
               <ToggleField
                 id="maintenance-field-visibility"
                 label={t('taskEditor.fields.visibility')}
@@ -438,6 +470,33 @@ function MaintenanceEditorForm({
                   }))}
                 />
               </ToggleField>
+            </div>
+
+            <div className="seg-maint-editor__link">
+              <span
+                className="seg-maint-editor__field-label"
+                id="maintenance-field-asset"
+              >
+                {t('taskEditor.fields.asset')}
+              </span>
+              <EntityReferenceField
+                aria-labelledby="maintenance-field-asset"
+                value={assetReferenceValue}
+                busy={resolvingAsset}
+                busyLabel={t('taskEditor.link.resolving')}
+                icon={<Link2 size={19} aria-hidden="true" />}
+                placeholder={t('taskEditor.fields.assetPlaceholder')}
+                helperText={
+                  visibility === 'Public'
+                    ? t('editor.visibilityHint.publicAssetOnly')
+                    : t('taskEditor.link.helper')
+                }
+                browseLabel={t('taskEditor.link.browse')}
+                changeLabel={t('taskEditor.link.change')}
+                clearLabel={t('taskEditor.link.clear')}
+                onBrowse={() => setSelectorOpen(true)}
+                onClear={clearAsset}
+              />
             </div>
           </section>
 
@@ -479,6 +538,16 @@ function MaintenanceEditorForm({
           </section>
         </form>
       </Dialog>
+
+      {selectorOpen && (
+        <AssetEntitySelector
+          currentAssetId={assetId === '' ? null : assetId}
+          forcedVisibility={visibility === 'Public' ? 'Public' : null}
+          description={t('taskEditor.link.selectorDescription')}
+          onSelect={selectAsset}
+          onClose={() => setSelectorOpen(false)}
+        />
+      )}
 
       {confirmingClose && (
         <Dialog
@@ -579,25 +648,6 @@ function ToggleField({ id, label, hint, children }: ToggleFieldProps) {
       {hint != null && <span className="seg-maint-editor__field-hint">{hint}</span>}
     </div>
   )
-}
-
-function buildAssetOptions(
-  assets: ReadonlyArray<AssetSummary>,
-  task: MaintenanceTask | undefined,
-  emptyLabel: string,
-) {
-  const options = [
-    { value: '', label: emptyLabel },
-    ...assets.map((asset) => ({ value: String(asset.id), label: asset.name })),
-  ]
-  if (
-    task?.assetId != null &&
-    task.assetName != null &&
-    !options.some((option) => option.value === String(task.assetId))
-  ) {
-    options.push({ value: String(task.assetId), label: task.assetName })
-  }
-  return options
 }
 
 function mapServerError(error: unknown, t: (key: string) => string): string {

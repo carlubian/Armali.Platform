@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { Boxes } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,6 +14,7 @@ import {
 import {
   EntitySelectorDialog,
   type EntityQueryResult,
+  type EntityReference,
   type EntitySelectorColumn,
   type EntitySelectorFilter,
   type EntitySelectorLabels,
@@ -38,6 +40,21 @@ const visibilityTone: Record<AssetVisibility, BadgeTone> = {
 }
 
 const defaultSort = { field: 'name', direction: 'asc' } as const
+
+/**
+ * Maps an asset onto the display metadata used by `EntityReferenceField` when it
+ * shows a selected link. Keeps Asset-specific presentation in this adapter.
+ */
+export function assetReference(asset: AssetSummary): EntityReference {
+  const meta = [asset.code, asset.categoryName, asset.locationName]
+    .filter((value): value is string => value != null && value !== '')
+    .join(' · ')
+  return {
+    primary: asset.name,
+    secondary: meta === '' ? undefined : meta,
+    icon: <Boxes size={19} aria-hidden="true" />,
+  }
+}
 
 export interface AssetEntitySelectorProps {
   /** The currently linked asset, marked as current in the table. */

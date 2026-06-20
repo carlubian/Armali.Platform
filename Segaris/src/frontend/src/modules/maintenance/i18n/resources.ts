@@ -151,6 +151,14 @@ export const maintenance = {
       notes: 'Notes',
       notesPlaceholder: 'Optional details about the work.',
     },
+    link: {
+      helper: 'Link the asset this task applies to.',
+      browse: 'Browse assets',
+      change: 'Change asset',
+      clear: 'Clear linked asset',
+      resolving: 'Resolving linked asset',
+      selectorDescription: 'Choose the asset this maintenance task applies to.',
+    },
     validation: {
       titleRequired: 'A title is required.',
       titleTooLong: 'The title may contain at most 200 characters.',

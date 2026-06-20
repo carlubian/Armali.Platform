@@ -125,6 +125,12 @@ function mockBackend(
         { id: 2, name: 'Inspection', sortOrder: 2 },
       ])
     }
+    if (url.startsWith('/api/assets/categories')) {
+      return json([{ id: 1, name: 'Appliances', sortOrder: 0 }])
+    }
+    if (url.startsWith('/api/assets/locations')) {
+      return json([{ id: 1, name: 'Storage', sortOrder: 0 }])
+    }
     if (url.startsWith('/api/assets/items') && method === 'GET') {
       requests.push({ method, url })
       const parsed = new URL(url, 'http://localhost')
@@ -278,29 +284,36 @@ describe('Maintenance page', () => {
     expect(await within(dialog).findByText('A title is required.')).toBeInTheDocument()
   })
 
-  it('constrains the asset picker to public assets for public tasks', async () => {
+  it('constrains the asset selector to public assets for public tasks', async () => {
     const user = userEvent.setup()
     const { requests } = mockBackend()
     render(<App />)
 
     await screen.findByText('Task 01')
     await user.click(screen.getByRole('button', { name: 'New task' }))
-    const dialog = await screen.findByRole('dialog', { name: 'New maintenance task' })
+    const editor = await screen.findByRole('dialog', { name: 'New maintenance task' })
 
-    await waitFor(() =>
-      expect(
-        requests.some((request) => request.url.includes('visibility=Public')),
-      ).toBe(true),
-    )
-    expect(within(dialog).getByRole('option', { name: 'Public boiler' })).toBeVisible()
+    // A public task forces the selector to list only public assets.
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const selector = await screen.findByRole('dialog', { name: /Select an asset/ })
+    await within(selector).findByText('Public boiler')
+    expect(within(selector).queryByText('Private toolbox')).not.toBeInTheDocument()
     expect(
-      within(dialog).queryByRole('option', { name: 'Private toolbox' }),
-    ).not.toBeInTheDocument()
+      requests.some(
+        (request) =>
+          request.url.includes('/api/assets/items') &&
+          request.url.includes('visibility=Public'),
+      ),
+    ).toBe(true)
 
-    await user.click(within(dialog).getByRole('radio', { name: 'Private' }))
-    expect(
-      await within(dialog).findByRole('option', { name: 'Private toolbox' }),
-    ).toBeVisible()
+    // Switching to a private task lets the selector list any accessible asset.
+    await user.click(within(selector).getByRole('button', { name: 'Cancel' }))
+    await user.click(within(editor).getByRole('radio', { name: 'Private' }))
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const privateSelector = await screen.findByRole('dialog', {
+      name: /Select an asset/,
+    })
+    expect(await within(privateSelector).findByText('Private toolbox')).toBeVisible()
   })
 
   it('uploads staged attachments after creating a task', async () => {
