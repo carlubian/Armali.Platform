@@ -143,7 +143,11 @@ export function ProjectAttachments({ projectId, onChanged }: ProjectAttachmentsP
         <ul className="seg-projects-attach__list">
           {attachments.map((attachment) => (
             <li key={attachment.id} className="seg-projects-attach__item">
-              <FileText size={18} aria-hidden="true" className="seg-projects-attach__icon" />
+              <FileText
+                size={18}
+                aria-hidden="true"
+                className="seg-projects-attach__icon"
+              />
               <span className="seg-projects-attach__meta">
                 <span className="seg-projects-attach__name">{attachment.fileName}</span>
                 <span className="seg-projects-attach__size">
@@ -182,7 +186,11 @@ export function ProjectAttachments({ projectId, onChanged }: ProjectAttachmentsP
                 (task.status === 'error' ? ' seg-projects-attach__item--error' : '')
               }
             >
-              <FileText size={18} aria-hidden="true" className="seg-projects-attach__icon" />
+              <FileText
+                size={18}
+                aria-hidden="true"
+                className="seg-projects-attach__icon"
+              />
               <span className="seg-projects-attach__meta">
                 <span className="seg-projects-attach__name">{task.file.name}</span>
                 <span className="seg-projects-attach__size">
