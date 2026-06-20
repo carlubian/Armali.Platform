@@ -25,11 +25,36 @@ export interface DialogProps extends Omit<ComponentPropsWithRef<'div'>, 'title'>
 }
 
 /**
+ * Open dialogs in mount order. Only the top of the stack reacts to Escape and
+ * traps focus, so a selector opened from inside an editor closes by itself first
+ * and keeps keyboard focus to itself instead of leaking into the editor behind.
+ */
+const dialogStack: string[] = []
+
+/** Tabbable controls inside a dialog panel, in document order. */
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function focusableWithin(panel: HTMLElement): HTMLElement[] {
+  // The dialogs in this app hide controls by not rendering them, so every match
+  // is genuinely reachable; no extra visibility filtering is needed (and none
+  // would survive jsdom, where layout metrics are unavailable).
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+}
+
+/**
  * Project Armali frosted modal dialog.
  *
  * Ported from the design-system reference (`components/overlay/Dialog.jsx`),
- * extended with Escape-to-close, initial focus on the panel, and focus
- * restoration when it unmounts.
+ * extended with Escape-to-close, initial focus on the panel, a Tab focus trap,
+ * and focus restoration when it unmounts. Stacked dialogs are supported: only
+ * the topmost one reacts to Escape and traps focus.
  */
 export function Dialog({
   open = true,
@@ -57,15 +82,52 @@ export function Dialog({
     const previouslyFocused = document.activeElement as HTMLElement | null
     panelRef.current?.focus()
 
+    dialogStack.push(labelId)
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current?.()
+      // Only the topmost dialog reacts, so a stacked selector both dismisses and
+      // traps focus before the editor underneath it does.
+      if (dialogStack[dialogStack.length - 1] !== labelId) return
+
+      if (event.key === 'Escape') {
+        onCloseRef.current?.()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+      const panel = panelRef.current
+      if (panel == null) return
+
+      // Keep Tab focus inside the dialog. With nothing else focusable, park it on
+      // the panel; otherwise wrap around the first/last control so focus never
+      // escapes to the page or a stacked dialog behind this one.
+      const focusables = focusableWithin(panel)
+      if (focusables.length === 0) {
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      const outside = active == null || (active !== panel && !panel.contains(active))
+      if (event.shiftKey) {
+        if (active === first || active === panel || outside) {
+          event.preventDefault()
+          last.focus()
+        }
+      } else if (active === last || outside) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      const index = dialogStack.lastIndexOf(labelId)
+      if (index !== -1) dialogStack.splice(index, 1)
       previouslyFocused?.focus?.()
     }
-  }, [open])
+  }, [open, labelId])
 
   if (!open) return null
 

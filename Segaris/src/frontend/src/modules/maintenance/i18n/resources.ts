@@ -67,7 +67,6 @@ export const maintenance = {
       visibility: 'Visibility',
       mine: 'My tasks',
       anyOption: 'All',
-      noAssetOption: 'No linked asset',
       more: 'More filters',
       fewer: 'Fewer filters',
       clearAll: 'Clear all',
@@ -150,6 +149,14 @@ export const maintenance = {
       visibility: 'Visibility',
       notes: 'Notes',
       notesPlaceholder: 'Optional details about the work.',
+    },
+    link: {
+      helper: 'Link the asset this task applies to.',
+      browse: 'Browse assets',
+      change: 'Change asset',
+      clear: 'Clear linked asset',
+      resolving: 'Resolving linked asset',
+      selectorDescription: 'Choose the asset this maintenance task applies to.',
     },
     validation: {
       titleRequired: 'A title is required.',

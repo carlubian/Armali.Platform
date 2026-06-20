@@ -38,7 +38,8 @@
 }
 .seg-maint-editor__field,
 .seg-maint-editor__field-control,
-.seg-maint-editor__notes {
+.seg-maint-editor__notes,
+.seg-maint-editor__link {
   display: grid;
   gap: var(--space-2);
 }

@@ -93,6 +93,12 @@ function mockBackend(
   options: {
     tasks?: MaintenanceTaskSummary[]
     assets?: AssetSummary[]
+    /**
+     * Assets resolvable by `getAsset` but not necessarily present on a selector
+     * page. Used to assert that an existing link survives even when it is absent
+     * from the current list response.
+     */
+    linkedAssets?: AssetSummary[]
   } = {},
 ) {
   const tasks = options.tasks ?? [makeTask(1)]
@@ -100,6 +106,7 @@ function mockBackend(
     makeAsset(1, { name: 'Public boiler', visibility: 'Public' }),
     makeAsset(2, { name: 'Private toolbox', visibility: 'Private' }),
   ]
+  const resolvableAssets = [...assets, ...(options.linkedAssets ?? [])]
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -125,14 +132,33 @@ function mockBackend(
         { id: 2, name: 'Inspection', sortOrder: 2 },
       ])
     }
+    if (url.startsWith('/api/assets/categories')) {
+      return json([{ id: 1, name: 'Appliances', sortOrder: 0 }])
+    }
+    if (url.startsWith('/api/assets/locations')) {
+      return json([{ id: 1, name: 'Storage', sortOrder: 0 }])
+    }
+    if (/\/api\/assets\/items\/\d+(?:\?|$)/.test(url) && method === 'GET') {
+      requests.push({ method, url })
+      const id = Number(url.match(/\/api\/assets\/items\/(\d+)/)?.[1] ?? '0')
+      const found = resolvableAssets.find((asset) => asset.id === id)
+      return found != null ? json(found) : json({ title: 'Not found' }, 404)
+    }
     if (url.startsWith('/api/assets/items') && method === 'GET') {
       requests.push({ method, url })
       const parsed = new URL(url, 'http://localhost')
       const visibility = parsed.searchParams.get('visibility')
-      const filtered =
-        visibility == null
-          ? assets
-          : assets.filter((asset) => asset.visibility === visibility)
+      const search = parsed.searchParams.get('search')?.toLowerCase() ?? ''
+      const filtered = assets.filter((asset) => {
+        if (visibility != null && asset.visibility !== visibility) return false
+        if (
+          search !== '' &&
+          !`${asset.name} ${asset.code ?? ''}`.toLowerCase().includes(search)
+        ) {
+          return false
+        }
+        return true
+      })
       return json({
         items: filtered,
         page: 1,
@@ -160,7 +186,15 @@ function mockBackend(
     if (url.startsWith('/api/maintenance/tasks/') && method === 'GET') {
       requests.push({ method, url })
       const id = Number(url.match(/\/api\/maintenance\/tasks\/(\d+)/)?.[1] ?? '1')
-      return json(makeTaskDetail(id))
+      const summary = tasks.find((task) => task.id === id)
+      return json(makeTaskDetail(id, summary ?? {}))
+    }
+    if (url.startsWith('/api/maintenance/tasks/') && method === 'PUT') {
+      const id = Number(url.match(/\/api\/maintenance\/tasks\/(\d+)/)?.[1] ?? '1')
+      const body =
+        typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
+      requests.push({ method, url, body })
+      return json(makeTaskDetail(id, body as Partial<MaintenanceTask>))
     }
     if (url === '/api/maintenance/tasks' && method === 'POST') {
       requests.push({
@@ -278,29 +312,36 @@ describe('Maintenance page', () => {
     expect(await within(dialog).findByText('A title is required.')).toBeInTheDocument()
   })
 
-  it('constrains the asset picker to public assets for public tasks', async () => {
+  it('constrains the asset selector to public assets for public tasks', async () => {
     const user = userEvent.setup()
     const { requests } = mockBackend()
     render(<App />)
 
     await screen.findByText('Task 01')
     await user.click(screen.getByRole('button', { name: 'New task' }))
-    const dialog = await screen.findByRole('dialog', { name: 'New maintenance task' })
+    const editor = await screen.findByRole('dialog', { name: 'New maintenance task' })
 
-    await waitFor(() =>
-      expect(
-        requests.some((request) => request.url.includes('visibility=Public')),
-      ).toBe(true),
-    )
-    expect(within(dialog).getByRole('option', { name: 'Public boiler' })).toBeVisible()
+    // A public task forces the selector to list only public assets.
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const selector = await screen.findByRole('dialog', { name: /Select an asset/ })
+    await within(selector).findByText('Public boiler')
+    expect(within(selector).queryByText('Private toolbox')).not.toBeInTheDocument()
     expect(
-      within(dialog).queryByRole('option', { name: 'Private toolbox' }),
-    ).not.toBeInTheDocument()
+      requests.some(
+        (request) =>
+          request.url.includes('/api/assets/items') &&
+          request.url.includes('visibility=Public'),
+      ),
+    ).toBe(true)
 
-    await user.click(within(dialog).getByRole('radio', { name: 'Private' }))
-    expect(
-      await within(dialog).findByRole('option', { name: 'Private toolbox' }),
-    ).toBeVisible()
+    // Switching to a private task lets the selector list any accessible asset.
+    await user.click(within(selector).getByRole('button', { name: 'Cancel' }))
+    await user.click(within(editor).getByRole('radio', { name: 'Private' }))
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const privateSelector = await screen.findByRole('dialog', {
+      name: /Select an asset/,
+    })
+    expect(await within(privateSelector).findByText('Private toolbox')).toBeVisible()
   })
 
   it('uploads staged attachments after creating a task', async () => {
@@ -330,5 +371,157 @@ describe('Maintenance page', () => {
         ),
       ).toBe(true),
     )
+  })
+
+  it('searches, links an asset, and submits its id', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Task 01')
+    await user.click(screen.getByRole('button', { name: 'New task' }))
+    const editor = await screen.findByRole('dialog', { name: 'New maintenance task' })
+    await user.type(within(editor).getByLabelText('Title'), 'Service the boiler')
+
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const selector = await screen.findByRole('dialog', { name: /Select an asset/ })
+
+    // Searching narrows the server query and the result page.
+    await user.type(within(selector).getByRole('searchbox'), 'boiler')
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.url.includes('/api/assets/items') &&
+            request.url.includes('search=boiler'),
+        ),
+      ).toBe(true),
+    )
+    const row = (await within(selector).findByText('Public boiler')).closest(
+      '[role="row"]',
+    ) as HTMLElement
+    await user.click(within(row).getByRole('button', { name: 'Select' }))
+
+    // The selector closes and the editor shows the linked asset.
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Select an asset/ })).toBeNull(),
+    )
+    expect(within(editor).getByText('Public boiler')).toBeInTheDocument()
+
+    await user.click(within(editor).getByRole('button', { name: 'Create' }))
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/maintenance/tasks' &&
+            (request.body as { assetId: number | null }).assetId === 1,
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('clears a linked asset and submits a null id', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      tasks: [makeTask(1, { assetId: 1, assetName: 'Public boiler' })],
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Open task Task 01' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit maintenance task' })
+
+    // The existing link is resolved independently and rendered as selected.
+    expect(await within(editor).findByText('Public boiler')).toBeInTheDocument()
+
+    await user.click(within(editor).getByRole('button', { name: 'Clear linked asset' }))
+    expect(within(editor).getByText('No linked asset')).toBeInTheDocument()
+
+    await user.click(within(editor).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'PUT' &&
+            request.url === '/api/maintenance/tasks/1' &&
+            (request.body as { assetId: number | null }).assetId === null,
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('keeps an existing link that is absent from the selector page', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      tasks: [
+        makeTask(1, { assetId: 5, assetName: 'Garage door', visibility: 'Private' }),
+      ],
+      linkedAssets: [makeAsset(5, { name: 'Garage door', visibility: 'Private' })],
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Open task Task 01' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit maintenance task' })
+    expect(await within(editor).findByText('Garage door')).toBeInTheDocument()
+
+    // The selector page never lists the linked asset, yet the editor keeps it.
+    await user.click(within(editor).getByRole('button', { name: 'Change asset' }))
+    const selector = await screen.findByRole('dialog', { name: /Select an asset/ })
+    await within(selector).findByText('Public boiler')
+    expect(within(selector).queryByText('Garage door')).not.toBeInTheDocument()
+
+    await user.click(within(selector).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Select an asset/ })).toBeNull(),
+    )
+    expect(within(editor).getByText('Garage door')).toBeInTheDocument()
+  })
+
+  it('shows a degraded selected state when an existing link cannot be resolved', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      tasks: [
+        makeTask(1, {
+          assetId: 77,
+          assetName: 'Archived press',
+          visibility: 'Private',
+        }),
+      ],
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Open task Task 01' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit maintenance task' })
+
+    // The asset cannot be fetched, so the known name is shown as an unavailable
+    // selection that the user can still change or clear.
+    expect(await within(editor).findByText('Archived press')).toBeInTheDocument()
+    expect(
+      within(editor).getByRole('button', { name: 'Clear linked asset' }),
+    ).toBeEnabled()
+  })
+
+  it('cancels the selector without changing the form', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Task 01')
+    await user.click(screen.getByRole('button', { name: 'New task' }))
+    const editor = await screen.findByRole('dialog', { name: 'New maintenance task' })
+
+    await user.click(within(editor).getByRole('button', { name: 'Browse assets' }))
+    const selector = await screen.findByRole('dialog', { name: /Select an asset/ })
+    await within(selector).findByText('Public boiler')
+    await user.click(within(selector).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Select an asset/ })).toBeNull(),
+    )
+    // No asset was selected: the field stays empty and Browse remains available.
+    expect(within(editor).getByText('No linked asset')).toBeInTheDocument()
+    expect(
+      within(editor).getByRole('button', { name: 'Browse assets' }),
+    ).toBeInTheDocument()
   })
 })

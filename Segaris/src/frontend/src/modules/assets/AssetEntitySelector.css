@@ -1,0 +1,11 @@
+/* ============================================================
+   Asset selector adapter — Asset-specific presentation layered on
+   the shared entity selector. The primary name column reads as
+   primary/emphasized text against the secondary metadata columns,
+   matching the entity-selector reference (`.seg-seln strong`).
+   ============================================================ */
+
+.seg-asset-sel__name {
+  font-weight: var(--weight-emphasis);
+  color: var(--text-primary);
+}

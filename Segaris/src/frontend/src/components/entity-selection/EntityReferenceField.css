@@ -1,0 +1,117 @@
+/* ============================================================
+   Entity reference field — a file-selector-style control showing
+   an empty or selected entity link. Shared, business-agnostic.
+   Adapted from the entity-selector reference (`RefControl`).
+   ============================================================ */
+
+.seg-ref {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-frost);
+  -webkit-backdrop-filter: var(--blur-chip);
+  backdrop-filter: var(--blur-chip);
+  transition:
+    border-color var(--dur-base) var(--ease-soft),
+    background var(--dur-base) var(--ease-soft);
+}
+
+.seg-ref--empty {
+  border-style: dashed;
+}
+
+.seg-ref--filled {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.seg-ref--unavailable {
+  border-color: color-mix(in srgb, var(--warning) 42%, transparent);
+  background: var(--warning-soft);
+}
+
+.seg-ref--disabled {
+  opacity: 0.55;
+}
+
+/* ---- Leading icon ----------------------------------------- */
+.seg-ref__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.seg-ref--filled .seg-ref__icon {
+  background: var(--accent-soft);
+  color: var(--accent-press);
+}
+
+.seg-ref--unavailable .seg-ref__icon {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--gold-600);
+}
+
+/* ---- Body ------------------------------------------------- */
+.seg-ref__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.seg-ref__placeholder {
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.seg-ref__hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-snug);
+}
+
+.seg-ref__name {
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seg-ref__meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seg-ref--unavailable .seg-ref__name {
+  color: var(--gold-600);
+}
+
+/* ---- Actions ---------------------------------------------- */
+.seg-ref__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.seg-ref__spinner {
+  color: var(--accent);
+}
