@@ -1,7 +1,9 @@
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Projects.Contracts;
+using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Api.Modules.Projects.Mutations;
+using Segaris.Api.Modules.Projects.Queries;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Identity;
 
@@ -14,6 +16,103 @@ internal static class ProjectsEndpoints
         var group = endpoints.MapSegarisApiGroup("projects", ProjectsApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapTreeEndpoints(group);
+        MapProjectEndpoints(group);
+        MapActivityEndpoints(group);
+        MapStructureEndpoints(group);
+    }
+
+    private static void MapTreeEndpoints(RouteGroupBuilder group)
+    {
+        var tree = group.MapGroup("/tree");
+        tree.MapGet("/programs", ListTreeProgramsAsync)
+            .WithName("ListProjectTreePrograms")
+            .WithSummary("Returns Project tree programs ordered by code")
+            .Produces<IReadOnlyList<ProgramNodeResponse>>();
+
+        tree.MapGet("/programs/{programId:int}/axes", ListTreeAxesAsync)
+            .WithName("ListProjectTreeAxes")
+            .WithSummary("Returns Project tree axes for a program ordered by code")
+            .Produces<IReadOnlyList<AxisNodeResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        tree.MapGet("/axes/{axisId:int}/items", ListTreeItemsAsync)
+            .WithName("ListProjectTreeItems")
+            .WithSummary("Returns accessible projects and activities for an axis ordered by number")
+            .Produces<IReadOnlyList<ProjectTreeItemResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapProjectEndpoints(RouteGroupBuilder group)
+    {
+        var projects = group.MapGroup("/projects");
+        projects.MapPost("", CreateProjectAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateProject")
+            .WithSummary("Creates a Project under an axis")
+            .Produces<ProjectResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapGet("/{projectId:int}", GetProjectAsync)
+            .WithName("GetProject")
+            .WithSummary("Returns an accessible Project")
+            .Produces<ProjectResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapPut("/{projectId:int}", UpdateProjectAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateProject")
+            .WithSummary("Updates an accessible Project")
+            .Produces<ProjectResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        projects.MapDelete("/{projectId:int}", DeleteProjectAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProject")
+            .WithSummary("Deletes an accessible Project")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapActivityEndpoints(RouteGroupBuilder group)
+    {
+        var activities = group.MapGroup("/activities");
+        activities.MapPost("", CreateActivityAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateProjectActivity")
+            .WithSummary("Creates a Project activity under an axis")
+            .Produces<ActivityResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        activities.MapGet("/{activityId:int}", GetActivityAsync)
+            .WithName("GetProjectActivity")
+            .WithSummary("Returns an accessible Project activity")
+            .Produces<ActivityResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        activities.MapPut("/{activityId:int}", UpdateActivityAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateProjectActivity")
+            .WithSummary("Updates an accessible Project activity")
+            .Produces<ActivityResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        activities.MapDelete("/{activityId:int}", DeleteActivityAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProjectActivity")
+            .WithSummary("Deletes an accessible Project activity")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapStructureEndpoints(RouteGroupBuilder group)
+    {
         group.MapGet("/programs", ListProgramsAsync)
             .WithName("ListProjectPrograms")
             .WithSummary("Returns Project programs ordered by code")
@@ -40,6 +139,168 @@ internal static class ProjectsEndpoints
     }
 
     private static UserId Actor(ICurrentUser currentUser) => currentUser.UserId ?? throw ProjectsStructureProblem.ProgramNotFound();
+
+    private static async Task<IResult> ListTreeProgramsAsync(ProjectsReadService read, CancellationToken token) =>
+        TypedResults.Ok(await read.ListProgramsAsync(token));
+
+    private static async Task<IResult> ListTreeAxesAsync(int programId, ProjectsReadService read, CancellationToken token) =>
+        TypedResults.Ok(await read.ListAxesByProgramAsync(programId, token));
+
+    private static async Task<IResult> ListTreeItemsAsync(int axisId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await read.ListItemsByAxisAsync(axisId, userId, token));
+    }
+
+    private static async Task<IResult> GetProjectAsync(int projectId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return await read.GetProjectAsync(projectId, userId, token) is { } project
+            ? TypedResults.Ok(project)
+            : throw ProjectsProblem.ProjectNotFound();
+    }
+
+    private static async Task<IResult> CreateProjectAsync(CreateProjectRequest request, ProjectItemWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int projectId;
+        try
+        {
+            projectId = await write.CreateProjectAsync(request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromProjectValidation(exception);
+        }
+
+        var project = await read.GetProjectAsync(projectId, userId, token);
+        return TypedResults.Created($"/api/projects/projects/{projectId}", project);
+    }
+
+    private static async Task<IResult> UpdateProjectAsync(int projectId, UpdateProjectRequest request, ProjectItemWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateProjectAsync(projectId, request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromProjectValidation(exception);
+        }
+
+        if (!updated)
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        return TypedResults.Ok(await read.GetProjectAsync(projectId, userId, token));
+    }
+
+    private static async Task<IResult> DeleteProjectAsync(int projectId, ProjectItemWriteService write, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await write.DeleteProjectAsync(projectId, userId, token))
+        {
+            throw ProjectsProblem.ProjectNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> GetActivityAsync(int activityId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return await read.GetActivityAsync(activityId, userId, token) is { } activity
+            ? TypedResults.Ok(activity)
+            : throw ProjectsProblem.ActivityNotFound();
+    }
+
+    private static async Task<IResult> CreateActivityAsync(CreateActivityRequest request, ProjectItemWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int activityId;
+        try
+        {
+            activityId = await write.CreateActivityAsync(request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromActivityValidation(exception);
+        }
+
+        var activity = await read.GetActivityAsync(activityId, userId, token);
+        return TypedResults.Created($"/api/projects/activities/{activityId}", activity);
+    }
+
+    private static async Task<IResult> UpdateActivityAsync(int activityId, UpdateActivityRequest request, ProjectItemWriteService write, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateActivityAsync(activityId, request, userId, token);
+        }
+        catch (ProjectsValidationException exception)
+        {
+            throw ProjectsProblem.FromActivityValidation(exception);
+        }
+
+        if (!updated)
+        {
+            throw ProjectsProblem.ActivityNotFound();
+        }
+
+        return TypedResults.Ok(await read.GetActivityAsync(activityId, userId, token));
+    }
+
+    private static async Task<IResult> DeleteActivityAsync(int activityId, ProjectItemWriteService write, ICurrentUser currentUser, CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await write.DeleteActivityAsync(activityId, userId, token))
+        {
+            throw ProjectsProblem.ActivityNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static async Task<IResult> ListProgramsAsync(ProjectsStructureManagementService service, CancellationToken token) =>
         TypedResults.Ok(await service.ListProgramsAsync(token));

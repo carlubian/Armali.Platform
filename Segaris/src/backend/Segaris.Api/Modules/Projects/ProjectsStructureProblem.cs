@@ -1,5 +1,5 @@
-using Segaris.Api.Platform.Api;
 using Segaris.Api.Modules.Projects.Domain;
+using Segaris.Api.Platform.Api;
 
 namespace Segaris.Api.Modules.Projects;
 

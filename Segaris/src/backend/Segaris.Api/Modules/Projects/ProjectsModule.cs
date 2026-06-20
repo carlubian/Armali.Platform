@@ -3,6 +3,7 @@ using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Projects.Attention;
 using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Modules.Projects.Persistence;
+using Segaris.Api.Modules.Projects.Queries;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Projects;
@@ -30,6 +31,8 @@ internal sealed class ProjectsModule : ISegarisModule
     {
         services.AddSingleton<ISegarisModelContributor, ProjectsModelContributor>();
         services.AddScoped<ProjectNumberAllocator>();
+        services.AddScoped<ProjectItemWriteService>();
+        services.AddScoped<ProjectsReadService>();
         services.AddScoped<ProjectsStructureManagementService>();
         services.AddScoped<ILauncherAttentionContributor, ProjectsAttentionContributor>();
     }
