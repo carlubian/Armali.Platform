@@ -364,6 +364,8 @@ Exit criteria:
 
 ### Wave 8: End-To-End, Hardening, And Acceptance
 
+Status: delivered in `docs/planning/PROJECTS_ACCEPTANCE.md`.
+
 Validate the implemented behaviour across both providers and the deployed
 frontend/backend boundary.
 
