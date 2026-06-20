@@ -67,7 +67,6 @@ export const maintenance = {
       visibility: 'Visibility',
       mine: 'My tasks',
       anyOption: 'All',
-      noAssetOption: 'No linked asset',
       more: 'More filters',
       fewer: 'Fewer filters',
       clearAll: 'Clear all',
