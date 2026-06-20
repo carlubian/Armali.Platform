@@ -25,6 +25,8 @@ import { Badge, type BadgeTone } from '@/components/ui'
 import { assetsKeys } from './contracts'
 import { useAssetCategories, useAssetLocations } from './queries'
 
+import './AssetEntitySelector.css'
+
 const statuses: AssetStatus[] = ['Active', 'Stored', 'Retired']
 const visibilities: AssetVisibility[] = ['Public', 'Private']
 

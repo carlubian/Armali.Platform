@@ -58,6 +58,69 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledTimes(3)
   })
 
+  it('wraps Tab from the last control back to the first', async () => {
+    const user = userEvent.setup()
+    render(
+      <Dialog
+        title="Trapped"
+        onClose={() => {}}
+        footer={<button type="button">Confirm</button>}
+      >
+        <button type="button">Body</button>
+      </Dialog>,
+    )
+
+    const close = screen.getByRole('button', { name: 'Close' })
+    screen.getByRole('button', { name: 'Confirm' }).focus()
+    await user.tab()
+
+    expect(close).toHaveFocus()
+  })
+
+  it('wraps Shift+Tab from the first control to the last', async () => {
+    const user = userEvent.setup()
+    render(
+      <Dialog
+        title="Trapped"
+        onClose={() => {}}
+        footer={<button type="button">Confirm</button>}
+      >
+        <button type="button">Body</button>
+      </Dialog>,
+    )
+
+    const confirm = screen.getByRole('button', { name: 'Confirm' })
+    screen.getByRole('button', { name: 'Close' }).focus()
+    await user.tab({ shift: true })
+
+    expect(confirm).toHaveFocus()
+  })
+
+  it('keeps Tab focus inside the topmost dialog when dialogs are stacked', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <Dialog title="Editor" onClose={() => {}}>
+          <button type="button">Editor body</button>
+        </Dialog>
+        <Dialog
+          title="Selector"
+          onClose={() => {}}
+          footer={<button type="button">Pick</button>}
+        >
+          <button type="button">Selector body</button>
+        </Dialog>
+      </>,
+    )
+
+    const selectorClose = screen.getAllByRole('button', { name: 'Close' })[1]
+    screen.getByRole('button', { name: 'Pick' }).focus()
+    await user.tab()
+
+    expect(selectorClose).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Editor body' })).not.toHaveFocus()
+  })
+
   it('only closes the topmost dialog on Escape when dialogs are stacked', async () => {
     const user = userEvent.setup()
     const onCloseEditor = vi.fn()

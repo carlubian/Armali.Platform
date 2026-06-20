@@ -486,7 +486,9 @@ export function EntitySelectorDialog<T>({
 
       <div className="seg-selector__strip">
         <span className="seg-selector__count">
-          {labels.resultCount(total)}
+          {/* Announce the count as results narrow through search/filter/sort,
+              so non-visual users get the same feedback as the visible number. */}
+          <span aria-live="polite">{labels.resultCount(total)}</span>
           {isFetching && !isLoading && (
             <Spinner
               size={14}
