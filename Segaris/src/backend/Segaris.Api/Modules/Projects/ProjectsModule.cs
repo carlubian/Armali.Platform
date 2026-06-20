@@ -1,6 +1,9 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Projects.Attention;
+using Segaris.Api.Modules.Projects.Mutations;
+using Segaris.Api.Modules.Projects.Persistence;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Projects;
 
@@ -25,6 +28,8 @@ internal sealed class ProjectsModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ISegarisModelContributor, ProjectsModelContributor>();
+        services.AddScoped<ProjectNumberAllocator>();
         services.AddScoped<ILauncherAttentionContributor, ProjectsAttentionContributor>();
     }
 

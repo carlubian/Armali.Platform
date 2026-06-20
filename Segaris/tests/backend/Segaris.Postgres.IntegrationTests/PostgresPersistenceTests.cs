@@ -27,12 +27,16 @@ using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Mood.Contracts;
 using Segaris.Api.Modules.Mood.Domain;
 using Segaris.Api.Modules.Opex.Domain;
+using Segaris.Api.Modules.Projects.Domain;
+using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
+using Segaris.Shared.Time;
 using Testcontainers.PostgreSql;
+using ProjectActivity = Segaris.Api.Modules.Projects.Domain.Activity;
 
 namespace Segaris.Postgres.IntegrationTests;
 
@@ -106,6 +110,70 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task Postgres_persists_projects_hierarchy_and_concurrent_number_allocations()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        await using var factory = CreateFactory();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var now = new DateTimeOffset(2026, 6, 20, 10, 0, 0, TimeSpan.Zero);
+            database.Set<SegarisUser>().Add(new SegarisUser
+            {
+                Id = 7001,
+                UserName = "projects-owner",
+                NormalizedUserName = "PROJECTS-OWNER",
+                DisplayName = "Projects Owner",
+                Language = "en-GB",
+                CreatedAt = now,
+            });
+            await database.SaveChangesAsync();
+
+            var program = ProjectProgram.Create("Infrastructure", "INFR", new UserId(7001), now);
+            database.Add(program);
+            await database.SaveChangesAsync();
+            var axis = ProjectAxis.Create(program.Id, "Websites", "WEBS", new UserId(7001), now);
+            database.Add(axis);
+            await database.SaveChangesAsync();
+        }
+
+        var numbers = await Task.WhenAll(
+            Enumerable.Range(0, 8).Select(async index =>
+            {
+                await using var scope = factory.Services.CreateAsyncScope();
+                var allocator = scope.ServiceProvider.GetRequiredService<ProjectNumberAllocator>();
+                var number = await allocator.AllocateAsync(CancellationToken.None);
+                var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+                var axisId = await database.Set<ProjectAxis>().Select(axis => axis.Id).SingleAsync();
+                if (index % 2 == 0)
+                {
+                    database.Add(Project.Create(
+                        new ProjectItemValues(axisId, $"Project {index}", ProjectStatus.Planning, RecordVisibility.Public),
+                        number,
+                        new UserId(7001),
+                        new DateTimeOffset(2026, 6, 20, 10, index, 0, TimeSpan.Zero)));
+                }
+                else
+                {
+                    database.Add(ProjectActivity.Create(
+                        new ProjectItemValues(axisId, $"Activity {index}", ProjectStatus.Active, RecordVisibility.Public),
+                        number,
+                        new UserId(7001),
+                        new DateTimeOffset(2026, 6, 20, 10, index, 0, TimeSpan.Zero)));
+                }
+
+                await database.SaveChangesAsync();
+                return number;
+            }));
+
+        Assert.Equal(Enumerable.Range(1, 8), numbers.Order());
     }
 
     [Fact]
@@ -1192,6 +1260,11 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Contains(applied, migration => migration.EndsWith("_OpexDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_InventoryDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_TravelDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_MoodDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_ClothesDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_AssetsDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_MaintenanceDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_ProjectsDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         // Three catalog tables plus the one-time initialization table.
@@ -1211,6 +1284,14 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'mood_%'";
         Assert.Equal(1L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND (table_name LIKE 'clothes_%' OR table_name LIKE 'clothing_%')";
+        Assert.Equal(4L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND (table_name = 'assets' OR table_name LIKE 'asset_%')";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'maintenance_%'";
+        Assert.Equal(2L, (long)(await countCommand.ExecuteScalarAsync())!);
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'projects_%'";
+        Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]
