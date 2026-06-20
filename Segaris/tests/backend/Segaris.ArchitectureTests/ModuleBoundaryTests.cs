@@ -23,6 +23,7 @@ public sealed class ModuleBoundaryTests
     private const string AssetsContractsNamespace = "Segaris.Api.Modules.Assets.Contracts";
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
     private const string MaintenanceNamespace = "Segaris.Api.Modules.Maintenance";
+    private const string ProjectsNamespace = "Segaris.Api.Modules.Projects";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -41,6 +42,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(AssetsNamespace));
         Assert.NotEmpty(TypesIn(MoodNamespace));
         Assert.NotEmpty(TypesIn(MaintenanceNamespace));
+        Assert.NotEmpty(TypesIn(ProjectsNamespace));
     }
 
     [Fact]
@@ -283,6 +285,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, AssetsNamespace);
         AssertNoDependency(LauncherNamespace, MoodNamespace);
         AssertNoDependency(LauncherNamespace, MaintenanceNamespace);
+        AssertNoDependency(LauncherNamespace, ProjectsNamespace);
     }
 
     [Fact]
@@ -373,6 +376,62 @@ public sealed class ModuleBoundaryTests
         Assert.NotNull(deletionHandler);
         Assert.True(IsInNamespace(reader!, AssetsContractsNamespace));
         Assert.True(IsInNamespace(deletionHandler!, AssetsContractsNamespace));
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_projects()
+    {
+        AssertNoDependency(ConfigurationNamespace, ProjectsNamespace);
+    }
+
+    [Fact]
+    public void Projects_depends_on_configuration_contracts()
+    {
+        // Projects owns the Program and Axis structural nodes surfaced through the
+        // Configuration presentation boundary, so it consumes Configuration's published
+        // contracts. Its absence would mean the catalogue-presentation boundary was
+        // inverted.
+        var dependsOnConfiguration = TypesIn(ProjectsNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Projects must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Projects_does_not_depend_on_other_business_modules()
+    {
+        // Projects is an independent business module: it may consume Configuration,
+        // Attachments, Identity, and platform contracts (and contributes a constant
+        // non-attention launcher state), but it must remain independent from every
+        // other business module.
+        AssertNoDependency(ProjectsNamespace, CapexNamespace);
+        AssertNoDependency(ProjectsNamespace, OpexNamespace);
+        AssertNoDependency(ProjectsNamespace, InventoryNamespace);
+        AssertNoDependency(ProjectsNamespace, TravelNamespace);
+        AssertNoDependency(ProjectsNamespace, ClothesNamespace);
+        AssertNoDependency(ProjectsNamespace, AssetsNamespace);
+        AssertNoDependency(ProjectsNamespace, MoodNamespace);
+        AssertNoDependency(ProjectsNamespace, MaintenanceNamespace);
+    }
+
+    [Fact]
+    public void No_module_depends_on_projects()
+    {
+        // Projects publishes no cross-module contracts: no other module, including
+        // Configuration and Launcher, may reference the Projects namespace.
+        AssertNoDependency(ConfigurationNamespace, ProjectsNamespace);
+        AssertNoDependency(LauncherNamespace, ProjectsNamespace);
+        AssertNoDependency(CapexNamespace, ProjectsNamespace);
+        AssertNoDependency(OpexNamespace, ProjectsNamespace);
+        AssertNoDependency(InventoryNamespace, ProjectsNamespace);
+        AssertNoDependency(TravelNamespace, ProjectsNamespace);
+        AssertNoDependency(ClothesNamespace, ProjectsNamespace);
+        AssertNoDependency(AssetsNamespace, ProjectsNamespace);
+        AssertNoDependency(MoodNamespace, ProjectsNamespace);
+        AssertNoDependency(MaintenanceNamespace, ProjectsNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
