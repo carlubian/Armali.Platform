@@ -123,11 +123,14 @@ describe('projects contracts', () => {
       mode: 'closed',
     })
     expect(
+      parseProjectsDialogState(new URLSearchParams(`newItem=${axisRefValue(789)}`)),
+    ).toEqual({ mode: 'createItem', axisId: 789, itemMode: 'project' })
+    expect(
       parseProjectsDialogState(new URLSearchParams(`newProject=${axisRefValue(789)}`)),
-    ).toEqual({ mode: 'createProject', axisId: 789 })
+    ).toEqual({ mode: 'createItem', axisId: 789, itemMode: 'project' })
     expect(
       parseProjectsDialogState(new URLSearchParams('newActivity=axis-789')),
-    ).toEqual({ mode: 'createActivity', axisId: 789 })
+    ).toEqual({ mode: 'createItem', axisId: 789, itemMode: 'activity' })
     expect(parseProjectsDialogState(new URLSearchParams('projectId=123'))).toEqual({
       mode: 'editProject',
       projectId: 123,

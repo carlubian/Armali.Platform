@@ -10,14 +10,14 @@ import { useSearchParams } from 'react-router-dom'
  */
 export type ProjectsDialogState =
   | { mode: 'closed' }
-  | { mode: 'createProject'; axisId: number }
-  | { mode: 'createActivity'; axisId: number }
+  | { mode: 'createItem'; axisId: number; itemMode: 'project' | 'activity' }
   | { mode: 'editProject'; projectId: number; risks: boolean }
   | { mode: 'editActivity'; activityId: number }
 
 const DIALOG_PARAMS = [
   'projectId',
   'activityId',
+  'newItem',
   'newProject',
   'newActivity',
   'risks',
@@ -41,12 +41,19 @@ export function axisRefValue(axisId: number): string {
 }
 
 export function parseProjectsDialogState(params: URLSearchParams): ProjectsDialogState {
+  const newItemAxis = axisRef(params.get('newItem'))
+  if (newItemAxis != null) {
+    return { mode: 'createItem', axisId: newItemAxis, itemMode: 'project' }
+  }
+
   const newProjectAxis = axisRef(params.get('newProject'))
-  if (newProjectAxis != null) return { mode: 'createProject', axisId: newProjectAxis }
+  if (newProjectAxis != null) {
+    return { mode: 'createItem', axisId: newProjectAxis, itemMode: 'project' }
+  }
 
   const newActivityAxis = axisRef(params.get('newActivity'))
   if (newActivityAxis != null) {
-    return { mode: 'createActivity', axisId: newActivityAxis }
+    return { mode: 'createItem', axisId: newActivityAxis, itemMode: 'activity' }
   }
 
   const projectId = intOrNull(params.get('projectId'))
@@ -80,9 +87,7 @@ export function useProjectsDialogState() {
 
   return {
     dialog,
-    openCreateProject: (axisId: number) => apply({ newProject: axisRefValue(axisId) }),
-    openCreateActivity: (axisId: number) =>
-      apply({ newActivity: axisRefValue(axisId) }),
+    openCreateItem: (axisId: number) => apply({ newItem: axisRefValue(axisId) }),
     openProject: (projectId: number) => apply({ projectId: String(projectId) }),
     openProjectRisks: (projectId: number) =>
       apply({ projectId: String(projectId), risks: 'true' }),

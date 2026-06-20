@@ -138,7 +138,31 @@ function mockBackend() {
     if (url === '/api/projects/programs' && method === 'GET') return json(programs)
     if (url === '/api/projects/axes' && method === 'GET') return json(axes)
     if (url === '/api/projects/projects/10' && method === 'GET') return json(projectDetail())
+    if (url === '/api/projects/projects' && method === 'POST') {
+      requests.push({ method, url, body })
+      return json({
+        ...projectDetail(),
+        id: 12,
+        identifier: 'PRGMWEBB-000003 Created project',
+        name: (body as { name: string }).name,
+        status: (body as { status: Project['status'] }).status,
+        visibility: (body as { visibility: Project['visibility'] }).visibility,
+        axisId: (body as { axisId: number }).axisId,
+      })
+    }
     if (url === '/api/projects/activities/20' && method === 'GET') return json(activityDetail())
+    if (url === '/api/projects/activities' && method === 'POST') {
+      requests.push({ method, url, body })
+      return json({
+        ...activityDetail(),
+        id: 21,
+        identifier: 'PRGMWEBB-000003 Created activity',
+        name: (body as { name: string }).name,
+        status: (body as { status: Activity['status'] }).status,
+        visibility: (body as { visibility: Activity['visibility'] }).visibility,
+        axisId: (body as { axisId: number }).axisId,
+      })
+    }
     if (url === '/api/projects/projects/10/attachments' && method === 'GET') {
       return json([
         {
@@ -193,19 +217,37 @@ describe('Projects page', () => {
     expect(screen.getByLabelText('Risk summary')).toHaveTextContent('High 1')
   })
 
-  it('opens an URL-backed create dialog without collapsing the expanded tree', async () => {
+  it('opens one URL-backed create dialog and switches between item types', async () => {
     const user = userEvent.setup()
-    mockBackend()
+    const { requests } = mockBackend()
     render(<App />)
 
     await user.click(buttonContaining(await screen.findByText('PRGM')))
     await user.click(buttonContaining(await screen.findByText('WEBB')))
     await screen.findByText(projectItem.identifier)
-    await user.click(screen.getByRole('button', { name: 'New project' }))
+    expect(screen.queryByRole('button', { name: 'New project' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New activity' })).not.toBeInTheDocument()
 
+    await user.click(screen.getByRole('button', { name: 'New item' }))
     expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument()
-    expect(window.location.search).toContain('newProject=axis-11')
+    expect(window.location.search).toContain('newItem=axis-11')
     expect(screen.getByText(projectItem.identifier)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: 'Activity' }))
+    const activityDialog = await screen.findByRole('dialog', { name: 'New activity' })
+    await user.type(within(activityDialog).getByRole('textbox', { name: 'Name' }), 'Created activity')
+    await user.click(within(activityDialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(
+        requests.find((request) => request.url === '/api/projects/activities')?.body,
+      ).toEqual({
+        axisId: 11,
+        name: 'Created activity',
+        status: 'Planning',
+        visibility: 'Public',
+      }),
+    )
   })
 
   it('computes the live risk score and submits risk CRUD requests', async () => {

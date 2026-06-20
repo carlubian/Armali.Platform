@@ -1,5 +1,7 @@
 .seg-projects {
-  min-height: 100%;
+  height: calc(100vh - var(--topbar-h));
+  display: flex;
+  flex-direction: column;
   padding: var(--space-8);
   color: var(--text-primary);
 }
@@ -34,11 +36,17 @@
 }
 
 .seg-projects__workspace {
-  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
   gap: var(--space-6);
 }
 
 .seg-projects__tree-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: var(--space-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
@@ -85,9 +93,15 @@
 }
 
 .seg-projects-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   margin-top: var(--space-5);
+  padding-right: var(--space-2);
+  scrollbar-gutter: stable;
 }
 
 .seg-projects-tree__program,

@@ -25,8 +25,7 @@ export const projects = {
     empty: 'No programmes have been configured yet.',
     noAxes: 'This programme has no axes yet.',
     noItems: 'This axis has no visible projects or activities.',
-    newProject: 'New project',
-    newActivity: 'New activity',
+    newItem: 'New item',
     openProject: 'Open project {{identifier}}',
     openActivity: 'Open activity {{identifier}}',
   },
@@ -56,6 +55,11 @@ export const projects = {
     delete: 'Delete',
     deleting: 'Deleting...',
     edit: 'Edit',
+  },
+  itemEditor: {
+    fields: {
+      type: 'Type',
+    },
   },
   validation: {
     nameRequired: 'A name is required.',

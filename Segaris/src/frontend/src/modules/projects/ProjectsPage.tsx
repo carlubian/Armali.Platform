@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
+  ClipboardList,
   ChevronDown,
   ChevronRight,
   FolderTree,
@@ -11,7 +12,7 @@ import {
   ShieldAlert,
   Trash2,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -69,6 +70,16 @@ type ToastKind =
 interface ToastState {
   kind: ToastKind
   name: string
+}
+
+const itemModes = ['project', 'activity'] as const
+
+function isItemMode(value: string): value is ItemMode {
+  return itemModes.some((itemMode) => itemMode === value)
+}
+
+function kindKey(itemMode: ItemMode): 'Project' | 'Activity' {
+  return itemMode === 'project' ? 'Project' : 'Activity'
 }
 
 export function ProjectsPage() {
@@ -172,8 +183,7 @@ export function ProjectsPage() {
                   expandedAxes={expandedAxes}
                   onToggle={() => toggleProgram(program.id)}
                   onToggleAxis={toggleAxis}
-                  onCreateProject={dialogState.openCreateProject}
-                  onCreateActivity={dialogState.openCreateActivity}
+                  onCreateItem={dialogState.openCreateItem}
                   onOpenProject={dialogState.openProject}
                   onOpenProjectRisks={dialogState.openProjectRisks}
                   onOpenActivity={dialogState.openActivity}
@@ -184,21 +194,10 @@ export function ProjectsPage() {
         </div>
       </section>
 
-      {dialogState.dialog.mode === 'createProject' && (
+      {dialogState.dialog.mode === 'createItem' && (
         <ProjectItemDialog
           mode="create"
-          itemMode="project"
-          axisId={dialogState.dialog.axisId}
-          currentUserId={session?.userId ?? null}
-          onClose={dialogState.closeDialog}
-          onSaved={handleSaved}
-          onDeleted={handleDeleted}
-        />
-      )}
-      {dialogState.dialog.mode === 'createActivity' && (
-        <ProjectItemDialog
-          mode="create"
-          itemMode="activity"
+          itemMode={dialogState.dialog.itemMode}
           axisId={dialogState.dialog.axisId}
           currentUserId={session?.userId ?? null}
           onClose={dialogState.closeDialog}
@@ -272,8 +271,7 @@ interface ProgramBranchProps {
   expandedAxes: Set<number>
   onToggle: () => void
   onToggleAxis: (axisId: number) => void
-  onCreateProject: (axisId: number) => void
-  onCreateActivity: (axisId: number) => void
+  onCreateItem: (axisId: number) => void
   onOpenProject: (projectId: number) => void
   onOpenProjectRisks: (projectId: number) => void
   onOpenActivity: (activityId: number) => void
@@ -285,8 +283,7 @@ function ProgramBranch({
   expandedAxes,
   onToggle,
   onToggleAxis,
-  onCreateProject,
-  onCreateActivity,
+  onCreateItem,
   onOpenProject,
   onOpenProjectRisks,
   onOpenActivity,
@@ -328,8 +325,7 @@ function ProgramBranch({
                   axis={axis}
                   expanded={expandedAxes.has(axis.id)}
                   onToggle={() => onToggleAxis(axis.id)}
-                  onCreateProject={onCreateProject}
-                  onCreateActivity={onCreateActivity}
+                  onCreateItem={onCreateItem}
                   onOpenProject={onOpenProject}
                   onOpenProjectRisks={onOpenProjectRisks}
                   onOpenActivity={onOpenActivity}
@@ -347,8 +343,7 @@ interface AxisBranchProps {
   axis: AxisNode
   expanded: boolean
   onToggle: () => void
-  onCreateProject: (axisId: number) => void
-  onCreateActivity: (axisId: number) => void
+  onCreateItem: (axisId: number) => void
   onOpenProject: (projectId: number) => void
   onOpenProjectRisks: (projectId: number) => void
   onOpenActivity: (activityId: number) => void
@@ -358,8 +353,7 @@ function AxisBranch({
   axis,
   expanded,
   onToggle,
-  onCreateProject,
-  onCreateActivity,
+  onCreateItem,
   onOpenProject,
   onOpenProjectRisks,
   onOpenActivity,
@@ -385,11 +379,13 @@ function AxisBranch({
           <span className="seg-projects-tree__node-name">{axis.name}</span>
         </button>
         <div className="seg-projects-tree__axis-actions">
-          <Button size="sm" variant="ghost" onClick={() => onCreateProject(axis.id)}>
-            {t('tree.newProject')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => onCreateActivity(axis.id)}>
-            {t('tree.newActivity')}
+          <Button
+            size="sm"
+            variant="ghost"
+            iconLeft={<Plus size={15} />}
+            onClick={() => onCreateItem(axis.id)}
+          >
+            {t('tree.newItem')}
           </Button>
         </div>
       </div>
@@ -519,14 +515,20 @@ function ProjectItemDialog({
   onOpenRisks,
 }: ProjectItemDialogProps) {
   const { t } = useTranslation('projects')
-  const title = t(`${itemMode}Editor.${mode}Title`)
+  const [createItemMode, setCreateItemMode] = useState<ItemMode>(itemMode)
+  useEffect(() => {
+    if (mode === 'create') setCreateItemMode(itemMode)
+  }, [axisId, itemMode, mode])
+
+  const effectiveItemMode = mode === 'create' ? createItemMode : itemMode
+  const title = t(`${effectiveItemMode}Editor.${mode}Title`)
   const detailQuery = useQuery({
     queryKey:
-      itemMode === 'project'
+      effectiveItemMode === 'project'
         ? projectsKeys.project(itemId as number)
         : projectsKeys.activity(itemId as number),
     queryFn: ({ signal }) =>
-      itemMode === 'project'
+      effectiveItemMode === 'project'
         ? projectsApi.getProject(itemId as number, signal)
         : projectsApi.getActivity(itemId as number, signal),
     enabled: mode === 'edit' && itemId != null,
@@ -555,7 +557,7 @@ function ProjectItemDialog({
       >
         <div className="seg-projects-editor__status">
           <Spinner />
-          <span>{t(`${itemMode}Editor.loading`)}</span>
+          <span>{t(`${effectiveItemMode}Editor.loading`)}</span>
         </div>
       </Dialog>
     )
@@ -580,7 +582,9 @@ function ProjectItemDialog({
         footer={<Button onClick={onClose}>{t('actions.close')}</Button>}
       >
         <p className="seg-projects-editor__error" role="alert">
-          {notFound ? t(`${itemMode}Editor.notFound`) : t(`${itemMode}Editor.loadError`)}
+          {notFound
+            ? t(`${effectiveItemMode}Editor.notFound`)
+            : t(`${effectiveItemMode}Editor.loadError`)}
         </p>
       </Dialog>
     )
@@ -601,14 +605,15 @@ function ProjectItemDialog({
   return (
     <ProjectItemForm
       mode={mode}
-      itemMode={itemMode}
+      itemMode={effectiveItemMode}
       itemId={itemId}
       item={item}
       title={title}
-      description={t(`${itemMode}Editor.${mode}Description`)}
+      description={t(`${effectiveItemMode}Editor.${mode}Description`)}
       initialValues={initialValues}
       axisOptions={axisOptions}
       canChangeVisibility={canChangeVisibility}
+      onItemModeChange={setCreateItemMode}
       onClose={onClose}
       onSaved={onSaved}
       onDeleted={onDeleted}
@@ -649,6 +654,7 @@ interface ProjectItemFormProps {
   initialValues: ItemFormValues
   axisOptions: AxisOption[]
   canChangeVisibility: boolean
+  onItemModeChange: (itemMode: ItemMode) => void
   onClose: () => void
   onSaved: (item: Project | Activity, itemMode: ItemMode, saveMode: SaveMode) => void
   onDeleted: (item: Project | Activity, itemMode: ItemMode) => void
@@ -673,6 +679,7 @@ function ProjectItemForm({
   initialValues,
   axisOptions,
   canChangeVisibility,
+  onItemModeChange,
   onClose,
   onSaved,
   onDeleted,
@@ -729,6 +736,9 @@ function ProjectItemForm({
     }
     mutation.mutate(request)
   })
+  const changeItemMode = (value: string) => {
+    if (isItemMode(value)) onItemModeChange(value)
+  }
 
   const footer = (
     <>
@@ -775,6 +785,27 @@ function ProjectItemForm({
               <span>{t(`${itemMode}Editor.identifier`)}</span>
               <strong>{item.identifier}</strong>
             </div>
+          )}
+          {mode === 'create' && (
+            <Field label={t('itemEditor.fields.type')}>
+              <SegmentedControl
+                aria-label={t('itemEditor.fields.type')}
+                name="itemMode"
+                value={itemMode}
+                onChange={(event) => changeItemMode(event.currentTarget.value)}
+                options={itemModes.map((option) => ({
+                  value: option,
+                  label: t(`kind.${kindKey(option)}`),
+                  icon:
+                    option === 'project' ? (
+                      <FolderTree size={15} />
+                    ) : (
+                      <ClipboardList size={15} />
+                    ),
+                  tone: option === 'project' ? 'accent' : 'neutral',
+                }))}
+              />
+            </Field>
           )}
           <section className="seg-projects-editor__section">
             <h3>{t(`${itemMode}Editor.sections.general`)}</h3>
