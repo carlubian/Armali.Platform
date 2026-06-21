@@ -45,8 +45,12 @@ export type PersonDialogState =
   | { mode: 'closed' }
   | { mode: 'create' }
   | { mode: 'edit'; personId: number }
-  | { mode: 'usernames'; personId: number }
-  | { mode: 'interactions'; personId: number }
+  | { mode: 'usernames'; personId: number; returnToEdit: boolean }
+  | { mode: 'interactions'; personId: number; returnToEdit: boolean }
+
+export interface OpenSubEntityDialogOptions {
+  returnToEdit?: boolean
+}
 
 function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | '' {
   return value != null && (allowed as readonly string[]).includes(value)
@@ -91,8 +95,11 @@ export function parsePersonDialogState(params: URLSearchParams): PersonDialogSta
 
   const personId = intOrNull(params.get('personId'))
   if (personId == null) return { mode: 'closed' }
-  if (params.get('usernames') === 'true') return { mode: 'usernames', personId }
-  if (params.get('interactions') === 'true') return { mode: 'interactions', personId }
+  const returnToEdit = params.get('returnTo') === 'edit'
+  if (params.get('usernames') === 'true')
+    return { mode: 'usernames', personId, returnToEdit }
+  if (params.get('interactions') === 'true')
+    return { mode: 'interactions', personId, returnToEdit }
   return { mode: 'edit', personId }
 }
 
@@ -158,8 +165,14 @@ export interface UsePeopleState {
   clearFilters: () => void
   openCreateDialog: () => void
   openEditDialog: (personId: number) => void
-  openUsernamesDialog: (personId: number) => void
-  openInteractionsDialog: (personId: number) => void
+  openUsernamesDialog: (
+    personId: number,
+    options?: OpenSubEntityDialogOptions,
+  ) => void
+  openInteractionsDialog: (
+    personId: number,
+    options?: OpenSubEntityDialogOptions,
+  ) => void
   closeDialog: () => void
 }
 
@@ -239,6 +252,7 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
       personId?: string | null
       usernames?: string | null
       interactions?: string | null
+      returnTo?: string | null
     }) => {
       setSearchParams((current) => {
         const next = new URLSearchParams(current)
@@ -250,6 +264,8 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
         else next.set('usernames', patch.usernames)
         if (patch.interactions == null) next.delete('interactions')
         else next.set('interactions', patch.interactions)
+        if (patch.returnTo == null) next.delete('returnTo')
+        else next.set('returnTo', patch.returnTo)
         return next
       })
     },
@@ -271,6 +287,7 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
         personId: null,
         usernames: null,
         interactions: null,
+        returnTo: null,
       }),
     openEditDialog: (personId: number) =>
       setDialogParams({
@@ -278,20 +295,26 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
         personId: String(personId),
         usernames: null,
         interactions: null,
+        returnTo: null,
       }),
-    openUsernamesDialog: (personId: number) =>
+    openUsernamesDialog: (personId: number, options?: OpenSubEntityDialogOptions) =>
       setDialogParams({
         newPerson: null,
         personId: String(personId),
         usernames: 'true',
         interactions: null,
+        returnTo: options?.returnToEdit === true ? 'edit' : null,
       }),
-    openInteractionsDialog: (personId: number) =>
+    openInteractionsDialog: (
+      personId: number,
+      options?: OpenSubEntityDialogOptions,
+    ) =>
       setDialogParams({
         newPerson: null,
         personId: String(personId),
         usernames: null,
         interactions: 'true',
+        returnTo: options?.returnToEdit === true ? 'edit' : null,
       }),
     closeDialog: () =>
       setDialogParams({
@@ -299,6 +322,7 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
         personId: null,
         usernames: null,
         interactions: null,
+        returnTo: null,
       }),
   }
 }

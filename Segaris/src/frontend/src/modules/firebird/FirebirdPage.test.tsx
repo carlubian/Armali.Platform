@@ -350,6 +350,22 @@ describe('Firebird gallery', () => {
     expect(await screen.findByText('Username saved')).toBeInTheDocument()
   })
 
+  it('closes a gallery username popup without opening the person editor', async () => {
+    const user = userEvent.setup()
+    mockBackend({ people: [makePerson(1, { name: 'Ada' })] })
+    render(<App />)
+
+    await screen.findByText('Ada')
+    await user.click(screen.getByRole('button', { name: 'Open usernames for Ada' }))
+    const popup = await screen.findByRole('dialog', { name: 'Usernames' })
+    await user.click(within(popup).getAllByRole('button', { name: 'Close' })[0])
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Usernames' })).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('dialog', { name: 'Edit person' })).not.toBeInTheDocument()
+  })
+
   it('shows interactions in server order and creates a dated interaction', async () => {
     const user = userEvent.setup()
     const { requests } = mockBackend({

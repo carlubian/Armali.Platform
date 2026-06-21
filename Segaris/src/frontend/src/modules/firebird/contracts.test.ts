@@ -98,10 +98,15 @@ describe('firebird contracts', () => {
     })
     expect(
       parsePersonDialogState(new URLSearchParams('personId=12&usernames=true')),
-    ).toEqual({ mode: 'usernames', personId: 12 })
+    ).toEqual({ mode: 'usernames', personId: 12, returnToEdit: false })
     expect(
       parsePersonDialogState(new URLSearchParams('personId=12&interactions=true')),
-    ).toEqual({ mode: 'interactions', personId: 12 })
+    ).toEqual({ mode: 'interactions', personId: 12, returnToEdit: false })
+    expect(
+      parsePersonDialogState(
+        new URLSearchParams('personId=12&usernames=true&returnTo=edit'),
+      ),
+    ).toEqual({ mode: 'usernames', personId: 12, returnToEdit: true })
     expect(parsePersonDialogState(new URLSearchParams('personId=0'))).toEqual({
       mode: 'closed',
     })

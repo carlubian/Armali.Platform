@@ -183,7 +183,12 @@ export function FirebirdPage() {
 
   const closeSubEntityDialog = () => {
     if (dialog.mode === 'usernames' || dialog.mode === 'interactions') {
-      openEditDialog(dialog.personId)
+      if (dialog.returnToEdit) {
+        openEditDialog(dialog.personId)
+        return
+      }
+
+      closeDialog()
       return
     }
     closeDialog()
@@ -629,8 +634,8 @@ interface PersonDialogProps {
   onClose: () => void
   onSaved: (person: Person, mode: 'create' | 'edit') => void
   onDeleted: (person: Person) => void
-  onOpenUsernames: (personId: number) => void
-  onOpenInteractions: (personId: number) => void
+  onOpenUsernames: (personId: number, options?: { returnToEdit?: boolean }) => void
+  onOpenInteractions: (personId: number, options?: { returnToEdit?: boolean }) => void
 }
 
 function PersonDialog({
@@ -735,8 +740,8 @@ interface PersonEditorFormProps {
   onClose: () => void
   onSaved: (person: Person, mode: 'create' | 'edit') => void
   onDeleted: (person: Person) => void
-  onOpenUsernames: (personId: number) => void
-  onOpenInteractions: (personId: number) => void
+  onOpenUsernames: (personId: number, options?: { returnToEdit?: boolean }) => void
+  onOpenInteractions: (personId: number, options?: { returnToEdit?: boolean }) => void
 }
 
 function PersonEditorForm({
@@ -1028,7 +1033,9 @@ function PersonEditorForm({
                 }
                 action={t('editor.manage.usernamesAction')}
                 disabled={mode !== 'edit' || personId == null}
-                onClick={() => personId != null && onOpenUsernames(personId)}
+                onClick={() =>
+                  personId != null && onOpenUsernames(personId, { returnToEdit: true })
+                }
               />
               <ManageCard
                 icon={<MessagesSquare size={17} />}
@@ -1040,7 +1047,10 @@ function PersonEditorForm({
                 }
                 action={t('editor.manage.interactionsAction')}
                 disabled={mode !== 'edit' || personId == null}
-                onClick={() => personId != null && onOpenInteractions(personId)}
+                onClick={() =>
+                  personId != null &&
+                  onOpenInteractions(personId, { returnToEdit: true })
+                }
               />
             </div>
           </section>

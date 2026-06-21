@@ -100,9 +100,20 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
   background: var(--surface-frost);
+  box-shadow: var(--glow-card);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.seg-person-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: var(--glow-aqua), var(--glow-card);
 }
 .seg-person-card--dim {
   opacity: 0.62;
@@ -188,10 +199,9 @@
 .seg-person-card__actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
   margin-top: auto;
   border-top: 1px solid var(--border-subtle);
-  background: var(--border-subtle);
+  background: transparent;
 }
 .seg-person-card__action {
   display: inline-flex;
@@ -209,6 +219,9 @@
 }
 .seg-person-card__action:first-child {
   border-bottom-left-radius: var(--radius-card);
+}
+.seg-person-card__action + .seg-person-card__action {
+  border-left: 1px solid var(--border-subtle);
 }
 .seg-person-card__action:last-child {
   border-bottom-right-radius: var(--radius-card);
