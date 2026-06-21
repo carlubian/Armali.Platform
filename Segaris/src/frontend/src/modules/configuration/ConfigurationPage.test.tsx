@@ -1040,9 +1040,7 @@ describe('Configuration deletion', () => {
     renderAt('/configuration/processes')
     await screen.findByText('Administrative')
 
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Delete Administrative' }),
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Administrative' }))
     const dialog = await screen.findByRole('dialog', {
       name: 'Remove Administrative',
     })

@@ -216,8 +216,7 @@ export const processes = {
     },
     optional: 'Optional',
     current: 'Current step',
-    note:
-      'Steps run in strict order. Resolved steps must stay before pending steps.',
+    note: 'Steps run in strict order. Resolved steps must stay before pending steps.',
     actions: {
       complete: 'Complete',
       skip: 'Skip',

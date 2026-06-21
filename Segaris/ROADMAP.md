@@ -3,9 +3,9 @@
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
 Current phase: **Phase 2 - Functional Definition**. Capex, Opex, Inventory,
-Travel, Assets, and Maintenance are implemented and accepted (see the matching
-acceptance records under `docs/planning/`); the remaining business modules are
-still in functional definition.
+Travel, Assets, Maintenance, Projects, and Processes are implemented and accepted
+(see the matching acceptance records under `docs/planning/`); the remaining
+business modules are still in functional definition.
 
 ## Status Legend
 
@@ -237,7 +237,10 @@ Module purpose: Multi-step tasks that need to be completed in order by a given d
 | Resolved | Sequential execution | Strict frontier model: only the next pending step can be completed (or skipped, if optional), only the most recently resolved step can be undone, and resolved steps always form a contiguous prefix. The step list is editable at any time, including while in progress, preserving step state by identity and re-validating the contiguity invariant. |
 | Resolved | Catalogue | Processes owns `ProcessCategory` (required, replace-only deletion) through Configuration, initialized once with the established module-owned catalogue pattern. Status, execution state, and the optional flag are fixed, not configurable. |
 | Resolved | User workflow | Processes opens directly on a server-paginated table with search, filters, sorting, and a URL-aware popup editor for process fields, plus a dedicated step-timeline popup for completing, skipping, undoing, and restructuring steps. The launcher card requests attention when an accessible open process has a global due date or next pending step due date that is overdue or within the next 7 days in `Europe/Madrid`. See `docs/requirements/PROCESSES_REQUIREMENTS.md`. |
-| Resolved | Implementation plan | Delivery is divided into Waves 0-8 in `docs/planning/PROCESSES_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation accepted | Processes is implemented and accepted through Wave 8. The acceptance mapping, OpenAPI/index review, and representative Playwright journey are recorded in `docs/planning/PROCESSES_ACCEPTANCE.md`. |
+| Deferred | Second-user Processes privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`ProcessEndpointTests`, `ProcessStepEndpointTests`, `ProcessAttachmentTests`, `ProcessAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred patterns for earlier modules. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
+| Deferred | Future Processes scope | Branching or parallel steps, recurring or templated processes, per-step attachments, system-managed completion dates, assignees, cost/effort, Projects integration, and Analytics/Calendar integration remain future versions. See `docs/requirements/PROCESSES_REQUIREMENTS.md`. |
 
 ### Archive
 

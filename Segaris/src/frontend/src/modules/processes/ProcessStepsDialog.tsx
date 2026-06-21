@@ -11,7 +11,7 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { isApiError } from '@/app/api/errors'
@@ -71,8 +71,7 @@ export function ProcessStepsDialog({
 }: ProcessStepsDialogProps) {
   const { t } = useTranslation('processes')
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState<DraftStep[]>([])
-  const [dirty, setDirty] = useState(false)
+  const [draftOverride, setDraftOverride] = useState<DraftStep[] | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [structureError, setStructureError] = useState<string | null>(null)
 
@@ -83,15 +82,9 @@ export function ProcessStepsDialog({
 
   const process = query.data
 
-  useEffect(() => {
-    if (process == null || dirty) return
-    setDraft(toDraft(process.steps))
-  }, [dirty, process])
-
   const publishProcess = (saved: Process) => {
     queryClient.setQueryData(processesKeys.process(saved.id), saved)
-    setDraft(toDraft(saved.steps))
-    setDirty(false)
+    setDraftOverride(null)
     void queryClient.invalidateQueries({ queryKey: processesKeys.all })
     void queryClient.invalidateQueries({ queryKey: launcherKeys.attention() })
   }
@@ -118,7 +111,6 @@ export function ProcessStepsDialog({
     onError: (error) => setStructureError(mapStepError(error, t)),
   })
 
-  const validationError = useMemo(() => validateDraft(draft, t), [draft, t])
   const saving = restructureMutation.isPending
   const acting = frontierMutation.isPending
 
@@ -154,12 +146,15 @@ export function ProcessStepsDialog({
     )
   }
 
+  const baseDraft = toDraft(process.steps)
+  const draft = draftOverride ?? baseDraft
+  const dirty = draftOverride != null
+  const validationError = validateDraft(draft, t)
   const latestResolvedId = latestResolvedStepId(process.steps)
   const canSave = dirty && validationError == null && !saving
 
   const mutateDraft = (mapper: (current: DraftStep[]) => DraftStep[]) => {
-    setDraft((current) => mapper(current))
-    setDirty(true)
+    setDraftOverride((current) => mapper(current ?? baseDraft))
     setStructureError(null)
   }
 
@@ -328,7 +323,8 @@ function StepRow({
 }: StepRowProps) {
   const { t } = useTranslation('processes')
   const urgency = dueUrgency(step.dueDate)
-  const completeDisabled = busy || step.id == null || !frontier || step.state !== 'Pending'
+  const completeDisabled =
+    busy || step.id == null || !frontier || step.state !== 'Pending'
   const skipDisabled = completeDisabled || !step.isOptional
   const undoDisabled = busy || step.id == null || !latestResolved
 
@@ -371,9 +367,7 @@ function StepRow({
             label={t('steps.restructure.dueDate')}
             type="date"
             value={step.dueDate ?? ''}
-            onChange={(event) =>
-              onPatch({ dueDate: emptyToNull(event.target.value) })
-            }
+            onChange={(event) => onPatch({ dueDate: emptyToNull(event.target.value) })}
           />
           <Input
             label={t('steps.restructure.notes')}
@@ -505,10 +499,7 @@ function latestResolvedStepId(steps: ProcessStep[]): number | null {
   return null
 }
 
-function validateDraft(
-  draft: DraftStep[],
-  t: (key: string) => string,
-): string | null {
+function validateDraft(draft: DraftStep[], t: (key: string) => string): string | null {
   let pendingSeen = false
   for (const step of draft) {
     if (step.description.trim().length === 0) {

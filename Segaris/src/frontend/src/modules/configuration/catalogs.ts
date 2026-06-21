@@ -17,10 +17,7 @@ import {
   inventoryLocationsManagementApi,
 } from '@/app/api/inventory'
 import { opexApi, opexCategoriesManagementApi } from '@/app/api/opex'
-import {
-  processCategoriesManagementApi,
-  processesApi,
-} from '@/app/api/processes'
+import { processCategoriesManagementApi, processesApi } from '@/app/api/processes'
 import {
   travelApi,
   travelExpenseCategoriesManagementApi,

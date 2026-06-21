@@ -79,6 +79,14 @@ function makeDetail(id: number, overrides: Partial<Process> = {}): Process {
   }
 }
 
+function isStepListBody(value: unknown): value is {
+  steps: Array<{ description: string; id: number | null }>
+} {
+  if (typeof value !== 'object' || value == null) return false
+  const steps = (value as Record<string, unknown>).steps
+  return Array.isArray(steps)
+}
+
 function mockBackend(
   options: {
     processes?: ProcessSummary[]
@@ -140,7 +148,9 @@ function mockBackend(
           makeDetail(id, {
             ...detail,
             status:
-              steps.length > 0 && resolved === steps.length ? 'Completed' : 'InProgress',
+              steps.length > 0 && resolved === steps.length
+                ? 'Completed'
+                : 'InProgress',
             resolvedStepCount: resolved,
             totalStepCount: steps.length,
             nextPendingStepId: next,
@@ -165,7 +175,8 @@ function mockBackend(
           notes: step.notes,
           isOptional: step.isOptional,
           state:
-            detail.steps.find((existing) => existing.id === step.id)?.state ?? 'Pending',
+            detail.steps.find((existing) => existing.id === step.id)?.state ??
+            'Pending',
           sortOrder: index,
         }))
         const resolved = steps.filter((step) => step.state !== 'Pending').length
@@ -174,7 +185,8 @@ function mockBackend(
             ...detail,
             resolvedStepCount: resolved,
             totalStepCount: steps.length,
-            nextPendingStepId: steps.find((step) => step.state === 'Pending')?.id ?? null,
+            nextPendingStepId:
+              steps.find((step) => step.state === 'Pending')?.id ?? null,
             steps,
           }),
         )
@@ -488,15 +500,17 @@ describe('Processes page', () => {
     await user.type(descriptions[descriptions.length - 1], 'Collect passport')
     await user.click(within(dialog).getByRole('button', { name: 'Save step order' }))
 
-    await waitFor(() =>
-      expect(
-        requests.find((request) => request.method === 'PUT')?.body,
-      ).toMatchObject({
-        steps: expect.arrayContaining([
+    await waitFor(() => {
+      const body = requests.find((request) => request.method === 'PUT')?.body
+      expect(isStepListBody(body)).toBe(true)
+      expect(body).toBeDefined()
+      if (!isStepListBody(body)) return
+      expect(body.steps).toEqual(
+        expect.arrayContaining([
           expect.objectContaining({ description: 'Collect passport', id: null }),
         ]),
-      }),
-    )
+      )
+    })
   })
 
   it('deletes a process after confirmation', async () => {
