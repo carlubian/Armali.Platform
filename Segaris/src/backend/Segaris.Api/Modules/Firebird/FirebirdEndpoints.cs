@@ -1,10 +1,12 @@
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Firebird.Contracts;
+using Segaris.Api.Modules.Firebird.Domain;
 using Segaris.Api.Modules.Firebird.Mutations;
 using Segaris.Api.Modules.Firebird.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Firebird;
@@ -16,10 +18,44 @@ internal static class FirebirdEndpoints
         var group = endpoints.MapSegarisApiGroup(FirebirdApiRoutes.People, FirebirdApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapPersonEndpoints(group);
         MapCategoryEndpoints(group);
         MapPlatformEndpoints(group);
 
         return endpoints;
+    }
+
+    private static void MapPersonEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("", ListPeopleAsync)
+            .WithName("ListFirebirdPeople")
+            .WithSummary("Returns a paginated, filtered, and sorted gallery of accessible Firebird people")
+            .Produces<PaginatedResponse<PersonSummaryResponse>>();
+        group.MapPost("", CreatePersonAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateFirebirdPerson")
+            .WithSummary("Creates a Firebird person")
+            .Produces<PersonResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet(FirebirdApiRoutes.PersonById, GetPersonAsync)
+            .WithName("GetFirebirdPerson")
+            .WithSummary("Returns the detail of an accessible Firebird person")
+            .Produces<PersonResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(FirebirdApiRoutes.PersonById, UpdatePersonAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateFirebirdPerson")
+            .WithSummary("Replaces an accessible Firebird person")
+            .Produces<PersonResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(FirebirdApiRoutes.PersonById, DeletePersonAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteFirebirdPerson")
+            .WithSummary("Deletes an accessible Firebird person")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -59,6 +95,124 @@ internal static class FirebirdEndpoints
 
     private static async Task<IResult> ListPlatformsAsync(FirebirdCatalogReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListPlatformsAsync(cancellationToken));
+
+    private static async Task<IResult> ListPeopleAsync(
+        [AsParameters] FirebirdPersonListQuery query,
+        FirebirdPersonReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListPeopleAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetPersonAsync(
+        int personId,
+        FirebirdPersonReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var person = await read.GetPersonAsync(personId, userId, cancellationToken);
+        if (person is null)
+        {
+            throw FirebirdPersonProblem.NotFound();
+        }
+
+        return TypedResults.Ok(person);
+    }
+
+    private static async Task<IResult> CreatePersonAsync(
+        CreatePersonRequest request,
+        FirebirdPersonWriteService write,
+        FirebirdPersonReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int personId;
+        try
+        {
+            personId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdPersonProblem.From(exception);
+        }
+
+        var created = await read.GetPersonAsync(personId, userId, cancellationToken);
+        return TypedResults.Created($"/api/people/{personId}", created);
+    }
+
+    private static async Task<IResult> UpdatePersonAsync(
+        int personId,
+        UpdatePersonRequest request,
+        FirebirdPersonWriteService write,
+        FirebirdPersonReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(personId, request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdPersonProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw FirebirdPersonProblem.NotFound();
+        }
+
+        var person = await read.GetPersonAsync(personId, userId, cancellationToken);
+        return TypedResults.Ok(person);
+    }
+
+    private static async Task<IResult> DeletePersonAsync(
+        int personId,
+        FirebirdPersonWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(personId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw FirebirdPersonProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw PersonCategoryProblem.NotFound();
 
