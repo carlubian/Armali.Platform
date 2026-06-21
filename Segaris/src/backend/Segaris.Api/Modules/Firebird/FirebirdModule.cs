@@ -26,6 +26,8 @@ internal sealed class FirebirdModule : ISegarisModule
         services.AddScoped<FirebirdCatalogReadService>();
         services.AddScoped<FirebirdPersonReadService>();
         services.AddScoped<FirebirdPersonWriteService>();
+        services.AddScoped<FirebirdSubResourceService>();
+        services.AddScoped<FirebirdAvatarService>();
         services.AddScoped<PersonCategoryManagementService>();
         services.AddScoped<UsernamePlatformManagementService>();
     }

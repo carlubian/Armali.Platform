@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Firebird.Contracts;
 using Segaris.Api.Modules.Firebird.Domain;
@@ -82,6 +81,9 @@ internal sealed class FirebirdPersonReadService(SegarisDbContext database)
             return null;
         }
 
+        var usernames = await UsernameResponses(row.Id).ToArrayAsync(cancellationToken);
+        var interactions = await InteractionResponses(row.Id).ToArrayAsync(cancellationToken);
+
         return new PersonResponse(
             row.Id,
             row.Name,
@@ -93,8 +95,8 @@ internal sealed class FirebirdPersonReadService(SegarisDbContext database)
             row.Notes,
             row.Visibility.ToString(),
             Avatar(row.Id, row.AvatarAttachmentId),
-            [],
-            [],
+            usernames,
+            interactions,
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -173,18 +175,36 @@ internal sealed class FirebirdPersonReadService(SegarisDbContext database)
         return ascending ? ordered.ThenBy(person => person.Id) : ordered.ThenByDescending(person => person.Id);
     }
 
-    private static PersonAvatarResponse Avatar(int personId, int? attachmentId)
-    {
-        if (attachmentId is null)
-        {
-            return new(null, null, "placeholder");
-        }
+    private static PersonAvatarResponse Avatar(int personId, int? attachmentId) =>
+        attachmentId is null
+            ? FirebirdAvatarResponseFactory.Placeholder()
+            : FirebirdAvatarResponseFactory.Avatar(personId, attachmentId.Value);
 
-        return new(
-            attachmentId.Value.ToString(CultureInfo.InvariantCulture),
-            string.Create(CultureInfo.InvariantCulture, $"/api/people/{personId}/avatar"),
-            "avatar");
-    }
+    private IQueryable<UsernameResponse> UsernameResponses(int personId) =>
+        database.Set<Username>()
+            .AsNoTracking()
+            .Where(username => username.PersonId == personId)
+            .OrderBy(username => username.Id)
+            .Select(username => new UsernameResponse(
+                username.Id,
+                username.PlatformId,
+                database.Set<UsernamePlatform>()
+                    .Where(platform => platform.Id == username.PlatformId)
+                    .Select(platform => platform.Name)
+                    .First(),
+                username.Handle,
+                username.Notes));
+
+    private IQueryable<InteractionResponse> InteractionResponses(int personId) =>
+        database.Set<Interaction>()
+            .AsNoTracking()
+            .Where(interaction => interaction.PersonId == personId)
+            .OrderByDescending(interaction => interaction.Date)
+            .ThenByDescending(interaction => interaction.Id)
+            .Select(interaction => new InteractionResponse(
+                interaction.Id,
+                interaction.Date,
+                interaction.Description));
 
     private static string Escape(string value) => value
         .Replace("\\", "\\\\", StringComparison.Ordinal)

@@ -21,11 +21,35 @@ internal static class FirebirdTestData
             .SingleAsync();
     }
 
+    public static async Task<int> PlatformIdAsync(IServiceProvider services, string name)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<UsernamePlatform>()
+            .Where(platform => platform.Name == name)
+            .Select(platform => platform.Id)
+            .SingleAsync();
+    }
+
     public static async Task<bool> PersonExistsAsync(IServiceProvider services, int personId)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
         return await database.Set<Person>().AnyAsync(person => person.Id == personId);
+    }
+
+    public static async Task<bool> UsernameExistsAsync(IServiceProvider services, int usernameId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<Username>().AnyAsync(username => username.Id == usernameId);
+    }
+
+    public static async Task<bool> InteractionExistsAsync(IServiceProvider services, int interactionId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<Interaction>().AnyAsync(interaction => interaction.Id == interactionId);
     }
 
     public static async Task<int> SeedPersonAsync(

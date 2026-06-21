@@ -2,13 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Firebird.Contracts;
 using Segaris.Api.Modules.Firebird.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
 
 namespace Segaris.Api.Modules.Firebird.Mutations;
 
-internal sealed class FirebirdPersonWriteService(SegarisDbContext database, IClock clock)
+internal sealed class FirebirdPersonWriteService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IClock clock)
 {
     public async Task<int> CreateAsync(
         CreatePersonRequest request,
@@ -80,8 +84,19 @@ internal sealed class FirebirdPersonWriteService(SegarisDbContext database, IClo
             return false;
         }
 
+        var owner = FirebirdAttachments.PersonOwner(personId);
+        var avatar = person.AvatarAttachmentId is null
+            ? null
+            : await attachments.FindAsync(new(person.AvatarAttachmentId.Value), owner, cancellationToken);
+
         database.Remove(person);
         await database.SaveChangesAsync(cancellationToken);
+
+        if (avatar is not null)
+        {
+            await attachments.DeleteAsync(avatar.Id, owner, cancellationToken);
+        }
+
         return true;
     }
 

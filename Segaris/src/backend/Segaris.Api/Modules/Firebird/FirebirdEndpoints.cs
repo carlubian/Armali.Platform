@@ -6,6 +6,7 @@ using Segaris.Api.Modules.Firebird.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
@@ -54,6 +55,77 @@ internal static class FirebirdEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteFirebirdPerson")
             .WithSummary("Deletes an accessible Firebird person")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet(FirebirdApiRoutes.PersonUsernames, ListUsernamesAsync)
+            .WithName("ListFirebirdPersonUsernames")
+            .WithSummary("Returns the usernames of an accessible Firebird person")
+            .Produces<IReadOnlyList<UsernameResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(FirebirdApiRoutes.PersonUsernames, CreateUsernameAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateFirebirdPersonUsername")
+            .WithSummary("Creates a username for an accessible Firebird person")
+            .Produces<UsernameResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(FirebirdApiRoutes.PersonUsernameById, UpdateUsernameAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateFirebirdPersonUsername")
+            .WithSummary("Updates a username of an accessible Firebird person")
+            .Produces<UsernameResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(FirebirdApiRoutes.PersonUsernameById, DeleteUsernameAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteFirebirdPersonUsername")
+            .WithSummary("Deletes a username of an accessible Firebird person")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet(FirebirdApiRoutes.PersonInteractions, ListInteractionsAsync)
+            .WithName("ListFirebirdPersonInteractions")
+            .WithSummary("Returns the interactions of an accessible Firebird person")
+            .Produces<IReadOnlyList<InteractionResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(FirebirdApiRoutes.PersonInteractions, CreateInteractionAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateFirebirdPersonInteraction")
+            .WithSummary("Creates an interaction for an accessible Firebird person")
+            .Produces<InteractionResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(FirebirdApiRoutes.PersonInteractionById, UpdateInteractionAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateFirebirdPersonInteraction")
+            .WithSummary("Updates an interaction of an accessible Firebird person")
+            .Produces<InteractionResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(FirebirdApiRoutes.PersonInteractionById, DeleteInteractionAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteFirebirdPersonInteraction")
+            .WithSummary("Deletes an interaction of an accessible Firebird person")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet(FirebirdApiRoutes.PersonAvatar, DownloadAvatarAsync)
+            .WithName("DownloadFirebirdPersonAvatar")
+            .WithSummary("Downloads the avatar of an accessible Firebird person")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(FirebirdApiRoutes.PersonAvatar, PutAvatarAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("PutFirebirdPersonAvatar")
+            .WithSummary("Uploads or replaces the avatar of an accessible Firebird person")
+            .Produces<PersonAvatarResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(FirebirdApiRoutes.PersonAvatar, DeleteAvatarAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteFirebirdPersonAvatar")
+            .WithSummary("Deletes the avatar of an accessible Firebird person")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -212,6 +284,264 @@ internal static class FirebirdEndpoints
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListUsernamesAsync(
+        int personId,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var usernames = await service.ListUsernamesAsync(personId, userId, cancellationToken);
+        return usernames is null
+            ? throw FirebirdPersonProblem.NotFound()
+            : TypedResults.Ok(usernames);
+    }
+
+    private static async Task<IResult> CreateUsernameAsync(
+        int personId,
+        UsernameRequest request,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        UsernameResponse? created;
+        try
+        {
+            created = await service.CreateUsernameAsync(personId, request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdSubResourceProblem.From(exception);
+        }
+
+        return created is null
+            ? throw FirebirdPersonProblem.NotFound()
+            : TypedResults.Created($"/api/people/{personId}/usernames/{created.Id}", created);
+    }
+
+    private static async Task<IResult> UpdateUsernameAsync(
+        int personId,
+        int usernameId,
+        UsernameRequest request,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        UsernameResponse? updated;
+        try
+        {
+            updated = await service.UpdateUsernameAsync(personId, usernameId, request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdSubResourceProblem.From(exception);
+        }
+
+        return updated is null
+            ? throw FirebirdSubResourceProblem.UsernameNotFound()
+            : TypedResults.Ok(updated);
+    }
+
+    private static async Task<IResult> DeleteUsernameAsync(
+        int personId,
+        int usernameId,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await service.DeleteUsernameAsync(personId, usernameId, userId, cancellationToken);
+        return deleted
+            ? TypedResults.NoContent()
+            : throw FirebirdSubResourceProblem.UsernameNotFound();
+    }
+
+    private static async Task<IResult> ListInteractionsAsync(
+        int personId,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var interactions = await service.ListInteractionsAsync(personId, userId, cancellationToken);
+        return interactions is null
+            ? throw FirebirdPersonProblem.NotFound()
+            : TypedResults.Ok(interactions);
+    }
+
+    private static async Task<IResult> CreateInteractionAsync(
+        int personId,
+        InteractionRequest request,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        InteractionResponse? created;
+        try
+        {
+            created = await service.CreateInteractionAsync(personId, request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdSubResourceProblem.From(exception);
+        }
+
+        return created is null
+            ? throw FirebirdPersonProblem.NotFound()
+            : TypedResults.Created($"/api/people/{personId}/interactions/{created.Id}", created);
+    }
+
+    private static async Task<IResult> UpdateInteractionAsync(
+        int personId,
+        int interactionId,
+        InteractionRequest request,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        InteractionResponse? updated;
+        try
+        {
+            updated = await service.UpdateInteractionAsync(personId, interactionId, request, userId, cancellationToken);
+        }
+        catch (FirebirdValidationException exception)
+        {
+            throw FirebirdSubResourceProblem.From(exception);
+        }
+
+        return updated is null
+            ? throw FirebirdSubResourceProblem.InteractionNotFound()
+            : TypedResults.Ok(updated);
+    }
+
+    private static async Task<IResult> DeleteInteractionAsync(
+        int personId,
+        int interactionId,
+        FirebirdSubResourceService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await service.DeleteInteractionAsync(personId, interactionId, userId, cancellationToken);
+        return deleted
+            ? TypedResults.NoContent()
+            : throw FirebirdSubResourceProblem.InteractionNotFound();
+    }
+
+    private static async Task<IResult> PutAvatarAsync(
+        int personId,
+        HttpRequest request,
+        FirebirdAvatarService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw FirebirdSubResourceProblem.AvatarInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw FirebirdSubResourceProblem.AvatarInvalid("file", "A multipart form file is required.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        var avatar = await service.PutAsync(
+            personId,
+            file.FileName,
+            file.ContentType,
+            stream,
+            userId,
+            cancellationToken);
+        return avatar is null
+            ? throw FirebirdPersonProblem.NotFound()
+            : TypedResults.Ok(avatar);
+    }
+
+    private static async Task<IResult> DownloadAvatarAsync(
+        int personId,
+        FirebirdAvatarService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var download = await service.OpenReadAsync(personId, userId, cancellationToken);
+        if (download is null)
+        {
+            throw FirebirdSubResourceProblem.AvatarNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteAvatarAsync(
+        int personId,
+        FirebirdAvatarService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await service.DeleteAsync(personId, userId, cancellationToken);
+        return deleted
+            ? TypedResults.NoContent()
+            : throw FirebirdSubResourceProblem.AvatarNotFound();
     }
 
     private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw PersonCategoryProblem.NotFound();
