@@ -627,7 +627,7 @@ describe('Processes page', () => {
           id: 20,
           description: 'Book appointment',
           dueDate: '2026-07-15',
-          notes: expect.stringContaining('Bring'),
+          notes: 'Bring ID',
           isOptional: true,
         }),
       ])
