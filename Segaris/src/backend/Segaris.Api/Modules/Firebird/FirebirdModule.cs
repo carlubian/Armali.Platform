@@ -1,8 +1,10 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Firebird.Attention;
 using Segaris.Api.Modules.Firebird.Mutations;
 using Segaris.Api.Modules.Firebird.Persistence;
 using Segaris.Api.Modules.Firebird.Queries;
 using Segaris.Api.Modules.Firebird.Seeding;
+using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Firebird;
@@ -30,6 +32,7 @@ internal sealed class FirebirdModule : ISegarisModule
         services.AddScoped<FirebirdAvatarService>();
         services.AddScoped<PersonCategoryManagementService>();
         services.AddScoped<UsernamePlatformManagementService>();
+        services.AddScoped<ILauncherAttentionContributor, FirebirdAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

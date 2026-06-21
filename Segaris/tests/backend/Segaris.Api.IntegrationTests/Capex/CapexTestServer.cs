@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -28,7 +29,7 @@ internal sealed class CapexTestServer : IDisposable
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public CapexTestServer(string environment = "Staging")
+    public CapexTestServer(string environment = "Staging", Action<IServiceCollection>? configureServices = null)
     {
         DatabasePath = Path.Combine(Path.GetTempPath(), $"segaris-capex-{Guid.NewGuid():N}.db");
         KeysPath = Path.Combine(Path.GetTempPath(), $"segaris-capex-keys-{Guid.NewGuid():N}");
@@ -50,6 +51,7 @@ internal sealed class CapexTestServer : IDisposable
                     ["Segaris:Identity:Bootstrap:Password"] = AdminPassword,
                 });
             });
+            builder.ConfigureTestServices(services => configureServices?.Invoke(services));
         });
     }
 
