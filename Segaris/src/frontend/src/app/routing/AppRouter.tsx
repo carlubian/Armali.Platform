@@ -71,6 +71,12 @@ const ProcessesPage = lazy(() =>
   })),
 )
 
+const FirebirdPage = lazy(() =>
+  import('@/modules/firebird/FirebirdPage').then((module) => ({
+    default: module.FirebirdPage,
+  })),
+)
+
 // The Mood module's two immersive screens are lazily loaded so their week board,
 // charts, and entry dialog stay out of the initial platform bundle.
 const MoodLogPage = lazy(() =>
@@ -226,6 +232,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <ProcessesPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="people"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <FirebirdPage />
               </Suspense>
             </ModuleBoundary>
           }

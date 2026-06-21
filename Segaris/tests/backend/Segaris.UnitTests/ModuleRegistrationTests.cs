@@ -28,6 +28,7 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Maintenance", names);
         Assert.Contains("Projects", names);
         Assert.Contains("Processes", names);
+        Assert.Contains("Firebird", names);
         Assert.Contains("Launcher", names);
     }
 
@@ -137,5 +138,18 @@ public sealed class ModuleRegistrationTests
         Assert.True(
             names.IndexOf("Processes") < names.IndexOf("Launcher"),
             "Processes must be registered before Launcher.");
+    }
+
+    [Fact]
+    public void Firebird_is_registered_after_processes_and_before_launcher()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Processes") < names.IndexOf("Firebird"),
+            "Firebird must be registered after Processes.");
+        Assert.True(
+            names.IndexOf("Firebird") < names.IndexOf("Launcher"),
+            "Firebird must be registered before Launcher.");
     }
 }

@@ -4,6 +4,7 @@ import { assets } from '@/modules/assets/i18n/resources'
 import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
+import { firebird } from '@/modules/firebird/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
@@ -23,6 +24,7 @@ const namespaces = [
   'capex',
   'clothes',
   'configuration',
+  'firebird',
   'inventory',
   'maintenance',
   'mood',
@@ -67,6 +69,12 @@ describe('platform translations', () => {
   it('registers every configuration resource key', () => {
     for (const key of leafKeys(configuration)) {
       expect(i18n.exists(key, { ns: 'configuration', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every firebird resource key', () => {
+    for (const key of leafKeys(firebird)) {
+      expect(i18n.exists(key, { ns: 'firebird', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

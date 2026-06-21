@@ -59,6 +59,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_ProcessesDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_FirebirdDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -96,6 +99,9 @@ public sealed class MigrationTests
                 // Processes plus the steps and category catalog tables.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'processes_%'";
                 Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+                // People, usernames, interactions, and the category and platform catalogs.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'firebird_%'";
+                Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -132,13 +138,14 @@ public sealed class MigrationTests
         Assert.Contains("ProjectsDomainPersistence", sqliteNames);
         Assert.Contains("ProjectsRisks", sqliteNames);
         Assert.Contains("ProcessesDomainPersistence", sqliteNames);
+        Assert.Contains("FirebirdDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Processes_domain_persistence_is_the_current_tail()
+    public void Firebird_domain_persistence_is_the_current_tail()
     {
-        // The Processes Wave 1 model is the current tail and migrates from the Projects
-        // risk table that preceded it.
+        // The Firebird Wave 1 model is the current tail and migrates from the Processes
+        // model that preceded it.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -150,8 +157,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("ProcessesDomainPersistence", migrations[^1]);
-            Assert.Equal("ProjectsRisks", migrations[^2]);
+            Assert.Equal("FirebirdDomainPersistence", migrations[^1]);
+            Assert.Equal("ProcessesDomainPersistence", migrations[^2]);
         }
     }
 
@@ -254,6 +261,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_ProjectsDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_ProjectsRisks"));
             Assert.Contains(applied, migration => migration.EndsWith("_ProcessesDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_FirebirdDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -279,6 +287,8 @@ public sealed class MigrationTests
             Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'processes_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'firebird_%'";
+            Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {

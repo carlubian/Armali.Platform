@@ -1329,6 +1329,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Contains(applied, migration => migration.EndsWith("_MaintenanceDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_ProjectsDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_ProcessesDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_FirebirdDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         // Three catalog tables plus the one-time initialization table.
@@ -1359,6 +1360,9 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         // Processes plus the steps and category catalog tables.
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'processes_%'";
         Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
+        // People, usernames, interactions, and the category and platform catalogs.
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'firebird_%'";
+        Assert.Equal(5L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]

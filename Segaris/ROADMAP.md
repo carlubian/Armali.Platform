@@ -257,8 +257,15 @@ Module purpose: Manage people, contacts and interactions with them.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Categories, statuses, properties. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | A `Person` carries a required name, a required `PersonCategory`, a fixed `Unknown`/`Active`/`Unavailable`/`Blocked` status (default `Unknown`), an optional day/month birthday (no year; `02-29` allowed), optional notes, an optional single avatar image, Public/Private visibility, and audit metadata. Each person owns zero or more `Username` sub-entities (a `UsernamePlatform` plus a handle value and optional notes; repeated platforms allowed, no URL or primary flag) and zero or more `Interaction` sub-entities (a non-future date plus a description, listed newest-first). No standalone reminder entity. See `docs/requirements/FIREBIRD_REQUIREMENTS.md`. |
+| Resolved | Catalogues | Firebird owns `PersonCategory` and `UsernamePlatform` through Configuration, both required and replace-only, seeded with accepted initial values. The status set is a fixed enum, not configurable. |
+| Resolved | Attention | The launcher card requests attention when an accessible person's next birthday occurrence is within today through today plus seven natural days in `Europe/Madrid`, wrapping across the year boundary, never counting missing birthdays or other users' private people. There are no free-form reminders in this version. |
+| Resolved | User workflow | Firebird is autocontained (no Entity Link or cross-module references). It opens on a server-paginated avatar gallery (`/api/people`, route `/people`) with name search, category/status filters, and name/birthday calendar sorting, with a URL-aware person editor and dedicated username and interaction popups. English strings only, under an i18n namespace prepared for future translation. See `docs/requirements/FIREBIRD_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/FIREBIRD_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation accepted | Firebird is implemented and accepted through Wave 7. The acceptance mapping, OpenAPI/index review, and representative Playwright journey are recorded in `docs/planning/FIREBIRD_ACCEPTANCE.md`. |
+| Deferred | Second-user Firebird privacy E2E journey | Public-collaboration and private-isolation behaviour is covered by API integration tests (`FirebirdPersonEndpointTests`, `FirebirdSubResourceEndpointTests`, `FirebirdAttentionTests`). The browser-level multi-session journey waits on multi-account Playwright infrastructure, matching the deferred patterns for earlier modules. |
+| Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
+| Deferred | Future Firebird scope | Standalone reminders, free-form reminders, birthday years, recurring events, interaction types or attachments, multiple person attachments, username URLs or primary flags, relationships or links between people, Entity Link, Analytics, and Calendar integration remain future versions. See `docs/requirements/FIREBIRD_REQUIREMENTS.md`. |
 
 ### Clothes
 
