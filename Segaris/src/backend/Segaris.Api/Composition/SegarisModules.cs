@@ -2,6 +2,7 @@ using Segaris.Api.Modules.Assets;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Clothes;
 using Segaris.Api.Modules.Configuration;
+using Segaris.Api.Modules.Firebird;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory;
 using Segaris.Api.Modules.Launcher;
@@ -32,6 +33,7 @@ internal static class SegarisModules
         new MaintenanceModule(),
         new ProjectsModule(),
         new ProcessesModule(),
+        new FirebirdModule(),
         new LauncherModule(),
     ];
 

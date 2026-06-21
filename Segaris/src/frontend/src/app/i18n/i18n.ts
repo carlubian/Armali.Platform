@@ -5,6 +5,7 @@ import { assets } from '@/modules/assets/i18n/resources'
 import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
+import { firebird } from '@/modules/firebird/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
@@ -28,6 +29,7 @@ void i18n.use(initReactI18next).init({
     'capex',
     'clothes',
     'configuration',
+    'firebird',
     'inventory',
     'maintenance',
     'mood',
@@ -43,6 +45,7 @@ void i18n.use(initReactI18next).init({
       capex,
       clothes,
       configuration,
+      firebird,
       inventory,
       maintenance,
       mood,

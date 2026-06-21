@@ -25,6 +25,7 @@ public sealed class ModuleBoundaryTests
     private const string MaintenanceNamespace = "Segaris.Api.Modules.Maintenance";
     private const string ProjectsNamespace = "Segaris.Api.Modules.Projects";
     private const string ProcessesNamespace = "Segaris.Api.Modules.Processes";
+    private const string FirebirdNamespace = "Segaris.Api.Modules.Firebird";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -45,6 +46,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(MaintenanceNamespace));
         Assert.NotEmpty(TypesIn(ProjectsNamespace));
         Assert.NotEmpty(TypesIn(ProcessesNamespace));
+        Assert.NotEmpty(TypesIn(FirebirdNamespace));
     }
 
     [Fact]
@@ -289,6 +291,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, MaintenanceNamespace);
         AssertNoDependency(LauncherNamespace, ProjectsNamespace);
         AssertNoDependency(LauncherNamespace, ProcessesNamespace);
+        AssertNoDependency(LauncherNamespace, FirebirdNamespace);
     }
 
     [Fact]
@@ -492,6 +495,65 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(MoodNamespace, ProcessesNamespace);
         AssertNoDependency(MaintenanceNamespace, ProcessesNamespace);
         AssertNoDependency(ProjectsNamespace, ProcessesNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_firebird()
+    {
+        AssertNoDependency(ConfigurationNamespace, FirebirdNamespace);
+    }
+
+    [Fact]
+    public void Firebird_depends_on_configuration_contracts()
+    {
+        // Firebird owns PersonCategory and UsernamePlatform catalogues surfaced
+        // through Configuration, so it consumes Configuration's published catalog
+        // contracts. Its absence would mean the catalogue-presentation boundary was
+        // inverted.
+        var dependsOnConfiguration = TypesIn(FirebirdNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Firebird must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Firebird_does_not_depend_on_other_business_modules()
+    {
+        // Firebird is an independent business module: it may consume Configuration,
+        // Attachments, Identity, Launcher, and platform contracts, but it must remain
+        // independent from every other business module.
+        AssertNoDependency(FirebirdNamespace, CapexNamespace);
+        AssertNoDependency(FirebirdNamespace, OpexNamespace);
+        AssertNoDependency(FirebirdNamespace, InventoryNamespace);
+        AssertNoDependency(FirebirdNamespace, TravelNamespace);
+        AssertNoDependency(FirebirdNamespace, ClothesNamespace);
+        AssertNoDependency(FirebirdNamespace, AssetsNamespace);
+        AssertNoDependency(FirebirdNamespace, MoodNamespace);
+        AssertNoDependency(FirebirdNamespace, MaintenanceNamespace);
+        AssertNoDependency(FirebirdNamespace, ProjectsNamespace);
+        AssertNoDependency(FirebirdNamespace, ProcessesNamespace);
+    }
+
+    [Fact]
+    public void No_module_depends_on_firebird()
+    {
+        // Firebird publishes no cross-module business contracts: no other module,
+        // including Configuration and Launcher, may reference the Firebird namespace.
+        AssertNoDependency(ConfigurationNamespace, FirebirdNamespace);
+        AssertNoDependency(LauncherNamespace, FirebirdNamespace);
+        AssertNoDependency(CapexNamespace, FirebirdNamespace);
+        AssertNoDependency(OpexNamespace, FirebirdNamespace);
+        AssertNoDependency(InventoryNamespace, FirebirdNamespace);
+        AssertNoDependency(TravelNamespace, FirebirdNamespace);
+        AssertNoDependency(ClothesNamespace, FirebirdNamespace);
+        AssertNoDependency(AssetsNamespace, FirebirdNamespace);
+        AssertNoDependency(MoodNamespace, FirebirdNamespace);
+        AssertNoDependency(MaintenanceNamespace, FirebirdNamespace);
+        AssertNoDependency(ProjectsNamespace, FirebirdNamespace);
+        AssertNoDependency(ProcessesNamespace, FirebirdNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
