@@ -113,11 +113,13 @@ pattern. One practical route shape is:
 /processes?processId=123
 /processes?newProcess=true
 /processes?processId=123&steps=true
+/processes?processId=123&restructureSteps=true
 ```
 
 If the shared shell or router ergonomics suggest a slightly different parameter
 layout, preserve the same behaviour: table state must survive dialog open and
-close without a reload.
+close without a reload, and the restructure screen must be reachable from the
+step timeline without collapsing the process context.
 
 ### Configuration Integration
 
@@ -417,6 +419,94 @@ Exit criteria:
   journey succeeds, and every accepted Processes requirement is implemented or
   explicitly deferred.
 
+### Wave 9: Step Timeline UI Redesign
+
+Refit the existing step-management entry point to match the `Step timeline`
+design, specifically option `A - Path track + frontier bar` under
+`docs/ui-design`.
+
+Tasks:
+
+1. Make the step timeline the initial step-management surface opened from the
+   process table and process editor. It is for observing process state and
+   executing the ordered workflow, not for editing the step collection.
+2. Replace the current combined step-management layout with the path-track
+   composition: a visual ordered track, clear resolved/pending/frontier states,
+   a prominent frontier bar, and compact process metadata for status, progress,
+   category, and effective due date.
+3. Keep only execution actions on this screen: complete the frontier step, skip
+   the optional frontier step, undo the most recently resolved step, and close.
+   Disabled and loading states must explain the frontier rules without implying
+   that arbitrary steps can be changed.
+4. Add a clear `Restructure steps` entry point in the timeline footer or
+   frontier/empty-state area. Opening it must preserve table state, process
+   identity, and any live status/progress data already loaded for the timeline.
+5. Ensure empty, completed, cancelled, overdue, and narrow-width states map to
+   the same visual language as the design reference, including accessible labels
+   for the path nodes and frontier actions.
+6. Keep live cache invalidation and optimistic/settled UI behaviour consistent
+   with the existing step action mutations.
+
+Tests:
+
+- Component tests for opening the timeline from the table/editor, path node
+  state rendering, frontier bar content for pending/empty/complete states,
+  complete/skip/undo enabled and disabled states, live progress/status updates,
+  and the transition into restructure mode without losing URL-backed table state.
+- Accessibility tests for dialog focus, keyboard operation, labelled path nodes,
+  action descriptions, and narrow desktop scrolling.
+- Update the representative Playwright Processes journey so step execution
+  happens through the timeline path-track screen.
+
+Exit criteria:
+
+- Opening step management first shows a timeline that visually matches the
+  `A - Path track + frontier bar` design and supports only ordered execution
+  actions plus navigation to restructuring.
+
+### Wave 10: Restructure Steps UI Split
+
+Extract step collection editing into the dedicated `Restructure steps` surface
+shown in `docs/ui-design`, opened from the redesigned timeline.
+
+Tasks:
+
+1. Add a distinct URL/dialog state for `Restructure steps`, reachable from the
+   timeline and closable back to the timeline or process table without a full
+   reload.
+2. Move add, remove, reorder, rename, due-date, notes, and optional-flag editing
+   out of the timeline and into the restructure surface.
+3. Present the resolved prefix as locked and the pending tail as editable, with a
+   visible frontier divider and explanatory contiguity-invariant banner matching
+   the design reference.
+4. Preserve execution state by step identity while editing, and surface backend
+   contiguity or validation errors next to the affected row or at the invariant
+   banner rather than as generic failures.
+5. Support reorder controls through the existing accessible interaction pattern
+   for the frontend; drag-and-drop may be added only if keyboard parity is
+   provided.
+6. After saving, invalidate step, process detail, process table, and launcher
+   attention caches, then return to the timeline with refreshed status,
+   progress, and frontier data.
+
+Tests:
+
+- Component tests for adding, renaming, re-dating, updating notes, toggling
+  optional, removing, and reordering pending steps; locked resolved-prefix
+  rendering; frontier-divider placement; validation and contiguity-invariant
+  errors; save/cancel behaviour; and cache invalidation after save.
+- Accessibility tests for row editing, reorder controls, error association,
+  focus return to the timeline, and keyboard-only completion of a restructure.
+- Update the representative Playwright Processes journey so step creation and
+  editing happen through `Restructure steps`, while completion, skip, and undo
+  remain in the timeline.
+
+Exit criteria:
+
+- Step execution and step restructuring are separated into two user-facing
+  surfaces that match the design references while preserving the existing
+  backend frontier and contiguity guarantees.
+
 ## Suggested Pull Request Boundaries
 
 1. Processes contracts, persistence, and module-owned catalogue (Waves 0-1).
@@ -425,12 +515,15 @@ Exit criteria:
 4. Attachments and launcher attention (Waves 4-5).
 5. Processes table, step timeline, and Configuration frontend (Waves 6-7).
 6. End-to-end, hardening, and acceptance (Wave 8).
+7. Step-management UI split and design alignment (Waves 9-10).
 
 ## Plan Completion Criteria
 
-The plan is complete when all Waves meet their exit criteria and the Processes
+The initial implementation plan is complete through Wave 8 when the Processes
 requirements document describes implemented behaviour rather than only functional
-intent.
+intent. The post-acceptance UI refinement is complete when Waves 9-10 meet their
+exit criteria and the accepted behaviour remains covered by updated frontend and
+end-to-end tests.
 
 Branching or parallel steps, recurring or templated processes, per-step
 attachments or completion dates or assignees, cost and effort, Projects

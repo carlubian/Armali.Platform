@@ -437,7 +437,7 @@ describe('Processes page', () => {
     )
   })
 
-  it('executes frontier actions and saves step restructuring from the timeline', async () => {
+  it('opens the timeline first, executes frontier actions, and enters restructure without losing table state', async () => {
     const user = userEvent.setup()
     const { requests } = mockBackend({
       processes: [makeSummary(1, { name: 'Renew passport' })],
@@ -473,18 +473,27 @@ describe('Processes page', () => {
     render(<App />)
 
     await screen.findByText('Renew passport')
+    await user.type(screen.getByLabelText('Search'), 'Renew passport')
     await user.click(screen.getAllByRole('button', { name: 'Step timeline' })[0])
 
     const dialog = await screen.findByRole('dialog', { name: 'Step timeline' })
-    expect(within(dialog).getByDisplayValue('Gather documents')).toBeInTheDocument()
-    expect(within(dialog).getByDisplayValue('Attend appointment')).toBeInTheDocument()
+    expect(window.location.search).toContain('search=Renew+passport')
+    expect(window.location.search).toContain('steps=true')
+    expect(
+      within(dialog).getByLabelText(
+        'Step 1 of 2: Gather documents. State: Completed.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByLabelText(
+        'Step 2 of 2: Attend appointment. State: Current step.',
+      ),
+    ).toBeInTheDocument()
     expect(within(dialog).getByText('Current step')).toBeInTheDocument()
+    expect(within(dialog).getByText('Next pending step · the frontier')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Skip' })).toBeDisabled()
 
-    const complete = within(dialog)
-      .getAllByRole('button', { name: 'Complete' })
-      .find((button) => !button.hasAttribute('disabled'))
-    expect(complete).toBeDefined()
-    await user.click(complete as HTMLElement)
+    await user.click(within(dialog).getByRole('button', { name: 'Complete step' }))
     await waitFor(() =>
       expect(
         requests.some(
@@ -495,10 +504,14 @@ describe('Processes page', () => {
       ).toBe(true),
     )
 
-    await user.click(within(dialog).getByRole('button', { name: 'Add step' }))
-    const descriptions = within(dialog).getAllByLabelText('Description')
+    await user.click(within(dialog).getByRole('button', { name: 'Restructure steps' }))
+    const restructure = await screen.findByRole('dialog', { name: 'Restructure steps' })
+    expect(window.location.search).toContain('search=Renew+passport')
+    expect(within(restructure).getByDisplayValue('Gather documents')).toBeInTheDocument()
+    await user.click(within(restructure).getByRole('button', { name: 'Add step' }))
+    const descriptions = within(restructure).getAllByLabelText('Description')
     await user.type(descriptions[descriptions.length - 1], 'Collect passport')
-    await user.click(within(dialog).getByRole('button', { name: 'Save step order' }))
+    await user.click(within(restructure).getByRole('button', { name: 'Save step order' }))
 
     await waitFor(() => {
       const body = requests.find((request) => request.method === 'PUT')?.body
@@ -511,6 +524,68 @@ describe('Processes page', () => {
         ]),
       )
     })
+  })
+
+  it('renders empty and completed timeline frontier states', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      processes: [
+        makeSummary(1, { name: 'Empty procedure' }),
+        makeSummary(2, {
+          name: 'Finished procedure',
+          status: 'Completed',
+          resolvedStepCount: 1,
+          totalStepCount: 1,
+        }),
+      ],
+      detail: (id) =>
+        id === 2
+          ? makeDetail(id, {
+              name: 'Finished procedure',
+              status: 'Completed',
+              resolvedStepCount: 1,
+              totalStepCount: 1,
+              nextPendingStepId: null,
+              steps: [
+                {
+                  id: 30,
+                  description: 'Archive certificate',
+                  dueDate: null,
+                  notes: null,
+                  isOptional: false,
+                  state: 'Completed',
+                  sortOrder: 0,
+                },
+              ],
+            })
+          : makeDetail(id, { name: 'Empty procedure' }),
+    })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Open process Empty procedure' }),
+    )
+    const editor = await screen.findByRole('dialog', { name: 'Edit process' })
+    await user.click(within(editor).getByRole('button', { name: 'Manage steps' }))
+    const emptyTimeline = await screen.findByRole('dialog', { name: 'Step timeline' })
+    expect(
+      within(emptyTimeline).getByRole('heading', { name: 'Empty procedure' }),
+    ).toBeInTheDocument()
+    expect(
+      within(emptyTimeline).getByRole('heading', { name: 'No steps yet' }),
+    ).toBeInTheDocument()
+    await user.click(within(emptyTimeline).getAllByRole('button', { name: 'Close' })[1])
+
+    await user.click(screen.getAllByRole('button', { name: 'Step timeline' })[1])
+    const completeTimeline = await screen.findByRole('dialog', {
+      name: 'Step timeline',
+    })
+    expect(
+      within(completeTimeline).getByText('Every step is resolved'),
+    ).toBeInTheDocument()
+    expect(
+      within(completeTimeline).getByRole('button', { name: 'Undo last' }),
+    ).toBeEnabled()
   })
 
   it('deletes a process after confirmation', async () => {

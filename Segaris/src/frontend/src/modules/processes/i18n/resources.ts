@@ -204,11 +204,16 @@ export const processes = {
   },
   steps: {
     title: 'Step timeline',
+    timelineDescription:
+      'Execute this procedure in strict frontier order. Use Restructure steps to change the step list.',
     eyebrow: '{{category}} · step timeline',
     statusLabel: '{{resolved}} of {{total}} steps resolved',
     noSteps: 'No steps yet',
     empty:
       'This procedure is an empty container — add steps to begin from the timeline.',
+    trackLabel: 'Ordered step path',
+    nodeLabel:
+      'Step {{index}} of {{total}}: {{description}}. State: {{state}}.',
     state: {
       Pending: 'Pending',
       Completed: 'Completed',
@@ -216,21 +221,57 @@ export const processes = {
     },
     optional: 'Optional',
     current: 'Current step',
+    latestResolved: 'Last resolved',
     note: 'Steps run in strict order. Resolved steps must stay before pending steps.',
+    metadata: {
+      category: 'Category: {{category}}',
+      due: 'Due {{date}}',
+      noDue: 'No due date',
+    },
+    frontier: {
+      rules:
+        'Only the frontier step can be completed or skipped, and only the last resolved step can be undone.',
+      pendingEyebrow: 'Next pending step · the frontier',
+      cancelledEyebrow: 'Cancelled process · execution locked',
+      completeEyebrow: 'Procedure complete',
+      completeTitle: 'Every step is resolved',
+      completeBody:
+        'Nothing left to do — this process no longer needs attention unless you undo the last resolved step.',
+      emptyEyebrow: 'Empty procedure',
+      emptyTitle: 'No steps yet',
+      emptyBody: 'Add steps before this process can be executed.',
+      due: 'Due {{date}} — {{relative}}.',
+      noDue: 'No due date set.',
+      relativeUnknown: 'date unavailable',
+    },
     actions: {
       complete: 'Complete',
+      completeStep: 'Complete step',
       skip: 'Skip',
       undo: 'Undo',
+      undoLast: 'Undo last',
+      working: 'Working…',
+      completeHint: 'Complete the current frontier step.',
+      skipHint: 'Skip this optional frontier step.',
+      skipDisabled: 'Only optional frontier steps can be skipped.',
+      undoHint: 'Undo the most recently resolved step.',
       errors: {
         frontier: 'Only the current step can be completed or skipped.',
         optional: 'Only optional current steps can be skipped.',
       },
     },
     restructure: {
+      title: 'Restructure steps',
+      open: 'Restructure steps',
+      back: 'Back to timeline',
+      descriptionText:
+        'Add, rename, reorder, re-date and annotate steps. Execution remains governed by the frontier.',
+      invariant:
+        'Contiguity is protected: resolved steps stay as a locked prefix, and pending or new steps can only live at or after the frontier.',
       add: 'Add step',
       save: 'Save step order',
       saving: 'Saving…',
-      description: 'Description',
+      stepDescription: 'Description',
       dueDate: 'Due date',
       notes: 'Notes',
       up: 'Up',

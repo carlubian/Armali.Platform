@@ -121,23 +121,30 @@ test.describe("processes critical journey", () => {
 
     await page.getByRole("button", { name: "Step timeline" }).click();
     const stepsDialog = page.getByRole("dialog", { name: "Step timeline" });
-    await stepsDialog.getByRole("button", { name: "Add step" }).click();
-    await stepsDialog.getByRole("button", { name: "Add step" }).click();
-    const descriptions = stepsDialog.getByLabel("Description");
+    await expect(stepsDialog.getByText("No steps yet")).toBeVisible();
+    await stepsDialog.getByRole("button", { name: "Restructure steps" }).click();
+    const restructureDialog = page.getByRole("dialog", {
+      name: "Restructure steps",
+    });
+    await restructureDialog.getByRole("button", { name: "Add step" }).click();
+    await restructureDialog.getByRole("button", { name: "Add step" }).click();
+    const descriptions = restructureDialog.getByLabel("Description");
     await descriptions.nth(0).fill(firstStep);
     await descriptions.nth(1).fill(optionalStep);
-    await stepsDialog.getByLabel("Due date").nth(0).fill("2031-03-01");
-    await stepsDialog.getByLabel("Due date").nth(1).fill("2031-03-15");
-    await stepsDialog.getByLabel("Notes").nth(1).fill("Optional E2E step");
-    await stepsDialog.getByLabel("Optional").nth(1).check();
-    await stepsDialog.getByRole("button", { name: "Save step order" }).click();
+    await restructureDialog.getByLabel("Due date").nth(0).fill("2031-03-01");
+    await restructureDialog.getByLabel("Due date").nth(1).fill("2031-03-15");
+    await restructureDialog.getByLabel("Notes").nth(1).fill("Optional E2E step");
+    await restructureDialog.getByLabel("Optional").nth(1).check();
+    await restructureDialog
+      .getByRole("button", { name: "Save step order" })
+      .click();
     await expect(stepsDialog.getByText("0 of 2 steps resolved")).toBeVisible();
 
-    await stepsDialog.getByRole("button", { name: "Complete" }).first().click();
+    await stepsDialog.getByRole("button", { name: "Complete step" }).click();
     await expect(stepsDialog.getByText("1 of 2 steps resolved")).toBeVisible();
-    await stepsDialog.getByRole("button", { name: "Skip" }).nth(1).click();
+    await stepsDialog.getByRole("button", { name: "Skip" }).click();
     await expect(stepsDialog.getByText("2 of 2 steps resolved")).toBeVisible();
-    await stepsDialog.getByRole("button", { name: "Undo" }).nth(1).click();
+    await stepsDialog.getByRole("button", { name: "Undo last" }).click();
     await expect(stepsDialog.getByText("1 of 2 steps resolved")).toBeVisible();
     await stepsDialog.getByRole("button", { name: "Close" }).last().click();
 
