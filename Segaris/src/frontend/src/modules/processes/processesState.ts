@@ -56,6 +56,7 @@ export type ProcessesDialogState =
   | { mode: 'create' }
   | { mode: 'edit'; processId: number }
   | { mode: 'steps'; processId: number }
+  | { mode: 'restructure'; processId: number }
 
 function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | '' {
   return value != null && (allowed as readonly string[]).includes(value)
@@ -101,6 +102,9 @@ export function parseProcessesDialogState(
   if (params.get('newProcess') === 'true') return { mode: 'create' }
   const processId = intOrNull(params.get('processId'))
   if (processId == null) return { mode: 'closed' }
+  if (params.get('steps') === 'true' && params.get('restructure') === 'true') {
+    return { mode: 'restructure', processId }
+  }
   if (params.get('steps') === 'true') return { mode: 'steps', processId }
   return { mode: 'edit', processId }
 }
@@ -173,10 +177,16 @@ export function useProcessesState(currentUserId: number | null) {
       newProcess?: string | null
       processId?: string | null
       steps?: string | null
+      restructure?: string | null
     }) => {
       setSearchParams((current) => {
         const next = new URLSearchParams(current)
-        for (const key of ['newProcess', 'processId', 'steps'] as const) {
+        for (const key of [
+          'newProcess',
+          'processId',
+          'steps',
+          'restructure',
+        ] as const) {
           const value = patch[key]
           if (value == null) next.delete(key)
           else next.set(key, value)
@@ -254,17 +264,40 @@ export function useProcessesState(currentUserId: number | null) {
     setPageSize,
     clearFilters,
     openCreateDialog: () =>
-      setDialogParams({ newProcess: 'true', processId: null, steps: null }),
+      setDialogParams({
+        newProcess: 'true',
+        processId: null,
+        steps: null,
+        restructure: null,
+      }),
     openEditDialog: (processId: number) =>
-      setDialogParams({ newProcess: null, processId: String(processId), steps: null }),
+      setDialogParams({
+        newProcess: null,
+        processId: String(processId),
+        steps: null,
+        restructure: null,
+      }),
     openStepsDialog: (processId: number) =>
       setDialogParams({
         newProcess: null,
         processId: String(processId),
         steps: 'true',
+        restructure: null,
+      }),
+    openRestructureDialog: (processId: number) =>
+      setDialogParams({
+        newProcess: null,
+        processId: String(processId),
+        steps: 'true',
+        restructure: 'true',
       }),
     closeDialog: () =>
-      setDialogParams({ newProcess: null, processId: null, steps: null }),
+      setDialogParams({
+        newProcess: null,
+        processId: null,
+        steps: null,
+        restructure: null,
+      }),
   }
 }
 

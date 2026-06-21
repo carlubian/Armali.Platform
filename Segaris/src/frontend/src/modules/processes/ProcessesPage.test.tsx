@@ -91,6 +91,7 @@ function mockBackend(
   options: {
     processes?: ProcessSummary[]
     detail?: (id: number) => Process
+    stepUpdate?: (id: number, body: unknown) => Response
   } = {},
 ) {
   const processes = options.processes ?? [makeSummary(1)]
@@ -159,6 +160,9 @@ function mockBackend(
         )
       }
       if (method === 'PUT') {
+        const body = bodyOf()
+        const custom = options.stepUpdate?.(id, body)
+        if (custom != null) return custom
         const input = bodyOf() as {
           steps: Array<{
             id: number | null
@@ -480,9 +484,7 @@ describe('Processes page', () => {
     expect(window.location.search).toContain('search=Renew+passport')
     expect(window.location.search).toContain('steps=true')
     expect(
-      within(dialog).getByLabelText(
-        'Step 1 of 2: Gather documents. State: Completed.',
-      ),
+      within(dialog).getByLabelText('Step 1 of 2: Gather documents. State: Completed.'),
     ).toBeInTheDocument()
     expect(
       within(dialog).getByLabelText(
@@ -490,7 +492,9 @@ describe('Processes page', () => {
       ),
     ).toBeInTheDocument()
     expect(within(dialog).getByText('Current step')).toBeInTheDocument()
-    expect(within(dialog).getByText('Next pending step · the frontier')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('Next pending step · the frontier'),
+    ).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Skip' })).toBeDisabled()
 
     await user.click(within(dialog).getByRole('button', { name: 'Complete step' }))
@@ -507,11 +511,17 @@ describe('Processes page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Restructure steps' }))
     const restructure = await screen.findByRole('dialog', { name: 'Restructure steps' })
     expect(window.location.search).toContain('search=Renew+passport')
-    expect(within(restructure).getByDisplayValue('Gather documents')).toBeInTheDocument()
+    expect(window.location.search).toContain('steps=true')
+    expect(window.location.search).toContain('restructure=true')
+    expect(
+      within(restructure).getByDisplayValue('Gather documents'),
+    ).toBeInTheDocument()
     await user.click(within(restructure).getByRole('button', { name: 'Add step' }))
     const descriptions = within(restructure).getAllByLabelText('Description')
     await user.type(descriptions[descriptions.length - 1], 'Collect passport')
-    await user.click(within(restructure).getByRole('button', { name: 'Save step order' }))
+    await user.click(
+      within(restructure).getByRole('button', { name: 'Save step order' }),
+    )
 
     await waitFor(() => {
       const body = requests.find((request) => request.method === 'PUT')?.body
@@ -524,6 +534,208 @@ describe('Processes page', () => {
         ]),
       )
     })
+
+    await waitFor(() =>
+      expect(window.location.search).not.toContain('restructure=true'),
+    )
+    expect(
+      await screen.findByRole('dialog', { name: 'Step timeline' }),
+    ).toBeInTheDocument()
+  })
+
+  it('locks resolved steps and edits, re-dates, annotates, toggles, and reorders only the pending tail', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      processes: [makeSummary(1, { name: 'Renew passport' })],
+      detail: (id) =>
+        makeDetail(id, {
+          name: 'Renew passport',
+          status: 'InProgress',
+          resolvedStepCount: 1,
+          totalStepCount: 3,
+          nextPendingStepId: 20,
+          steps: [
+            {
+              id: 10,
+              description: 'Gather documents',
+              dueDate: '2026-06-01',
+              notes: 'Already done',
+              isOptional: false,
+              state: 'Completed',
+              sortOrder: 0,
+            },
+            {
+              id: 20,
+              description: 'Attend appointment',
+              dueDate: '2026-07-01',
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 1,
+            },
+            {
+              id: 30,
+              description: 'Submit receipt',
+              dueDate: null,
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 2,
+            },
+          ],
+        }),
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Step timeline' }))
+    const timeline = await screen.findByRole('dialog', { name: 'Step timeline' })
+    await user.click(
+      within(timeline).getByRole('button', { name: 'Restructure steps' }),
+    )
+    const restructure = await screen.findByRole('dialog', { name: 'Restructure steps' })
+
+    expect(
+      within(restructure).getByLabelText(
+        'Frontier divider between locked resolved steps and editable pending steps',
+      ),
+    ).toBeInTheDocument()
+    expect(within(restructure).getByText('Locked resolved prefix')).toBeInTheDocument()
+    const descriptions = within(restructure).getAllByLabelText('Description')
+    expect(descriptions[0]).toBeDisabled()
+    expect(descriptions[1]).toBeEnabled()
+
+    await user.clear(descriptions[1])
+    await user.type(descriptions[1], 'Book appointment')
+    const dueDates = within(restructure).getAllByLabelText('Due date')
+    await user.clear(dueDates[1])
+    await user.type(dueDates[1], '2026-07-15')
+    await user.type(within(restructure).getAllByLabelText('Notes')[1], 'Bring ID')
+    await user.click(within(restructure).getAllByLabelText('Optional')[1])
+    await user.click(within(restructure).getAllByRole('button', { name: 'Down' })[1])
+    await user.click(
+      within(restructure).getByRole('button', { name: 'Save step order' }),
+    )
+
+    await waitFor(() => {
+      const body = requests.find((request) => request.method === 'PUT')?.body
+      expect(isStepListBody(body)).toBe(true)
+      if (!isStepListBody(body)) return
+      expect(body.steps).toEqual([
+        expect.objectContaining({ id: 10, description: 'Gather documents' }),
+        expect.objectContaining({ id: 30, description: 'Submit receipt' }),
+        expect.objectContaining({
+          id: 20,
+          description: 'Book appointment',
+          dueDate: '2026-07-15',
+          notes: expect.stringContaining('Bring'),
+          isOptional: true,
+        }),
+      ])
+    })
+  })
+
+  it('removes pending steps and associates row validation with the affected field', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      processes: [makeSummary(1, { name: 'Renew passport' })],
+      detail: (id) =>
+        makeDetail(id, {
+          name: 'Renew passport',
+          resolvedStepCount: 0,
+          totalStepCount: 2,
+          nextPendingStepId: 20,
+          steps: [
+            {
+              id: 20,
+              description: 'Attend appointment',
+              dueDate: null,
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 0,
+            },
+            {
+              id: 30,
+              description: 'Submit receipt',
+              dueDate: null,
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 1,
+            },
+          ],
+        }),
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Step timeline' }))
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Step timeline' })).getByRole(
+        'button',
+        { name: 'Restructure steps' },
+      ),
+    )
+    const restructure = await screen.findByRole('dialog', { name: 'Restructure steps' })
+    await user.click(within(restructure).getAllByRole('button', { name: 'Remove' })[1])
+    expect(within(restructure).queryByDisplayValue('Submit receipt')).toBeNull()
+
+    await user.clear(within(restructure).getAllByLabelText('Description')[0])
+    const description = within(restructure).getAllByLabelText('Description')[0]
+    await waitFor(() => expect(description).toHaveAttribute('aria-invalid', 'true'))
+    expect(
+      document.getElementById(description.getAttribute('aria-describedby') ?? ''),
+    ).toHaveTextContent('Every step needs a description.')
+  })
+
+  it('shows backend contiguity failures at the invariant banner', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      processes: [makeSummary(1, { name: 'Renew passport' })],
+      detail: (id) =>
+        makeDetail(id, {
+          name: 'Renew passport',
+          resolvedStepCount: 0,
+          totalStepCount: 1,
+          nextPendingStepId: 20,
+          steps: [
+            {
+              id: 20,
+              description: 'Attend appointment',
+              dueDate: null,
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 0,
+            },
+          ],
+        }),
+      stepUpdate: () =>
+        json(
+          {
+            title: 'Conflict',
+            code: 'processes.steps.contiguity_violation',
+          },
+          409,
+        ),
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Step timeline' }))
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Step timeline' })).getByRole(
+        'button',
+        { name: 'Restructure steps' },
+      ),
+    )
+    const restructure = await screen.findByRole('dialog', { name: 'Restructure steps' })
+    await user.type(within(restructure).getByLabelText('Notes'), 'Bring originals')
+    await user.click(
+      within(restructure).getByRole('button', { name: 'Save step order' }),
+    )
+
+    expect(await within(restructure).findByRole('alert')).toHaveTextContent(
+      'Resolved steps must form a contiguous prefix. Move completed or skipped steps before pending steps.',
+    )
   })
 
   it('renders empty and completed timeline frontier states', async () => {

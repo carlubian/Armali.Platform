@@ -50,6 +50,7 @@ export function ProcessesPage() {
     openCreateDialog,
     openEditDialog,
     openStepsDialog,
+    openRestructureDialog,
     closeDialog,
   } = useProcessesState(currentUserId)
 
@@ -171,11 +172,14 @@ export function ProcessesPage() {
         />
       )}
 
-      {dialog.mode === 'steps' && (
+      {(dialog.mode === 'steps' || dialog.mode === 'restructure') && (
         <ProcessStepsDialog
           processId={dialog.processId}
           language={i18n.language}
+          mode={dialog.mode === 'steps' ? 'timeline' : 'restructure'}
           onClose={closeDialog}
+          onRestructure={() => openRestructureDialog(dialog.processId)}
+          onBackToTimeline={() => openStepsDialog(dialog.processId)}
         />
       )}
 

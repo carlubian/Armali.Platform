@@ -212,8 +212,7 @@ export const processes = {
     empty:
       'This procedure is an empty container — add steps to begin from the timeline.',
     trackLabel: 'Ordered step path',
-    nodeLabel:
-      'Step {{index}} of {{total}}: {{description}}. State: {{state}}.',
+    nodeLabel: 'Step {{index}} of {{total}}: {{description}}. State: {{state}}.',
     state: {
       Pending: 'Pending',
       Completed: 'Completed',
@@ -268,6 +267,10 @@ export const processes = {
         'Add, rename, reorder, re-date and annotate steps. Execution remains governed by the frontier.',
       invariant:
         'Contiguity is protected: resolved steps stay as a locked prefix, and pending or new steps can only live at or after the frontier.',
+      frontierDivider:
+        'Frontier divider between locked resolved steps and editable pending steps',
+      lockedPrefix: 'Locked resolved prefix',
+      editableTail: 'Editable pending tail',
       add: 'Add step',
       save: 'Save step order',
       saving: 'Saving…',

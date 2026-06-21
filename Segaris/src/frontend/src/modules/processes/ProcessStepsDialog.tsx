@@ -17,7 +17,7 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { isApiError } from '@/app/api/errors'
@@ -47,7 +47,10 @@ import { daysUntil, dueUrgency } from './processDates'
 export interface ProcessStepsDialogProps {
   processId: number
   language: string
+  mode: StepDialogMode
   onClose: () => void
+  onRestructure: () => void
+  onBackToTimeline: () => void
 }
 
 type DraftStep = StepListItemRequest & {
@@ -57,6 +60,17 @@ type DraftStep = StepListItemRequest & {
 
 type ActionKind = 'complete' | 'skip' | 'undo'
 type StepDialogMode = 'timeline' | 'restructure'
+type StepField = 'description' | 'dueDate' | 'notes'
+type RowErrors = Partial<Record<StepField, string>>
+
+interface DraftValidation {
+  banner: string | null
+  rows: Record<string, RowErrors>
+}
+
+interface RestructureErrors extends DraftValidation {
+  server: string | null
+}
 
 const statusTone: Record<Process['status'], BadgeTone> = {
   NotStarted: 'neutral',
@@ -74,14 +88,26 @@ const statePill: Record<StepExecutionState, string> = {
 export function ProcessStepsDialog({
   processId,
   language,
+  mode,
   onClose,
+  onRestructure,
+  onBackToTimeline,
 }: ProcessStepsDialogProps) {
   const { t } = useTranslation('processes')
   const queryClient = useQueryClient()
-  const [mode, setMode] = useState<StepDialogMode>('timeline')
   const [draftOverride, setDraftOverride] = useState<DraftStep[] | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [structureError, setStructureError] = useState<string | null>(null)
+  const [structureErrors, setStructureErrors] =
+    useState<RestructureErrors>(emptyRestructureErrors)
+  const restructureButtonRef = useRef<HTMLButtonElement>(null)
+  const previousMode = useRef<StepDialogMode>(mode)
+
+  useEffect(() => {
+    if (previousMode.current === 'restructure' && mode === 'timeline') {
+      restructureButtonRef.current?.focus()
+    }
+    previousMode.current = mode
+  }, [mode])
 
   const query = useQuery({
     queryKey: processesKeys.process(processId),
@@ -93,6 +119,8 @@ export function ProcessStepsDialog({
   const publishProcess = (saved: Process) => {
     queryClient.setQueryData(processesKeys.process(saved.id), saved)
     setDraftOverride(null)
+    void queryClient.invalidateQueries({ queryKey: processesKeys.process(saved.id) })
+    void queryClient.invalidateQueries({ queryKey: processesKeys.steps(saved.id) })
     void queryClient.invalidateQueries({ queryKey: processesKeys.all })
     void queryClient.invalidateQueries({ queryKey: launcherKeys.attention() })
   }
@@ -117,9 +145,9 @@ export function ProcessStepsDialog({
       processesApi.updateSteps(processId, { steps }),
     onSuccess: (saved) => {
       publishProcess(saved)
-      setMode('timeline')
+      onBackToTimeline()
     },
-    onError: (error) => setStructureError(mapStepError(error, t)),
+    onError: (error) => setStructureErrors(mapRestructureError(error, draft, t)),
   })
 
   const saving = restructureMutation.isPending
@@ -160,21 +188,22 @@ export function ProcessStepsDialog({
   const baseDraft = toDraft(process.steps)
   const draft = draftOverride ?? baseDraft
   const dirty = draftOverride != null
-  const validationError = validateDraft(draft, t)
-  const canSave = dirty && validationError == null && !saving
+  const validation = validateDraft(draft, t)
+  const activeErrors = mergeRestructureErrors(validation, structureErrors)
+  const canSave = dirty && !hasDraftErrors(activeErrors) && !saving
 
   const mutateDraft = (mapper: (current: DraftStep[]) => DraftStep[]) => {
     setDraftOverride((current) => mapper(current ?? baseDraft))
-    setStructureError(null)
+    setStructureErrors(emptyRestructureErrors())
   }
 
   const submitRestructure = () => {
-    const error = validateDraft(draft, t)
-    if (error != null) {
-      setStructureError(error)
+    const errors = validateDraft(draft, t)
+    if (hasDraftErrors(errors)) {
+      setStructureErrors({ ...errors, server: null })
       return
     }
-    setStructureError(null)
+    setStructureErrors(emptyRestructureErrors())
     restructureMutation.mutate(
       draft.map(({ id, description, dueDate, notes, isOptional }) => ({
         id,
@@ -188,8 +217,8 @@ export function ProcessStepsDialog({
 
   const closeRestructure = () => {
     setDraftOverride(null)
-    setStructureError(null)
-    setMode('timeline')
+    setStructureErrors(emptyRestructureErrors())
+    onBackToTimeline()
   }
 
   const footer =
@@ -200,11 +229,12 @@ export function ProcessStepsDialog({
           {t('steps.frontier.rules')}
         </span>
         <Button
+          ref={restructureButtonRef}
           variant="outline"
           iconLeft={<ListRestart size={16} />}
           onClick={() => {
-            setStructureError(null)
-            setMode('restructure')
+            setStructureErrors(emptyRestructureErrors())
+            onRestructure()
           }}
         >
           {t('steps.restructure.open')}
@@ -217,6 +247,9 @@ export function ProcessStepsDialog({
       <>
         <Button variant="ghost" onClick={closeRestructure} disabled={saving}>
           {t('steps.restructure.back')}
+        </Button>
+        <Button variant="ghost" onClick={onClose} disabled={saving}>
+          {t('steps.close')}
         </Button>
         <Button
           iconLeft={<Save size={15} />}
@@ -270,7 +303,7 @@ export function ProcessStepsDialog({
             setActionError(null)
             frontierMutation.mutate({ kind, stepId })
           }}
-          onRestructure={() => setMode('restructure')}
+          onRestructure={onRestructure}
         />
       ) : (
         <RestructureView
@@ -278,7 +311,7 @@ export function ProcessStepsDialog({
           process={process}
           language={language}
           saving={saving}
-          structureError={structureError ?? validationError}
+          errors={activeErrors}
           onPatch={(clientId, patch) =>
             mutateDraft((current) =>
               current.map((candidate) =>
@@ -600,7 +633,7 @@ interface RestructureViewProps {
   process: Process
   language: string
   saving: boolean
-  structureError: string | null
+  errors: RestructureErrors
   onPatch: (clientId: string, patch: Partial<DraftStep>) => void
   onMove: (index: number, direction: 'up' | 'down') => void
   onRemove: (clientId: string) => void
@@ -612,45 +645,67 @@ function RestructureView({
   process,
   language,
   saving,
-  structureError,
+  errors,
   onPatch,
   onMove,
   onRemove,
   onAdd,
 }: RestructureViewProps) {
   const { t } = useTranslation('processes')
+  const lockedCount = resolvedPrefixCount(process.steps)
   const latestResolvedId = latestResolvedStepId(process.steps)
+  const divider = (
+    <li
+      className="seg-proc-frontier-divider"
+      aria-label={t('steps.restructure.frontierDivider')}
+    >
+      <span>{t('steps.restructure.lockedPrefix')}</span>
+      <strong>{t('steps.restructure.editableTail')}</strong>
+    </li>
+  )
 
   return (
     <div className="seg-proc-restructure">
-      {structureError != null && (
-        <p className="seg-proc-editor__error" role="alert">
-          {structureError}
-        </p>
-      )}
-      <div className="seg-proc-restructure__banner">
+      <div
+        className={[
+          'seg-proc-restructure__banner',
+          errors.banner != null || errors.server != null ? 'is-error' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        role={errors.banner != null || errors.server != null ? 'alert' : undefined}
+      >
         <Info size={16} aria-hidden="true" />
-        <p>{t('steps.restructure.invariant')}</p>
+        <p>{errors.server ?? errors.banner ?? t('steps.restructure.invariant')}</p>
       </div>
       {draft.length === 0 ? (
         <p className="seg-proc-steps__empty">{t('steps.empty')}</p>
       ) : (
         <ol className="seg-proc-steps__list">
-          {draft.map((step, index) => (
-            <StepRow
-              key={step.clientId}
-              step={step}
-              index={index}
-              total={draft.length}
-              frontier={step.id === process.nextPendingStepId}
-              latestResolved={step.id != null && step.id === latestResolvedId}
-              language={language}
-              busy={saving}
-              onPatch={(patch) => onPatch(step.clientId, patch)}
-              onMove={(direction) => onMove(index, direction)}
-              onRemove={() => onRemove(step.clientId)}
-            />
-          ))}
+          {draft.map((step, index) => {
+            const locked = index < lockedCount
+            return (
+              <Fragment key={step.clientId}>
+                {index === lockedCount && divider}
+                <StepRow
+                  step={step}
+                  index={index}
+                  lockedCount={lockedCount}
+                  total={draft.length}
+                  locked={locked}
+                  frontier={step.id === process.nextPendingStepId}
+                  latestResolved={step.id != null && step.id === latestResolvedId}
+                  language={language}
+                  busy={saving}
+                  errors={errors.rows[step.clientId] ?? {}}
+                  onPatch={(patch) => onPatch(step.clientId, patch)}
+                  onMove={(direction) => onMove(index, direction)}
+                  onRemove={() => onRemove(step.clientId)}
+                />
+              </Fragment>
+            )
+          })}
+          {lockedCount === draft.length && divider}
         </ol>
       )}
 
@@ -672,11 +727,14 @@ function RestructureView({
 interface StepRowProps {
   step: DraftStep
   index: number
+  lockedCount: number
   total: number
+  locked: boolean
   frontier: boolean
   latestResolved: boolean
   language: string
   busy: boolean
+  errors: RowErrors
   onPatch: (patch: Partial<DraftStep>) => void
   onMove: (direction: 'up' | 'down') => void
   onRemove: () => void
@@ -685,11 +743,14 @@ interface StepRowProps {
 function StepRow({
   step,
   index,
+  lockedCount,
   total,
+  locked,
   frontier,
   latestResolved,
   language,
   busy,
+  errors,
   onPatch,
   onMove,
   onRemove,
@@ -700,7 +761,10 @@ function StepRow({
   return (
     <li
       className={
-        'seg-proc-step ' + statePill[step.state] + (frontier ? ' is-frontier' : '')
+        'seg-proc-step ' +
+        statePill[step.state] +
+        (frontier ? ' is-frontier' : '') +
+        (locked ? ' is-locked' : '')
       }
     >
       <span className="seg-proc-step__orb" aria-hidden="true">
@@ -715,6 +779,8 @@ function StepRow({
           label={t('steps.restructure.stepDescription')}
           value={step.description}
           onChange={(event) => onPatch({ description: event.target.value })}
+          disabled={busy || locked}
+          error={errors.description}
           required
         />
         <div className="seg-proc-step__meta">
@@ -737,17 +803,22 @@ function StepRow({
             type="date"
             value={step.dueDate ?? ''}
             onChange={(event) => onPatch({ dueDate: emptyToNull(event.target.value) })}
+            disabled={busy || locked}
+            error={errors.dueDate}
           />
           <Input
             label={t('steps.restructure.notes')}
             value={step.notes ?? ''}
             onChange={(event) => onPatch({ notes: emptyToNull(event.target.value) })}
+            disabled={busy || locked}
+            error={errors.notes}
           />
           <Checkbox
             className="seg-proc-step__optional"
             label={t('steps.optional')}
             checked={step.isOptional}
             onChange={(event) => onPatch({ isOptional: event.target.checked })}
+            disabled={busy || locked}
           />
         </div>
       </div>
@@ -764,7 +835,7 @@ function StepRow({
             size="sm"
             variant="ghost"
             iconLeft={<ArrowUp size={13} />}
-            disabled={busy || index === 0}
+            disabled={busy || locked || index <= lockedCount}
             onClick={() => onMove('up')}
           >
             {t('steps.restructure.up')}
@@ -773,7 +844,7 @@ function StepRow({
             size="sm"
             variant="ghost"
             iconLeft={<ArrowDown size={13} />}
-            disabled={busy || index === total - 1}
+            disabled={busy || locked || index === total - 1}
             onClick={() => onMove('down')}
           >
             {t('steps.restructure.down')}
@@ -783,7 +854,7 @@ function StepRow({
             variant="ghost"
             className="seg-proc-step__remove"
             iconLeft={<Trash2 size={13} />}
-            disabled={busy}
+            disabled={busy || locked}
             onClick={onRemove}
           >
             {t('steps.restructure.remove')}
@@ -836,6 +907,11 @@ function moveStep(
   return copy
 }
 
+function resolvedPrefixCount(steps: ProcessStep[]): number {
+  const firstPending = steps.findIndex((step) => step.state === 'Pending')
+  return firstPending === -1 ? steps.length : firstPending
+}
+
 function frontierStep(process: Process): ProcessStep | null {
   if (process.nextPendingStepId != null) {
     return process.steps.find((step) => step.id === process.nextPendingStepId) ?? null
@@ -863,28 +939,41 @@ function dueRelative(civil: string, t: TFunction<'processes'>): string {
   return t('list.due.inDays', { count: days })
 }
 
-function validateDraft(draft: DraftStep[], t: (key: string) => string): string | null {
+function emptyRestructureErrors(): RestructureErrors {
+  return { banner: null, rows: {}, server: null }
+}
+
+function validateDraft(
+  draft: DraftStep[],
+  t: (key: string) => string,
+): DraftValidation {
+  const rows: Record<string, RowErrors> = {}
+  let banner: string | null = null
   let pendingSeen = false
   for (const step of draft) {
+    const stepErrors: RowErrors = {}
     if (step.description.trim().length === 0) {
-      return t('steps.restructure.errors.description')
+      stepErrors.description = t('steps.restructure.errors.description')
     }
     if (step.description.trim().length > 500) {
-      return t('steps.restructure.errors.descriptionLong')
+      stepErrors.description = t('steps.restructure.errors.descriptionLong')
     }
     if (step.notes != null && step.notes.length > 1000) {
-      return t('steps.restructure.errors.notesLong')
+      stepErrors.notes = t('steps.restructure.errors.notesLong')
     }
     if (step.dueDate != null && !/^\d{4}-\d{2}-\d{2}$/.test(step.dueDate)) {
-      return t('steps.restructure.errors.date')
+      stepErrors.dueDate = t('steps.restructure.errors.date')
+    }
+    if (Object.keys(stepErrors).length > 0) {
+      rows[step.clientId] = stepErrors
     }
     if (step.state === 'Pending') {
       pendingSeen = true
     } else if (pendingSeen) {
-      return t('steps.restructure.errors.contiguity')
+      banner = t('steps.restructure.errors.contiguity')
     }
   }
-  return null
+  return { banner, rows }
 }
 
 function mapStepError(error: unknown, t: (key: string) => string): string {
@@ -896,4 +985,58 @@ function mapStepError(error: unknown, t: (key: string) => string): string {
     if (error.kind === 'not-found') return t('editor.notFound')
   }
   return t('steps.restructure.errors.generic')
+}
+
+function mergeRestructureErrors(
+  validation: DraftValidation,
+  operation: RestructureErrors,
+): RestructureErrors {
+  return {
+    banner: operation.banner ?? validation.banner,
+    rows: { ...validation.rows, ...operation.rows },
+    server: operation.server,
+  }
+}
+
+function hasDraftErrors(errors: DraftValidation): boolean {
+  return (
+    errors.banner != null ||
+    Object.values(errors.rows).some((row) => Object.keys(row).length > 0)
+  )
+}
+
+function mapRestructureError(
+  error: unknown,
+  draft: DraftStep[],
+  t: (key: string) => string,
+): RestructureErrors {
+  const mapped = emptyRestructureErrors()
+  if (isApiError(error)) {
+    const code = error.problem?.code ?? ''
+    if (code.includes('contiguity')) {
+      mapped.banner = t('steps.restructure.errors.contiguity')
+      return mapped
+    }
+    if (error.problem?.errors != null) {
+      for (const [path, messages] of Object.entries(error.problem.errors)) {
+        const rowMatch = path.match(/steps\[(\d+)]\.(description|dueDate|notes)/i)
+        if (rowMatch == null) continue
+        const index = Number(rowMatch[1])
+        const field = rowMatch[2] as StepField
+        const clientId = draft[index]?.clientId
+        if (clientId == null) continue
+        mapped.rows[clientId] = {
+          ...mapped.rows[clientId],
+          [field]: messages[0] ?? t('steps.restructure.errors.generic'),
+        }
+      }
+      if (hasDraftErrors(mapped)) return mapped
+    }
+    if (error.kind === 'not-found') {
+      mapped.server = t('editor.notFound')
+      return mapped
+    }
+  }
+  mapped.server = t('steps.restructure.errors.generic')
+  return mapped
 }
