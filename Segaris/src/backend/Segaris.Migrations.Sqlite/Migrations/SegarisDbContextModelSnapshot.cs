@@ -828,6 +828,251 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.ToTable("configuration_suppliers", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Interaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("PersonId", "Date", "Id");
+
+                    b.ToTable("firebird_interactions", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Person", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AvatarAttachmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("BirthdayDay")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("BirthdayMonth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("Visibility");
+
+                    b.HasIndex("Name", "Id");
+
+                    b.HasIndex("BirthdayMonth", "BirthdayDay", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.HasIndex("Visibility", "BirthdayMonth", "BirthdayDay");
+
+                    b.ToTable("firebird_people", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_firebird_people_birthday", "(\"BirthdayMonth\" IS NULL AND \"BirthdayDay\" IS NULL) OR (\"BirthdayMonth\" BETWEEN 1 AND 12 AND \"BirthdayDay\" BETWEEN 1 AND CASE WHEN \"BirthdayMonth\" = 2 THEN 29 WHEN \"BirthdayMonth\" IN (4, 6, 9, 11) THEN 30 ELSE 31 END)");
+
+                            t.HasCheckConstraint("CK_firebird_people_status", "\"Status\" IN ('Unknown', 'Active', 'Unavailable', 'Blocked')");
+
+                            t.HasCheckConstraint("CK_firebird_people_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.PersonCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("firebird_person_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Username", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Handle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PlatformId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("PlatformId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("PersonId", "Id");
+
+                    b.ToTable("firebird_usernames", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.UsernamePlatform", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("firebird_username_platforms", (string)null);
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Identity.SegarisRole", b =>
                 {
                     b.Property<int>("Id")
@@ -2661,6 +2906,75 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         .WithMany("Colors")
                         .HasForeignKey("GarmentId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Interaction", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Firebird.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Person", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Firebird.Domain.PersonCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Firebird.Domain.Username", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Firebird.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Firebird.Domain.UsernamePlatform", null)
+                        .WithMany()
+                        .HasForeignKey("PlatformId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

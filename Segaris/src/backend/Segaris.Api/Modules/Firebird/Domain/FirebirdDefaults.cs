@@ -14,4 +14,23 @@ internal static class FirebirdDefaults
 
     public static readonly PersonStatus Status = PersonStatus.Unknown;
     public static readonly RecordVisibility Visibility = RecordVisibility.Public;
+
+    public static readonly IReadOnlyList<string> InitialCategories =
+    [
+        "Family",
+        "Friend",
+        "Colleague",
+        "Acquaintance",
+        "Other",
+    ];
+
+    public static readonly IReadOnlyList<string> InitialUsernamePlatforms =
+    [
+        "Email",
+        "Phone",
+        "Discord",
+        "Twitter",
+        "Instagram",
+        "Other",
+    ];
 }

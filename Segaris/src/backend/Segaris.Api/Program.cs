@@ -5,6 +5,7 @@ using Segaris.Api.Modules.Assets.Seeding;
 using Segaris.Api.Modules.Capex.Seeding;
 using Segaris.Api.Modules.Clothes.Seeding;
 using Segaris.Api.Modules.Configuration.Seeding;
+using Segaris.Api.Modules.Firebird.Seeding;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Modules.Inventory.Seeding;
 using Segaris.Api.Modules.Maintenance.Seeding;
@@ -48,6 +49,7 @@ await app.Services.SeedClothesAsync();
 await app.Services.SeedAssetsAsync();
 await app.Services.SeedMaintenanceAsync();
 await app.Services.SeedProcessesAsync();
+await app.Services.SeedFirebirdAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>
