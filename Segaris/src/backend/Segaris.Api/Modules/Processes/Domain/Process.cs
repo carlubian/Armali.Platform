@@ -84,6 +84,13 @@ internal sealed class Process
         StampModification(actorId, now);
     }
 
+    /// <summary>Marks the aggregate as changed after its owned step list changes.</summary>
+    internal void MarkStepsChanged(UserId actorId, DateTimeOffset now)
+    {
+        ProcessesValidation.EnsureUtc(now);
+        StampModification(actorId, now);
+    }
+
     private void Apply(ProcessValues values, UserId actorId, DateTimeOffset now, bool isCreation)
     {
         ArgumentNullException.ThrowIfNull(values);

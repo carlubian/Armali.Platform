@@ -71,6 +71,41 @@ internal static class ProcessesEndpoints
             .WithSummary("Clears the terminal Cancelled override on an accessible process")
             .Produces<ProcessResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(ProcessesApiRoutes.ProcessSteps, ListStepsAsync)
+            .WithName("ListProcessSteps")
+            .WithSummary("Returns the ordered step list of an accessible process")
+            .Produces<IReadOnlyList<StepResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(ProcessesApiRoutes.ProcessSteps, UpdateStepsAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateProcessSteps")
+            .WithSummary("Replaces the ordered step list while preserving state by identity")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost(ProcessesApiRoutes.StepComplete, CompleteStepAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CompleteProcessStep")
+            .WithSummary("Completes the frontier step of an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost(ProcessesApiRoutes.StepSkip, SkipStepAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("SkipProcessStep")
+            .WithSummary("Skips an optional frontier step of an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost(ProcessesApiRoutes.StepUndo, UndoStepAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UndoProcessStep")
+            .WithSummary("Returns the most recently resolved step to pending")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -245,6 +280,133 @@ internal static class ProcessesEndpoints
 
         var reopened = await write.ReopenAsync(processId, userId, cancellationToken);
         if (!reopened)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(await read.GetAsync(processId, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> ListStepsAsync(
+        int processId,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var steps = await read.GetStepsAsync(processId, userId, cancellationToken);
+        if (steps is null)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(steps);
+    }
+
+    private static async Task<IResult> UpdateStepsAsync(
+        int processId,
+        UpdateStepListRequest request,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateStepsAsync(processId, request, userId, cancellationToken);
+        }
+        catch (ProcessesValidationException exception)
+        {
+            throw ProcessProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(await read.GetAsync(processId, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> CompleteStepAsync(
+        int processId,
+        int stepId,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        await ApplyStepActionAsync(
+            processId,
+            stepId,
+            write.CompleteStepAsync,
+            read,
+            currentUser,
+            cancellationToken);
+
+    private static async Task<IResult> SkipStepAsync(
+        int processId,
+        int stepId,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        await ApplyStepActionAsync(
+            processId,
+            stepId,
+            write.SkipStepAsync,
+            read,
+            currentUser,
+            cancellationToken);
+
+    private static async Task<IResult> UndoStepAsync(
+        int processId,
+        int stepId,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        await ApplyStepActionAsync(
+            processId,
+            stepId,
+            write.UndoStepAsync,
+            read,
+            currentUser,
+            cancellationToken);
+
+    private static async Task<IResult> ApplyStepActionAsync(
+        int processId,
+        int stepId,
+        Func<int, int, UserId, CancellationToken, Task<bool>> action,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool applied;
+        try
+        {
+            applied = await action(processId, stepId, userId, cancellationToken);
+        }
+        catch (ProcessesValidationException exception)
+        {
+            throw ProcessProblem.From(exception);
+        }
+
+        if (!applied)
         {
             throw ProcessProblem.NotFound();
         }

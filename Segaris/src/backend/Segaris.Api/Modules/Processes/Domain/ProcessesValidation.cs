@@ -116,6 +116,9 @@ internal enum ProcessesValidationReason
     /// <summary>A required string, length, or enum rule on a step failed.</summary>
     StepValidation,
 
+    /// <summary>The step does not exist inside the accessible process.</summary>
+    StepNotFound,
+
     /// <summary>The referenced process category does not exist.</summary>
     UnknownCategory,
 

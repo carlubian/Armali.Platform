@@ -161,6 +161,32 @@ internal sealed class ProcessReadService(SegarisDbContext database)
             row.UpdatedAt);
     }
 
+    public async Task<IReadOnlyList<StepResponse>?> GetStepsAsync(
+        int processId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        if (!await AccessibleAsync(processId, userId, cancellationToken))
+        {
+            return null;
+        }
+
+        return await database.Set<Step>()
+            .AsNoTracking()
+            .Where(step => step.ProcessId == processId)
+            .OrderBy(step => step.SortOrder)
+            .ThenBy(step => step.Id)
+            .Select(step => new StepResponse(
+                step.Id,
+                step.Description,
+                step.DueDate,
+                step.Notes,
+                step.IsOptional,
+                step.State.ToString(),
+                step.SortOrder))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<bool> AccessibleAsync(int processId, UserId userId, CancellationToken cancellationToken) =>
         await database.Set<Process>()
             .AsNoTracking()
