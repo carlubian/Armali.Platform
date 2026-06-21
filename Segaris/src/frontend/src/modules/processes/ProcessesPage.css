@@ -134,7 +134,6 @@
 }
 .seg-proc__col-static,
 .seg-proc__col-manage {
-  display: block;
   padding: var(--space-3) var(--space-4);
   color: var(--text-secondary);
   font-size: var(--text-xs);
