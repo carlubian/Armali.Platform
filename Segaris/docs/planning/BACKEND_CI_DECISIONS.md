@@ -19,11 +19,21 @@ publication is triggered only after that main-branch run completes successfully.
 
 The following job names are the required branch checks:
 
-- `Segaris Backend`: restore, formatting verification, build, unit tests, architecture
-  tests, and API integration tests.
+- `Segaris Backend`: restore, formatting verification, build, unit tests, and
+  architecture tests.
+- `Segaris Backend Integration (shard N/M)`: the API integration tests, split across a
+  parallel matrix of shards. Each shard restores, builds, and runs its slice through
+  `scripts/backend-test-shard.ps1`, which partitions the test classes round-robin so new
+  modules are sharded automatically. Every matrix leg is an independent required check.
 - `Segaris PostgreSQL`: production-provider integration tests and SQLite/PostgreSQL
   migration tests through Testcontainers.
 - `Segaris Compose`: clean full-stack build and routing/readiness smoke test.
+
+The API integration tests were moved out of `Segaris Backend` into the sharded job because
+their runtime grew with each module and was approaching the single-job timeout; fanning the
+slice across matrix runners keeps wall-clock flat as modules are added. See
+`docs/planning/INTEGRATION_TEST_PERFORMANCE_OPTIONS.md` for the measured cost breakdown and
+the remaining optimizations.
 
 Jobs are deliberately separated so a failure identifies its ownership boundary
 without weakening the complete merge gate.
@@ -37,7 +47,10 @@ with always-present path-aware gate jobs rather than filtering out the workflow.
 
 The `main` branch should be protected by a GitHub ruleset with these settings:
 
-- Require the `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` status checks.
+- Require the `Segaris Backend`, every `Segaris Backend Integration (shard N/M)` leg,
+  `Segaris PostgreSQL`, and `Segaris Compose` status checks. GitHub treats each matrix leg
+  as its own check, so all of them must be listed; otherwise integration failures would no
+  longer block a merge. When the shard count changes, update the required-check list to match.
 - Require branches to be up to date before merging.
 - Require all review conversations to be resolved.
 - Block force pushes and branch deletion.

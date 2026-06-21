@@ -54,8 +54,40 @@ jobs:
       - name: Run architecture tests
         run: dotnet test Segaris/tests/backend/Segaris.ArchitectureTests/Segaris.ArchitectureTests.csproj --no-restore --no-build
 
-      - name: Run API integration tests
-        run: dotnet test Segaris/tests/backend/Segaris.Api.IntegrationTests/Segaris.Api.IntegrationTests.csproj --no-restore --no-build
+  backend-integration:
+    name: Segaris Backend Integration (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: Segaris/global.json
+
+      - name: Restore
+        shell: pwsh
+        run: ./Segaris/scripts/backend-restore.ps1
+
+      - name: Build
+        shell: pwsh
+        run: ./Segaris/scripts/backend-build.ps1
+
+      - name: Run API integration tests (shard ${{ matrix.shard }})
+        shell: pwsh
+        run: >-
+          ./Segaris/scripts/backend-test-shard.ps1
+          -Project tests/backend/Segaris.Api.IntegrationTests/Segaris.Api.IntegrationTests.csproj
+          -ShardIndex ${{ matrix.shard }}
+          -ShardCount ${{ strategy.job-total }}
 
   frontend:
     name: Segaris Frontend
