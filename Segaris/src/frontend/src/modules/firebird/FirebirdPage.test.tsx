@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Person, PersonSummary } from '@/app/api/firebird'
+import type { Interaction, Person, PersonSummary, Username } from '@/app/api/firebird'
 
 const session = {
   userId: 7,
@@ -48,6 +48,8 @@ function makePerson(id: number, overrides: Partial<PersonSummary> = {}): PersonS
 
 interface BackendOptions {
   people?: PersonSummary[]
+  usernames?: Username[]
+  interactions?: Interaction[]
 }
 
 function makeDetail(summary: PersonSummary): Person {
@@ -67,7 +69,14 @@ function makeDetail(summary: PersonSummary): Person {
 
 function mockBackend(options: BackendOptions = {}) {
   const people = options.people ?? [makePerson(1)]
+  const usernames = options.usernames ?? [
+    { id: 10, platformId: 1, platformName: 'Email', handle: 'ada@example.test', notes: null },
+  ]
+  const interactions = options.interactions ?? [
+    { id: 20, date: '2026-06-18', description: 'Sent a birthday card' },
+  ]
   const requests: Array<{ method: string; url: string; body: string | null }> = []
+  let nextId = 1000
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     await Promise.resolve()
@@ -95,6 +104,75 @@ function mockBackend(options: BackendOptions = {}) {
       requests.push({ method, url, body })
       const request = JSON.parse(body ?? '{}') as { name: string }
       return json(makeDetail(makePerson(99, { name: request.name })), 201)
+    }
+    const usernameMatch = url.match(/^\/api\/people\/(\d+)\/usernames(?:\/(\d+))?$/)
+    if (usernameMatch) {
+      const usernameId = usernameMatch[2] != null ? Number(usernameMatch[2]) : null
+      if (usernameId == null && method === 'GET') return json(usernames)
+      if (usernameId == null && method === 'POST') {
+        requests.push({ method, url, body })
+        const request = JSON.parse(body ?? '{}') as {
+          platformId: number
+          handle: string
+          notes: string | null
+        }
+        const created: Username = {
+          id: nextId++,
+          platformId: request.platformId,
+          platformName: 'Email',
+          handle: request.handle,
+          notes: request.notes,
+        }
+        usernames.push(created)
+        return json(created, 201)
+      }
+      if (usernameId != null && method === 'PUT') {
+        requests.push({ method, url, body })
+        const request = JSON.parse(body ?? '{}') as {
+          platformId: number
+          handle: string
+          notes: string | null
+        }
+        const updated: Username = {
+          id: usernameId,
+          platformId: request.platformId,
+          platformName: 'Email',
+          handle: request.handle,
+          notes: request.notes,
+        }
+        return json(updated)
+      }
+      if (usernameId != null && method === 'DELETE') {
+        requests.push({ method, url, body })
+        return new Response(null, { status: 204 })
+      }
+    }
+    const interactionMatch = url.match(/^\/api\/people\/(\d+)\/interactions(?:\/(\d+))?$/)
+    if (interactionMatch) {
+      const interactionId =
+        interactionMatch[2] != null ? Number(interactionMatch[2]) : null
+      if (interactionId == null && method === 'GET') return json(interactions)
+      if (interactionId == null && method === 'POST') {
+        requests.push({ method, url, body })
+        const request = JSON.parse(body ?? '{}') as Omit<Interaction, 'id'>
+        const created: Interaction = { id: nextId++, ...request }
+        interactions.unshift(created)
+        return json(created, 201)
+      }
+      if (interactionId != null && method === 'PUT') {
+        requests.push({ method, url, body })
+        const request = JSON.parse(body ?? '{}') as Omit<Interaction, 'id'>
+        return json({ id: interactionId, ...request })
+      }
+      if (interactionId != null && method === 'DELETE') {
+        requests.push({ method, url, body })
+        return new Response(null, { status: 204 })
+      }
+    }
+    const detailMatch = url.match(/^\/api\/people\/(\d+)$/)
+    if (detailMatch && method === 'GET') {
+      const person = people.find((candidate) => candidate.id === Number(detailMatch[1]))
+      return person == null ? json({}, 404) : json(makeDetail(person))
     }
     if (url.startsWith('/api/people') && method === 'GET') {
       requests.push({ method, url, body })
@@ -238,5 +316,73 @@ describe('Firebird gallery', () => {
       })
     })
     expect(await screen.findByText('Person created')).toBeInTheDocument()
+  })
+
+  it('creates usernames from the popup with platform selection and validation', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({ people: [makePerson(1, { name: 'Ada' })] })
+    render(<App />)
+
+    await screen.findByText('Ada')
+    await user.click(screen.getByRole('button', { name: 'Open usernames for Ada' }))
+    const popup = await screen.findByRole('dialog', { name: 'Usernames' })
+    expect(within(popup).getByText('ada@example.test')).toBeInTheDocument()
+
+    await user.click(within(popup).getByRole('button', { name: 'Add username' }))
+    const editor = await screen.findByRole('dialog', { name: 'New username' })
+    await user.click(within(editor).getByRole('button', { name: 'Save changes' }))
+    expect(await within(editor).findByText('Enter a value.')).toBeInTheDocument()
+
+    await user.type(within(editor).getByLabelText('Value'), '  ada@armali.test  ')
+    await user.click(within(editor).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      const post = requests.find(
+        (request) => request.method === 'POST' && request.url.endsWith('/usernames'),
+      )
+      expect(post).toBeDefined()
+      expect(JSON.parse(post?.body ?? '{}')).toMatchObject({
+        platformId: 1,
+        handle: 'ada@armali.test',
+        notes: null,
+      })
+    })
+    expect(await screen.findByText('Username saved')).toBeInTheDocument()
+  })
+
+  it('shows interactions in server order and creates a dated interaction', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      people: [makePerson(1, { name: 'Ada' })],
+      interactions: [
+        { id: 22, date: '2026-06-20', description: 'Most recent note' },
+        { id: 21, date: '2026-05-01', description: 'Older note' },
+      ],
+    })
+    render(<App />)
+
+    await screen.findByText('Ada')
+    await user.click(screen.getByRole('button', { name: 'Open interactions for Ada' }))
+    const popup = await screen.findByRole('dialog', { name: 'Interactions' })
+    const recent = within(popup).getByText('Most recent note')
+    const older = within(popup).getByText('Older note')
+    expect(recent.compareDocumentPosition(older)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+
+    await user.click(within(popup).getByRole('button', { name: 'Add interaction' }))
+    const editor = await screen.findByRole('dialog', { name: 'New interaction' })
+    await user.clear(within(editor).getByLabelText('Description'))
+    await user.type(within(editor).getByLabelText('Description'), '  Followed up  ')
+    await user.click(within(editor).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      const post = requests.find(
+        (request) => request.method === 'POST' && request.url.endsWith('/interactions'),
+      )
+      expect(post).toBeDefined()
+      expect(JSON.parse(post?.body ?? '{}')).toMatchObject({
+        description: 'Followed up',
+      })
+    })
+    expect(await screen.findByText('Interaction saved')).toBeInTheDocument()
   })
 })

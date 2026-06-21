@@ -67,6 +67,8 @@ interface BackendOptions {
   assetLocations?: Row[]
   maintenanceTypes?: Row[]
   processCategories?: Row[]
+  personCategories?: Row[]
+  usernamePlatforms?: Row[]
   programs?: Row[]
   axes?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
@@ -93,6 +95,8 @@ const catalogPaths: Record<string, string> = {
   'assets/locations': 'assetLocations',
   'maintenance/types': 'maintenanceTypes',
   'processes/categories': 'processCategories',
+  'people/categories': 'personCategories',
+  'people/platforms': 'usernamePlatforms',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -139,6 +143,14 @@ function mockBackend(options: BackendOptions = {}) {
     processCategories: options.processCategories ?? [
       { id: 1, name: 'Administrative', sortOrder: 1 },
       { id: 2, name: 'Legal', sortOrder: 2 },
+    ],
+    personCategories: options.personCategories ?? [
+      { id: 1, name: 'Family', sortOrder: 1 },
+      { id: 2, name: 'Friend', sortOrder: 2 },
+    ],
+    usernamePlatforms: options.usernamePlatforms ?? [
+      { id: 1, name: 'Email', sortOrder: 1 },
+      { id: 2, name: 'Discord', sortOrder: 2 },
     ],
     programs: options.programs ?? [
       { id: 1, code: 'HOME', name: 'Household', sortOrder: 1 },
@@ -224,7 +236,7 @@ function mockBackend(options: BackendOptions = {}) {
       }
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -434,6 +446,22 @@ describe('Configuration navigation and states', () => {
       await screen.findByRole('heading', { name: 'Process categories' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Administrative')).toBeInTheDocument()
+  })
+
+  it('shows the Firebird catalog tabs', async () => {
+    mockBackend()
+    renderAt('/configuration/firebird?catalog=person-categories')
+    expect(
+      await screen.findByRole('heading', { name: 'Person categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Family')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Username platforms' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Username platforms' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Discord')).toBeInTheDocument()
   })
 
   it('shows the Projects programs and axes tabs ordered by code', async () => {
@@ -825,6 +853,23 @@ describe('Configuration reordering', () => {
       ).toEqual({ direction: 'down' }),
     )
   })
+
+  it('reorders Firebird username platforms through the Firebird section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/firebird?catalog=username-platforms')
+    await screen.findByText('Email')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move Email down' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) =>
+            call.method === 'POST' && call.url === '/api/people/platforms/1/move',
+        )?.body,
+      ).toEqual({ direction: 'down' }),
+    )
+  })
 })
 
 describe('Configuration deletion', () => {
@@ -1056,6 +1101,37 @@ describe('Configuration deletion', () => {
         calls.find(
           (call) => call.url === '/api/processes/categories/1/replace-and-delete',
         )?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
+    )
+  })
+
+  it('requires replacement for a referenced Firebird person category', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'personCategories:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: false,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/firebird?catalog=person-categories')
+    await screen.findByText('Family')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Family' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Family' })
+
+    expect(
+      within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
+    ).not.toBeInTheDocument()
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url === '/api/people/categories/1/replace-and-delete')
+          ?.body,
       ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
     )
   })

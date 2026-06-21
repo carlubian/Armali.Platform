@@ -16,6 +16,7 @@ import {
   Globe,
   Lock,
   MessagesSquare,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -24,6 +25,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { z } from 'zod'
 
 import {
   firebirdApi,
@@ -35,9 +37,14 @@ import {
   type FirebirdPersonSortField,
   type FirebirdPersonStatus,
   type FirebirdVisibility,
+  type Interaction,
+  type InteractionRequest,
   type PersonCategory,
   type PersonSummary,
   type Person,
+  type Username,
+  type UsernamePlatform,
+  type UsernameRequest,
 } from '@/app/api/firebird'
 import { isApiError } from '@/app/api/errors'
 import { useSession } from '@/app/session/SessionContext'
@@ -74,11 +81,18 @@ import {
   toRequest,
   type PersonFormValues,
 } from './personForm'
-import { usePersonCategories } from './queries'
+import { usePersonCategories, useUsernamePlatforms } from './queries'
 
 import './FirebirdPage.css'
 
-type ToastKind = 'created' | 'updated' | 'deleted'
+type ToastKind =
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'usernameSaved'
+  | 'usernameDeleted'
+  | 'interactionSaved'
+  | 'interactionDeleted'
 
 interface ToastState {
   kind: ToastKind
@@ -167,6 +181,18 @@ export function FirebirdPage() {
     closeDialog()
   }
 
+  const closeSubEntityDialog = () => {
+    if (dialog.mode === 'usernames' || dialog.mode === 'interactions') {
+      openEditDialog(dialog.personId)
+      return
+    }
+    closeDialog()
+  }
+
+  const handleSubEntityChanged = (kind: ToastKind, name: string) => {
+    setToast({ kind, name })
+  }
+
   useEffect(() => {
     if (data != null && state.page > totalPages) setPage(totalPages)
   }, [data, state.page, totalPages, setPage])
@@ -235,7 +261,7 @@ export function FirebirdPage() {
         onPageSize={setPageSize}
       />
 
-      {dialog.mode !== 'closed' && (
+      {(dialog.mode === 'create' || dialog.mode === 'edit') && (
         <PersonDialog
           dialog={dialog}
           currentUserId={currentUserId}
@@ -244,6 +270,23 @@ export function FirebirdPage() {
           onDeleted={handleDeleted}
           onOpenUsernames={openUsernamesDialog}
           onOpenInteractions={openInteractionsDialog}
+        />
+      )}
+
+      {dialog.mode === 'usernames' && (
+        <UsernamesDialog
+          personId={dialog.personId}
+          onClose={closeSubEntityDialog}
+          onChanged={handleSubEntityChanged}
+        />
+      )}
+
+      {dialog.mode === 'interactions' && (
+        <InteractionsDialog
+          personId={dialog.personId}
+          locale={i18n.language}
+          onClose={closeSubEntityDialog}
+          onChanged={handleSubEntityChanged}
         />
       )}
 
@@ -1233,6 +1276,555 @@ function ManageCard({ icon, title, hint, action, disabled, onClick }: ManageCard
   )
 }
 
+interface SubEntityDialogProps {
+  personId: number
+  onClose: () => void
+  onChanged: (kind: ToastKind, name: string) => void
+}
+
+type UsernameFormValues = {
+  platformId: string
+  handle: string
+  notes: string
+}
+
+type InteractionFormValues = {
+  date: string
+  description: string
+}
+
+type EditState<T> = { mode: 'create' } | { mode: 'edit'; row: T }
+
+function UsernamesDialog({ personId, onClose, onChanged }: SubEntityDialogProps) {
+  const { t } = useTranslation('firebird')
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState<EditState<Username> | null>(null)
+  const usernamesQuery = useQuery({
+    queryKey: firebirdKeys.usernames(personId),
+    queryFn: ({ signal }) => firebirdApi.listUsernames(personId, signal),
+  })
+  const platforms = useUsernamePlatforms()
+  const usernames = usernamesQuery.data ?? []
+
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: firebirdKeys.usernames(personId) })
+    await queryClient.invalidateQueries({ queryKey: firebirdKeys.person(personId) })
+  }
+
+  return (
+    <Dialog
+      scrollable
+      width={780}
+      title={t('usernames.title')}
+      description={t('usernames.description')}
+      onClose={onClose}
+      closeLabel={t('subEntities.close')}
+      footer={<Button onClick={onClose}>{t('subEntities.close')}</Button>}
+    >
+      <div className="seg-firebird-subentities">
+        <div className="seg-firebird-subentities__head">
+          <Badge tone="neutral">
+            {t('usernames.count', { count: usernames.length })}
+          </Badge>
+          <Button
+            size="sm"
+            iconLeft={<Plus size={15} />}
+            onClick={() => setEditing({ mode: 'create' })}
+          >
+            {t('usernames.add')}
+          </Button>
+        </div>
+
+        {usernamesQuery.isPending || platforms.isPending ? (
+          <div className="seg-person-editor__status">
+            <Spinner />
+            <span>{t('usernames.loading')}</span>
+          </div>
+        ) : usernamesQuery.isError || platforms.isError ? (
+          <p className="seg-person-editor__error" role="alert">
+            {t('usernames.loadError')}
+          </p>
+        ) : usernames.length === 0 ? (
+          <p className="seg-firebird-subentities__empty">{t('usernames.empty')}</p>
+        ) : (
+          <ul className="seg-firebird-subentities__list">
+            {usernames.map((username) => (
+              <li key={username.id} className="seg-firebird-subentities__item">
+                <div className="seg-firebird-subentities__item-main">
+                  <strong>{username.handle}</strong>
+                  <span>{username.platformName}</span>
+                  {username.notes != null && <small>{username.notes}</small>}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  iconLeft={<Pencil size={14} />}
+                  onClick={() => setEditing({ mode: 'edit', row: username })}
+                >
+                  {t('subEntities.edit')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {editing != null && platforms.data != null && (
+          <UsernameEditor
+            personId={personId}
+            state={editing}
+            platforms={platforms.data}
+            onClose={() => setEditing(null)}
+            onSaved={async (username) => {
+              setEditing(null)
+              await invalidate()
+              onChanged('usernameSaved', username.handle)
+            }}
+            onDeleted={async (username) => {
+              setEditing(null)
+              await invalidate()
+              onChanged('usernameDeleted', username.handle)
+            }}
+          />
+        )}
+      </div>
+    </Dialog>
+  )
+}
+
+function UsernameEditor({
+  personId,
+  state,
+  platforms,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  personId: number
+  state: EditState<Username>
+  platforms: UsernamePlatform[]
+  onClose: () => void
+  onSaved: (username: Username, mode: 'create' | 'edit') => Promise<void>
+  onDeleted: (username: Username) => Promise<void>
+}) {
+  const { t } = useTranslation('firebird')
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const row = state.mode === 'edit' ? state.row : null
+  const schema = useMemo(
+    () =>
+      createUsernameSchema({
+        platformRequired: t('usernames.validation.platformRequired'),
+        handleRequired: t('usernames.validation.handleRequired'),
+        handleTooLong: t('usernames.validation.handleTooLong'),
+        notesTooLong: t('usernames.validation.notesTooLong'),
+      }),
+    [t],
+  )
+  const form = useForm<UsernameFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      platformId: row == null ? firstCatalogId(platforms) : String(row.platformId),
+      handle: row?.handle ?? '',
+      notes: row?.notes ?? '',
+    },
+  })
+
+  const mutation = useMutation({
+    mutationFn: (request: UsernameRequest) =>
+      row == null
+        ? firebirdApi.createUsername(personId, request)
+        : firebirdApi.updateUsername(personId, row.id, request),
+    onSuccess: (saved) => void onSaved(saved, row == null ? 'create' : 'edit'),
+    onError: (error) => setServerError(mapSubEntityError(error, t)),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: () => firebirdApi.deleteUsername(personId, row?.id as number),
+    onSuccess: () => {
+      if (row != null) void onDeleted(row)
+    },
+    onError: (error) => {
+      setConfirmingDelete(false)
+      setServerError(mapSubEntityError(error, t))
+    },
+  })
+
+  const submit = form.handleSubmit((values) => {
+    setServerError(null)
+    mutation.mutate({
+      platformId: Number(values.platformId),
+      handle: values.handle.trim(),
+      notes: values.notes.trim() === '' ? null : values.notes.trim(),
+    })
+  })
+
+  return (
+    <>
+      <Dialog
+        width={560}
+        title={row == null ? t('usernames.editor.createTitle') : t('usernames.editor.editTitle')}
+        onClose={onClose}
+        closeLabel={t('subEntities.close')}
+        footer={
+          <>
+            {row != null && (
+              <Button
+                variant="ghost"
+                className="seg-person-editor__delete"
+                iconLeft={<Trash2 size={15} />}
+                onClick={() => setConfirmingDelete(true)}
+              >
+                {t('usernames.delete.action')}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={onClose}>
+              {t('subEntities.cancel')}
+            </Button>
+            <Button type="submit" form="seg-username-form" disabled={mutation.isPending}>
+              {mutation.isPending ? t('subEntities.saving') : t('subEntities.save')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="seg-username-form"
+          className="seg-firebird-subentities__form"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
+          {serverError != null && (
+            <p className="seg-person-editor__error" role="alert">
+              {serverError}
+            </p>
+          )}
+          <Field
+            label={t('usernames.fields.platform')}
+            error={form.formState.errors.platformId?.message}
+          >
+            <Select
+              aria-invalid={form.formState.errors.platformId != null}
+              options={platforms.map((platform) => ({
+                value: String(platform.id),
+                label: platform.name,
+              }))}
+              {...form.register('platformId')}
+            />
+          </Field>
+          <Input
+            label={t('usernames.fields.handle')}
+            required
+            autoComplete="off"
+            error={form.formState.errors.handle?.message}
+            {...form.register('handle')}
+          />
+          <label className="seg-person-editor__notes">
+            <span className="seg-person-editor__field-label">
+              {t('usernames.fields.notes')}
+            </span>
+            <textarea
+              className="seg-person-editor__textarea"
+              rows={3}
+              aria-invalid={form.formState.errors.notes != null}
+              {...form.register('notes')}
+            />
+            {form.formState.errors.notes?.message != null && (
+              <span className="seg-person-editor__field-error" role="alert">
+                {form.formState.errors.notes.message}
+              </span>
+            )}
+          </label>
+          <button type="submit" hidden />
+        </form>
+      </Dialog>
+
+      {confirmingDelete && row != null && (
+        <Dialog
+          width={440}
+          title={t('usernames.delete.title')}
+          description={t('usernames.delete.description')}
+          onClose={() => setConfirmingDelete(false)}
+          closeLabel={t('subEntities.close')}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setConfirmingDelete(false)}>
+                {t('subEntities.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending
+                  ? t('subEntities.deleting')
+                  : t('usernames.delete.confirm')}
+              </Button>
+            </>
+          }
+        />
+      )}
+    </>
+  )
+}
+
+function InteractionsDialog({
+  personId,
+  locale,
+  onClose,
+  onChanged,
+}: SubEntityDialogProps & { locale: string }) {
+  const { t } = useTranslation('firebird')
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState<EditState<Interaction> | null>(null)
+  const interactionsQuery = useQuery({
+    queryKey: firebirdKeys.interactions(personId),
+    queryFn: ({ signal }) => firebirdApi.listInteractions(personId, signal),
+  })
+  const interactions = interactionsQuery.data ?? []
+
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: firebirdKeys.interactions(personId) })
+    await queryClient.invalidateQueries({ queryKey: firebirdKeys.person(personId) })
+  }
+
+  return (
+    <Dialog
+      scrollable
+      width={820}
+      title={t('interactions.title')}
+      description={t('interactions.description')}
+      onClose={onClose}
+      closeLabel={t('subEntities.close')}
+      footer={<Button onClick={onClose}>{t('subEntities.close')}</Button>}
+    >
+      <div className="seg-firebird-subentities">
+        <div className="seg-firebird-subentities__head">
+          <Badge tone="neutral">
+            {t('interactions.count', { count: interactions.length })}
+          </Badge>
+          <Button
+            size="sm"
+            iconLeft={<Plus size={15} />}
+            onClick={() => setEditing({ mode: 'create' })}
+          >
+            {t('interactions.add')}
+          </Button>
+        </div>
+
+        {interactionsQuery.isPending ? (
+          <div className="seg-person-editor__status">
+            <Spinner />
+            <span>{t('interactions.loading')}</span>
+          </div>
+        ) : interactionsQuery.isError ? (
+          <p className="seg-person-editor__error" role="alert">
+            {t('interactions.loadError')}
+          </p>
+        ) : interactions.length === 0 ? (
+          <p className="seg-firebird-subentities__empty">{t('interactions.empty')}</p>
+        ) : (
+          <ul className="seg-firebird-subentities__list">
+            {interactions.map((interaction) => (
+              <li key={interaction.id} className="seg-firebird-subentities__item">
+                <div className="seg-firebird-subentities__item-main">
+                  <strong>{formatCivilDate(interaction.date, locale)}</strong>
+                  <span>{interaction.description}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  iconLeft={<Pencil size={14} />}
+                  onClick={() => setEditing({ mode: 'edit', row: interaction })}
+                >
+                  {t('subEntities.edit')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {editing != null && (
+          <InteractionEditor
+            personId={personId}
+            state={editing}
+            onClose={() => setEditing(null)}
+            onSaved={async (interaction) => {
+              setEditing(null)
+              await invalidate()
+              onChanged('interactionSaved', interaction.description)
+            }}
+            onDeleted={async (interaction) => {
+              setEditing(null)
+              await invalidate()
+              onChanged('interactionDeleted', interaction.description)
+            }}
+          />
+        )}
+      </div>
+    </Dialog>
+  )
+}
+
+function InteractionEditor({
+  personId,
+  state,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  personId: number
+  state: EditState<Interaction>
+  onClose: () => void
+  onSaved: (interaction: Interaction) => Promise<void>
+  onDeleted: (interaction: Interaction) => Promise<void>
+}) {
+  const { t } = useTranslation('firebird')
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const row = state.mode === 'edit' ? state.row : null
+  const today = new Date().toISOString().slice(0, 10)
+  const schema = useMemo(
+    () =>
+      createInteractionSchema({
+        dateRequired: t('interactions.validation.dateRequired'),
+        dateFuture: t('interactions.validation.dateFuture'),
+        descriptionRequired: t('interactions.validation.descriptionRequired'),
+        descriptionTooLong: t('interactions.validation.descriptionTooLong'),
+      }),
+    [t],
+  )
+  const form = useForm<InteractionFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      date: row?.date ?? today,
+      description: row?.description ?? '',
+    },
+  })
+
+  const mutation = useMutation({
+    mutationFn: (request: InteractionRequest) =>
+      row == null
+        ? firebirdApi.createInteraction(personId, request)
+        : firebirdApi.updateInteraction(personId, row.id, request),
+    onSuccess: (saved) => void onSaved(saved),
+    onError: (error) => setServerError(mapSubEntityError(error, t)),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: () => firebirdApi.deleteInteraction(personId, row?.id as number),
+    onSuccess: () => {
+      if (row != null) void onDeleted(row)
+    },
+    onError: (error) => {
+      setConfirmingDelete(false)
+      setServerError(mapSubEntityError(error, t))
+    },
+  })
+
+  const submit = form.handleSubmit((values) => {
+    setServerError(null)
+    mutation.mutate({
+      date: values.date,
+      description: values.description.trim(),
+    })
+  })
+
+  return (
+    <>
+      <Dialog
+        width={560}
+        title={
+          row == null ? t('interactions.editor.createTitle') : t('interactions.editor.editTitle')
+        }
+        onClose={onClose}
+        closeLabel={t('subEntities.close')}
+        footer={
+          <>
+            {row != null && (
+              <Button
+                variant="ghost"
+                className="seg-person-editor__delete"
+                iconLeft={<Trash2 size={15} />}
+                onClick={() => setConfirmingDelete(true)}
+              >
+                {t('interactions.delete.action')}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={onClose}>
+              {t('subEntities.cancel')}
+            </Button>
+            <Button type="submit" form="seg-interaction-form" disabled={mutation.isPending}>
+              {mutation.isPending ? t('subEntities.saving') : t('subEntities.save')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="seg-interaction-form"
+          className="seg-firebird-subentities__form"
+          onSubmit={(event) => void submit(event)}
+          noValidate
+        >
+          {serverError != null && (
+            <p className="seg-person-editor__error" role="alert">
+              {serverError}
+            </p>
+          )}
+          <Input
+            label={t('interactions.fields.date')}
+            type="date"
+            max={today}
+            required
+            error={form.formState.errors.date?.message}
+            {...form.register('date')}
+          />
+          <label className="seg-person-editor__notes">
+            <span className="seg-person-editor__field-label">
+              {t('interactions.fields.description')}
+            </span>
+            <textarea
+              className="seg-person-editor__textarea"
+              rows={4}
+              required
+              aria-invalid={form.formState.errors.description != null}
+              {...form.register('description')}
+            />
+            {form.formState.errors.description?.message != null && (
+              <span className="seg-person-editor__field-error" role="alert">
+                {form.formState.errors.description.message}
+              </span>
+            )}
+          </label>
+          <button type="submit" hidden />
+        </form>
+      </Dialog>
+
+      {confirmingDelete && row != null && (
+        <Dialog
+          width={440}
+          title={t('interactions.delete.title')}
+          description={t('interactions.delete.description')}
+          onClose={() => setConfirmingDelete(false)}
+          closeLabel={t('subEntities.close')}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setConfirmingDelete(false)}>
+                {t('subEntities.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending
+                  ? t('subEntities.deleting')
+                  : t('interactions.delete.confirm')}
+              </Button>
+            </>
+          }
+        />
+      )}
+    </>
+  )
+}
+
 interface FieldProps {
   label: string
   hint?: string
@@ -1277,4 +1869,73 @@ function mapServerError(error: unknown, t: (key: string) => string): string {
     }
   }
   return t('editor.errors.generic')
+}
+
+function createUsernameSchema(messages: {
+  platformRequired: string
+  handleRequired: string
+  handleTooLong: string
+  notesTooLong: string
+}) {
+  return z.object({
+    platformId: z.string().min(1, messages.platformRequired),
+    handle: z
+      .string()
+      .trim()
+      .min(1, messages.handleRequired)
+      .max(200, messages.handleTooLong),
+    notes: z.string().max(1000, messages.notesTooLong),
+  })
+}
+
+function createInteractionSchema(messages: {
+  dateRequired: string
+  dateFuture: string
+  descriptionRequired: string
+  descriptionTooLong: string
+}) {
+  return z.object({
+    date: z
+      .string()
+      .min(1, messages.dateRequired)
+      .refine((value) => value <= new Date().toISOString().slice(0, 10), {
+        message: messages.dateFuture,
+      }),
+    description: z
+      .string()
+      .trim()
+      .min(1, messages.descriptionRequired)
+      .max(2000, messages.descriptionTooLong),
+  })
+}
+
+function formatCivilDate(value: string, locale: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day)
+  ) {
+    return value
+  }
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day))
+}
+
+function mapSubEntityError(error: unknown, t: (key: string) => string): string {
+  if (isApiError(error)) {
+    if (error.kind === 'not-found') return t('subEntities.errors.notFound')
+    if (error.kind === 'authorization-denied') return t('subEntities.errors.forbidden')
+    if (error.kind === 'validation') return t('subEntities.errors.validation')
+    if (error.problem?.code?.endsWith('unknown_reference') === true) {
+      return t('subEntities.errors.unknownReference')
+    }
+    if (error.kind === 'transient' || error.kind === 'unavailable') {
+      return t('subEntities.errors.transient')
+    }
+  }
+  return t('subEntities.errors.generic')
 }

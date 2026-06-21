@@ -12,6 +12,11 @@ import {
 } from '@/app/api/clothes'
 import { configurationApi, configurationManagementApi } from '@/app/api/configuration'
 import {
+  firebirdApi,
+  personCategoriesManagementApi,
+  usernamePlatformsManagementApi,
+} from '@/app/api/firebird'
+import {
   inventoryApi,
   inventoryCategoriesManagementApi,
   inventoryLocationsManagementApi,
@@ -26,6 +31,7 @@ import {
 import { assetsKeys } from '@/modules/assets/contracts'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
+import { firebirdKeys } from '@/modules/firebird/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
 import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
 import { maintenanceKeys } from '@/modules/maintenance/contracts'
@@ -50,6 +56,8 @@ export type CatalogKey =
   | 'assetLocations'
   | 'maintenanceTypes'
   | 'processCategories'
+  | 'personCategories'
+  | 'usernamePlatforms'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -61,6 +69,7 @@ export type CatalogSectionId =
   | 'clothes'
   | 'assets'
   | 'maintenance'
+  | 'firebird'
   | 'projects'
   | 'processes'
 
@@ -316,6 +325,32 @@ export const processCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(processCategoriesManagementApi),
 }
 
+export const personCategoriesDescriptor: CatalogDescriptor = {
+  key: 'personCategories',
+  section: 'firebird',
+  urlSlug: 'person-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: firebirdKeys.categories(),
+  dependentKeys: [firebirdKeys.people()],
+  read: (signal) => firebirdApi.categories(signal),
+  management: asDescriptorClient(personCategoriesManagementApi),
+}
+
+export const usernamePlatformsDescriptor: CatalogDescriptor = {
+  key: 'usernamePlatforms',
+  section: 'firebird',
+  urlSlug: 'username-platforms',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: firebirdKeys.platforms(),
+  dependentKeys: [firebirdKeys.people()],
+  read: (signal) => firebirdApi.platforms(signal),
+  management: asDescriptorClient(usernamePlatformsManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -347,6 +382,12 @@ export const assetsCatalogs: readonly CatalogDescriptor[] = [
   assetLocationsDescriptor,
 ]
 
+/** Firebird-section catalogs, in tab order. */
+export const firebirdCatalogs: readonly CatalogDescriptor[] = [
+  personCategoriesDescriptor,
+  usernamePlatformsDescriptor,
+]
+
 export const allCatalogs: readonly CatalogDescriptor[] = [
   ...globalCatalogs,
   categoriesDescriptor,
@@ -357,6 +398,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   ...assetsCatalogs,
   maintenanceTypesDescriptor,
   processCategoriesDescriptor,
+  ...firebirdCatalogs,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -390,6 +432,8 @@ export function sectionCatalogs(
       return assetsCatalogs
     case 'maintenance':
       return [maintenanceTypesDescriptor]
+    case 'firebird':
+      return firebirdCatalogs
     case 'projects':
       return []
     case 'processes':
