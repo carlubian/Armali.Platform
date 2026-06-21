@@ -9,6 +9,7 @@ import { inventory } from '@/modules/inventory/i18n/resources'
 import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
 import { opex } from '@/modules/opex/i18n/resources'
+import { processes } from '@/modules/processes/i18n/resources'
 import { projects } from '@/modules/projects/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
 
@@ -31,6 +32,7 @@ void i18n.use(initReactI18next).init({
     'maintenance',
     'mood',
     'opex',
+    'processes',
     'projects',
     'travel',
   ],
@@ -45,6 +47,7 @@ void i18n.use(initReactI18next).init({
       maintenance,
       mood,
       opex,
+      processes,
       projects,
       travel,
     },

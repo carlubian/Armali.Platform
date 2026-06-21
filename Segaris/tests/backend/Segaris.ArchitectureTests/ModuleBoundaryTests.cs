@@ -24,6 +24,7 @@ public sealed class ModuleBoundaryTests
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
     private const string MaintenanceNamespace = "Segaris.Api.Modules.Maintenance";
     private const string ProjectsNamespace = "Segaris.Api.Modules.Projects";
+    private const string ProcessesNamespace = "Segaris.Api.Modules.Processes";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -43,6 +44,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(MoodNamespace));
         Assert.NotEmpty(TypesIn(MaintenanceNamespace));
         Assert.NotEmpty(TypesIn(ProjectsNamespace));
+        Assert.NotEmpty(TypesIn(ProcessesNamespace));
     }
 
     [Fact]
@@ -286,6 +288,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, MoodNamespace);
         AssertNoDependency(LauncherNamespace, MaintenanceNamespace);
         AssertNoDependency(LauncherNamespace, ProjectsNamespace);
+        AssertNoDependency(LauncherNamespace, ProcessesNamespace);
     }
 
     [Fact]
@@ -432,6 +435,63 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(AssetsNamespace, ProjectsNamespace);
         AssertNoDependency(MoodNamespace, ProjectsNamespace);
         AssertNoDependency(MaintenanceNamespace, ProjectsNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_processes()
+    {
+        AssertNoDependency(ConfigurationNamespace, ProcessesNamespace);
+    }
+
+    [Fact]
+    public void Processes_depends_on_configuration_contracts()
+    {
+        // Processes owns the ProcessCategory catalogue surfaced through the Configuration
+        // presentation boundary, so it consumes Configuration's published contracts. Its
+        // absence would mean the catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(ProcessesNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Processes must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Processes_does_not_depend_on_other_business_modules()
+    {
+        // Processes is an independent business module: it may consume Configuration,
+        // Attachments, Identity, and platform contracts (and contributes a launcher
+        // attention state), but it must remain independent from every other business
+        // module, including Projects.
+        AssertNoDependency(ProcessesNamespace, CapexNamespace);
+        AssertNoDependency(ProcessesNamespace, OpexNamespace);
+        AssertNoDependency(ProcessesNamespace, InventoryNamespace);
+        AssertNoDependency(ProcessesNamespace, TravelNamespace);
+        AssertNoDependency(ProcessesNamespace, ClothesNamespace);
+        AssertNoDependency(ProcessesNamespace, AssetsNamespace);
+        AssertNoDependency(ProcessesNamespace, MoodNamespace);
+        AssertNoDependency(ProcessesNamespace, MaintenanceNamespace);
+        AssertNoDependency(ProcessesNamespace, ProjectsNamespace);
+    }
+
+    [Fact]
+    public void No_module_depends_on_processes()
+    {
+        // Processes publishes no cross-module contracts: no other module, including
+        // Configuration and Launcher, may reference the Processes namespace.
+        AssertNoDependency(ConfigurationNamespace, ProcessesNamespace);
+        AssertNoDependency(LauncherNamespace, ProcessesNamespace);
+        AssertNoDependency(CapexNamespace, ProcessesNamespace);
+        AssertNoDependency(OpexNamespace, ProcessesNamespace);
+        AssertNoDependency(InventoryNamespace, ProcessesNamespace);
+        AssertNoDependency(TravelNamespace, ProcessesNamespace);
+        AssertNoDependency(ClothesNamespace, ProcessesNamespace);
+        AssertNoDependency(AssetsNamespace, ProcessesNamespace);
+        AssertNoDependency(MoodNamespace, ProcessesNamespace);
+        AssertNoDependency(MaintenanceNamespace, ProcessesNamespace);
+        AssertNoDependency(ProjectsNamespace, ProcessesNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
