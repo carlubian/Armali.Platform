@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Segaris.Api.IntegrationTests.Infrastructure;
 
 namespace Segaris.Api.IntegrationTests.Identity;
 
@@ -32,6 +33,11 @@ internal sealed class IdentityTestServer : IDisposable
         KeysPath = keysPath
             ?? Path.Combine(Path.GetTempPath(), $"segaris-keys-{Guid.NewGuid():N}");
         AttachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-identity-attachments-{Guid.NewGuid():N}");
+
+        // Start from a migrated and seeded template so host startup skips the expensive
+        // schema creation and seed inserts. Skipped when the database file already exists,
+        // which is how the restart tests reuse a prior host's database.
+        SqliteTemplateDatabase.CopyTo(DatabasePath, AdminUserName, AdminPassword);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {

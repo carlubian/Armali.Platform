@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using Segaris.Api.IntegrationTests.Infrastructure;
 
 namespace Segaris.Api.IntegrationTests.Attachments;
 
@@ -20,6 +21,11 @@ internal sealed class AttachmentTestServer : IDisposable
         KeysPath = Path.Combine(Path.GetTempPath(), $"segaris-attachment-keys-{Guid.NewGuid():N}");
         AttachmentsPath = attachmentsPath
             ?? Path.Combine(Path.GetTempPath(), $"segaris-attachment-files-{Guid.NewGuid():N}");
+
+        // Start from a migrated and seeded template so host startup skips the expensive
+        // schema creation and seed inserts.
+        SqliteTemplateDatabase.CopyTo(DatabasePath, AdminUserName, AdminPassword);
+
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");

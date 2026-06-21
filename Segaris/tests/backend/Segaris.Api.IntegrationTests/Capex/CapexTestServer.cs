@@ -8,6 +8,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Segaris.Api.IntegrationTests.Infrastructure;
 using Segaris.Api.Modules.Identity;
 using Segaris.Persistence;
 using Segaris.Shared.Time;
@@ -34,6 +35,11 @@ internal sealed class CapexTestServer : IDisposable
         DatabasePath = Path.Combine(Path.GetTempPath(), $"segaris-capex-{Guid.NewGuid():N}.db");
         KeysPath = Path.Combine(Path.GetTempPath(), $"segaris-capex-keys-{Guid.NewGuid():N}");
         AttachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-capex-attachments-{Guid.NewGuid():N}");
+
+        // Start from a migrated and seeded template so host startup skips the expensive
+        // schema creation and seed inserts; the migrations are already applied and the
+        // seeders are idempotent.
+        SqliteTemplateDatabase.CopyTo(DatabasePath, AdminUserName, AdminPassword);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
