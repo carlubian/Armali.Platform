@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Segaris.Api.IntegrationTests.Infrastructure;
 
 namespace Segaris.Api.IntegrationTests.Jobs;
 
@@ -28,6 +29,11 @@ internal sealed class JobTestServer : IDisposable
         KeysPath = Path.Combine(Path.GetTempPath(), $"segaris-jobs-keys-{Guid.NewGuid():N}");
         AttachmentsPath = Path.Combine(Path.GetTempPath(), $"segaris-jobs-attachments-{Guid.NewGuid():N}");
         BackupsPath = Path.Combine(Path.GetTempPath(), $"segaris-jobs-backups-{Guid.NewGuid():N}");
+
+        // Start from a migrated and seeded template so host startup skips the expensive
+        // schema creation and seed inserts. Skipped when the database file already exists,
+        // which is how the recovery tests reuse a prior host's database.
+        SqliteTemplateDatabase.CopyTo(DatabasePath, AdminUserName, AdminPassword);
 
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
