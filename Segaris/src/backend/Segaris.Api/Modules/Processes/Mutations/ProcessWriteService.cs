@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Processes.Contracts;
 using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -12,7 +13,7 @@ namespace Segaris.Api.Modules.Processes.Mutations;
 /// Write-side operations on Processes. Inaccessible processes are reported as not found so
 /// private records are never disclosed.
 /// </summary>
-internal sealed class ProcessWriteService(SegarisDbContext database, IClock clock)
+internal sealed class ProcessWriteService(SegarisDbContext database, IClock clock, IAttachmentService attachments)
 {
     public async Task<int> CreateAsync(
         CreateProcessRequest request,
@@ -74,6 +75,14 @@ internal sealed class ProcessWriteService(SegarisDbContext database, IClock cloc
 
         database.Remove(process);
         await database.SaveChangesAsync(cancellationToken);
+
+        var owner = ProcessesAttachments.ProcessOwner(processId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
+        }
+
         return true;
     }
 

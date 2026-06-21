@@ -61,6 +61,20 @@ internal static class ProcessProblem
         "Step validation failed.",
         errors: Errors("steps", message));
 
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        ProcessesErrorCodes.AttachmentNotFound,
+        "Attachment not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        ProcessesErrorCodes.AttachmentInvalid,
+        "Attachment validation failed.",
+        errors: errors ?? Errors(field, message));
+
     private static Dictionary<string, string[]> Errors(string field, string message) =>
         new(StringComparer.Ordinal)
         {

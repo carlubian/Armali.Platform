@@ -1,15 +1,17 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Processes.Contracts;
 using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Processes.Queries;
 
 /// <summary>Read-side queries for accessible Processes.</summary>
-internal sealed class ProcessReadService(SegarisDbContext database)
+internal sealed class ProcessReadService(SegarisDbContext database, IAttachmentService attachments)
 {
     public async Task<PaginatedResponse<ProcessSummaryResponse>> ListAsync(
         ProcessFilter filter,
@@ -136,6 +138,9 @@ internal sealed class ProcessReadService(SegarisDbContext database)
         var snapshots = steps.Select(step => new StepSnapshot(step.State, step.IsOptional)).ToArray();
         var frontierIndex = ProcessExecution.FrontierIndex(snapshots);
         var effectiveDueDate = row.DueDate ?? (frontierIndex is { } index ? steps[index].DueDate : null);
+        var processAttachments = await attachments.ListByOwnerAsync(
+            ProcessesAttachments.ProcessOwner(processId),
+            cancellationToken);
 
         return new ProcessResponse(
             row.Id,
@@ -152,7 +157,7 @@ internal sealed class ProcessReadService(SegarisDbContext database)
             frontierIndex is { } pendingIndex ? steps[pendingIndex].Id : null,
             row.Visibility,
             steps.Select(ToStepResponse).ToArray(),
-            [],
+            processAttachments.Select(ToAttachment).ToArray(),
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -303,6 +308,14 @@ internal sealed class ProcessReadService(SegarisDbContext database)
         step.IsOptional,
         step.State.ToString(),
         step.SortOrder);
+
+    private static ProcessAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 
     private sealed class ProcessListRow
     {

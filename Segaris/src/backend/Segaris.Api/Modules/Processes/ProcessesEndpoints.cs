@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Processes.Mutations;
 using Segaris.Api.Modules.Processes.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Processes;
@@ -57,6 +60,29 @@ internal static class ProcessesEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteProcess")
             .WithSummary("Deletes an accessible process")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(ProcessesApiRoutes.ProcessAttachments, ListAttachmentsAsync)
+            .WithName("ListProcessAttachments")
+            .WithSummary("Lists the attachments of an accessible process")
+            .Produces<IReadOnlyList<ProcessAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(ProcessesApiRoutes.ProcessAttachments, UploadAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadProcessAttachment")
+            .WithSummary("Uploads one attachment for an accessible process")
+            .Produces<ProcessAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(ProcessesApiRoutes.ProcessAttachmentById, DownloadAttachmentAsync)
+            .WithName("DownloadProcessAttachment")
+            .WithSummary("Downloads one attachment of an accessible process")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(ProcessesApiRoutes.ProcessAttachmentById, DeleteAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProcessAttachment")
+            .WithSummary("Removes one attachment of an accessible process")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPost(ProcessesApiRoutes.ProcessCancel, CancelProcessAsync)
@@ -240,6 +266,142 @@ internal static class ProcessesEndpoints
         if (!deleted)
         {
             throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListAttachmentsAsync(
+        int processId,
+        ProcessReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AccessibleAsync(processId, userId, cancellationToken))
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(ProcessesAttachments.ProcessOwner(processId), cancellationToken);
+        return TypedResults.Ok(descriptors.Select(ToAttachment).ToArray());
+    }
+
+    private static async Task<IResult> UploadAttachmentAsync(
+        int processId,
+        HttpRequest request,
+        ProcessReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AccessibleAsync(processId, userId, cancellationToken))
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw ProcessProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw ProcessProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(ProcessesAttachments.ProcessOwner(processId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw ProcessProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/processes/{processId}/attachments/{created.Id.Value}",
+            ToAttachment(created));
+    }
+
+    private static async Task<IResult> DownloadAttachmentAsync(
+        int processId,
+        int attachmentId,
+        ProcessReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AccessibleAsync(processId, userId, cancellationToken))
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            ProcessesAttachments.ProcessOwner(processId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw ProcessProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteAttachmentAsync(
+        int processId,
+        int attachmentId,
+        ProcessReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.AccessibleAsync(processId, userId, cancellationToken))
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        var removed = await attachments.DeleteAsync(
+            new(attachmentId),
+            ProcessesAttachments.ProcessOwner(processId),
+            cancellationToken);
+        if (!removed)
+        {
+            throw ProcessProblem.AttachmentNotFound();
         }
 
         return TypedResults.NoContent();
@@ -450,4 +612,12 @@ internal static class ProcessesEndpoints
         await service.ReplaceAndDeleteAsync(categoryId, request, CatalogActor(user), token);
         return TypedResults.NoContent();
     }
+
+    private static ProcessAttachmentResponse ToAttachment(AttachmentDescriptor descriptor) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt);
 }
