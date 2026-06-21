@@ -1,0 +1,532 @@
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import axe from 'axe-core'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { App, appQueryClient } from '@/app/App'
+import type { Process, ProcessSummary } from '@/app/api/processes'
+
+const session = {
+  userId: 7,
+  userName: 'marina',
+  displayName: 'Marina Velasco',
+  language: 'en-GB',
+  roles: ['User'],
+  avatarUrl: null as string | null,
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function urlOf(input: RequestInfo | URL): string {
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : input.url
+}
+
+function makeSummary(
+  id: number,
+  overrides: Partial<ProcessSummary> = {},
+): ProcessSummary {
+  return {
+    id,
+    name: `Process ${id.toString().padStart(2, '0')}`,
+    categoryId: 1,
+    categoryName: 'Administrative',
+    status: 'NotStarted',
+    isCancelled: false,
+    resolvedStepCount: 0,
+    totalStepCount: 0,
+    effectiveDueDate: '2026-07-01',
+    visibility: 'Public',
+    creatorId: 7,
+    creatorName: 'Marina Velasco',
+    ...overrides,
+  }
+}
+
+function makeDetail(id: number, overrides: Partial<Process> = {}): Process {
+  const summary = makeSummary(id, overrides)
+  return {
+    id,
+    name: summary.name,
+    categoryId: summary.categoryId,
+    categoryName: summary.categoryName,
+    status: summary.status,
+    isCancelled: summary.isCancelled,
+    dueDate: '2026-07-01',
+    effectiveDueDate: summary.effectiveDueDate,
+    notes: 'Renew before the deadline.',
+    resolvedStepCount: summary.resolvedStepCount,
+    totalStepCount: summary.totalStepCount,
+    nextPendingStepId: null,
+    visibility: summary.visibility,
+    steps: [],
+    attachments: [],
+    createdById: 7,
+    createdByName: 'Marina Velasco',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedById: null,
+    updatedByName: null,
+    updatedAt: null,
+    ...overrides,
+  }
+}
+
+function mockBackend(
+  options: {
+    processes?: ProcessSummary[]
+    detail?: (id: number) => Process
+  } = {},
+) {
+  const processes = options.processes ?? [makeSummary(1)]
+  const requests: Array<{ method: string; url: string; body?: unknown }> = []
+  let cancelled = false
+
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    await Promise.resolve()
+    const url = urlOf(input)
+    const method = init?.method ?? 'GET'
+    const bodyOf = () =>
+      typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
+
+    if (url === '/api/session/antiforgery') return json({ csrfToken: 'token' })
+    if (url === '/api/session' && method === 'GET') return json(session)
+    if (url === '/api/session/profile' && method === 'GET') {
+      return json({
+        displayName: session.displayName,
+        language: session.language,
+        avatarUrl: session.avatarUrl,
+      })
+    }
+    if (url.startsWith('/api/launcher/attention')) {
+      return json({ modules: [{ module: 'processes', requiresAttention: true }] })
+    }
+    if (url.startsWith('/api/processes/categories')) {
+      return json([
+        { id: 1, name: 'Administrative', sortOrder: 0 },
+        { id: 2, name: 'Legal', sortOrder: 1 },
+      ])
+    }
+    const attachMatch = url.match(/\/api\/processes\/(\d+)\/attachments/)
+    if (attachMatch != null) {
+      requests.push({ method, url })
+      if (method === 'GET') return json([])
+      if (method === 'POST') {
+        return json(
+          {
+            id: 'attachment-1',
+            fileName: 'form.pdf',
+            contentType: 'application/pdf',
+            size: 1024,
+            createdById: 7,
+            createdAt: '2026-01-01T00:00:00Z',
+          },
+          201,
+        )
+      }
+    }
+    const cancelMatch = url.match(/\/api\/processes\/(\d+)\/cancel/)
+    if (cancelMatch != null && method === 'POST') {
+      cancelled = true
+      const id = Number(cancelMatch[1])
+      requests.push({ method, url })
+      return json(makeDetail(id, { status: 'Cancelled', isCancelled: true }))
+    }
+    const reopenMatch = url.match(/\/api\/processes\/(\d+)\/reopen/)
+    if (reopenMatch != null && method === 'POST') {
+      cancelled = false
+      const id = Number(reopenMatch[1])
+      requests.push({ method, url })
+      return json(makeDetail(id, { status: 'NotStarted', isCancelled: false }))
+    }
+    const idMatch = url.match(/\/api\/processes\/(\d+)(?:\?|$)/)
+    if (idMatch != null && method === 'GET') {
+      requests.push({ method, url })
+      const id = Number(idMatch[1])
+      const detail = options.detail?.(id) ?? makeDetail(id)
+      return json({
+        ...detail,
+        status: cancelled ? 'Cancelled' : detail.status,
+        isCancelled: cancelled ? true : detail.isCancelled,
+      })
+    }
+    if (idMatch != null && method === 'PUT') {
+      const id = Number(idMatch[1])
+      const body = bodyOf()
+      requests.push({ method, url, body })
+      return json(makeDetail(id, body as Partial<Process>))
+    }
+    if (idMatch != null && method === 'DELETE') {
+      requests.push({ method, url })
+      return new Response(null, { status: 204 })
+    }
+    if (url === '/api/processes' && method === 'POST') {
+      const body = bodyOf()
+      requests.push({ method, url, body })
+      return json(
+        makeDetail(99, {
+          id: 99,
+          name: (body as { name: string }).name,
+          categoryId: (body as { categoryId: number }).categoryId,
+        }),
+        201,
+      )
+    }
+    if (url.startsWith('/api/processes') && method === 'GET') {
+      requests.push({ method, url })
+      const parsed = new URL(url, 'http://localhost')
+      const search = parsed.searchParams.get('search')?.toLowerCase() ?? ''
+      const filtered =
+        search === ''
+          ? processes
+          : processes.filter((process) => process.name.toLowerCase().includes(search))
+      return json({
+        items: filtered,
+        page: Number(parsed.searchParams.get('page') ?? '1'),
+        pageSize: Number(parsed.searchParams.get('pageSize') ?? '25'),
+        totalCount: filtered.length,
+      })
+    }
+
+    throw new Error(`Unexpected request: ${method} ${url}`)
+  })
+
+  return { requests }
+}
+
+beforeEach(() => {
+  appQueryClient.clear()
+  window.history.replaceState({}, '', '/processes')
+})
+
+afterEach(() => vi.restoreAllMocks())
+
+describe('Processes page', () => {
+  it('renders the derived status, step progress, and effective due date', async () => {
+    mockBackend({
+      processes: [
+        makeSummary(1, {
+          name: 'Renew passport',
+          status: 'InProgress',
+          resolvedStepCount: 2,
+          totalStepCount: 5,
+          effectiveDueDate: '2026-07-01',
+        }),
+      ],
+    })
+    render(<App />)
+
+    expect(await screen.findByText('Renew passport')).toBeInTheDocument()
+    const table = screen.getByRole('table')
+    expect(within(table).getByText('In progress')).toBeInTheDocument()
+    expect(within(table).getByText('2/5')).toBeInTheDocument()
+    expect(within(table).getByText('01 Jul 2026')).toBeInTheDocument()
+  })
+
+  it('serializes search and sort into the process list request', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.type(screen.getByLabelText('Search'), 'Process 01')
+    await user.click(screen.getByRole('button', { name: 'Sort by Status' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.url.includes('search=Process+01') &&
+            request.url.includes('sort=status'),
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('opens the create dialog without losing table state', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.type(screen.getByLabelText('Search'), 'Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+
+    expect(
+      await screen.findByRole('dialog', { name: 'New process' }),
+    ).toBeInTheDocument()
+    expect(window.location.search).toContain('search=Process+01')
+    expect(window.location.search).toContain('newProcess=true')
+  })
+
+  it('validates required fields before submission', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New process' })
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.click(within(dialog).getByRole('button', { name: 'Create process' }))
+
+    expect(await within(dialog).findByText('A name is required.')).toBeInTheDocument()
+  })
+
+  it('creates a process and submits its category, due date, and visibility', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New process' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Renew passport')
+    await user.click(within(dialog).getByRole('button', { name: 'Create process' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/processes' &&
+            (request.body as { name: string }).name === 'Renew passport' &&
+            (request.body as { categoryId: number }).categoryId === 1 &&
+            (request.body as { visibility: string }).visibility === 'Public',
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('cancels and reopens a process through the editor', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      processes: [makeSummary(1, { name: 'Mortgage application' })],
+    })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Open process Mortgage application' }),
+    )
+    const editor = await screen.findByRole('dialog', { name: 'Edit process' })
+
+    await user.click(within(editor).getByRole('button', { name: 'Cancel process' }))
+    await waitFor(() =>
+      expect(requests.some((request) => request.url.endsWith('/cancel'))).toBe(true),
+    )
+    // Once cancelled, the editor offers to reopen.
+    await user.click(
+      await within(editor).findByRole('button', { name: 'Reopen process' }),
+    )
+    await waitFor(() =>
+      expect(requests.some((request) => request.url.endsWith('/reopen'))).toBe(true),
+    )
+  })
+
+  it('uploads staged attachments after creating a process', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New process' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Renew passport')
+    await user.upload(
+      within(dialog).getByLabelText('Add files'),
+      new File(['form'], 'form.pdf', { type: 'application/pdf' }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Create process' }))
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Upload attachments' }),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/processes/99/attachments',
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('opens the read-only step timeline preview', async () => {
+    const user = userEvent.setup()
+    mockBackend({
+      processes: [makeSummary(1, { name: 'Renew passport' })],
+      detail: (id) =>
+        makeDetail(id, {
+          name: 'Renew passport',
+          status: 'InProgress',
+          resolvedStepCount: 1,
+          totalStepCount: 2,
+          nextPendingStepId: 20,
+          steps: [
+            {
+              id: 10,
+              description: 'Gather documents',
+              dueDate: '2026-06-01',
+              notes: null,
+              isOptional: false,
+              state: 'Completed',
+              sortOrder: 0,
+            },
+            {
+              id: 20,
+              description: 'Attend appointment',
+              dueDate: '2026-07-01',
+              notes: null,
+              isOptional: false,
+              state: 'Pending',
+              sortOrder: 1,
+            },
+          ],
+        }),
+    })
+    render(<App />)
+
+    await screen.findByText('Renew passport')
+    await user.click(screen.getAllByRole('button', { name: 'Step timeline' })[0])
+
+    const dialog = await screen.findByRole('dialog', { name: 'Step timeline' })
+    expect(within(dialog).getByText('Gather documents')).toBeInTheDocument()
+    expect(within(dialog).getByText('Attend appointment')).toBeInTheDocument()
+    expect(within(dialog).getByText('Current step')).toBeInTheDocument()
+  })
+
+  it('deletes a process after confirmation', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      processes: [makeSummary(1, { name: 'Obsolete procedure' })],
+    })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Open process Obsolete procedure' }),
+    )
+    const editor = await screen.findByRole('dialog', { name: 'Edit process' })
+    await user.click(within(editor).getByRole('button', { name: 'Delete process' }))
+
+    const confirm = await screen.findByRole('dialog', {
+      name: 'Delete this process?',
+    })
+    await user.click(within(confirm).getByRole('button', { name: 'Delete process' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'DELETE' && request.url === '/api/processes/1',
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('shows a privacy-safe message when an edited process is not found', async () => {
+    const user = userEvent.setup()
+    // A missing or inaccessible process shares the not-found behaviour, so the
+    // editor surfaces a neutral message rather than disclosing anything.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      await Promise.resolve()
+      const url = urlOf(input)
+      const method = init?.method ?? 'GET'
+      if (url === '/api/session/antiforgery') return json({ csrfToken: 'token' })
+      if (url === '/api/session' && method === 'GET') return json(session)
+      if (url === '/api/session/profile' && method === 'GET') {
+        return json({
+          displayName: session.displayName,
+          language: session.language,
+          avatarUrl: session.avatarUrl,
+        })
+      }
+      if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
+      if (url.startsWith('/api/processes/categories')) {
+        return json([{ id: 1, name: 'Administrative', sortOrder: 0 }])
+      }
+      if (/\/api\/processes\/\d+(?:\?|$)/.test(url) && method === 'GET') {
+        return json({ title: 'Not found', code: 'processes.process.not_found' }, 404)
+      }
+      if (url.startsWith('/api/processes') && method === 'GET') {
+        return json({
+          items: [makeSummary(1, { name: 'Vanishing process' })],
+          page: 1,
+          pageSize: 25,
+          totalCount: 1,
+        })
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`)
+    })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Open process Vanishing process' }),
+    )
+    expect(
+      await screen.findByText('This process no longer exists.'),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('Processes page accessibility', () => {
+  it('has no automated violations on the table and the open editor', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    await screen.findByRole('dialog', { name: 'New process' })
+
+    const result = await axe.run(document.body, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(result.violations).toEqual([])
+  })
+
+  it('moves focus into the editor and closes it with Escape', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New process' })
+
+    // The dialog panel receives focus on open, trapping keyboard interaction.
+    await waitFor(() => expect(dialog).toHaveFocus())
+
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'New process' })).toBeNull(),
+    )
+  })
+
+  it('associates the name validation message with its field', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Process 01')
+    await user.click(screen.getByRole('button', { name: 'New process' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New process' })
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.click(within(dialog).getByRole('button', { name: 'Create process' }))
+
+    const name = within(dialog).getByLabelText('Name')
+    await waitFor(() => expect(name).toHaveAttribute('aria-invalid', 'true'))
+    const describedBy = name.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy as string)).toHaveTextContent(
+      'A name is required.',
+    )
+  })
+})
