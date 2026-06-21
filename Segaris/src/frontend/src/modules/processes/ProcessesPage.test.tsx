@@ -4,7 +4,7 @@ import axe from 'axe-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Process, ProcessSummary } from '@/app/api/processes'
+import type { Process, ProcessSummary, StepExecutionState } from '@/app/api/processes'
 
 const session = {
   userId: 7,
@@ -113,6 +113,72 @@ function mockBackend(
         { id: 1, name: 'Administrative', sortOrder: 0 },
         { id: 2, name: 'Legal', sortOrder: 1 },
       ])
+    }
+    const stepMatch = url.match(
+      /\/api\/processes\/(\d+)\/steps(?:\/(\d+)\/(complete|skip|undo))?$/,
+    )
+    if (stepMatch != null) {
+      const id = Number(stepMatch[1])
+      const stepId = stepMatch[2] != null ? Number(stepMatch[2]) : null
+      const action = stepMatch[3]
+      const detail = options.detail?.(id) ?? makeDetail(id)
+      requests.push({ method, url, body: bodyOf() })
+      if (method === 'POST' && stepId != null && action != null) {
+        const nextState: StepExecutionState =
+          action === 'undo' ? 'Pending' : action === 'skip' ? 'Skipped' : 'Completed'
+        const steps = detail.steps.map((step) =>
+          step.id === stepId
+            ? {
+                ...step,
+                state: nextState,
+              }
+            : step,
+        )
+        const resolved = steps.filter((step) => step.state !== 'Pending').length
+        const next = steps.find((step) => step.state === 'Pending')?.id ?? null
+        return json(
+          makeDetail(id, {
+            ...detail,
+            status:
+              steps.length > 0 && resolved === steps.length ? 'Completed' : 'InProgress',
+            resolvedStepCount: resolved,
+            totalStepCount: steps.length,
+            nextPendingStepId: next,
+            steps,
+          }),
+        )
+      }
+      if (method === 'PUT') {
+        const input = bodyOf() as {
+          steps: Array<{
+            id: number | null
+            description: string
+            dueDate: string | null
+            notes: string | null
+            isOptional: boolean
+          }>
+        }
+        const steps = input.steps.map((step, index) => ({
+          id: step.id ?? 100 + index,
+          description: step.description,
+          dueDate: step.dueDate,
+          notes: step.notes,
+          isOptional: step.isOptional,
+          state:
+            detail.steps.find((existing) => existing.id === step.id)?.state ?? 'Pending',
+          sortOrder: index,
+        }))
+        const resolved = steps.filter((step) => step.state !== 'Pending').length
+        return json(
+          makeDetail(id, {
+            ...detail,
+            resolvedStepCount: resolved,
+            totalStepCount: steps.length,
+            nextPendingStepId: steps.find((step) => step.state === 'Pending')?.id ?? null,
+            steps,
+          }),
+        )
+      }
     }
     const attachMatch = url.match(/\/api\/processes\/(\d+)\/attachments/)
     if (attachMatch != null) {
@@ -359,9 +425,9 @@ describe('Processes page', () => {
     )
   })
 
-  it('opens the read-only step timeline preview', async () => {
+  it('executes frontier actions and saves step restructuring from the timeline', async () => {
     const user = userEvent.setup()
-    mockBackend({
+    const { requests } = mockBackend({
       processes: [makeSummary(1, { name: 'Renew passport' })],
       detail: (id) =>
         makeDetail(id, {
@@ -398,9 +464,39 @@ describe('Processes page', () => {
     await user.click(screen.getAllByRole('button', { name: 'Step timeline' })[0])
 
     const dialog = await screen.findByRole('dialog', { name: 'Step timeline' })
-    expect(within(dialog).getByText('Gather documents')).toBeInTheDocument()
-    expect(within(dialog).getByText('Attend appointment')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('Gather documents')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('Attend appointment')).toBeInTheDocument()
     expect(within(dialog).getByText('Current step')).toBeInTheDocument()
+
+    const complete = within(dialog)
+      .getAllByRole('button', { name: 'Complete' })
+      .find((button) => !button.hasAttribute('disabled'))
+    expect(complete).toBeDefined()
+    await user.click(complete as HTMLElement)
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/processes/1/steps/20/complete',
+        ),
+      ).toBe(true),
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: 'Add step' }))
+    const descriptions = within(dialog).getAllByLabelText('Description')
+    await user.type(descriptions[descriptions.length - 1], 'Collect passport')
+    await user.click(within(dialog).getByRole('button', { name: 'Save step order' }))
+
+    await waitFor(() =>
+      expect(
+        requests.find((request) => request.method === 'PUT')?.body,
+      ).toMatchObject({
+        steps: expect.arrayContaining([
+          expect.objectContaining({ description: 'Collect passport', id: null }),
+        ]),
+      }),
+    )
   })
 
   it('deletes a process after confirmation', async () => {

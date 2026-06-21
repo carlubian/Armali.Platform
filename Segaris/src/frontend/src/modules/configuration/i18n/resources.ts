@@ -29,6 +29,7 @@ export const configuration = {
     clothes: 'Clothes',
     assets: 'Assets',
     maintenance: 'Maintenance',
+    processes: 'Processes',
     projects: 'Projects',
   },
   catalogs: {
@@ -204,6 +205,18 @@ export const configuration = {
       namePlaceholder: 'Maintenance type name',
       empty: 'No maintenance types yet. Add the first one so tasks can use it.',
       itemName: 'maintenance type',
+    },
+    processCategories: {
+      tab: 'Categories',
+      title: 'Process categories',
+      description: 'Categories that classify step-by-step procedures.',
+      addAction: 'New category',
+      createTitle: 'New process category',
+      editTitle: 'Edit process category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No categories yet. Add the first one so processes can use it.',
+      itemName: 'process category',
     },
   },
   projectsStructure: {

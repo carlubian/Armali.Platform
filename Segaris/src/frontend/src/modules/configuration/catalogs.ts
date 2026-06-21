@@ -18,6 +18,10 @@ import {
 } from '@/app/api/inventory'
 import { opexApi, opexCategoriesManagementApi } from '@/app/api/opex'
 import {
+  processCategoriesManagementApi,
+  processesApi,
+} from '@/app/api/processes'
+import {
   travelApi,
   travelExpenseCategoriesManagementApi,
   travelTripTypesManagementApi,
@@ -29,6 +33,7 @@ import { inventoryKeys } from '@/modules/inventory/queries'
 import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
 import { maintenanceKeys } from '@/modules/maintenance/contracts'
 import { opexKeys } from '@/modules/opex/contracts'
+import { processesKeys } from '@/modules/processes/contracts'
 import { travelKeys } from '@/modules/travel/contracts'
 
 /** The administrative catalog keys backing the Configuration table and dialogs. */
@@ -47,6 +52,7 @@ export type CatalogKey =
   | 'assetCategories'
   | 'assetLocations'
   | 'maintenanceTypes'
+  | 'processCategories'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -59,6 +65,7 @@ export type CatalogSectionId =
   | 'assets'
   | 'maintenance'
   | 'projects'
+  | 'processes'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -300,6 +307,18 @@ export const maintenanceTypesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(maintenanceTypesManagementApi),
 }
 
+export const processCategoriesDescriptor: CatalogDescriptor = {
+  key: 'processCategories',
+  section: 'processes',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: processesKeys.categories(),
+  dependentKeys: [processesKeys.all],
+  read: (signal) => processesApi.categories(signal),
+  management: asDescriptorClient(processCategoriesManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -340,6 +359,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   ...clothesCatalogs,
   ...assetsCatalogs,
   maintenanceTypesDescriptor,
+  processCategoriesDescriptor,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -375,6 +395,8 @@ export function sectionCatalogs(
       return [maintenanceTypesDescriptor]
     case 'projects':
       return []
+    case 'processes':
+      return [processCategoriesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

@@ -216,7 +216,37 @@ export const processes = {
     },
     optional: 'Optional',
     current: 'Current step',
-    note: 'Steps run in strict order. Execution and restructuring controls open from here.',
+    note:
+      'Steps run in strict order. Resolved steps must stay before pending steps.',
+    actions: {
+      complete: 'Complete',
+      skip: 'Skip',
+      undo: 'Undo',
+      errors: {
+        frontier: 'Only the current step can be completed or skipped.',
+        optional: 'Only optional current steps can be skipped.',
+      },
+    },
+    restructure: {
+      add: 'Add step',
+      save: 'Save step order',
+      saving: 'Saving…',
+      description: 'Description',
+      dueDate: 'Due date',
+      notes: 'Notes',
+      up: 'Up',
+      down: 'Down',
+      remove: 'Remove',
+      errors: {
+        description: 'Every step needs a description.',
+        descriptionLong: 'Step descriptions may contain at most 500 characters.',
+        notesLong: 'Step notes may contain at most 1000 characters.',
+        date: 'Use a valid date.',
+        contiguity:
+          'Resolved steps must form a contiguous prefix. Move completed or skipped steps before pending steps.',
+        generic: 'The step list could not be saved. Please try again.',
+      },
+    },
     close: 'Close',
     loadError: 'The steps could not be loaded.',
   },
