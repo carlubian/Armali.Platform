@@ -46,18 +46,8 @@ describe('firebird contracts', () => {
       { page: 1 },
     ])
     expect(firebirdKeys.person(12)).toEqual(['firebird', 'people', 12])
-    expect(firebirdKeys.avatar(12)).toEqual([
-      'firebird',
-      'people',
-      12,
-      'avatar',
-    ])
-    expect(firebirdKeys.usernames(12)).toEqual([
-      'firebird',
-      'people',
-      12,
-      'usernames',
-    ])
+    expect(firebirdKeys.avatar(12)).toEqual(['firebird', 'people', 12, 'avatar'])
+    expect(firebirdKeys.usernames(12)).toEqual(['firebird', 'people', 12, 'usernames'])
     expect(firebirdKeys.interactions(12)).toEqual([
       'firebird',
       'people',

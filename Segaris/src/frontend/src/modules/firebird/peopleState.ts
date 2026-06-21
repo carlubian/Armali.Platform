@@ -92,8 +92,7 @@ export function parsePersonDialogState(params: URLSearchParams): PersonDialogSta
   const personId = intOrNull(params.get('personId'))
   if (personId == null) return { mode: 'closed' }
   if (params.get('usernames') === 'true') return { mode: 'usernames', personId }
-  if (params.get('interactions') === 'true')
-    return { mode: 'interactions', personId }
+  if (params.get('interactions') === 'true') return { mode: 'interactions', personId }
   return { mode: 'edit', personId }
 }
 

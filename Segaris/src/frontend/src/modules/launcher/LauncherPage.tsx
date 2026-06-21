@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Archive,
   Boxes,
+  Contact,
   Hammer,
   ListChecks,
   Luggage,
@@ -148,6 +149,17 @@ export function LauncherPage() {
         tone: 'azure',
         attention: requiresAttention('processes'),
         attentionLabel: t('processes:launcher.attention'),
+      },
+      {
+        key: 'firebird',
+        title: t('firebird:launcher.title'),
+        description: t('firebird:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/people',
+        icon: Contact,
+        tone: 'sea',
+        attention: requiresAttention('firebird'),
+        attentionLabel: t('firebird:launcher.attention'),
       },
       {
         key: 'profile',

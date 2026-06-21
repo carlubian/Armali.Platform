@@ -190,11 +190,7 @@ export const firebirdApi = {
     }),
   listUsernames: (personId: number, signal?: AbortSignal) =>
     apiRequest<Username[]>(`/api/people/${personId}/usernames`, { signal }),
-  createUsername: (
-    personId: number,
-    request: UsernameRequest,
-    signal?: AbortSignal,
-  ) =>
+  createUsername: (personId: number, request: UsernameRequest, signal?: AbortSignal) =>
     apiRequest<Username>(`/api/people/${personId}/usernames`, {
       method: 'POST',
       body: JSON.stringify(request),
@@ -234,19 +230,12 @@ export const firebirdApi = {
     request: InteractionRequest,
     signal?: AbortSignal,
   ) =>
-    apiRequest<Interaction>(
-      `/api/people/${personId}/interactions/${interactionId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(request),
-        signal,
-      },
-    ),
-  deleteInteraction: (
-    personId: number,
-    interactionId: number,
-    signal?: AbortSignal,
-  ) =>
+    apiRequest<Interaction>(`/api/people/${personId}/interactions/${interactionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+      signal,
+    }),
+  deleteInteraction: (personId: number, interactionId: number, signal?: AbortSignal) =>
     apiRequest<void>(`/api/people/${personId}/interactions/${interactionId}`, {
       method: 'DELETE',
       signal,
