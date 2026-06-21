@@ -165,10 +165,7 @@ export interface UsePeopleState {
   clearFilters: () => void
   openCreateDialog: () => void
   openEditDialog: (personId: number) => void
-  openUsernamesDialog: (
-    personId: number,
-    options?: OpenSubEntityDialogOptions,
-  ) => void
+  openUsernamesDialog: (personId: number, options?: OpenSubEntityDialogOptions) => void
   openInteractionsDialog: (
     personId: number,
     options?: OpenSubEntityDialogOptions,
@@ -305,10 +302,7 @@ export function usePeopleState(currentUserId: number | null): UsePeopleState {
         interactions: null,
         returnTo: options?.returnToEdit === true ? 'edit' : null,
       }),
-    openInteractionsDialog: (
-      personId: number,
-      options?: OpenSubEntityDialogOptions,
-    ) =>
+    openInteractionsDialog: (personId: number, options?: OpenSubEntityDialogOptions) =>
       setDialogParams({
         newPerson: null,
         personId: String(personId),

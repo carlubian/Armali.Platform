@@ -1471,7 +1471,11 @@ function UsernameEditor({
     <>
       <Dialog
         width={560}
-        title={row == null ? t('usernames.editor.createTitle') : t('usernames.editor.editTitle')}
+        title={
+          row == null
+            ? t('usernames.editor.createTitle')
+            : t('usernames.editor.editTitle')
+        }
         onClose={onClose}
         closeLabel={t('subEntities.close')}
         footer={
@@ -1489,7 +1493,11 @@ function UsernameEditor({
             <Button variant="ghost" onClick={onClose}>
               {t('subEntities.cancel')}
             </Button>
-            <Button type="submit" form="seg-username-form" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              form="seg-username-form"
+              disabled={mutation.isPending}
+            >
               {mutation.isPending ? t('subEntities.saving') : t('subEntities.save')}
             </Button>
           </>
@@ -1591,7 +1599,9 @@ function InteractionsDialog({
   const interactions = interactionsQuery.data ?? []
 
   const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: firebirdKeys.interactions(personId) })
+    await queryClient.invalidateQueries({
+      queryKey: firebirdKeys.interactions(personId),
+    })
     await queryClient.invalidateQueries({ queryKey: firebirdKeys.person(personId) })
   }
 
@@ -1741,7 +1751,9 @@ function InteractionEditor({
       <Dialog
         width={560}
         title={
-          row == null ? t('interactions.editor.createTitle') : t('interactions.editor.editTitle')
+          row == null
+            ? t('interactions.editor.createTitle')
+            : t('interactions.editor.editTitle')
         }
         onClose={onClose}
         closeLabel={t('subEntities.close')}
@@ -1760,7 +1772,11 @@ function InteractionEditor({
             <Button variant="ghost" onClick={onClose}>
               {t('subEntities.cancel')}
             </Button>
-            <Button type="submit" form="seg-interaction-form" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              form="seg-interaction-form"
+              disabled={mutation.isPending}
+            >
               {mutation.isPending ? t('subEntities.saving') : t('subEntities.save')}
             </Button>
           </>
@@ -1921,11 +1937,7 @@ function createInteractionSchema(messages: {
 
 function formatCivilDate(value: string, locale: string): string {
   const [year, month, day] = value.split('-').map(Number)
-  if (
-    !Number.isFinite(year) ||
-    !Number.isFinite(month) ||
-    !Number.isFinite(day)
-  ) {
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
     return value
   }
   return new Intl.DateTimeFormat(locale, {

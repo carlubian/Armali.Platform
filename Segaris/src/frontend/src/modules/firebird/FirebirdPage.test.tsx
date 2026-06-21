@@ -70,7 +70,13 @@ function makeDetail(summary: PersonSummary): Person {
 function mockBackend(options: BackendOptions = {}) {
   const people = options.people ?? [makePerson(1)]
   const usernames = options.usernames ?? [
-    { id: 10, platformId: 1, platformName: 'Email', handle: 'ada@example.test', notes: null },
+    {
+      id: 10,
+      platformId: 1,
+      platformName: 'Email',
+      handle: 'ada@example.test',
+      notes: null,
+    },
   ]
   const interactions = options.interactions ?? [
     { id: 20, date: '2026-06-18', description: 'Sent a birthday card' },
@@ -147,7 +153,9 @@ function mockBackend(options: BackendOptions = {}) {
         return new Response(null, { status: 204 })
       }
     }
-    const interactionMatch = url.match(/^\/api\/people\/(\d+)\/interactions(?:\/(\d+))?$/)
+    const interactionMatch = url.match(
+      /^\/api\/people\/(\d+)\/interactions(?:\/(\d+))?$/,
+    )
     if (interactionMatch) {
       const interactionId =
         interactionMatch[2] != null ? Number(interactionMatch[2]) : null
@@ -361,9 +369,13 @@ describe('Firebird gallery', () => {
     await user.click(within(popup).getAllByRole('button', { name: 'Close' })[0])
 
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Usernames' })).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole('dialog', { name: 'Usernames' }),
+      ).not.toBeInTheDocument(),
     )
-    expect(screen.queryByRole('dialog', { name: 'Edit person' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('dialog', { name: 'Edit person' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows interactions in server order and creates a dated interaction', async () => {
