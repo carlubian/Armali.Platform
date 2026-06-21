@@ -80,7 +80,7 @@ function makeDetail(id: number, overrides: Partial<Process> = {}): Process {
 }
 
 function isStepListBody(value: unknown): value is {
-  steps: Array<{ description: string; id: number | null }>
+  steps: Array<{ description: string; id: number | null; notes?: string | null }>
 } {
   if (typeof value !== 'object' || value == null) return false
   const steps = (value as Record<string, unknown>).steps
