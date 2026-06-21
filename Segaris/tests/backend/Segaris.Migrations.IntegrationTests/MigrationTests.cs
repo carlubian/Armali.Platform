@@ -56,6 +56,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_ProjectsRisks"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_ProcessesDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -90,6 +93,9 @@ public sealed class MigrationTests
                 // Programs, axes, projects, activities, risks, and the shared number allocator.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'projects_%'";
                 Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
+                // Processes plus the steps and category catalog tables.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'processes_%'";
+                Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -125,13 +131,14 @@ public sealed class MigrationTests
         Assert.Contains("MaintenanceDomainPersistence", sqliteNames);
         Assert.Contains("ProjectsDomainPersistence", sqliteNames);
         Assert.Contains("ProjectsRisks", sqliteNames);
+        Assert.Contains("ProcessesDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Projects_risks_is_the_current_tail_after_the_projects_domain_model()
+    public void Processes_domain_persistence_is_the_current_tail()
     {
-        // The Projects Wave 4 risk table is the current tail and migrates from the
-        // ProjectsDomainPersistence structural model.
+        // The Processes Wave 1 model is the current tail and migrates from the Projects
+        // risk table that preceded it.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -143,8 +150,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("ProjectsRisks", migrations[^1]);
-            Assert.Equal("ProjectsDomainPersistence", migrations[^2]);
+            Assert.Equal("ProcessesDomainPersistence", migrations[^1]);
+            Assert.Equal("ProjectsRisks", migrations[^2]);
         }
     }
 
@@ -246,6 +253,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_MaintenanceDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_ProjectsDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_ProjectsRisks"));
+            Assert.Contains(applied, migration => migration.EndsWith("_ProcessesDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -269,6 +277,8 @@ public sealed class MigrationTests
             Assert.Equal(2L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'projects_%'";
             Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'processes_%'";
+            Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {

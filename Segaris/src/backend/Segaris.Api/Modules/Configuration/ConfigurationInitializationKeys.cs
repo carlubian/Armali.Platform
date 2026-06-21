@@ -9,9 +9,10 @@ namespace Segaris.Api.Modules.Configuration;
 /// current rows are preserved exactly.
 ///
 /// The <c>capex.categories</c>, <c>opex.categories</c>, <c>inventory.categories</c>,
-/// <c>inventory.locations</c>, <c>assets.categories</c>, <c>assets.locations</c>, and
-/// <c>maintenance.types</c> keys name module-owned catalogs but live with the other
-/// keys because the single initialization table is shared infrastructure.
+/// <c>inventory.locations</c>, <c>assets.categories</c>, <c>assets.locations</c>,
+/// <c>maintenance.types</c>, and <c>processes.categories</c> keys name module-owned
+/// catalogs but live with the other keys because the single initialization table is
+/// shared infrastructure.
 /// </summary>
 internal static class ConfigurationInitializationKeys
 {
@@ -43,6 +44,8 @@ internal static class ConfigurationInitializationKeys
 
     public const string MaintenanceTypes = "maintenance.types";
 
+    public const string ProcessCategories = "processes.categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -59,5 +62,6 @@ internal static class ConfigurationInitializationKeys
         AssetCategories,
         AssetLocations,
         MaintenanceTypes,
+        ProcessCategories,
     ];
 }

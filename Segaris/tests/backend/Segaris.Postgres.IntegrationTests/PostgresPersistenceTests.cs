@@ -27,6 +27,7 @@ using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Mood.Contracts;
 using Segaris.Api.Modules.Mood.Domain;
 using Segaris.Api.Modules.Opex.Domain;
+using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Persistence;
@@ -37,6 +38,8 @@ using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
 using Testcontainers.PostgreSql;
 using ProjectActivity = Segaris.Api.Modules.Projects.Domain.Activity;
+using SegarisProcess = Segaris.Api.Modules.Processes.Domain.Process;
+using SystemProcess = System.Diagnostics.Process;
 
 namespace Segaris.Postgres.IntegrationTests;
 
@@ -174,6 +177,66 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             }));
 
         Assert.Equal(Enumerable.Range(1, 8), numbers.Order());
+    }
+
+    [Fact]
+    public async Task Postgres_persists_processes_with_steps_and_serves_the_seeded_categories()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-processes-owner";
+        const string password = "PgProcessesPass123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+
+        int processId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var categoryId = await database.Set<ProcessCategory>()
+                .Where(category => category.Name == "Administrative").Select(category => category.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 6, 21, 10, 0, 0, TimeSpan.Zero);
+
+            var process = SegarisProcess.Create(
+                new ProcessValues("Renew passport", categoryId, new DateOnly(2026, 7, 1), null, RecordVisibility.Public),
+                new UserId(userId),
+                now);
+            database.Add(process);
+            await database.SaveChangesAsync();
+            processId = process.Id;
+
+            database.Add(Step.Create(process.Id, new StepValues("Gather documents", null, null, false), 0, new UserId(userId), now));
+            database.Add(Step.Create(process.Id, new StepValues("Optional notarisation", null, null, true), 1, new UserId(userId), now));
+            await database.SaveChangesAsync();
+        }
+
+        // The Processes catalogue is seeded once with the frozen ordered values.
+        using var client = factory.CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            "/api/session",
+            new { userName, password },
+            CancellationToken.None);
+        login.EnsureSuccessStatusCode();
+        var categories = await client.GetFromJsonAsync<JsonElement[]>("/api/processes/categories", CancellationToken.None);
+        Assert.Equal(ProcessesDefaults.InitialCategories.Count, categories!.Length);
+        Assert.Equal(
+            ProcessesDefaults.InitialCategories,
+            categories.Select(item => item.GetProperty("name").GetString()));
+
+        // Deleting the process cascades to its owned steps.
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDatabase = verificationScope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        Assert.Equal(2, await verificationDatabase.Set<Step>().CountAsync(step => step.ProcessId == processId));
+        var stored = await verificationDatabase.Set<SegarisProcess>().SingleAsync(value => value.Id == processId);
+        verificationDatabase.Remove(stored);
+        await verificationDatabase.SaveChangesAsync();
+        Assert.Equal(0, await verificationDatabase.Set<Step>().CountAsync(step => step.ProcessId == processId));
     }
 
     [Fact]
@@ -1265,6 +1328,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Contains(applied, migration => migration.EndsWith("_AssetsDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_MaintenanceDomainPersistence"));
         Assert.Contains(applied, migration => migration.EndsWith("_ProjectsDomainPersistence"));
+        Assert.Contains(applied, migration => migration.EndsWith("_ProcessesDomainPersistence"));
         await database.Database.OpenConnectionAsync();
         await using var countCommand = database.Database.GetDbConnection().CreateCommand();
         // Three catalog tables plus the one-time initialization table.
@@ -1292,6 +1356,9 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(2L, (long)(await countCommand.ExecuteScalarAsync())!);
         countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'projects_%'";
         Assert.Equal(6L, (long)(await countCommand.ExecuteScalarAsync())!);
+        // Processes plus the steps and category catalog tables.
+        countCommand.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name LIKE 'processes_%'";
+        Assert.Equal(3L, (long)(await countCommand.ExecuteScalarAsync())!);
     }
 
     [Fact]
@@ -1389,7 +1456,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
     {
         try
         {
-            using var process = Process.Start(new ProcessStartInfo
+            using var process = SystemProcess.Start(new ProcessStartInfo
             {
                 FileName = "pg_dump",
                 ArgumentList = { "--version" },

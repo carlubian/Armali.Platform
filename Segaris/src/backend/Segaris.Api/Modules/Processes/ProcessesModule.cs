@@ -1,6 +1,11 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Processes.Attention;
+using Segaris.Api.Modules.Processes.Mutations;
+using Segaris.Api.Modules.Processes.Persistence;
+using Segaris.Api.Modules.Processes.Queries;
+using Segaris.Api.Modules.Processes.Seeding;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Processes;
 
@@ -25,12 +30,17 @@ internal sealed class ProcessesModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ISegarisModelContributor, ProcessesModelContributor>();
+        services.AddScoped<ProcessesSeeder>();
+        services.AddScoped<ProcessCategoryReadService>();
+        services.AddScoped<ProcessCategoryManagementService>();
         services.AddScoped<ILauncherAttentionContributor, ProcessesAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // Wave 0 freezes the route shapes in ProcessesApiRoutes; Wave 1 onward maps the
-        // category catalogue, process, step, and attachment HTTP surface.
+        // Wave 1 maps the module-owned category catalogue routes; later waves add the
+        // process, step, and attachment HTTP surface frozen in ProcessesApiRoutes.
+        endpoints.MapProcessesEndpoints();
     }
 }

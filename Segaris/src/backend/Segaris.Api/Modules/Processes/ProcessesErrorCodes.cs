@@ -26,7 +26,12 @@ internal static class ProcessesErrorCodes
     public static readonly ErrorCode AttachmentInvalid = new("processes.attachment.invalid");
 
     public static readonly ErrorCode CategoryNotFound = new("processes.category.not_found");
+    public static readonly ErrorCode CategoryValidation = new("processes.category.validation");
+    public static readonly ErrorCode CategoryDuplicateName = new("processes.category.duplicate_name");
+    public static readonly ErrorCode CategoryRequiredNotEmpty = new("processes.category.required_not_empty");
 
     // A referenced category may only be replaced, never cleared, before deletion.
     public static readonly ErrorCode CategoryReferenced = new("processes.category.referenced");
+    public static readonly ErrorCode CategoryInvalidReplacement = new("processes.category.invalid_replacement");
+    public static readonly ErrorCode CategoryMigrationConflict = new("processes.category.migration_conflict");
 }
