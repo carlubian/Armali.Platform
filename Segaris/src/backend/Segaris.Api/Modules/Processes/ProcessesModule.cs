@@ -34,13 +34,13 @@ internal sealed class ProcessesModule : ISegarisModule
         services.AddScoped<ProcessesSeeder>();
         services.AddScoped<ProcessCategoryReadService>();
         services.AddScoped<ProcessCategoryManagementService>();
+        services.AddScoped<ProcessReadService>();
+        services.AddScoped<ProcessWriteService>();
         services.AddScoped<ILauncherAttentionContributor, ProcessesAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // Wave 1 maps the module-owned category catalogue routes; later waves add the
-        // process, step, and attachment HTTP surface frozen in ProcessesApiRoutes.
         endpoints.MapProcessesEndpoints();
     }
 }

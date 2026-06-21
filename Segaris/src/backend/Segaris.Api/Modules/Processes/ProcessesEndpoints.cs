@@ -2,18 +2,18 @@ using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Processes.Contracts;
+using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Processes.Mutations;
 using Segaris.Api.Modules.Processes.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Processes;
 
 /// <summary>
-/// Maps the Processes HTTP surface. Wave 1 maps the module-owned <c>ProcessCategory</c>
-/// catalogue (a public read plus administrator mutations), presented through the
-/// Configuration experience. Later waves add the process, step, and attachment routes.
-/// State-changing routes carry antiforgery protection and never expose EF Core entities.
+/// Maps the Processes HTTP surface. State-changing routes carry antiforgery protection
+/// and never expose EF Core entities.
 /// </summary>
 internal static class ProcessesEndpoints
 {
@@ -22,9 +22,55 @@ internal static class ProcessesEndpoints
         var group = endpoints.MapSegarisApiGroup("processes", ProcessesApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapProcessEndpoints(group);
         MapCategoryEndpoints(group);
 
         return endpoints;
+    }
+
+    private static void MapProcessEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("", ListProcessesAsync)
+            .WithName("ListProcesses")
+            .WithSummary("Returns a paginated, filtered, and sorted table of accessible Processes")
+            .Produces<PaginatedResponse<ProcessSummaryResponse>>();
+        group.MapPost("", CreateProcessAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateProcess")
+            .WithSummary("Creates a process")
+            .Produces<ProcessResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet(ProcessesApiRoutes.ProcessById, GetProcessAsync)
+            .WithName("GetProcess")
+            .WithSummary("Returns the detail of an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(ProcessesApiRoutes.ProcessById, UpdateProcessAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateProcess")
+            .WithSummary("Replaces an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(ProcessesApiRoutes.ProcessById, DeleteProcessAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteProcess")
+            .WithSummary("Deletes an accessible process")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(ProcessesApiRoutes.ProcessCancel, CancelProcessAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CancelProcess")
+            .WithSummary("Sets the terminal Cancelled override on an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(ProcessesApiRoutes.ProcessReopen, ReopenProcessAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("ReopenProcess")
+            .WithSummary("Clears the terminal Cancelled override on an accessible process")
+            .Produces<ProcessResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -45,6 +91,166 @@ internal static class ProcessesEndpoints
 
     private static async Task<IResult> ListCategoriesAsync(ProcessCategoryReadService read, CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListAsync(cancellationToken));
+
+    private static async Task<IResult> ListProcessesAsync(
+        [AsParameters] ProcessListQuery query,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetProcessAsync(
+        int processId,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var process = await read.GetAsync(processId, userId, cancellationToken);
+        if (process is null)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(process);
+    }
+
+    private static async Task<IResult> CreateProcessAsync(
+        CreateProcessRequest request,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int processId;
+        try
+        {
+            processId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (ProcessesValidationException exception)
+        {
+            throw ProcessProblem.From(exception);
+        }
+
+        var created = await read.GetAsync(processId, userId, cancellationToken);
+        return TypedResults.Created($"/api/processes/{processId}", created);
+    }
+
+    private static async Task<IResult> UpdateProcessAsync(
+        int processId,
+        UpdateProcessRequest request,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(processId, request, userId, cancellationToken);
+        }
+        catch (ProcessesValidationException exception)
+        {
+            throw ProcessProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        var process = await read.GetAsync(processId, userId, cancellationToken);
+        return TypedResults.Ok(process);
+    }
+
+    private static async Task<IResult> DeleteProcessAsync(
+        int processId,
+        ProcessWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(processId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> CancelProcessAsync(
+        int processId,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var cancelled = await write.CancelAsync(processId, userId, cancellationToken);
+        if (!cancelled)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(await read.GetAsync(processId, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> ReopenProcessAsync(
+        int processId,
+        ProcessWriteService write,
+        ProcessReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var reopened = await write.ReopenAsync(processId, userId, cancellationToken);
+        if (!reopened)
+        {
+            throw ProcessProblem.NotFound();
+        }
+
+        return TypedResults.Ok(await read.GetAsync(processId, userId, cancellationToken));
+    }
 
     private static UserId CatalogActor(ICurrentUser currentUser) => currentUser.UserId ?? throw ProcessCategoryProblem.NotFound();
 
