@@ -204,8 +204,7 @@ export const travel = {
       clear: 'Clear linked destination',
       resolving: 'Resolving linked destination',
       selectorDescription: 'Choose the destination this trip points to.',
-      selectorPublicDescription:
-        'Choose a public destination for this public trip.',
+      selectorPublicDescription: 'Choose a public destination for this public trip.',
     },
     delete: {
       action: 'Delete',

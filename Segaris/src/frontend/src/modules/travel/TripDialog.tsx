@@ -5,10 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
-import {
-  destinationsApi,
-  type DestinationSummary,
-} from '@/app/api/destinations'
+import { destinationsApi, type DestinationSummary } from '@/app/api/destinations'
 import {
   travelApi,
   type CreateTravelTripRequest,

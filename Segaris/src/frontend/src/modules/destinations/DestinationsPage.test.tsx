@@ -284,7 +284,9 @@ describe('Destinations page', () => {
     ).toBeInTheDocument()
 
     const confirm = screen.getByRole('dialog', { name: 'Delete this destination?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Delete destination' }))
+    await user.click(
+      within(confirm).getByRole('button', { name: 'Delete destination' }),
+    )
 
     await waitFor(() =>
       expect(
@@ -426,9 +428,7 @@ describe('Destinations page', () => {
       name: 'Delete this destination?',
     })
     expect(
-      within(confirm).getByText(
-        /trips reference this destination/,
-      ),
+      within(confirm).getByText(/trips reference this destination/),
     ).toBeInTheDocument()
     await user.click(
       within(confirm).getByRole('button', { name: 'Delete destination' }),

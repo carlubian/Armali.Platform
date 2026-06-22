@@ -331,13 +331,15 @@ describe('Travel trips view', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New trip' })
 
     await user.type(within(dialog).getByLabelText('Name'), 'Summer trip')
-    await user.click(within(dialog).getByRole('button', { name: 'Browse destinations' }))
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Browse destinations' }),
+    )
     expect(await screen.findByText('Select a destination')).toBeInTheDocument()
 
     await waitFor(() =>
-      expect(requests.some((request) => request.url.includes('visibility=Public'))).toBe(
-        true,
-      ),
+      expect(
+        requests.some((request) => request.url.includes('visibility=Public')),
+      ).toBe(true),
     )
     const row = screen.getByText('Barcelona').closest('[role="row"]') as HTMLElement
     await user.click(within(row).getByRole('button', { name: 'Select' }))

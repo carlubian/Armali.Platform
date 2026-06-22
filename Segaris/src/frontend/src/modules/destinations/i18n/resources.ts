@@ -282,8 +282,7 @@ export const destinations = {
         '{{count}} trip references this destination. Deleting it will clear the trip link without revealing trip details.',
       impact_other:
         '{{count}} trips reference this destination. Deleting it will clear those trip links without revealing trip details.',
-      impactError:
-        'The trip-reference impact could not be checked. Please try again.',
+      impactError: 'The trip-reference impact could not be checked. Please try again.',
       cancel: 'Cancel',
       confirm: 'Delete destination',
       deleting: 'Deleting...',
