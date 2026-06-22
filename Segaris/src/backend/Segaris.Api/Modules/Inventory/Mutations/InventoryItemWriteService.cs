@@ -18,8 +18,15 @@ namespace Segaris.Api.Modules.Inventory.Mutations;
 /// visibility rules: an inaccessible item is reported as not found so a private
 /// item is never disclosed.
 /// </summary>
-internal sealed class InventoryItemWriteService(SegarisDbContext database, IAttachmentService attachments, IClock clock)
+internal sealed class InventoryItemWriteService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IEnumerable<IInventoryItemDeletionReferenceHandler> deletionReferenceHandlers,
+    IClock clock)
 {
+    private readonly IReadOnlyList<IInventoryItemDeletionReferenceHandler> deletionReferenceHandlers =
+        deletionReferenceHandlers.ToArray();
+
     public async Task<int> CreateAsync(
         CreateInventoryItemRequest request,
         UserId actorId,
@@ -88,6 +95,7 @@ internal sealed class InventoryItemWriteService(SegarisDbContext database, IAtta
         UserId actorId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var item = await database.Set<InventoryItem>()
             .Where(InventoryItemPolicies.MutableBy(actorId))
             .Where(candidate => candidate.Id == itemId)
@@ -104,8 +112,15 @@ internal sealed class InventoryItemWriteService(SegarisDbContext database, IAtta
                 InventoryValidationReason.ReferencedByOrder);
         }
 
+        var clearing = new InventoryItemDeletionClearing(itemId, actorId, clock.UtcNow);
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            await handler.ClearReferencesAsync(clearing, cancellationToken);
+        }
+
         database.Remove(item);
         await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var owner = InventoryAttachments.ItemOwner(itemId);
         var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
@@ -115,6 +130,25 @@ internal sealed class InventoryItemWriteService(SegarisDbContext database, IAtta
         }
 
         return true;
+    }
+
+    public async Task<InventoryItemDeletionImpactResponse?> GetDeletionImpactAsync(
+        int itemId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var itemExists = await database.Set<InventoryItem>()
+            .AsNoTracking()
+            .Where(InventoryItemPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == itemId)
+            .AnyAsync(cancellationToken);
+        if (!itemExists)
+        {
+            return null;
+        }
+
+        var references = await CountDeletionReferencesAsync(itemId, cancellationToken);
+        return new(references > 0, references);
     }
 
     /// <summary>
@@ -165,6 +199,19 @@ internal sealed class InventoryItemWriteService(SegarisDbContext database, IAtta
                 "One or more Inventory item catalog references do not exist.",
                 InventoryValidationReason.CatalogReference);
         }
+    }
+
+    private async Task<int> CountDeletionReferencesAsync(
+        int itemId,
+        CancellationToken cancellationToken)
+    {
+        var count = 0;
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            count += await handler.CountReferencesAsync(itemId, cancellationToken);
+        }
+
+        return count;
     }
 
     private async Task ValidateItemVisibilityChangeAsync(

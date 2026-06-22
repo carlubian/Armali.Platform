@@ -23,6 +23,7 @@ import {
 } from '@/app/api/inventory'
 import { opexApi, opexCategoriesManagementApi } from '@/app/api/opex'
 import { processCategoriesManagementApi, processesApi } from '@/app/api/processes'
+import { recipeCategoriesManagementApi, recipesApi } from '@/app/api/recipes'
 import {
   travelApi,
   travelExpenseCategoriesManagementApi,
@@ -37,6 +38,7 @@ import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/mainten
 import { maintenanceKeys } from '@/modules/maintenance/contracts'
 import { opexKeys } from '@/modules/opex/contracts'
 import { processesKeys } from '@/modules/processes/contracts'
+import { recipesKeys } from '@/modules/recipes/contracts'
 import { travelKeys } from '@/modules/travel/contracts'
 
 /** The administrative catalog keys backing the Configuration table and dialogs. */
@@ -56,6 +58,7 @@ export type CatalogKey =
   | 'assetLocations'
   | 'maintenanceTypes'
   | 'processCategories'
+  | 'recipeCategories'
   | 'personCategories'
   | 'usernamePlatforms'
 
@@ -72,6 +75,7 @@ export type CatalogSectionId =
   | 'firebird'
   | 'projects'
   | 'processes'
+  | 'recipes'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -325,6 +329,18 @@ export const processCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(processCategoriesManagementApi),
 }
 
+export const recipeCategoriesDescriptor: CatalogDescriptor = {
+  key: 'recipeCategories',
+  section: 'recipes',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: recipesKeys.categories(),
+  dependentKeys: [recipesKeys.recipes(), recipesKeys.menus()],
+  read: (signal) => recipesApi.categories(signal),
+  management: asDescriptorClient(recipeCategoriesManagementApi),
+}
+
 export const personCategoriesDescriptor: CatalogDescriptor = {
   key: 'personCategories',
   section: 'firebird',
@@ -398,6 +414,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   ...assetsCatalogs,
   maintenanceTypesDescriptor,
   processCategoriesDescriptor,
+  recipeCategoriesDescriptor,
   ...firebirdCatalogs,
 ]
 
@@ -438,6 +455,8 @@ export function sectionCatalogs(
       return []
     case 'processes':
       return [processCategoriesDescriptor]
+    case 'recipes':
+      return [recipeCategoriesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

@@ -11,6 +11,7 @@ using Segaris.Api.Modules.Mood;
 using Segaris.Api.Modules.Opex;
 using Segaris.Api.Modules.Processes;
 using Segaris.Api.Modules.Projects;
+using Segaris.Api.Modules.Recipes;
 using Segaris.Api.Modules.Travel;
 using Segaris.Api.Platform;
 
@@ -34,6 +35,7 @@ internal static class SegarisModules
         new ProjectsModule(),
         new ProcessesModule(),
         new FirebirdModule(),
+        new RecipesModule(),
         new LauncherModule(),
     ];
 

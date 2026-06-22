@@ -17,6 +17,7 @@ public sealed class ModuleBoundaryTests
     private const string LauncherNamespace = "Segaris.Api.Modules.Launcher";
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
+    private const string InventoryContractsNamespace = "Segaris.Api.Modules.Inventory.Contracts";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
     private const string ClothesNamespace = "Segaris.Api.Modules.Clothes";
     private const string AssetsNamespace = "Segaris.Api.Modules.Assets";
@@ -26,6 +27,7 @@ public sealed class ModuleBoundaryTests
     private const string ProjectsNamespace = "Segaris.Api.Modules.Projects";
     private const string ProcessesNamespace = "Segaris.Api.Modules.Processes";
     private const string FirebirdNamespace = "Segaris.Api.Modules.Firebird";
+    private const string RecipesNamespace = "Segaris.Api.Modules.Recipes";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -47,6 +49,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(ProjectsNamespace));
         Assert.NotEmpty(TypesIn(ProcessesNamespace));
         Assert.NotEmpty(TypesIn(FirebirdNamespace));
+        Assert.NotEmpty(TypesIn(RecipesNamespace));
     }
 
     [Fact]
@@ -292,6 +295,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, ProjectsNamespace);
         AssertNoDependency(LauncherNamespace, ProcessesNamespace);
         AssertNoDependency(LauncherNamespace, FirebirdNamespace);
+        AssertNoDependency(LauncherNamespace, RecipesNamespace);
     }
 
     [Fact]
@@ -554,6 +558,126 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(MaintenanceNamespace, FirebirdNamespace);
         AssertNoDependency(ProjectsNamespace, FirebirdNamespace);
         AssertNoDependency(ProcessesNamespace, FirebirdNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_recipes()
+    {
+        AssertNoDependency(ConfigurationNamespace, RecipesNamespace);
+    }
+
+    [Fact]
+    public void Recipes_depends_on_configuration_contracts()
+    {
+        // Recipes owns the RecipeCategory catalogue surfaced through the Configuration
+        // presentation boundary, so it consumes Configuration's published contracts. Its
+        // absence would mean the catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(RecipesNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Recipes must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Recipes_does_not_depend_on_other_business_modules()
+    {
+        // Recipes is the second business module that references another business module:
+        // it may consume Inventory (the item read contract and the deletion-reference
+        // contract) and Configuration, but it must remain independent from every other
+        // business module. It contributes no launcher attention.
+        AssertNoDependency(RecipesNamespace, CapexNamespace);
+        AssertNoDependency(RecipesNamespace, OpexNamespace);
+        AssertNoDependency(RecipesNamespace, TravelNamespace);
+        AssertNoDependency(RecipesNamespace, ClothesNamespace);
+        AssertNoDependency(RecipesNamespace, AssetsNamespace);
+        AssertNoDependency(RecipesNamespace, MoodNamespace);
+        AssertNoDependency(RecipesNamespace, MaintenanceNamespace);
+        AssertNoDependency(RecipesNamespace, ProjectsNamespace);
+        AssertNoDependency(RecipesNamespace, ProcessesNamespace);
+        AssertNoDependency(RecipesNamespace, FirebirdNamespace);
+    }
+
+    [Fact]
+    public void Recipes_does_not_depend_on_launcher()
+    {
+        // Recipes contributes no launcher attention, so it must not reference the
+        // Launcher namespace at all.
+        AssertNoDependency(RecipesNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Recipes_may_only_consume_inventory_through_published_contracts()
+    {
+        // The Recipes -> Inventory seam is the second business-to-business dependency,
+        // so it is policed like the Maintenance -> Assets seam: Recipes may reference
+        // only the Inventory.Contracts namespace (the read contract and the
+        // deletion-reference contract) and never Inventory domain, persistence,
+        // queries, or mutations.
+        var violations = TypesIn(RecipesNamespace)
+            .SelectMany(type => ReferencedTypes(type)
+                .Where(referenced => IsInNamespace(referenced, InventoryNamespace)
+                    && !IsInNamespace(referenced, InventoryContractsNamespace))
+                .Select(referenced => $"{type.FullName} -> {referenced.FullName}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            violations.Length == 0,
+            "Recipes may consume Inventory only through 'Inventory.Contracts':"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, violations));
+    }
+
+    [Fact]
+    public void Inventory_does_not_depend_on_recipes()
+    {
+        // The item-deletion link clearing is implemented by contract inversion: Inventory
+        // defines the read and deletion-reference contracts, Recipes implements them, and
+        // Inventory enumerates registered handlers without ever referencing Recipes. This
+        // keeps the dependency direction Recipes -> Inventory.
+        AssertNoDependency(InventoryNamespace, RecipesNamespace);
+    }
+
+    [Fact]
+    public void Inventory_publishes_the_cross_module_reference_contracts()
+    {
+        // The read contract and the deletion-reference contract are the cross-module
+        // seam. Keeping them in the Inventory namespace is what preserves the
+        // Recipes -> Inventory direction when Recipes consumes and implements them.
+        var reader = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Inventory.Contracts.IInventoryItemReferenceReader",
+            throwOnError: false);
+        var deletionHandler = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Inventory.Contracts.IInventoryItemDeletionReferenceHandler",
+            throwOnError: false);
+
+        Assert.NotNull(reader);
+        Assert.NotNull(deletionHandler);
+        Assert.True(IsInNamespace(reader!, InventoryContractsNamespace));
+        Assert.True(IsInNamespace(deletionHandler!, InventoryContractsNamespace));
+    }
+
+    [Fact]
+    public void No_module_depends_on_recipes()
+    {
+        // Recipes publishes no cross-module contracts: no other module, including
+        // Configuration, Inventory, and Launcher, may reference the Recipes namespace.
+        AssertNoDependency(ConfigurationNamespace, RecipesNamespace);
+        AssertNoDependency(LauncherNamespace, RecipesNamespace);
+        AssertNoDependency(CapexNamespace, RecipesNamespace);
+        AssertNoDependency(OpexNamespace, RecipesNamespace);
+        AssertNoDependency(InventoryNamespace, RecipesNamespace);
+        AssertNoDependency(TravelNamespace, RecipesNamespace);
+        AssertNoDependency(ClothesNamespace, RecipesNamespace);
+        AssertNoDependency(AssetsNamespace, RecipesNamespace);
+        AssertNoDependency(MoodNamespace, RecipesNamespace);
+        AssertNoDependency(MaintenanceNamespace, RecipesNamespace);
+        AssertNoDependency(ProjectsNamespace, RecipesNamespace);
+        AssertNoDependency(ProcessesNamespace, RecipesNamespace);
+        AssertNoDependency(FirebirdNamespace, RecipesNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

@@ -98,6 +98,11 @@ export interface InventoryItem {
   updatedAt: string
 }
 
+export interface InventoryItemDeletionImpact {
+  isReferenced: boolean
+  referenceCount: number
+}
+
 export interface InventoryOrderLine {
   id: number
   itemId: number
@@ -256,6 +261,11 @@ export const inventoryApi = {
       method: 'DELETE',
       signal,
     }),
+  itemDeletionImpact: (itemId: number, signal?: AbortSignal) =>
+    apiRequest<InventoryItemDeletionImpact>(
+      `/api/inventory/items/${itemId}/deletion-impact`,
+      { signal },
+    ),
   adjustStock: (
     itemId: number,
     request: InventoryStockAdjustmentRequest,

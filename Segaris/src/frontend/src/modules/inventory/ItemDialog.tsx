@@ -525,35 +525,79 @@ function ItemEditorForm({
       )}
 
       {confirmingDelete && (
-        <Dialog
-          width={460}
-          title={t('itemEditor.delete.title')}
-          description={t('itemEditor.delete.description')}
+        <ItemDeleteDialog
+          itemId={itemId as number}
+          deleting={deleteMutation.isPending}
           onClose={() => setConfirmingDelete(false)}
-          closeLabel={t('itemEditor.delete.cancel')}
-          footer={
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmingDelete(false)}
-                disabled={deleteMutation.isPending}
-              >
-                {t('itemEditor.delete.cancel')}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending
-                  ? t('itemEditor.delete.deleting')
-                  : t('itemEditor.delete.confirm')}
-              </Button>
-            </>
-          }
+          onConfirm={() => deleteMutation.mutate()}
         />
       )}
     </>
+  )
+}
+
+function ItemDeleteDialog({
+  itemId,
+  deleting,
+  onClose,
+  onConfirm,
+}: {
+  itemId: number
+  deleting: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const { t } = useTranslation('inventory')
+  const impactQuery = useQuery({
+    queryKey: [...inventoryKeys.item(itemId), 'deletion-impact'] as const,
+    queryFn: ({ signal }) => inventoryApi.itemDeletionImpact(itemId, signal),
+    staleTime: 0,
+    gcTime: 0,
+  })
+
+  const description =
+    impactQuery.data?.isReferenced === true
+      ? t('itemEditor.delete.referencedDescription', {
+          count: impactQuery.data.referenceCount,
+        })
+      : t('itemEditor.delete.description')
+
+  return (
+    <Dialog
+      width={480}
+      title={t('itemEditor.delete.title')}
+      description={description}
+      onClose={onClose}
+      closeLabel={t('itemEditor.delete.cancel')}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={deleting}>
+            {t('itemEditor.delete.cancel')}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={onConfirm}
+            disabled={deleting || impactQuery.isPending || impactQuery.isError}
+          >
+            {deleting
+              ? t('itemEditor.delete.deleting')
+              : t('itemEditor.delete.confirm')}
+          </Button>
+        </>
+      }
+    >
+      {impactQuery.isPending && (
+        <div className="seg-inv-editor__status">
+          <Spinner />
+          <span>{t('itemEditor.delete.loadingImpact')}</span>
+        </div>
+      )}
+      {impactQuery.isError && (
+        <p className="seg-inv-editor__error" role="alert">
+          {t('itemEditor.delete.impactError')}
+        </p>
+      )}
+    </Dialog>
   )
 }
 

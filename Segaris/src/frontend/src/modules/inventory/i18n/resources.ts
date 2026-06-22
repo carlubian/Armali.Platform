@@ -257,6 +257,12 @@ export const inventory = {
       title: 'Delete this item?',
       description:
         'This permanently removes the item and its attachments. This cannot be undone.',
+      referencedDescription:
+        'This item is linked from {{count}} recipe ingredient. Deleting it will clear that inventory link and leave the ingredient text in place. No private recipe details are shown.',
+      referencedDescription_other:
+        'This item is linked from {{count}} recipe ingredients. Deleting it will clear those inventory links and leave the ingredient text in place. No private recipe details are shown.',
+      loadingImpact: 'Checking recipe links...',
+      impactError: 'The deletion impact could not be loaded. Please try again.',
       cancel: 'Cancel',
       confirm: 'Delete item',
       deleting: 'Deleting…',

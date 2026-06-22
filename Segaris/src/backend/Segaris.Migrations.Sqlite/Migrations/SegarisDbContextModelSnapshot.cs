@@ -2310,6 +2310,262 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.Recipe", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CookMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Difficulty")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PreparationMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PrimaryAttachmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Servings")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("Visibility");
+
+                    b.HasIndex("Name", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.ToTable("recipes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_recipes_cook_minutes", "\"CookMinutes\" IS NULL OR \"CookMinutes\" > 0");
+
+                            t.HasCheckConstraint("CK_recipes_difficulty", "\"Difficulty\" IS NULL OR \"Difficulty\" IN ('Easy', 'Medium', 'Hard')");
+
+                            t.HasCheckConstraint("CK_recipes_preparation_minutes", "\"PreparationMinutes\" IS NULL OR \"PreparationMinutes\" > 0");
+
+                            t.HasCheckConstraint("CK_recipes_servings", "\"Servings\" IS NULL OR \"Servings\" > 0");
+
+                            t.HasCheckConstraint("CK_recipes_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.RecipeCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("recipe_categories", (string)null);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.RecipeIngredient", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Quantity")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId")
+                        .HasFilter("\"ItemId\" IS NOT NULL");
+
+                    b.HasIndex("RecipeId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("recipe_ingredients", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_recipe_ingredients_position", "\"Position\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.RecipeStep", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Instruction")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipeId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("recipe_steps", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_recipe_steps_position", "\"Position\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.WeeklyMenu", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Week")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("Week");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Id");
+
+                    b.ToTable("recipe_menus", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_recipe_menus_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.WeeklyMenuSlotRecipe", b =>
+                {
+                    b.Property<int>("MenuId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Day")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slot")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MenuId", "Day", "Slot", "RecipeId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("recipe_menu_slots", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_recipe_menu_slots_day", "\"Day\" IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
+
+                            t.HasCheckConstraint("CK_recipe_menu_slots_slot", "\"Slot\" IN ('Breakfast', 'Lunch', 'Snack', 'Dinner')");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Travel.Domain.TravelExpense", b =>
                 {
                     b.Property<int>("Id")
@@ -3296,6 +3552,75 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.Recipe", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Recipes.Domain.RecipeCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.RecipeIngredient", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Recipes.Domain.Recipe", null)
+                        .WithMany("Ingredients")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.RecipeStep", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Recipes.Domain.Recipe", null)
+                        .WithMany("Steps")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.WeeklyMenu", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.WeeklyMenuSlotRecipe", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Recipes.Domain.WeeklyMenu", null)
+                        .WithMany("SlotRecipes")
+                        .HasForeignKey("MenuId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Recipes.Domain.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Travel.Domain.TravelExpense", b =>
                 {
                     b.HasOne("Segaris.Api.Modules.Configuration.Persistence.SegarisCostCenter", null)
@@ -3390,6 +3715,18 @@ namespace Segaris.Migrations.Sqlite.Migrations
             modelBuilder.Entity("Segaris.Api.Modules.Opex.Domain.OpexContract", b =>
                 {
                     b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.Recipe", b =>
+                {
+                    b.Navigation("Ingredients");
+
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Recipes.Domain.WeeklyMenu", b =>
+                {
+                    b.Navigation("SlotRecipes");
                 });
 
             modelBuilder.Entity("Segaris.Api.Modules.Travel.Domain.TravelTrip", b =>

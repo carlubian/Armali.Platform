@@ -11,6 +11,7 @@ using Segaris.Api.Modules.Inventory.Seeding;
 using Segaris.Api.Modules.Maintenance.Seeding;
 using Segaris.Api.Modules.Opex.Seeding;
 using Segaris.Api.Modules.Processes.Seeding;
+using Segaris.Api.Modules.Recipes.Seeding;
 using Segaris.Api.Modules.Travel.Seeding;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Api;
@@ -50,6 +51,7 @@ await app.Services.SeedAssetsAsync();
 await app.Services.SeedMaintenanceAsync();
 await app.Services.SeedProcessesAsync();
 await app.Services.SeedFirebirdAsync();
+await app.Services.SeedRecipesAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>

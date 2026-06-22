@@ -52,6 +52,12 @@ internal static class InventoryEndpoints
             .Produces<InventoryItemResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        items.MapGet(InventoryApiRoutes.ItemDeletionImpact, GetItemDeletionImpactAsync)
+            .WithName("GetInventoryItemDeletionImpact")
+            .WithSummary("Returns privacy-neutral cross-module deletion impact for an accessible Inventory item")
+            .Produces<InventoryItemDeletionImpactResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         items.MapPost("", CreateItemAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateInventoryItem")
@@ -71,7 +77,7 @@ internal static class InventoryEndpoints
         items.MapDelete(InventoryApiRoutes.ItemById, DeleteItemAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteInventoryItem")
-            .WithSummary("Deletes an unreferenced Inventory item and its attachments")
+            .WithSummary("Deletes an Inventory item, clearing optional cross-module item links and attachments")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -314,6 +320,26 @@ internal static class InventoryEndpoints
 
         var item = await read.GetItemAsync(itemId, userId, cancellationToken);
         return TypedResults.Ok(item);
+    }
+
+    private static async Task<IResult> GetItemDeletionImpactAsync(
+        int itemId,
+        InventoryItemWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var impact = await write.GetDeletionImpactAsync(itemId, userId, cancellationToken);
+        if (impact is null)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        return TypedResults.Ok(impact);
     }
 
     private static async Task<IResult> DeleteItemAsync(

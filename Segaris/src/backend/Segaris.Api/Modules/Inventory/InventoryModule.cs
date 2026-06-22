@@ -1,6 +1,7 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Inventory.Attention;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Persistence;
 using Segaris.Api.Modules.Inventory.Queries;
@@ -31,6 +32,7 @@ internal sealed class InventoryModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, InventoryModelContributor>();
         services.AddScoped<InventorySeeder>();
         services.AddScoped<InventoryReadService>();
+        services.AddScoped<IInventoryItemReferenceReader, InventoryItemReferenceReader>();
         services.AddScoped<InventoryItemWriteService>();
         services.AddScoped<InventoryOrderWriteService>();
         services.AddScoped<InventoryCategoryManagementService>();
