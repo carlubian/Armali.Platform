@@ -30,4 +30,26 @@ internal static class DestinationProblem
         StatusCodes.Status404NotFound,
         DestinationsErrorCodes.DestinationNotFound,
         "Destination not found.");
+
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        DestinationsErrorCodes.AttachmentNotFound,
+        "The requested destination attachment was not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        DestinationsErrorCodes.AttachmentInvalid,
+        "The attachment is invalid.",
+        errors: errors ?? new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            [field] = [message],
+        });
+
+    public static ApiProblemException PrimaryNotImage() => new(
+        StatusCodes.Status400BadRequest,
+        DestinationsErrorCodes.AttachmentPrimaryInvalid,
+        "Only image attachments can be marked as the primary image.");
 }

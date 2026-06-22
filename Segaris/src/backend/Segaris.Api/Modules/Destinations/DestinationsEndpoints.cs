@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Destinations.Domain;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Destinations.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Destinations;
@@ -67,6 +70,37 @@ internal static class DestinationsEndpoints
             .WithName("DeleteDestination")
             .WithSummary("Deletes an accessible destination and its places")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet(DestinationsApiRoutes.DestinationAttachments, ListDestinationAttachmentsAsync)
+            .WithName("ListDestinationAttachments")
+            .WithSummary("Lists the attachments of an accessible destination")
+            .Produces<IReadOnlyList<DestinationAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(DestinationsApiRoutes.DestinationAttachments, UploadDestinationAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadDestinationAttachment")
+            .WithSummary("Uploads one attachment for an accessible destination")
+            .Produces<DestinationAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(DestinationsApiRoutes.DestinationAttachmentById, DownloadDestinationAttachmentAsync)
+            .WithName("DownloadDestinationAttachment")
+            .WithSummary("Downloads one attachment of an accessible destination")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(DestinationsApiRoutes.DestinationAttachmentById, DeleteDestinationAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteDestinationAttachment")
+            .WithSummary("Removes one attachment of an accessible destination, clearing primary when needed")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(DestinationsApiRoutes.DestinationPrimaryAttachment, SetDestinationPrimaryAttachmentAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("SetDestinationPrimaryAttachment")
+            .WithSummary("Marks one image attachment as the destination's primary image")
+            .Produces<DestinationAttachmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
@@ -350,6 +384,163 @@ internal static class DestinationsEndpoints
 
         return TypedResults.NoContent();
     }
+
+    private static async Task<IResult> ListDestinationAttachmentsAsync(
+        int destinationId,
+        DestinationsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var attachments = await read.ListDestinationAttachmentsAsync(destinationId, userId, cancellationToken);
+        if (attachments is null)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        return TypedResults.Ok(attachments);
+    }
+
+    private static async Task<IResult> UploadDestinationAttachmentAsync(
+        int destinationId,
+        HttpRequest request,
+        DestinationsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.DestinationAccessibleAsync(destinationId, userId, cancellationToken))
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw DestinationProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw DestinationProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(DestinationsAttachments.DestinationOwner(destinationId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw DestinationProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/destinations/{destinationId}/attachments/{created.Id.Value}",
+            ToAttachment(created, isPrimary: false));
+    }
+
+    private static async Task<IResult> DownloadDestinationAttachmentAsync(
+        int destinationId,
+        int attachmentId,
+        DestinationsReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.DestinationAccessibleAsync(destinationId, userId, cancellationToken))
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            DestinationsAttachments.DestinationOwner(destinationId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw DestinationProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteDestinationAttachmentAsync(
+        int destinationId,
+        int attachmentId,
+        DestinationWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var outcome = await write.DeleteAttachmentAsync(destinationId, attachmentId, userId, cancellationToken);
+        return outcome switch
+        {
+            DestinationDeleteAttachmentOutcome.DestinationNotFound => throw DestinationProblem.NotFound(),
+            DestinationDeleteAttachmentOutcome.AttachmentNotFound => throw DestinationProblem.AttachmentNotFound(),
+            _ => TypedResults.NoContent(),
+        };
+    }
+
+    private static async Task<IResult> SetDestinationPrimaryAttachmentAsync(
+        int destinationId,
+        int attachmentId,
+        DestinationWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await write.SetPrimaryAttachmentAsync(destinationId, attachmentId, userId, cancellationToken);
+        return result.Outcome switch
+        {
+            DestinationSetPrimaryOutcome.DestinationNotFound => throw DestinationProblem.NotFound(),
+            DestinationSetPrimaryOutcome.AttachmentNotFound => throw DestinationProblem.AttachmentNotFound(),
+            DestinationSetPrimaryOutcome.NotImage => throw DestinationProblem.PrimaryNotImage(),
+            _ => TypedResults.Ok(ToAttachment(result.Descriptor!, isPrimary: true)),
+        };
+    }
+
+    private static DestinationAttachmentResponse ToAttachment(AttachmentDescriptor descriptor, bool isPrimary) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        isPrimary);
 
     private static async Task<IResult> ListPlacesAsync(
         int destinationId,

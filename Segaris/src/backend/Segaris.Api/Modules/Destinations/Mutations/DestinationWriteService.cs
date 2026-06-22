@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Destinations.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -13,7 +14,7 @@ namespace Segaris.Api.Modules.Destinations.Mutations;
 /// mutable; private destinations remain creator-only and only creators can change
 /// visibility.
 /// </summary>
-internal sealed class DestinationWriteService(SegarisDbContext database, IClock clock)
+internal sealed class DestinationWriteService(SegarisDbContext database, IAttachmentService attachments, IClock clock)
 {
     public async Task<int> CreateAsync(
         CreateDestinationRequest request,
@@ -72,7 +73,67 @@ internal sealed class DestinationWriteService(SegarisDbContext database, IClock 
 
         database.Remove(destination);
         await database.SaveChangesAsync(cancellationToken);
+        await DeleteAttachmentFilesAsync(destinationId, cancellationToken);
         return true;
+    }
+
+    public async Task<DestinationSetPrimaryResult> SetPrimaryAttachmentAsync(
+        int destinationId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var destination = await database.Set<Destination>()
+            .Where(DestinationPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == destinationId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (destination is null)
+        {
+            return new(DestinationSetPrimaryOutcome.DestinationNotFound, null);
+        }
+
+        var owner = DestinationsAttachments.DestinationOwner(destinationId);
+        var descriptor = await attachments.FindAsync(new(attachmentId), owner, cancellationToken);
+        if (descriptor is null)
+        {
+            return new(DestinationSetPrimaryOutcome.AttachmentNotFound, null);
+        }
+
+        if (!DestinationsAttachments.IsImageContentType(descriptor.ContentType))
+        {
+            return new(DestinationSetPrimaryOutcome.NotImage, null);
+        }
+
+        destination.SetPrimaryAttachment(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return new(DestinationSetPrimaryOutcome.Assigned, descriptor);
+    }
+
+    public async Task<DestinationDeleteAttachmentOutcome> DeleteAttachmentAsync(
+        int destinationId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var destination = await database.Set<Destination>()
+            .Where(DestinationPolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == destinationId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (destination is null)
+        {
+            return DestinationDeleteAttachmentOutcome.DestinationNotFound;
+        }
+
+        var owner = DestinationsAttachments.DestinationOwner(destinationId);
+        var removed = await attachments.DeleteAsync(new(attachmentId), owner, cancellationToken);
+        if (!removed)
+        {
+            return DestinationDeleteAttachmentOutcome.AttachmentNotFound;
+        }
+
+        destination.ClearPrimaryAttachmentIf(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return DestinationDeleteAttachmentOutcome.Deleted;
     }
 
     private static DestinationValues MapCreate(CreateDestinationRequest request) =>
@@ -104,6 +165,16 @@ internal sealed class DestinationWriteService(SegarisDbContext database, IClock 
             throw new DestinationsValidationException(
                 "The selected destination category does not exist.",
                 DestinationsValidationReason.CatalogReference);
+        }
+    }
+
+    private async Task DeleteAttachmentFilesAsync(int destinationId, CancellationToken cancellationToken)
+    {
+        var owner = DestinationsAttachments.DestinationOwner(destinationId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
         }
     }
 

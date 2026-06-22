@@ -1,19 +1,19 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Destinations.Domain;
 using Segaris.Api.Modules.Identity;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Destinations.Queries;
 
 /// <summary>Read-side queries for accessible Destinations records.</summary>
-internal sealed class DestinationsReadService(SegarisDbContext database)
+internal sealed class DestinationsReadService(SegarisDbContext database, IAttachmentService attachments)
 {
-    private static readonly DestinationThumbnailResponse PlaceholderThumbnail = new(null, null, "placeholder");
-
     public async Task<PaginatedResponse<DestinationSummaryResponse>> ListDestinationsAsync(
         DestinationFilter filter,
         PaginationRequest pagination,
@@ -38,16 +38,22 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
                 destination.Country,
                 destination.IsSchengenArea,
                 destination.Visibility,
+                destination.PrimaryAttachmentId,
                 destination.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == destination.CreatedBy).Select(user => user.DisplayName).First()))
-            .ToArrayAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
         var ratings = await RatingAggregatesAsync(rows.Select(row => row.Id), cancellationToken);
-        var page = rows.Select(row =>
+        var page = new DestinationSummaryResponse[rows.Count];
+        for (var index = 0; index < rows.Count; index++)
         {
+            var row = rows[index];
             ratings.TryGetValue(row.Id, out var rating);
-            return new DestinationSummaryResponse(
+            var descriptors = await attachments.ListByOwnerAsync(
+                DestinationsAttachments.DestinationOwner(row.Id),
+                cancellationToken);
+            page[index] = new DestinationSummaryResponse(
                 row.Id,
                 row.Name,
                 row.CategoryId,
@@ -57,12 +63,45 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
                 rating?.Average,
                 rating?.Count ?? 0,
                 row.Visibility.ToString(),
-                PlaceholderThumbnail,
+                DestinationThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
                 row.CreatorId,
                 row.CreatorName);
-        }).ToArray();
+        }
 
         return PaginatedResponse<DestinationSummaryResponse>.Create(page, pagination, totalCount);
+    }
+
+    public Task<bool> DestinationAccessibleAsync(
+        int destinationId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        database.Set<Destination>()
+            .AsNoTracking()
+            .Where(DestinationPolicies.AccessibleTo(userId))
+            .AnyAsync(destination => destination.Id == destinationId, cancellationToken);
+
+    public async Task<IReadOnlyList<DestinationAttachmentResponse>?> ListDestinationAttachmentsAsync(
+        int destinationId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var destination = await database.Set<Destination>()
+            .AsNoTracking()
+            .Where(DestinationPolicies.AccessibleTo(userId))
+            .Where(candidate => candidate.Id == destinationId)
+            .Select(candidate => new { candidate.PrimaryAttachmentId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (destination is null)
+        {
+            return null;
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(
+            DestinationsAttachments.DestinationOwner(destinationId),
+            cancellationToken);
+        return descriptors
+            .Select(descriptor => ToAttachmentResponse(descriptor, destination.PrimaryAttachmentId))
+            .ToArray();
     }
 
     public async Task<DestinationResponse?> GetDestinationAsync(
@@ -85,6 +124,7 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
                 destination.IsSchengenArea,
                 destination.Notes,
                 destination.Visibility,
+                destination.PrimaryAttachmentId,
                 destination.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == destination.CreatedBy).Select(user => user.DisplayName).First(),
@@ -102,6 +142,9 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
 
         var ratings = await RatingAggregatesAsync([row.Id], cancellationToken);
         ratings.TryGetValue(row.Id, out var rating);
+        var descriptors = await attachments.ListByOwnerAsync(
+            DestinationsAttachments.DestinationOwner(row.Id),
+            cancellationToken);
 
         return new DestinationResponse(
             row.Id,
@@ -115,8 +158,8 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
             rating?.Average,
             rating?.Count ?? 0,
             row.Visibility.ToString(),
-            PlaceholderThumbnail,
-            [],
+            DestinationThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
+            descriptors.Select(descriptor => ToAttachmentResponse(descriptor, row.PrimaryAttachmentId)).ToArray(),
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -203,6 +246,17 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
         .Replace("%", "\\%", StringComparison.Ordinal)
         .Replace("_", "\\_", StringComparison.Ordinal);
 
+    private static DestinationAttachmentResponse ToAttachmentResponse(
+        AttachmentDescriptor descriptor,
+        int? primaryAttachmentId) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        descriptor.Id.Value == primaryAttachmentId);
+
     private sealed record RatingAggregate(decimal Average, int Count);
 
     private sealed record DestinationSummaryRow(
@@ -213,6 +267,7 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
         string? Country,
         bool IsSchengenArea,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatorId,
         string CreatorName);
 
@@ -226,6 +281,7 @@ internal sealed class DestinationsReadService(SegarisDbContext database)
         bool IsSchengenArea,
         string? Notes,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatedById,
         string CreatedByName,
         DateTimeOffset CreatedAt,

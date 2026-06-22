@@ -11,4 +11,11 @@ internal static class DestinationsAttachments
 
     public static AttachmentOwner DestinationOwner(int destinationId) =>
         new(Module, DestinationEntityType, destinationId.ToString(CultureInfo.InvariantCulture));
+
+    /// <summary>
+    /// Only image attachments can drive the gallery thumbnail or be marked as the
+    /// primary image. The attachment subsystem stores canonical image content types.
+    /// </summary>
+    public static bool IsImageContentType(string contentType) =>
+        contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 }
