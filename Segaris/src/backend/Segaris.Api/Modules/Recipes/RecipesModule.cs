@@ -26,6 +26,7 @@ internal sealed class RecipesModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, RecipesModelContributor>();
         services.AddScoped<RecipesSeeder>();
         services.AddScoped<RecipesReadService>();
+        services.AddScoped<RecipesRecipeWriteService>();
         services.AddScoped<RecipesCategoryManagementService>();
     }
 

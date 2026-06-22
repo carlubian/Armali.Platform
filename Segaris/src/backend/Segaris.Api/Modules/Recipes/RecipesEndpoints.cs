@@ -1,11 +1,12 @@
-using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Recipes.Contracts;
+using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Api.Modules.Recipes.Mutations;
 using Segaris.Api.Modules.Recipes.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Recipes;
@@ -25,18 +26,35 @@ internal static class RecipesEndpoints
         var group = endpoints.MapSegarisApiGroup("recipes", RecipesApiRoutes.Tag)
             .RequireAuthorization();
 
-        // The recipe collection lives at the module group root (/api/recipes).
-        group.MapGet("", NotImplemented).WithName("ListRecipes");
-        group.MapPost("", NotImplemented)
+        group.MapGet("", ListRecipesAsync)
+            .WithName("ListRecipes")
+            .WithSummary("Returns a paginated, filtered, and sorted gallery of accessible recipes")
+            .Produces<PaginatedResponse<RecipeSummaryResponse>>();
+        group.MapPost("", CreateRecipeAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("CreateRecipe");
-        group.MapGet(RecipesApiRoutes.RecipeById, NotImplemented).WithName("GetRecipe");
-        group.MapPut(RecipesApiRoutes.RecipeById, NotImplemented)
+            .WithName("CreateRecipe")
+            .WithSummary("Creates a recipe with free-text ingredients and preparation steps")
+            .Produces<RecipeResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet(RecipesApiRoutes.RecipeById, GetRecipeAsync)
+            .WithName("GetRecipe")
+            .WithSummary("Returns the detail of an accessible recipe")
+            .Produces<RecipeResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(RecipesApiRoutes.RecipeById, UpdateRecipeAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UpdateRecipe");
-        group.MapDelete(RecipesApiRoutes.RecipeById, NotImplemented)
+            .WithName("UpdateRecipe")
+            .WithSummary("Replaces an accessible recipe and its ingredient and step collections")
+            .Produces<RecipeResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(RecipesApiRoutes.RecipeById, DeleteRecipeAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteRecipe");
+            .WithName("DeleteRecipe")
+            .WithSummary("Deletes an accessible recipe")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet(RecipesApiRoutes.RecipeAttachments, NotImplemented).WithName("ListRecipeAttachments");
         group.MapPost(RecipesApiRoutes.RecipeAttachments, NotImplemented)
@@ -122,6 +140,124 @@ internal static class RecipesEndpoints
 
     private static async Task<IResult> ListCategoriesAsync(RecipesReadService read, CancellationToken token) =>
         TypedResults.Ok(await read.ListCategoriesAsync(token));
+
+    private static async Task<IResult> ListRecipesAsync(
+        [AsParameters] RecipeListQuery query,
+        RecipesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListRecipesAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetRecipeAsync(
+        int recipeId,
+        RecipesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var recipe = await read.GetRecipeAsync(recipeId, userId, cancellationToken);
+        if (recipe is null)
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        return TypedResults.Ok(recipe);
+    }
+
+    private static async Task<IResult> CreateRecipeAsync(
+        CreateRecipeRequest request,
+        RecipesRecipeWriteService write,
+        RecipesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int recipeId;
+        try
+        {
+            recipeId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (RecipesValidationException exception)
+        {
+            throw RecipesRecipeProblem.From(exception);
+        }
+
+        var created = await read.GetRecipeAsync(recipeId, userId, cancellationToken);
+        return TypedResults.Created($"/api/recipes/{recipeId}", created);
+    }
+
+    private static async Task<IResult> UpdateRecipeAsync(
+        int recipeId,
+        UpdateRecipeRequest request,
+        RecipesRecipeWriteService write,
+        RecipesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(recipeId, request, userId, cancellationToken);
+        }
+        catch (RecipesValidationException exception)
+        {
+            throw RecipesRecipeProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        var recipe = await read.GetRecipeAsync(recipeId, userId, cancellationToken);
+        return TypedResults.Ok(recipe);
+    }
+
+    private static async Task<IResult> DeleteRecipeAsync(
+        int recipeId,
+        RecipesRecipeWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(recipeId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static UserId CatalogActor(ICurrentUser currentUser) =>
         currentUser.UserId ?? throw RecipesCategoryProblem.NotFound();
