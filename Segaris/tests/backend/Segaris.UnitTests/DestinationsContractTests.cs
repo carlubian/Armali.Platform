@@ -183,4 +183,23 @@ public sealed class DestinationsContractTests
         Assert.Equal("Excellent", root.GetProperty("review").GetString());
         Assert.Equal("Main street", root.GetProperty("address").GetString());
     }
+
+    [Fact]
+    public void Update_place_request_shares_the_frozen_place_wire_shape()
+    {
+        var request = new UpdatePlaceRequest(
+            "Museum",
+            CategoryId: 3,
+            Rating: null,
+            Review: null,
+            Address: null);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(request, Web));
+        var root = document.RootElement;
+        Assert.Equal("Museum", root.GetProperty("name").GetString());
+        Assert.Equal(3, root.GetProperty("categoryId").GetInt32());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("rating").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("review").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("address").ValueKind);
+    }
 }

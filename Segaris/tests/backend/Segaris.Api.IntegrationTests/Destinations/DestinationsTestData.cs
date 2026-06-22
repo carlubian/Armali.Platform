@@ -85,4 +85,33 @@ internal static class DestinationsTestData
 
         return destination.Id;
     }
+
+    public static async Task<int> SeedPlaceAsync(
+        IServiceProvider services,
+        int destinationId,
+        int creatorId,
+        string name = "Place",
+        string categoryName = "Other",
+        int? rating = null,
+        string? review = null,
+        string? address = null)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+
+        var categoryId = await database.Set<PlaceCategory>()
+            .Where(category => category.Name == categoryName)
+            .Select(category => category.Id)
+            .SingleAsync();
+
+        var place = Place.Create(
+            destinationId,
+            new PlaceValues(name, categoryId, rating, review, address),
+            new UserId(creatorId),
+            SeedNow);
+        database.Add(place);
+        await database.SaveChangesAsync();
+
+        return place.Id;
+    }
 }

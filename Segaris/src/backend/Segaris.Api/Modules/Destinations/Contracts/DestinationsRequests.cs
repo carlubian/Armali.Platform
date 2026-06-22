@@ -25,6 +25,13 @@ internal sealed record CreatePlaceRequest(
     string? Review,
     string? Address);
 
+internal sealed record UpdatePlaceRequest(
+    string Name,
+    int CategoryId,
+    int? Rating,
+    string? Review,
+    string? Address);
+
 internal sealed record DestinationCategoryRequest(string Name);
 
 internal sealed record PlaceCategoryRequest(string Name);

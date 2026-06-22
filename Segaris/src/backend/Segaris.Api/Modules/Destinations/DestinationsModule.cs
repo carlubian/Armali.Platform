@@ -25,6 +25,8 @@ internal sealed class DestinationsModule : ISegarisModule
         services.AddScoped<DestinationsCatalogReadService>();
         services.AddScoped<DestinationsReadService>();
         services.AddScoped<DestinationWriteService>();
+        services.AddScoped<PlaceReadService>();
+        services.AddScoped<PlaceWriteService>();
         services.AddScoped<DestinationCategoryManagementService>();
         services.AddScoped<PlaceCategoryManagementService>();
     }

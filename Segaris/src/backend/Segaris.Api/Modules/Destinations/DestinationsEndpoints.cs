@@ -14,8 +14,9 @@ namespace Segaris.Api.Modules.Destinations;
 /// <summary>
 /// Maps the Destinations HTTP surface. Wave 2 exposes destination reads and
 /// mutations alongside the two module-owned category catalogues surfaced through
-/// Configuration; later waves add place and attachment behaviour. State-changing
-/// routes carry antiforgery protection and never expose EF Core entities.
+/// Configuration; Wave 3 adds the destination-scoped place sub-resource; later waves
+/// add attachment behaviour. State-changing routes carry antiforgery protection and
+/// never expose EF Core entities.
 /// </summary>
 internal static class DestinationsEndpoints
 {
@@ -25,6 +26,7 @@ internal static class DestinationsEndpoints
             .RequireAuthorization();
 
         MapDestinationEndpoints(group);
+        MapPlaceEndpoints(group);
         MapCategoryEndpoints(group);
         MapPlaceCategoryEndpoints(group);
 
@@ -64,6 +66,44 @@ internal static class DestinationsEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteDestination")
             .WithSummary("Deletes an accessible destination and its places")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapPlaceEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet(DestinationsApiRoutes.Places, ListPlacesAsync)
+            .WithName("ListPlaces")
+            .WithSummary("Returns a paginated, filtered, and sorted list of a destination's places")
+            .Produces<PaginatedResponse<PlaceSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet(DestinationsApiRoutes.PlaceById, GetPlaceAsync)
+            .WithName("GetPlace")
+            .WithSummary("Returns the detail of a place within an accessible destination")
+            .Produces<PlaceSummaryResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost(DestinationsApiRoutes.Places, CreatePlaceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreatePlace")
+            .WithSummary("Creates a place within an accessible destination")
+            .Produces<PlaceSummaryResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPut(DestinationsApiRoutes.PlaceById, UpdatePlaceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdatePlace")
+            .WithSummary("Updates a place within an accessible destination")
+            .Produces<PlaceSummaryResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete(DestinationsApiRoutes.PlaceById, DeletePlaceAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeletePlace")
+            .WithSummary("Deletes a place within an accessible destination")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
@@ -306,6 +346,140 @@ internal static class DestinationsEndpoints
         if (!deleted)
         {
             throw DestinationProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListPlacesAsync(
+        int destinationId,
+        [AsParameters] PlaceListQuery query,
+        PlaceReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var page = await read.ListPlacesAsync(
+            destinationId,
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        if (page is null)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        return TypedResults.Ok(page);
+    }
+
+    private static async Task<IResult> GetPlaceAsync(
+        int destinationId,
+        int placeId,
+        PlaceReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var place = await read.GetPlaceAsync(destinationId, placeId, userId, cancellationToken);
+        if (place is null)
+        {
+            throw PlaceProblem.NotFound();
+        }
+
+        return TypedResults.Ok(place);
+    }
+
+    private static async Task<IResult> CreatePlaceAsync(
+        int destinationId,
+        CreatePlaceRequest request,
+        PlaceWriteService write,
+        PlaceReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int? placeId;
+        try
+        {
+            placeId = await write.CreateAsync(destinationId, request, userId, cancellationToken);
+        }
+        catch (DestinationsValidationException exception)
+        {
+            throw PlaceProblem.From(exception);
+        }
+
+        if (placeId is not { } createdId)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        var place = await read.GetPlaceAsync(destinationId, createdId, userId, cancellationToken);
+        return TypedResults.Created($"/api/destinations/{destinationId}/places/{createdId}", place);
+    }
+
+    private static async Task<IResult> UpdatePlaceAsync(
+        int destinationId,
+        int placeId,
+        UpdatePlaceRequest request,
+        PlaceWriteService write,
+        PlaceReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(destinationId, placeId, request, userId, cancellationToken);
+        }
+        catch (DestinationsValidationException exception)
+        {
+            throw PlaceProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw PlaceProblem.NotFound();
+        }
+
+        var place = await read.GetPlaceAsync(destinationId, placeId, userId, cancellationToken);
+        return TypedResults.Ok(place);
+    }
+
+    private static async Task<IResult> DeletePlaceAsync(
+        int destinationId,
+        int placeId,
+        PlaceWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(destinationId, placeId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw PlaceProblem.NotFound();
         }
 
         return TypedResults.NoContent();
