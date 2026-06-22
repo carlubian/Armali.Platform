@@ -77,6 +77,14 @@ const FirebirdPage = lazy(() =>
   })),
 )
 
+// The Recipes module is lazily loaded so its gallery, recipe editor, and menu
+// planner stay out of the initial platform bundle.
+const RecipesPage = lazy(() =>
+  import('@/modules/recipes/RecipesPage').then((module) => ({
+    default: module.RecipesPage,
+  })),
+)
+
 // The Mood module's two immersive screens are lazily loaded so their week board,
 // charts, and entry dialog stay out of the initial platform bundle.
 const MoodLogPage = lazy(() =>
@@ -246,6 +254,19 @@ export function AppRouter() {
             </ModuleBoundary>
           }
         />
+        {['recipes', 'recipes/menus'].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ModuleBoundary>
+                <Suspense fallback={<LoadingScreen />}>
+                  <RecipesPage />
+                </Suspense>
+              </ModuleBoundary>
+            }
+          />
+        ))}
         <Route path="mood" element={<Navigate to="/mood/log" replace />} />
         <Route
           path="mood/log"
