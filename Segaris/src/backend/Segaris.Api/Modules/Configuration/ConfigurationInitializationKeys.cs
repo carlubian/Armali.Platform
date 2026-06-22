@@ -11,9 +11,9 @@ namespace Segaris.Api.Modules.Configuration;
 /// The <c>capex.categories</c>, <c>opex.categories</c>, <c>inventory.categories</c>,
 /// <c>inventory.locations</c>, <c>assets.categories</c>, <c>assets.locations</c>,
 /// <c>maintenance.types</c>, <c>processes.categories</c>,
-/// <c>firebird.person-categories</c>, and <c>firebird.username-platforms</c> keys
-/// name module-owned catalogs but live with the other keys because the single
-/// initialization table is shared infrastructure.
+/// <c>firebird.person-categories</c>, <c>firebird.username-platforms</c>, and
+/// <c>recipes.categories</c> keys name module-owned catalogs but live with the
+/// other keys because the single initialization table is shared infrastructure.
 /// </summary>
 internal static class ConfigurationInitializationKeys
 {
@@ -51,6 +51,8 @@ internal static class ConfigurationInitializationKeys
 
     public const string FirebirdUsernamePlatforms = "firebird.username-platforms";
 
+    public const string RecipeCategories = "recipes.categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -70,5 +72,6 @@ internal static class ConfigurationInitializationKeys
         ProcessCategories,
         FirebirdPersonCategories,
         FirebirdUsernamePlatforms,
+        RecipeCategories,
     ];
 }

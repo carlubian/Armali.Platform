@@ -62,6 +62,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_FirebirdDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_RecipesDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -102,6 +105,9 @@ public sealed class MigrationTests
                 // People, usernames, interactions, and the category and platform catalogs.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'firebird_%'";
                 Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
+                // Recipes, ingredients, steps, menus, menu slots, and the category catalog.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'recipe_%'";
+                Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -139,12 +145,13 @@ public sealed class MigrationTests
         Assert.Contains("ProjectsRisks", sqliteNames);
         Assert.Contains("ProcessesDomainPersistence", sqliteNames);
         Assert.Contains("FirebirdDomainPersistence", sqliteNames);
+        Assert.Contains("RecipesDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Firebird_domain_persistence_is_the_current_tail()
+    public void Recipes_domain_persistence_is_the_current_tail()
     {
-        // The Firebird Wave 1 model is the current tail and migrates from the Processes
+        // The Recipes Wave 1 model is the current tail and migrates from the Firebird
         // model that preceded it.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
@@ -157,8 +164,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("FirebirdDomainPersistence", migrations[^1]);
-            Assert.Equal("ProcessesDomainPersistence", migrations[^2]);
+            Assert.Equal("RecipesDomainPersistence", migrations[^1]);
+            Assert.Equal("FirebirdDomainPersistence", migrations[^2]);
         }
     }
 
