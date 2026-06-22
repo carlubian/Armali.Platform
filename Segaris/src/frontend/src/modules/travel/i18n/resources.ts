@@ -174,6 +174,7 @@ export const travel = {
       namePlaceholder: 'e.g. Summer holiday in Porto',
       tripType: 'Type',
       destination: 'Destination',
+      destinationPlaceholder: 'No destination linked',
       status: 'Status',
       startDate: 'Start date',
       endDate: 'End date',
