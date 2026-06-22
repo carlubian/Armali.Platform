@@ -40,7 +40,7 @@ public sealed class RecipesWave2EndpointTests
                 .WithPreparationMinutes(10)
                 .WithCookMinutes(20)
                 .WithIngredients(
-                    new RecipeIngredientRequest(" Eggs ", " 4 units ", ItemId: 999),
+                    new RecipeIngredientRequest(" Eggs ", " 4 units ", ItemId: null),
                     new RecipeIngredientRequest("Salt", "", ItemId: null))
                 .WithSteps(
                     new RecipeStepRequest(" Beat eggs "),

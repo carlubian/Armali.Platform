@@ -29,6 +29,14 @@ internal static class RecipesRecipeProblem
                 StatusCodes.Status403Forbidden,
                 RecipesErrorCodes.RecipeVisibilityForbidden,
                 exception.Message),
+            RecipesValidationReason.IngredientItemNotAccessible => new ApiProblemException(
+                StatusCodes.Status400BadRequest,
+                RecipesErrorCodes.IngredientItemNotAccessible,
+                exception.Message),
+            RecipesValidationReason.IngredientItemVisibilityForbidden => new ApiProblemException(
+                StatusCodes.Status403Forbidden,
+                RecipesErrorCodes.IngredientItemVisibilityForbidden,
+                exception.Message),
             _ => new ApiProblemException(
                 StatusCodes.Status400BadRequest,
                 RecipesErrorCodes.RecipeValidation,

@@ -155,6 +155,12 @@ internal enum RecipesValidationReason
 
     /// <summary>A visibility change would violate ownership or privacy rules.</summary>
     VisibilityForbidden,
+
+    /// <summary>A referenced Inventory item does not exist or is not accessible.</summary>
+    IngredientItemNotAccessible,
+
+    /// <summary>An ingredient item reference would violate recipe visibility.</summary>
+    IngredientItemVisibilityForbidden,
 }
 
 internal sealed class RecipesValidationException(

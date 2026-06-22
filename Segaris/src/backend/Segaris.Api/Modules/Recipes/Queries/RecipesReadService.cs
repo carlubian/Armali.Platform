@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Recipes.Contracts;
 using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Persistence;
@@ -13,7 +14,7 @@ namespace Segaris.Api.Modules.Recipes.Queries;
 /// Read-side queries for Recipes. Every recipe query filters to accessible records
 /// before projection, pagination, or detail lookup.
 /// </summary>
-internal sealed class RecipesReadService(SegarisDbContext database)
+internal sealed class RecipesReadService(SegarisDbContext database, IInventoryItemReferenceReader itemReferences)
 {
     public async Task<IReadOnlyList<RecipeCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
@@ -106,19 +107,37 @@ internal sealed class RecipesReadService(SegarisDbContext database)
             return null;
         }
 
-        var ingredients = await database.Set<RecipeIngredient>()
+        var ingredientRows = await database.Set<RecipeIngredient>()
             .AsNoTracking()
             .Where(ingredient => ingredient.RecipeId == row.Id)
             .OrderBy(ingredient => ingredient.Position)
             .ThenBy(ingredient => ingredient.Id)
+            .Select(ingredient => new RecipeIngredientRow(
+                ingredient.Id,
+                ingredient.Name,
+                ingredient.Quantity,
+                ingredient.ItemId,
+                ingredient.Position))
+            .ToArrayAsync(cancellationToken);
+
+        var itemIds = ingredientRows
+            .Select(ingredient => ingredient.ItemId)
+            .Where(itemId => itemId.HasValue)
+            .Select(itemId => itemId!.Value)
+            .Distinct()
+            .ToArray();
+        var resolvedItems = await itemReferences.ResolveAccessibleAsync(itemIds, userId, cancellationToken);
+        var ingredients = ingredientRows
             .Select(ingredient => new RecipeIngredientResponse(
                 ingredient.Id,
                 ingredient.Name,
                 ingredient.Quantity,
-                ItemId: null,
-                ItemName: null,
+                ingredient.ItemId,
+                ingredient.ItemId is { } itemId && resolvedItems.TryGetValue(itemId, out var item)
+                    ? item.Name
+                    : null,
                 ingredient.Position))
-            .ToArrayAsync(cancellationToken);
+            .ToArray();
 
         var steps = await database.Set<RecipeStep>()
             .AsNoTracking()
@@ -214,6 +233,13 @@ internal sealed class RecipesReadService(SegarisDbContext database)
         RecordVisibility Visibility,
         int CreatorId,
         string CreatorName);
+
+    private sealed record RecipeIngredientRow(
+        int Id,
+        string Name,
+        string? Quantity,
+        int? ItemId,
+        int Position);
 
     private sealed record RecipeDetailRow(
         int Id,

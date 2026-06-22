@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Recipes.Contracts;
 using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Persistence;
@@ -13,7 +14,10 @@ namespace Segaris.Api.Modules.Recipes.Mutations;
 /// inaccessible recipes are reported as not found so private records are never
 /// disclosed.
 /// </summary>
-internal sealed class RecipesRecipeWriteService(SegarisDbContext database, IClock clock)
+internal sealed class RecipesRecipeWriteService(
+    SegarisDbContext database,
+    IInventoryItemReferenceReader itemReferences,
+    IClock clock)
 {
     public async Task<int> CreateAsync(
         CreateRecipeRequest request,
@@ -34,7 +38,7 @@ internal sealed class RecipesRecipeWriteService(SegarisDbContext database, ICloc
             request.Notes,
             request.Visibility);
         var recipe = Recipe.Create(values, actorId, clock.UtcNow);
-        await ValidateReferencesAsync(values, cancellationToken);
+        await ValidateReferencesAsync(values, actorId, cancellationToken);
 
         database.Add(recipe);
         await database.SaveChangesAsync(cancellationToken);
@@ -74,7 +78,7 @@ internal sealed class RecipesRecipeWriteService(SegarisDbContext database, ICloc
 
         ValidateVisibilityChange(recipe, values.Visibility, actorId);
         recipe.Update(values, actorId, clock.UtcNow);
-        await ValidateReferencesAsync(values, cancellationToken);
+        await ValidateReferencesAsync(values, actorId, cancellationToken);
 
         await database.SaveChangesAsync(cancellationToken);
         return true;
@@ -101,6 +105,7 @@ internal sealed class RecipesRecipeWriteService(SegarisDbContext database, ICloc
 
     private async Task ValidateReferencesAsync(
         RecipeValues values,
+        UserId actorId,
         CancellationToken cancellationToken)
     {
         var categoryExists = await database.Set<RecipeCategory>()
@@ -110,6 +115,33 @@ internal sealed class RecipesRecipeWriteService(SegarisDbContext database, ICloc
             throw new RecipesValidationException(
                 "One or more Recipes catalog references do not exist.",
                 RecipesValidationReason.CatalogReference);
+        }
+
+        var itemIds = values.Ingredients
+            .Select(ingredient => ingredient.ItemId)
+            .Where(itemId => itemId is > 0)
+            .Select(itemId => itemId!.Value)
+            .Distinct()
+            .ToArray();
+        if (itemIds.Length == 0)
+        {
+            return;
+        }
+
+        var accessibleItems = await itemReferences.ResolveAccessibleAsync(itemIds, actorId, cancellationToken);
+        if (accessibleItems.Count != itemIds.Length)
+        {
+            throw new RecipesValidationException(
+                "One or more ingredient items were not found.",
+                RecipesValidationReason.IngredientItemNotAccessible);
+        }
+
+        if (values.Visibility == RecordVisibility.Public
+            && accessibleItems.Values.Any(item => item.Visibility != RecordVisibility.Public))
+        {
+            throw new RecipesValidationException(
+                "A public recipe may reference only public Inventory items.",
+                RecipesValidationReason.IngredientItemVisibilityForbidden);
         }
     }
 
@@ -147,7 +179,7 @@ internal sealed class RecipesRecipeWriteService(SegarisDbContext database, ICloc
             (ingredients ?? []).Select(ingredient => new RecipeIngredientValues(
                 ingredient.Name,
                 ingredient.Quantity,
-                ItemId: null)).ToArray(),
+                ingredient.ItemId)).ToArray(),
             (steps ?? []).Select(step => new RecipeStepValues(step.Instruction)).ToArray(),
             notes,
             ParseEnum(visibility, RecipesDefaults.Visibility, "visibility"));
