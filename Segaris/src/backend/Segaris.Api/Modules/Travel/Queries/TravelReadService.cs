@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Configuration.Persistence;
+using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Travel.Contracts;
 using Segaris.Api.Modules.Travel.Domain;
@@ -18,7 +19,10 @@ namespace Segaris.Api.Modules.Travel.Queries;
 /// paginated trip list, trip detail with per-currency totals, and the trip-scoped
 /// expense reads.
 /// </summary>
-internal sealed class TravelReadService(SegarisDbContext database, IAttachmentService attachments)
+internal sealed class TravelReadService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IDestinationReferenceReader destinationReferences)
 {
     public async Task<IReadOnlyList<TravelTripTypeResponse>> ListTripTypesAsync(CancellationToken cancellationToken)
     {
@@ -53,16 +57,16 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
 
         var totalCount = await trips.CountAsync(cancellationToken);
 
-        var page = await ApplySort(trips, sort)
+        var rows = await ApplySort(trips, sort)
             .Skip(pagination.Offset)
             .Take(pagination.PageSize)
-            .Select(trip => new TravelTripSummaryResponse(
+            .Select(trip => new TripSummaryRow(
                 trip.Id,
                 trip.Name,
                 trip.TripTypeId,
                 database.Set<TravelTripType>()
                     .Where(tripType => tripType.Id == trip.TripTypeId).Select(tripType => tripType.Name).First(),
-                trip.Destination,
+                trip.DestinationId,
                 trip.StartDate,
                 trip.EndDate,
                 trip.Status.ToString(),
@@ -71,6 +75,29 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == trip.CreatedBy).Select(user => user.DisplayName).First()))
             .ToArrayAsync(cancellationToken);
+
+        var destinationMap = await ResolveDestinationMapAsync(rows.Select(row => row.DestinationId), userId, cancellationToken);
+        var page = rows.Select(row =>
+        {
+            var destination = row.DestinationId is { } destinationId
+                && destinationMap.TryGetValue(destinationId, out var reference)
+                    ? reference
+                    : null;
+            return new TravelTripSummaryResponse(
+                row.Id,
+                row.Name,
+                row.TripTypeId,
+                row.TripTypeName,
+                row.DestinationId,
+                destination?.Name,
+                destination?.Country,
+                row.StartDate,
+                row.EndDate,
+                row.Status,
+                row.Visibility,
+                row.CreatorId,
+                row.CreatorName);
+        }).ToArray();
 
         return PaginatedResponse<TravelTripSummaryResponse>.Create(page, pagination, totalCount);
     }
@@ -90,7 +117,7 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
                 trip.TripTypeId,
                 database.Set<TravelTripType>()
                     .Where(tripType => tripType.Id == trip.TripTypeId).Select(tripType => tripType.Name).First(),
-                trip.Destination,
+                trip.DestinationId,
                 trip.StartDate,
                 trip.EndDate,
                 trip.Status,
@@ -149,13 +176,18 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
         var attachmentResponses = (await attachments.ListByOwnerAsync(TravelAttachments.TripOwner(tripId), cancellationToken))
             .Select(ToAttachment)
             .ToArray();
+        var destinationReference = row.DestinationId is { } destinationId
+            ? await destinationReferences.FindAccessibleAsync(destinationId, userId, cancellationToken)
+            : null;
 
         return new TravelTripResponse(
             row.Id,
             row.Name,
             row.TripTypeId,
             row.TripTypeName,
-            row.Destination,
+            row.DestinationId,
+            destinationReference?.Name,
+            destinationReference?.Country,
             row.StartDate,
             row.EndDate,
             row.Status.ToString(),
@@ -303,7 +335,6 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
             var pattern = $"%{Escape(search.ToLowerInvariant())}%";
             trips = trips.Where(trip =>
                 EF.Functions.Like(trip.Name.ToLower(), pattern, "\\")
-                || (trip.Destination != null && EF.Functions.Like(trip.Destination.ToLower(), pattern, "\\"))
                 || (trip.Notes != null && EF.Functions.Like(trip.Notes.ToLower(), pattern, "\\")));
         }
 
@@ -380,8 +411,8 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
                 : trips.OrderByDescending(trip => database.Set<TravelTripType>()
                     .Where(tripType => tripType.Id == trip.TripTypeId).Select(tripType => tripType.Name).First()),
             TravelTripQuery.SortFields.Destination => ascending
-                ? trips.OrderBy(trip => trip.Destination == null).ThenBy(trip => trip.Destination)
-                : trips.OrderBy(trip => trip.Destination == null).ThenByDescending(trip => trip.Destination),
+                ? trips.OrderBy(trip => trip.DestinationId == null).ThenBy(trip => trip.DestinationId)
+                : trips.OrderBy(trip => trip.DestinationId == null).ThenByDescending(trip => trip.DestinationId),
             TravelTripQuery.SortFields.StartDate => ascending
                 ? trips.OrderBy(trip => trip.StartDate)
                 : trips.OrderByDescending(trip => trip.StartDate),
@@ -488,12 +519,41 @@ internal sealed class TravelReadService(SegarisDbContext database, IAttachmentSe
         descriptor.CreatedBy.Value,
         descriptor.CreatedAt);
 
+    private Task<IReadOnlyDictionary<int, DestinationReference>> ResolveDestinationMapAsync(
+        IEnumerable<int?> destinationIds,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var ids = destinationIds
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToArray();
+
+        return ids.Length == 0
+            ? Task.FromResult<IReadOnlyDictionary<int, DestinationReference>>(new Dictionary<int, DestinationReference>())
+            : destinationReferences.ResolveAccessibleAsync(ids, userId, cancellationToken);
+    }
+
+    private sealed record TripSummaryRow(
+        int Id,
+        string Name,
+        int TripTypeId,
+        string TripTypeName,
+        int? DestinationId,
+        DateOnly StartDate,
+        DateOnly EndDate,
+        string Status,
+        string Visibility,
+        int CreatorId,
+        string CreatorName);
+
     private sealed record TripDetailRow(
         int Id,
         string Name,
         int TripTypeId,
         string TripTypeName,
-        string? Destination,
+        int? DestinationId,
         DateOnly StartDate,
         DateOnly EndDate,
         TravelTripStatus Status,

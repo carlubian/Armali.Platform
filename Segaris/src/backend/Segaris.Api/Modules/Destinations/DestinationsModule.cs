@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Destinations.Mutations;
 using Segaris.Api.Modules.Destinations.Persistence;
 using Segaris.Api.Modules.Destinations.Queries;
@@ -24,6 +25,7 @@ internal sealed class DestinationsModule : ISegarisModule
         services.AddScoped<DestinationsSeeder>();
         services.AddScoped<DestinationsCatalogReadService>();
         services.AddScoped<DestinationsReadService>();
+        services.AddScoped<IDestinationReferenceReader, DestinationReferenceReader>();
         services.AddScoped<DestinationWriteService>();
         services.AddScoped<PlaceReadService>();
         services.AddScoped<PlaceWriteService>();

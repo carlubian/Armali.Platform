@@ -19,7 +19,7 @@ internal sealed class TravelModelContributor : ISegarisModelContributor
             builder.HasKey(trip => trip.Id);
             builder.Property(trip => trip.Id).ValueGeneratedOnAdd();
             builder.Property(trip => trip.Name).HasMaxLength(TravelValidation.NameMaxLength).IsRequired();
-            builder.Property(trip => trip.Destination).HasMaxLength(TravelValidation.DestinationMaxLength);
+            builder.Property(trip => trip.DestinationId);
             builder.Property(trip => trip.StartDate).IsRequired();
             builder.Property(trip => trip.EndDate).IsRequired();
             builder.Property(trip => trip.Status).HasConversion<string>().HasMaxLength(10).IsRequired();
@@ -45,6 +45,7 @@ internal sealed class TravelModelContributor : ISegarisModelContributor
             builder.HasIndex(trip => new { trip.Status, trip.StartDate });
             // Exact filters and reference migration.
             builder.HasIndex(trip => trip.TripTypeId);
+            builder.HasIndex(trip => trip.DestinationId);
             builder.HasIndex(trip => trip.Visibility);
             builder.HasIndex(trip => trip.UpdatedBy);
         });

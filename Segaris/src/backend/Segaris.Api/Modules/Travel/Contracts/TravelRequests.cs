@@ -11,7 +11,7 @@ internal sealed record TravelItineraryEntryRequest(
 internal sealed record CreateTravelTripRequest(
     string? Name,
     int TripTypeId,
-    string? Destination,
+    int? DestinationId,
     DateOnly StartDate,
     DateOnly EndDate,
     string? Status,
@@ -22,7 +22,7 @@ internal sealed record CreateTravelTripRequest(
 internal sealed record UpdateTravelTripRequest(
     string? Name,
     int TripTypeId,
-    string? Destination,
+    int? DestinationId,
     DateOnly StartDate,
     DateOnly EndDate,
     string? Status,

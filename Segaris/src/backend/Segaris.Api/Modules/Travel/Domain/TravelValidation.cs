@@ -4,7 +4,6 @@ namespace Segaris.Api.Modules.Travel.Domain;
 internal static class TravelValidation
 {
     public const int NameMaxLength = 200;
-    public const int DestinationMaxLength = 200;
     public const int NotesMaxLength = 4000;
     public const int ItineraryTitleMaxLength = 200;
     public const int ItineraryPlaceMaxLength = 200;
@@ -18,9 +17,6 @@ internal static class TravelValidation
 
     public static string ValidateTripName(string? value) =>
         ValidateRequiredText(value, NameMaxLength, "The trip name");
-
-    public static string? ValidateDestination(string? value) =>
-        ValidateOptionalText(value, DestinationMaxLength, "The destination");
 
     public static string? ValidateTripNotes(string? value) =>
         ValidateOptionalText(value, NotesMaxLength, "The notes");

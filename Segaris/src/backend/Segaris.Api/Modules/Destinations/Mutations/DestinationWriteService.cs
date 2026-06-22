@@ -14,8 +14,15 @@ namespace Segaris.Api.Modules.Destinations.Mutations;
 /// mutable; private destinations remain creator-only and only creators can change
 /// visibility.
 /// </summary>
-internal sealed class DestinationWriteService(SegarisDbContext database, IAttachmentService attachments, IClock clock)
+internal sealed class DestinationWriteService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IEnumerable<IDestinationDeletionReferenceHandler> deletionReferenceHandlers,
+    IClock clock)
 {
+    private readonly IReadOnlyList<IDestinationDeletionReferenceHandler> deletionReferenceHandlers =
+        deletionReferenceHandlers.ToArray();
+
     public async Task<int> CreateAsync(
         CreateDestinationRequest request,
         UserId actorId,
@@ -62,6 +69,7 @@ internal sealed class DestinationWriteService(SegarisDbContext database, IAttach
         UserId actorId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var destination = await database.Set<Destination>()
             .Where(DestinationPolicies.MutableBy(actorId))
             .Where(candidate => candidate.Id == destinationId)
@@ -71,10 +79,41 @@ internal sealed class DestinationWriteService(SegarisDbContext database, IAttach
             return false;
         }
 
+        var clearing = new DestinationDeletionClearing(destinationId, actorId, clock.UtcNow);
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            await handler.ClearReferencesAsync(clearing, cancellationToken);
+        }
+
         database.Remove(destination);
         await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         await DeleteAttachmentFilesAsync(destinationId, cancellationToken);
         return true;
+    }
+
+    public async Task<DestinationDeletionImpactResponse?> GetDeletionImpactAsync(
+        int destinationId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var destinationExists = await database.Set<Destination>()
+            .AsNoTracking()
+            .Where(DestinationPolicies.MutableBy(actorId))
+            .Where(destination => destination.Id == destinationId)
+            .AnyAsync(cancellationToken);
+        if (!destinationExists)
+        {
+            return null;
+        }
+
+        var referenceCount = 0;
+        foreach (var handler in deletionReferenceHandlers)
+        {
+            referenceCount += await handler.CountReferencesAsync(destinationId, cancellationToken);
+        }
+
+        return new(referenceCount > 0, referenceCount);
     }
 
     public async Task<DestinationSetPrimaryResult> SetPrimaryAttachmentAsync(

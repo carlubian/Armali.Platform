@@ -3058,9 +3058,8 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Destination")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                    b.Property<int?>("DestinationId")
+                        .HasColumnType("integer");
 
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
@@ -3097,6 +3096,8 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DestinationId");
 
                     b.HasIndex("TripTypeId");
 

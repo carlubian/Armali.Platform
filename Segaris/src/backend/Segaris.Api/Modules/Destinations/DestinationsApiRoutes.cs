@@ -7,6 +7,7 @@ internal static class DestinationsApiRoutes
 
     public const string Destinations = "destinations";
     public const string DestinationById = "/{destinationId:int}";
+    public const string DestinationDeletionImpact = "/{destinationId:int}/deletion-impact";
 
     public const string DestinationAttachments = "/{destinationId:int}/attachments";
     public const string DestinationAttachmentById = "/{destinationId:int}/attachments/{attachmentId}";

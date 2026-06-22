@@ -49,6 +49,12 @@ internal static class DestinationsEndpoints
             .Produces<DestinationResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet(DestinationsApiRoutes.DestinationDeletionImpact, GetDestinationDeletionImpactAsync)
+            .WithName("GetDestinationDeletionImpact")
+            .WithSummary("Returns privacy-neutral destination deletion impact")
+            .Produces<DestinationDeletionImpactResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost("", CreateDestinationAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateDestination")
@@ -383,6 +389,17 @@ internal static class DestinationsEndpoints
         }
 
         return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> GetDestinationDeletionImpactAsync(
+        int destinationId,
+        DestinationWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId ?? throw DestinationProblem.NotFound();
+        var impact = await write.GetDeletionImpactAsync(destinationId, userId, cancellationToken);
+        return impact is null ? throw DestinationProblem.NotFound() : TypedResults.Ok(impact);
     }
 
     private static async Task<IResult> ListDestinationAttachmentsAsync(

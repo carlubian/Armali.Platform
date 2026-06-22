@@ -501,7 +501,7 @@ public sealed class TravelDomainTests
     private static TravelTripValues TripValues() => new(
         "Example trip",
         TripTypeId: 1,
-        Destination: null,
+        DestinationId: null,
         StartDate: new DateOnly(2026, 7, 1),
         EndDate: new DateOnly(2026, 7, 5),
         TravelTripStatus.Planned,

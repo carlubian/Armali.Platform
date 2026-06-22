@@ -70,7 +70,7 @@ internal static class TravelTestData
         int creatorId,
         string name = "Trip",
         string tripTypeName = "Regional",
-        string? destination = "Madrid",
+        int? destinationId = null,
         DateOnly? startDate = null,
         DateOnly? endDate = null,
         TravelTripStatus status = TravelTripStatus.Planned,
@@ -95,7 +95,7 @@ internal static class TravelTestData
             new TravelTripValues(
                 name,
                 tripTypeId,
-                destination,
+                destinationId,
                 tripStart,
                 tripEnd,
                 status,
@@ -139,6 +139,16 @@ internal static class TravelTestData
         }
 
         return trip.Id;
+    }
+
+    public static async Task<int?> TripDestinationIdAsync(IServiceProvider services, int tripId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<TravelTrip>()
+            .Where(trip => trip.Id == tripId)
+            .Select(trip => trip.DestinationId)
+            .SingleAsync();
     }
 
     public static TravelItineraryEntryValues Entry(string title, DateOnly date, TimeOnly? time = null) =>

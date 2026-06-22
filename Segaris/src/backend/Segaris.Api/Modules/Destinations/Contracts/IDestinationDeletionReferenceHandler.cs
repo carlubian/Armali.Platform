@@ -55,3 +55,7 @@ internal sealed record DestinationDeletionClearing(
     int DestinationId,
     UserId Actor,
     DateTimeOffset OccurredAt);
+
+internal sealed record DestinationDeletionImpactResponse(
+    bool IsReferenced,
+    int ReferenceCount);
