@@ -28,6 +28,8 @@ internal sealed class RecipesModule : ISegarisModule
         services.AddScoped<RecipesSeeder>();
         services.AddScoped<RecipesReadService>();
         services.AddScoped<RecipesRecipeWriteService>();
+        services.AddScoped<WeeklyMenusReadService>();
+        services.AddScoped<WeeklyMenusWriteService>();
         services.AddScoped<RecipesCategoryManagementService>();
         services.AddScoped<IInventoryItemDeletionReferenceHandler, RecipesInventoryItemDeletionReferenceHandler>();
     }

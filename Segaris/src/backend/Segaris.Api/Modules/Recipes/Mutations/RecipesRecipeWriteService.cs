@@ -79,6 +79,7 @@ internal sealed class RecipesRecipeWriteService(
         ValidateVisibilityChange(recipe, values.Visibility, actorId);
         recipe.Update(values, actorId, clock.UtcNow);
         await ValidateReferencesAsync(values, actorId, cancellationToken);
+        await ValidateMenuReferencesAsync(recipe.Id, values.Visibility, cancellationToken);
 
         await database.SaveChangesAsync(cancellationToken);
         return true;
@@ -98,6 +99,10 @@ internal sealed class RecipesRecipeWriteService(
             return false;
         }
 
+        var slots = await database.Set<WeeklyMenuSlotRecipe>()
+            .Where(slot => slot.RecipeId == recipeId)
+            .ToArrayAsync(cancellationToken);
+        database.RemoveRange(slots);
         database.Remove(recipe);
         await database.SaveChangesAsync(cancellationToken);
         return true;
@@ -156,6 +161,29 @@ internal sealed class RecipesRecipeWriteService(
             throw new RecipesValidationException(
                 "Only the creator may change recipe visibility.",
                 RecipesValidationReason.VisibilityForbidden);
+        }
+    }
+
+    private async Task ValidateMenuReferencesAsync(
+        int recipeId,
+        RecordVisibility requestedVisibility,
+        CancellationToken cancellationToken)
+    {
+        if (requestedVisibility == RecordVisibility.Public)
+        {
+            return;
+        }
+
+        var hasPublicMenuReference = await database.Set<WeeklyMenuSlotRecipe>()
+            .AsNoTracking()
+            .Where(slot => slot.RecipeId == recipeId)
+            .AnyAsync(slot => database.Set<WeeklyMenu>()
+                .Any(menu => menu.Id == slot.MenuId && menu.Visibility == RecordVisibility.Public), cancellationToken);
+        if (hasPublicMenuReference)
+        {
+            throw new RecipesValidationException(
+                "A recipe referenced by a public menu must remain public.",
+                RecipesValidationReason.MenuRecipeVisibilityForbidden);
         }
     }
 

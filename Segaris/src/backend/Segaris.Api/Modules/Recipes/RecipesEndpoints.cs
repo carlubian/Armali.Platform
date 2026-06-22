@@ -69,17 +69,36 @@ internal static class RecipesEndpoints
             .WithName("SetRecipePrimaryAttachment");
 
         var menus = group.MapGroup("/menus");
-        menus.MapGet("", NotImplemented).WithName("ListWeeklyMenus");
-        menus.MapPost("", NotImplemented)
+        menus.MapGet("", ListWeeklyMenusAsync)
+            .WithName("ListWeeklyMenus")
+            .WithSummary("Returns accessible weekly menus, optionally filtered by week")
+            .Produces<IReadOnlyList<WeeklyMenuSummaryResponse>>();
+        menus.MapPost("", CreateWeeklyMenuAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("CreateWeeklyMenu");
-        menus.MapGet(RecipesApiRoutes.MenuById, NotImplemented).WithName("GetWeeklyMenu");
-        menus.MapPut(RecipesApiRoutes.MenuById, NotImplemented)
+            .WithName("CreateWeeklyMenu")
+            .WithSummary("Creates a weekly menu")
+            .Produces<WeeklyMenuResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+        menus.MapGet(RecipesApiRoutes.MenuById, GetWeeklyMenuAsync)
+            .WithName("GetWeeklyMenu")
+            .WithSummary("Returns an accessible weekly menu detail")
+            .Produces<WeeklyMenuResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        menus.MapPut(RecipesApiRoutes.MenuById, UpdateWeeklyMenuAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UpdateWeeklyMenu");
-        menus.MapDelete(RecipesApiRoutes.MenuById, NotImplemented)
+            .WithName("UpdateWeeklyMenu")
+            .WithSummary("Replaces an accessible weekly menu")
+            .Produces<WeeklyMenuResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        menus.MapDelete(RecipesApiRoutes.MenuById, DeleteWeeklyMenuAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteWeeklyMenu");
+            .WithName("DeleteWeeklyMenu")
+            .WithSummary("Deletes an accessible weekly menu")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         MapCategoryEndpoints(group);
 
@@ -254,6 +273,119 @@ internal static class RecipesEndpoints
         if (!deleted)
         {
             throw RecipesRecipeProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListWeeklyMenusAsync(
+        [AsParameters] WeeklyMenuListQuery query,
+        WeeklyMenusReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var menus = await read.ListAsync(query.ToFilter(), userId, cancellationToken);
+        return TypedResults.Ok(menus);
+    }
+
+    private static async Task<IResult> GetWeeklyMenuAsync(
+        int menuId,
+        WeeklyMenusReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var menu = await read.GetAsync(menuId, userId, cancellationToken);
+        if (menu is null)
+        {
+            throw RecipesMenuProblem.NotFound();
+        }
+
+        return TypedResults.Ok(menu);
+    }
+
+    private static async Task<IResult> CreateWeeklyMenuAsync(
+        CreateWeeklyMenuRequest request,
+        WeeklyMenusWriteService write,
+        WeeklyMenusReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int menuId;
+        try
+        {
+            menuId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (RecipesValidationException exception)
+        {
+            throw RecipesMenuProblem.From(exception);
+        }
+
+        var created = await read.GetAsync(menuId, userId, cancellationToken);
+        return TypedResults.Created($"/api/recipes/menus/{menuId}", created);
+    }
+
+    private static async Task<IResult> UpdateWeeklyMenuAsync(
+        int menuId,
+        UpdateWeeklyMenuRequest request,
+        WeeklyMenusWriteService write,
+        WeeklyMenusReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(menuId, request, userId, cancellationToken);
+        }
+        catch (RecipesValidationException exception)
+        {
+            throw RecipesMenuProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw RecipesMenuProblem.NotFound();
+        }
+
+        var menu = await read.GetAsync(menuId, userId, cancellationToken);
+        return TypedResults.Ok(menu);
+    }
+
+    private static async Task<IResult> DeleteWeeklyMenuAsync(
+        int menuId,
+        WeeklyMenusWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(menuId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw RecipesMenuProblem.NotFound();
         }
 
         return TypedResults.NoContent();

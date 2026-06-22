@@ -161,6 +161,12 @@ internal enum RecipesValidationReason
 
     /// <summary>An ingredient item reference would violate recipe visibility.</summary>
     IngredientItemVisibilityForbidden,
+
+    /// <summary>A referenced recipe does not exist or is not accessible.</summary>
+    MenuRecipeNotAccessible,
+
+    /// <summary>A menu recipe reference would violate menu visibility.</summary>
+    MenuRecipeVisibilityForbidden,
 }
 
 internal sealed class RecipesValidationException(

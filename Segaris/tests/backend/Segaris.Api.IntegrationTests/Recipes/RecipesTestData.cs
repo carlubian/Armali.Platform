@@ -36,6 +36,19 @@ internal static class RecipesTestData
             .ToListAsync();
     }
 
+    public static async Task<IReadOnlyList<int>> MenuRecipeIdsAsync(IServiceProvider services, int menuId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<WeeklyMenuSlotRecipe>()
+            .Where(slot => slot.MenuId == menuId)
+            .OrderBy(slot => slot.Day)
+            .ThenBy(slot => slot.Slot)
+            .ThenBy(slot => slot.RecipeId)
+            .Select(slot => slot.RecipeId)
+            .ToListAsync();
+    }
+
     public static async Task<int> SeedRecipeAsync(
         IServiceProvider services,
         int creatorId,
@@ -76,5 +89,30 @@ internal static class RecipesTestData
         database.Add(recipe);
         await database.SaveChangesAsync();
         return recipe.Id;
+    }
+
+    public static async Task<int> SeedWeeklyMenuAsync(
+        IServiceProvider services,
+        int creatorId,
+        DateOnly? week = null,
+        string? name = "Menu",
+        IReadOnlyList<WeeklyMenuSlotValues>? slots = null,
+        RecordVisibility visibility = RecordVisibility.Public)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+
+        var menu = WeeklyMenu.Create(
+            new WeeklyMenuValues(
+                week ?? new DateOnly(2026, 6, 22),
+                name,
+                visibility,
+                slots ?? []),
+            new UserId(creatorId),
+            SeedNow);
+
+        database.Add(menu);
+        await database.SaveChangesAsync();
+        return menu.Id;
     }
 }
