@@ -69,7 +69,11 @@ function optionalNonNegativeInt(message: string) {
 
 export function createRecipeFormSchema(messages: RecipeValidationMessages) {
   return z.object({
-    name: z.string().trim().min(1, messages.nameRequired).max(200, messages.nameTooLong),
+    name: z
+      .string()
+      .trim()
+      .min(1, messages.nameRequired)
+      .max(200, messages.nameTooLong),
     categoryId: z.string().trim().min(1, messages.categoryRequired),
     difficulty: z.union([z.literal(''), z.enum(['Easy', 'Medium', 'Hard'])]),
     servings: optionalPositiveInt(messages.positiveNumber),

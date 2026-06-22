@@ -1,7 +1,7 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
-using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Inventory.Attention;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Persistence;
 using Segaris.Api.Modules.Inventory.Queries;

@@ -120,8 +120,7 @@ export const recipes = {
       loadError: 'Menus could not be loaded. Please try again.',
       loadMenuError: 'This menu could not be loaded.',
       emptyTitle: 'No menu for this week',
-      emptyDescription:
-        '{{week}} has no menu yet. Create one to start planning meals.',
+      emptyDescription: '{{week}} has no menu yet. Create one to start planning meals.',
     },
     editor: {
       createTitle: 'Plan a week',
@@ -150,11 +149,9 @@ export const recipes = {
       },
       errors: {
         validation: 'Some menu details need attention. Review the form and try again.',
-        visibilityForbidden:
-          'This visibility is not allowed for the selected recipes.',
+        visibilityForbidden: 'This visibility is not allowed for the selected recipes.',
         recipeNotAccessible: 'One selected recipe is not accessible.',
-        recipeVisibilityForbidden:
-          'A public menu can only reference public recipes.',
+        recipeVisibilityForbidden: 'A public menu can only reference public recipes.',
         notFound: 'This menu could not be found.',
         generic: 'The menu could not be saved. Please try again.',
       },
@@ -282,8 +279,7 @@ export const recipes = {
       visibilityForbidden:
         'This visibility is not allowed for the linked inventory items.',
       itemNotAccessible: 'One linked inventory item is not accessible.',
-      itemVisibilityForbidden:
-        'A public recipe can only link public inventory items.',
+      itemVisibilityForbidden: 'A public recipe can only link public inventory items.',
       unknownReference: 'One selected catalogue value is no longer available.',
       generic: 'The recipe could not be saved. Please try again.',
       conflict: 'The recipe could not be saved right now. Please try again.',

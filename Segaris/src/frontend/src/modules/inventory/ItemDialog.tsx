@@ -579,7 +579,9 @@ function ItemDeleteDialog({
             onClick={onConfirm}
             disabled={deleting || impactQuery.isPending || impactQuery.isError}
           >
-            {deleting ? t('itemEditor.delete.deleting') : t('itemEditor.delete.confirm')}
+            {deleting
+              ? t('itemEditor.delete.deleting')
+              : t('itemEditor.delete.confirm')}
           </Button>
         </>
       }

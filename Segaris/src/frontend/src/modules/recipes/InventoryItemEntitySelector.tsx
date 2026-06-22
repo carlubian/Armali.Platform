@@ -21,7 +21,11 @@ import {
   type EntitySelectorState,
 } from '@/components/entity-selection'
 import { Badge, type BadgeTone } from '@/components/ui'
-import { inventoryKeys, useInventoryCategories, useInventoryLocations } from '@/modules/inventory/queries'
+import {
+  inventoryKeys,
+  useInventoryCategories,
+  useInventoryLocations,
+} from '@/modules/inventory/queries'
 
 const statuses: InventoryItemStatus[] = ['Candidate', 'Active', 'Deprecated']
 const visibilities: InventoryVisibility[] = ['Public', 'Private']

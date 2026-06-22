@@ -1,28 +1,27 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Segaris.Migrations.Sqlite.Migrations
+namespace Segaris.Migrations.Sqlite.Migrations;
+
+/// <inheritdoc />
+public partial class RecipesPrimaryAttachment : Migration
 {
     /// <inheritdoc />
-    public partial class RecipesPrimaryAttachment : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<int>(
-                name: "PrimaryAttachmentId",
-                table: "recipes",
-                type: "INTEGER",
-                nullable: true);
-        }
+        migrationBuilder.AddColumn<int>(
+            name: "PrimaryAttachmentId",
+            table: "recipes",
+            type: "INTEGER",
+            nullable: true);
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "PrimaryAttachmentId",
-                table: "recipes");
-        }
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropColumn(
+            name: "PrimaryAttachmentId",
+            table: "recipes");
     }
 }

@@ -116,13 +116,11 @@ const sortFields: RecipeSortField[] = ['name', 'category']
 const menuSlotLabels: MealSlot[] = [...mealSlots]
 const menuDayLabels: MenuDay[] = [...menuDays]
 
-const visibilityMeta: Record<
-  RecipeVisibility,
-  { icon: ReactNode; tone: SegmentTone }
-> = {
-  Public: { icon: <Globe size={15} />, tone: 'accent' },
-  Private: { icon: <Lock size={15} />, tone: 'neutral' },
-}
+const visibilityMeta: Record<RecipeVisibility, { icon: ReactNode; tone: SegmentTone }> =
+  {
+    Public: { icon: <Globe size={15} />, tone: 'accent' },
+    Private: { icon: <Lock size={15} />, tone: 'neutral' },
+  }
 
 const categoryTones = ['aqua', 'azure', 'gold', 'sea', 'rose'] as const
 
@@ -519,9 +517,7 @@ function WeeklyMenuGrid({ menu, onEdit }: { menu: WeeklyMenu; onEdit: () => void
         </div>
         {menuSlotLabels.map((slot) => (
           <div key={slot} className="seg-menu-grid__row">
-            <strong className="seg-menu-grid__slot">
-              {t(`menus.slots.${slot}`)}
-            </strong>
+            <strong className="seg-menu-grid__slot">{t(`menus.slots.${slot}`)}</strong>
             {menuDayLabels.map((day) => {
               const recipes = slots.get(slotKey(day, slot)) ?? []
               return (
@@ -611,11 +607,18 @@ function MenuDialog({
     enabled: mode === 'edit' && menuId != null,
   })
 
-  const title = mode === 'create' ? t('menus.editor.createTitle') : t('menus.editor.editTitle')
+  const title =
+    mode === 'create' ? t('menus.editor.createTitle') : t('menus.editor.editTitle')
 
   if (mode === 'edit' && menuQuery.isPending) {
     return (
-      <Dialog scrollable width={980} title={title} onClose={onClose} closeLabel={t('menus.editor.cancel')}>
+      <Dialog
+        scrollable
+        width={980}
+        title={title}
+        onClose={onClose}
+        closeLabel={t('menus.editor.cancel')}
+      >
         <div className="seg-recipes-editor__status">
           <Spinner />
           <span>{t('menus.states.loadingMenu')}</span>
@@ -787,12 +790,17 @@ function MenuEditorForm({
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
-            <ToggleField id="recipes-menu-visibility" label={t('editor.fields.visibility')}>
+            <ToggleField
+              id="recipes-menu-visibility"
+              label={t('editor.fields.visibility')}
+            >
               <SegmentedControl
                 aria-labelledby="recipes-menu-visibility"
                 name="recipes-menu-visibility"
                 value={visibility}
-                onChange={(event) => setVisibility(event.target.value as RecipeVisibility)}
+                onChange={(event) =>
+                  setVisibility(event.target.value as RecipeVisibility)
+                }
                 options={visibilities.map((value) => ({
                   value,
                   label: t(`visibility.${value}`),
@@ -803,7 +811,10 @@ function MenuEditorForm({
             </ToggleField>
           </section>
 
-          <section className="seg-menu-editgrid" aria-label={t('menus.editor.gridLabel')}>
+          <section
+            className="seg-menu-editgrid"
+            aria-label={t('menus.editor.gridLabel')}
+          >
             <div className="seg-menu-editgrid__row seg-menu-editgrid__row--head">
               <span />
               {menuDayLabels.map((day) => (
@@ -972,7 +983,9 @@ function RecipeEntitySelector({
   const { t } = useTranslation('recipes')
   const categories = useRecipeCategories()
 
-  const useEntities = (state: EntitySelectorState): EntityQueryResult<RecipeSummary> => {
+  const useEntities = (
+    state: EntitySelectorState,
+  ): EntityQueryResult<RecipeSummary> => {
     const result = useQuery({
       queryKey: recipesKeys.recipeList(buildRecipeSelectorQuery(state, menuVisibility)),
       queryFn: ({ signal }) =>
@@ -996,7 +1009,10 @@ function RecipeEntitySelector({
       sortField: 'name',
       width: 'minmax(0, 1.7fr)',
       render: (recipe) => (
-        <span className="seg-menu-selector-ref">{recipeReference(recipe).icon}<strong>{recipe.name}</strong></span>
+        <span className="seg-menu-selector-ref">
+          {recipeReference(recipe).icon}
+          <strong>{recipe.name}</strong>
+        </span>
       ),
     },
     {
@@ -1009,7 +1025,9 @@ function RecipeEntitySelector({
       id: 'difficulty',
       header: t('filters.difficulty'),
       render: (recipe) =>
-        recipe.difficulty == null ? t('difficulty.none') : t(`difficulty.${recipe.difficulty}`),
+        recipe.difficulty == null
+          ? t('difficulty.none')
+          : t(`difficulty.${recipe.difficulty}`),
     },
     {
       id: 'visibility',
@@ -1068,8 +1086,7 @@ function RecipeEntitySelector({
     searchLabel: t('menus.selector.searchLabel'),
     searchPlaceholder: t('menus.selector.searchPlaceholder'),
     resultCount: (count) => t('menus.selector.count', { count }),
-    pageInfo: (start, end, total) =>
-      t('selector.pageInfo', { start, end, total }),
+    pageInfo: (start, end, total) => t('selector.pageInfo', { start, end, total }),
     clearAll: t('selector.clearAll'),
     removeFilter: (label) => t('selector.removeFilter', { label }),
     selectAction: t('selector.select'),
@@ -1151,17 +1168,15 @@ interface RecipesFiltersProps {
   onClear: () => void
 }
 
-function RecipesFilters({
-  state,
-  categories,
-  onChange,
-  onClear,
-}: RecipesFiltersProps) {
+function RecipesFilters({ state, categories, onChange, onClear }: RecipesFiltersProps) {
   const { t } = useTranslation('recipes')
   const count = activeRecipeFilterCount(state)
 
   return (
-    <section className="seg-recipes__filters" aria-label={t('filters.active', { count })}>
+    <section
+      className="seg-recipes__filters"
+      aria-label={t('filters.active', { count })}
+    >
       <div className="seg-recipes__filters-primary">
         <Input
           className="seg-recipes__search"
@@ -1186,9 +1201,7 @@ function RecipesFilters({
           label={t('filters.difficulty')}
           value={state.difficulty}
           allLabel={t('filters.anyDifficulty')}
-          onChange={(value) =>
-            onChange({ difficulty: value as RecipeDifficulty | '' })
-          }
+          onChange={(value) => onChange({ difficulty: value as RecipeDifficulty | '' })}
           options={difficulties.map((difficulty) => ({
             value: difficulty,
             label: t(`difficulty.${difficulty}`),
@@ -1198,9 +1211,7 @@ function RecipesFilters({
           label={t('filters.visibility')}
           value={state.visibility}
           allLabel={t('filters.allVisibilities')}
-          onChange={(value) =>
-            onChange({ visibility: value as RecipeVisibility | '' })
-          }
+          onChange={(value) => onChange({ visibility: value as RecipeVisibility | '' })}
           options={visibilities.map((visibility) => ({
             value: visibility,
             label: t(`visibility.${visibility}`),
@@ -1286,7 +1297,9 @@ function RecipeGallery({
           >
             {t(`sort.${field}`)}
             {state.sort === field && (
-              <span>{state.sortDirection === 'asc' ? <ArrowDownAZ /> : <ArrowUpZA />}</span>
+              <span>
+                {state.sortDirection === 'asc' ? <ArrowDownAZ /> : <ArrowUpZA />}
+              </span>
             )}
           </button>
         ))}
@@ -1313,7 +1326,9 @@ function RecipeGallery({
                 <CategoryChip recipe={recipe} categories={categories} />
                 <DifficultyDots difficulty={recipe.difficulty} />
               </div>
-              <p className="seg-recipes-card__meta">{t('gallery.by', { name: recipe.creatorName })}</p>
+              <p className="seg-recipes-card__meta">
+                {t('gallery.by', { name: recipe.creatorName })}
+              </p>
             </div>
           </article>
         ))}
@@ -1364,13 +1379,21 @@ function CategoryChip({
   categories: RecipeCategory[]
 }) {
   const tone = toneForCategory(recipe.categoryId, categories)
-  return <span className={`seg-recipes-cat seg-recipes-tone--${tone}`}>{recipe.categoryName}</span>
+  return (
+    <span className={`seg-recipes-cat seg-recipes-tone--${tone}`}>
+      {recipe.categoryName}
+    </span>
+  )
 }
 
 function DifficultyDots({ difficulty }: { difficulty: RecipeDifficulty | null }) {
   const { t } = useTranslation('recipes')
   if (difficulty == null) {
-    return <span className="seg-recipes-diff seg-recipes-diff--none">{t('difficulty.none')}</span>
+    return (
+      <span className="seg-recipes-diff seg-recipes-diff--none">
+        {t('difficulty.none')}
+      </span>
+    )
   }
   return (
     <span className={`seg-recipes-diff seg-recipes-diff--${difficulty.toLowerCase()}`}>
@@ -1385,7 +1408,10 @@ function DifficultyDots({ difficulty }: { difficulty: RecipeDifficulty | null })
 }
 
 function toneForCategory(categoryId: number, categories: RecipeCategory[]) {
-  const index = Math.max(0, categories.findIndex((category) => category.id === categoryId))
+  const index = Math.max(
+    0,
+    categories.findIndex((category) => category.id === categoryId),
+  )
   return categoryTones[index % categoryTones.length]
 }
 
@@ -1478,7 +1504,13 @@ function RecipeDialog({
 
   if (categories.data == null || (mode === 'edit' && recipeQuery.isPending)) {
     return (
-      <Dialog scrollable width={880} title={title} onClose={onClose} closeLabel={t('editor.actions.cancel')}>
+      <Dialog
+        scrollable
+        width={880}
+        title={title}
+        onClose={onClose}
+        closeLabel={t('editor.actions.cancel')}
+      >
         <div className="seg-recipes-editor__status">
           <Spinner />
           <span>{t('editor.loading')}</span>
@@ -1583,7 +1615,11 @@ function RecipeEditorForm({
     defaultValues: initialValues,
   })
   const { register, control, handleSubmit, formState, setValue } = form
-  const ingredientFields = useFieldArray({ control, name: 'ingredients', keyName: 'fieldKey' })
+  const ingredientFields = useFieldArray({
+    control,
+    name: 'ingredients',
+    keyName: 'fieldKey',
+  })
   const stepFields = useFieldArray({ control, name: 'steps', keyName: 'fieldKey' })
   const ingredients = useWatch({ control, name: 'ingredients' }) ?? []
   const visibility = useWatch({ control, name: 'visibility' })
@@ -1717,10 +1753,15 @@ function RecipeEditorForm({
           )}
 
           <section className="seg-recipes-editor__section">
-            <SectionHead icon={<BookOpen size={16} />} title={t('editor.sections.identity')} />
+            <SectionHead
+              icon={<BookOpen size={16} />}
+              title={t('editor.sections.identity')}
+            />
             <div className="seg-recipes-editor__identity">
               <div className="seg-recipes-editor__image">
-                <div className={`seg-recipes-editor__imagebox seg-recipes-tone--${toneForCategory(selectedCategoryId, categories)}`}>
+                <div
+                  className={`seg-recipes-editor__imagebox seg-recipes-tone--${toneForCategory(selectedCategoryId, categories)}`}
+                >
                   {recipe?.thumbnail.url != null ? (
                     <img src={recipe.thumbnail.url} alt="" />
                   ) : (
@@ -1815,7 +1856,9 @@ function RecipeEditorForm({
               hint={t('editor.hints.ingredients')}
             />
             {ingredientFields.fields.length === 0 ? (
-              <p className="seg-recipes-editor__subempty">{t('editor.ingredients.empty')}</p>
+              <p className="seg-recipes-editor__subempty">
+                {t('editor.ingredients.empty')}
+              </p>
             ) : (
               <div className="seg-recipes-ing">
                 {ingredientFields.fields.map((field, index) => {
@@ -1861,7 +1904,8 @@ function RecipeEditorForm({
                             ingredient?.itemId == null
                               ? null
                               : inventoryItemReference({
-                                  name: ingredient.itemName || t('editor.itemLink.empty'),
+                                  name:
+                                    ingredient.itemName || t('editor.itemLink.empty'),
                                 })
                           }
                           icon={<Package size={18} />}
@@ -1929,7 +1973,8 @@ function RecipeEditorForm({
                         }
                         {...register(`steps.${index}.instruction`)}
                       />
-                      {formState.errors.steps?.[index]?.instruction?.message != null && (
+                      {formState.errors.steps?.[index]?.instruction?.message !=
+                        null && (
                         <span className="seg-recipes-editor__field-error" role="alert">
                           {formState.errors.steps[index]?.instruction?.message}
                         </span>
@@ -1976,7 +2021,11 @@ function RecipeEditorForm({
           </section>
 
           <section className="seg-recipes-editor__section">
-            <SectionHead icon={<Clock size={16} />} title={t('editor.sections.notes')} hint={t('editor.hints.notes')} />
+            <SectionHead
+              icon={<Clock size={16} />}
+              title={t('editor.sections.notes')}
+              hint={t('editor.hints.notes')}
+            />
             <label className="seg-recipes-editor__textarea-field">
               <span>{t('editor.fields.notes')}</span>
               <textarea
@@ -1994,7 +2043,10 @@ function RecipeEditorForm({
           </section>
 
           <section className="seg-recipes-editor__section">
-            <SectionHead icon={<ImagePlus size={16} />} title={t('editor.sections.attachments')} />
+            <SectionHead
+              icon={<ImagePlus size={16} />}
+              title={t('editor.sections.attachments')}
+            />
             <p className="seg-recipes-editor__hint">{t('editor.attachments.hint')}</p>
             {mode === 'edit' && recipeId != null ? (
               <RecipeAttachments recipeId={recipeId} />

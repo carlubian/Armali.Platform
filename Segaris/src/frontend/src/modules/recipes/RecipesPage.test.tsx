@@ -280,9 +280,9 @@ describe('Recipes menu planner', () => {
     await user.click(screen.getByRole('button', { name: /Next week/ }))
 
     await waitFor(() =>
-      expect(
-        requests.some((request) => request.url.includes('week=2026-06-29')),
-      ).toBe(true),
+      expect(requests.some((request) => request.url.includes('week=2026-06-29'))).toBe(
+        true,
+      ),
     )
   })
 
