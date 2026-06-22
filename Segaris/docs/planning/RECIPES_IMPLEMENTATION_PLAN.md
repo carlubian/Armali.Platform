@@ -424,6 +424,9 @@ Exit criteria:
 
 ### Wave 9: End-To-End, Hardening, And Acceptance
 
+Status: **Delivered**. Acceptance evidence is recorded in
+`docs/planning/RECIPES_ACCEPTANCE.md`.
+
 Validate the implemented behaviour across both providers and the deployed
 frontend/backend boundary.
 

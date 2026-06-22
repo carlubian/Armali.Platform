@@ -1866,8 +1866,8 @@ function RecipeEditorForm({
                           }
                           icon={<Package size={18} />}
                           placeholder={t('editor.itemLink.empty')}
-                          helperText={t('editor.itemLink.selectorDescription')}
                           browseLabel={t('editor.itemLink.empty')}
+                          browseIconOnly
                           changeLabel={t('selector.select')}
                           clearLabel={t('editor.itemLink.clear')}
                           onBrowse={() => setSelectingIngredient(index)}

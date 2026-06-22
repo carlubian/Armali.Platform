@@ -44,6 +44,8 @@ export interface EntityReferenceFieldProps {
 
   /** Visible text and accessible name for the Browse action (empty state). */
   browseLabel: string
+  /** Renders the Browse action as an icon-only button while keeping browseLabel accessible. */
+  browseIconOnly?: boolean
   /** Visible text and accessible name for the Change action (selected state). */
   changeLabel: string
   /** Accessible name for the icon-only Clear action (selected state). */
@@ -139,6 +141,7 @@ export function EntityReferenceField({
   placeholder,
   helperText,
   browseLabel,
+  browseIconOnly = false,
   changeLabel,
   clearLabel,
   disabled = false,
@@ -220,10 +223,12 @@ export function EntityReferenceField({
             variant="outline"
             size="sm"
             iconLeft={<SearchIcon />}
+            aria-label={browseIconOnly ? browseLabel : undefined}
+            title={browseIconOnly ? browseLabel : undefined}
             onClick={onBrowse}
             disabled={actionsDisabled}
           >
-            {browseLabel}
+            {browseIconOnly ? null : browseLabel}
           </Button>
         )}
       </div>
