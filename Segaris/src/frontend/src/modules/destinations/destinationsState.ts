@@ -94,6 +94,14 @@ export function toDestinationListQuery(state: DestinationsState): DestinationLis
   }
 }
 
+export function activeDestinationFilterCount(state: DestinationsState): number {
+  return [
+    state.search.trim() !== '',
+    state.category != null,
+    state.isSchengenArea != null,
+  ].filter(Boolean).length
+}
+
 function writeState(state: DestinationsState): URLSearchParams {
   const params = new URLSearchParams()
   const set = (key: string, value: string | number | boolean | null | undefined) => {

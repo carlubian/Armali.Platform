@@ -187,6 +187,48 @@ export const destinationsApi = {
       method: 'DELETE',
       signal,
     }),
+  listDestinationAttachments: (destinationId: number, signal?: AbortSignal) =>
+    apiRequest<DestinationAttachment[]>(
+      `/api/destinations/${destinationId}/attachments`,
+      { signal },
+    ),
+  uploadDestinationAttachment: (
+    destinationId: number,
+    file: File,
+    signal?: AbortSignal,
+  ) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest<DestinationAttachment>(
+      `/api/destinations/${destinationId}/attachments`,
+      {
+        method: 'POST',
+        body,
+        signal,
+        timeoutMs: 60_000,
+      },
+    )
+  },
+  destinationAttachmentDownloadUrl: (destinationId: number, attachmentId: string) =>
+    `/api/destinations/${destinationId}/attachments/${attachmentId}`,
+  deleteDestinationAttachment: (
+    destinationId: number,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<void>(`/api/destinations/${destinationId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      signal,
+    }),
+  setPrimaryDestinationAttachment: (
+    destinationId: number,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<DestinationAttachment>(
+      `/api/destinations/${destinationId}/attachments/${attachmentId}/primary`,
+      { method: 'PUT', signal },
+    ),
   listPlaces: (
     destinationId: number,
     query: PlaceListQuery = {},

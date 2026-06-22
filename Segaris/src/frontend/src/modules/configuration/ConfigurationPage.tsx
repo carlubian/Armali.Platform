@@ -26,6 +26,7 @@ const sections: CatalogSectionId[] = [
   'opex',
   'inventory',
   'travel',
+  'destinations',
   'clothes',
   'assets',
   'maintenance',

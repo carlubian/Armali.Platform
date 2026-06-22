@@ -6,6 +6,7 @@ import {
   Hammer,
   ListChecks,
   Luggage,
+  MapPinned,
   Network,
   Receipt,
   ScrollText,
@@ -88,6 +89,15 @@ export function LauncherPage() {
         tone: 'sea',
         attention: requiresAttention('travel'),
         attentionLabel: t('travel:launcher.attention'),
+      },
+      {
+        key: 'destinations',
+        title: t('destinations:launcher.title'),
+        description: t('destinations:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/destinations',
+        icon: MapPinned,
+        tone: 'aqua',
       },
       {
         key: 'clothes',
