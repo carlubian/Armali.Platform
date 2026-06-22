@@ -28,6 +28,7 @@ import { activeItemFilterCount, useItemsState } from './itemsState'
 import { activeOrderFilterCount, useOrdersState } from './ordersState'
 import { useInventoryView, useItemDialog, useOrderDialog } from './inventoryNav'
 import { inventoryKeys } from './queries'
+import { recipesKeys } from '../recipes/contracts'
 
 import './InventoryPage.css'
 
@@ -125,6 +126,7 @@ function ItemsPanel({ onToast }: PanelProps) {
 
   const handleDeleted = (item: InventoryItem) => {
     invalidateItems()
+    void queryClient.invalidateQueries({ queryKey: recipesKeys.recipes() })
     onToast('itemDeleted', item.name)
     close()
   }

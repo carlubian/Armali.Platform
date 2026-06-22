@@ -25,6 +25,17 @@ internal static class RecipesTestData
         return await database.Set<Recipe>().AnyAsync(recipe => recipe.Id == recipeId);
     }
 
+    public static async Task<IReadOnlyList<int?>> IngredientItemIdsAsync(IServiceProvider services, int recipeId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<RecipeIngredient>()
+            .Where(ingredient => ingredient.RecipeId == recipeId)
+            .OrderBy(ingredient => ingredient.Position)
+            .Select(ingredient => ingredient.ItemId)
+            .ToListAsync();
+    }
+
     public static async Task<int> SeedRecipeAsync(
         IServiceProvider services,
         int creatorId,

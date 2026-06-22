@@ -30,6 +30,7 @@ using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Api.Modules.Projects.Mutations;
+using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
@@ -939,6 +940,64 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         // 10.00 * 1.20 = 12.00; 5.55 * 1.20 = 6.66.
         Assert.Equal([12.00m, 6.66m], storedOrder.Lines.OrderBy(line => line.Id).Select(line => line.LineTotal));
         Assert.False(await verificationDatabase.Set<SegarisCurrency>().AnyAsync(value => value.Id == sourceId));
+    }
+
+    [Fact]
+    public async Task Postgres_clears_recipe_ingredient_item_references_and_deletes_inventory_item_atomically()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-inventory-recipe-deletion";
+        const string password = "PgInventoryRecipeDeletion123!";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", password));
+        int itemId;
+        int recipeId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+            var write = scope.ServiceProvider.GetRequiredService<InventoryItemWriteService>();
+            var userId = await database.Set<SegarisUser>()
+                .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+            var actor = new UserId(userId);
+            var categoryId = await database.Set<InventoryCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            var locationId = await database.Set<InventoryLocation>()
+                .Where(location => location.Name == "Other").Select(location => location.Id).SingleAsync();
+            var supplierId = await database.Set<SegarisSupplier>()
+                .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+            var recipeCategoryId = await database.Set<RecipeCategory>()
+                .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+            var now = new DateTimeOffset(2026, 6, 22, 10, 0, 0, TimeSpan.Zero);
+            var item = InventoryItem.Create(
+                new("PG recipe flour", InventoryItemStatus.Active, null, categoryId, locationId, 1m, 0m, [supplierId], RecordVisibility.Public),
+                actor,
+                now);
+            database.Add(item);
+            await database.SaveChangesAsync();
+            itemId = item.Id;
+            var recipe = Recipe.Create(
+                new("PG linked recipe", recipeCategoryId, null, null, null, null, [new RecipeIngredientValues("Flour", "500g", itemId)], [], null, RecordVisibility.Public),
+                actor,
+                now);
+            database.Add(recipe);
+            await database.SaveChangesAsync();
+            recipeId = recipe.Id;
+
+            Assert.True(await write.DeleteAsync(itemId, actor, CancellationToken.None));
+        }
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDatabase = verificationScope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        Assert.False(await verificationDatabase.Set<InventoryItem>().AnyAsync(item => item.Id == itemId));
+        Assert.Null(await verificationDatabase.Set<RecipeIngredient>()
+            .Where(ingredient => ingredient.RecipeId == recipeId)
+            .Select(ingredient => ingredient.ItemId)
+            .SingleAsync());
     }
 
     [Fact]

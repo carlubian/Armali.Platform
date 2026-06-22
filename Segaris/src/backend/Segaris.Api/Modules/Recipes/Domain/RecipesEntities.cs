@@ -109,6 +109,23 @@ internal sealed class Recipe
         StampModification(actorId, now);
     }
 
+    internal void ClearIngredientItemReference(int itemId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+
+        var cleared = false;
+        foreach (var ingredient in ingredients.Where(ingredient => ingredient.ItemId == itemId))
+        {
+            ingredient.ClearItemReference();
+            cleared = true;
+        }
+
+        if (cleared)
+        {
+            StampModification(actorId, now);
+        }
+    }
+
     private void Apply(RecipeValues values, UserId actorId, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(values);

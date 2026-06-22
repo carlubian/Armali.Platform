@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Recipes.Mutations;
 using Segaris.Api.Modules.Recipes.Persistence;
 using Segaris.Api.Modules.Recipes.Queries;
@@ -28,6 +29,7 @@ internal sealed class RecipesModule : ISegarisModule
         services.AddScoped<RecipesReadService>();
         services.AddScoped<RecipesRecipeWriteService>();
         services.AddScoped<RecipesCategoryManagementService>();
+        services.AddScoped<IInventoryItemDeletionReferenceHandler, RecipesInventoryItemDeletionReferenceHandler>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
