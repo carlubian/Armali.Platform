@@ -67,6 +67,7 @@ interface ToastState {
 
 const sortFields: PlaceSortField[] = ['name', 'category', 'rating']
 const ratings: PlaceRating[] = [1, 2, 3, 4, 5]
+const formatPlaceRatingStars = (rating: PlaceRating) => '⭐'.repeat(rating)
 
 export function DestinationPlacesPage() {
   const { t } = useTranslation('destinations')
@@ -508,8 +509,9 @@ function PlacesList({ places, state, busy, onSort, onOpen }: PlacesListProps) {
                 <Badge tone="neutral">{t('places.list.unrated')}</Badge>
               ) : (
                 <Badge tone="gold">
-                  <Star size={13} aria-hidden="true" />
-                  {t('places.list.rating', { rating: place.rating })}
+                  <span aria-label={t('places.list.rating', { rating: place.rating })}>
+                    {formatPlaceRatingStars(place.rating)}
+                  </span>
                 </Badge>
               )}
             </div>
@@ -846,7 +848,7 @@ function PlaceEditorForm({
                     { value: '', label: t('places.editor.fields.noRating') },
                     ...ratings.map((rating) => ({
                       value: String(rating),
-                      label: t('places.filters.ratingOption', { rating }),
+                      label: formatPlaceRatingStars(rating),
                     })),
                   ]}
                 />

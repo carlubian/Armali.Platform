@@ -320,6 +320,7 @@ describe('Destinations page', () => {
       await screen.findByRole('heading', { name: 'Destination 01 places' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Park Guell')).toBeInTheDocument()
+    expect(screen.getByText('⭐⭐⭐⭐⭐')).toBeInTheDocument()
     expect(screen.getAllByText('Restaurant').length).toBeGreaterThan(0)
   })
 
@@ -365,6 +366,7 @@ describe('Destinations page', () => {
 
     await user.clear(within(dialog).getByLabelText('Name'))
     await user.type(within(dialog).getByLabelText('Name'), 'Casa Mila')
+    expect(within(dialog).getByRole('option', { name: '⭐⭐⭐⭐' })).toBeInTheDocument()
     await user.selectOptions(within(dialog).getByLabelText('Rating'), '4')
     await user.type(within(dialog).getByLabelText('Address'), 'Passeig de Gracia')
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))
