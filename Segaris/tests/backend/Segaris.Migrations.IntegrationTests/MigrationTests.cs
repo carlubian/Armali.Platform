@@ -65,6 +65,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_RecipesDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_DestinationsDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -108,6 +111,9 @@ public sealed class MigrationTests
                 // Recipes, ingredients, steps, menus, menu slots, and the category catalog.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'recipe_%'";
                 Assert.Equal(6L, (long)(await command.ExecuteScalarAsync())!);
+                // Destinations, places, and the destination and place category catalogs.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name = 'destinations' OR name LIKE 'destination_%' OR name = 'place_categories')";
+                Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -146,13 +152,14 @@ public sealed class MigrationTests
         Assert.Contains("ProcessesDomainPersistence", sqliteNames);
         Assert.Contains("FirebirdDomainPersistence", sqliteNames);
         Assert.Contains("RecipesDomainPersistence", sqliteNames);
+        Assert.Contains("DestinationsDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Recipes_domain_persistence_is_the_current_tail()
+    public void Destinations_domain_persistence_is_the_current_tail()
     {
-        // Recipes Wave 6 primary attachments are the current tail and migrate from the
-        // Recipes domain model that preceded them.
+        // Destinations Wave 1 persistence is the current tail and follows the Recipes
+        // primary-attachment migration that preceded it.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -164,8 +171,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("RecipesPrimaryAttachment", migrations[^1]);
-            Assert.Equal("RecipesDomainPersistence", migrations[^2]);
+            Assert.Equal("DestinationsDomainPersistence", migrations[^1]);
+            Assert.Equal("RecipesPrimaryAttachment", migrations[^2]);
         }
     }
 
