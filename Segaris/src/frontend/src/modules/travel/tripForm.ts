@@ -20,7 +20,7 @@ export interface ItineraryEntryFormValues {
 export interface TripFormValues {
   name: string
   tripTypeId: string
-  destination: string
+  destinationId: string
   startDate: string
   endDate: string
   status: TravelTripStatus
@@ -33,7 +33,6 @@ interface SchemaMessages {
   nameRequired: string
   nameTooLong: string
   tripTypeRequired: string
-  destinationTooLong: string
   startDateRequired: string
   endDateRequired: string
   endBeforeStart: string
@@ -70,7 +69,7 @@ export function createTripSchema(messages: SchemaMessages) {
         .min(1, messages.nameRequired)
         .max(200, messages.nameTooLong),
       tripTypeId: z.string().min(1, messages.tripTypeRequired),
-      destination: z.string().max(200, messages.destinationTooLong),
+      destinationId: z.string(),
       startDate: z.string().min(1, messages.startDateRequired),
       endDate: z.string().min(1, messages.endDateRequired),
       status: z.enum(['Planned', 'Ongoing', 'Completed', 'Cancelled']),
@@ -114,7 +113,7 @@ export function buildDefaults({ tripTypeId }: DefaultsParams): TripFormValues {
   return {
     name: '',
     tripTypeId,
-    destination: '',
+    destinationId: '',
     startDate: today,
     endDate: today,
     status: 'Planned',
@@ -139,7 +138,7 @@ export function fromTrip(trip: TravelTrip): TripFormValues {
   return {
     name: trip.name,
     tripTypeId: String(trip.tripTypeId),
-    destination: trip.destination ?? '',
+    destinationId: trip.destinationId == null ? '' : String(trip.destinationId),
     startDate: trip.startDate,
     endDate: trip.endDate,
     status: trip.status,
@@ -154,11 +153,16 @@ const blankToNull = (value: string): string | null => {
   return trimmed === '' ? null : trimmed
 }
 
+const referenceToNull = (value: string): number | null => {
+  const trimmed = value.trim()
+  return trimmed === '' ? null : Number(trimmed)
+}
+
 export function toRequest(values: TripFormValues): CreateTravelTripRequest {
   return {
     name: values.name.trim(),
     tripTypeId: Number(values.tripTypeId),
-    destination: blankToNull(values.destination),
+    destinationId: referenceToNull(values.destinationId),
     startDate: values.startDate,
     endDate: values.endDate,
     status: values.status,

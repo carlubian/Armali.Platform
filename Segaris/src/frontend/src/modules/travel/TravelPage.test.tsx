@@ -8,6 +8,7 @@ import type {
   TravelTrip,
   TravelTripSummary,
 } from '@/app/api/travel'
+import type { DestinationSummary } from '@/app/api/destinations'
 
 const session = {
   userId: 7,
@@ -42,7 +43,9 @@ function makeTrip(
     name: `Trip ${id.toString().padStart(2, '0')}`,
     tripTypeId: 1,
     tripTypeName: 'European',
-    destination: 'Porto',
+    destinationId: 10,
+    destinationName: 'Porto',
+    destinationCountry: 'Portugal',
     startDate: '2026-06-20',
     endDate: '2026-06-25',
     status: 'Planned',
@@ -59,7 +62,9 @@ function makeTripDetail(id: number): TravelTrip {
     name: `Trip ${id.toString().padStart(2, '0')}`,
     tripTypeId: 1,
     tripTypeName: 'European',
-    destination: 'Porto',
+    destinationId: 10,
+    destinationName: 'Porto',
+    destinationCountry: 'Portugal',
     startDate: '2026-06-20',
     endDate: '2026-06-25',
     status: 'Planned',
@@ -105,18 +110,39 @@ function makeExpense(id: number): TravelExpenseSummary {
   }
 }
 
+function makeDestination(id: number, name = 'Porto'): DestinationSummary {
+  return {
+    id,
+    name,
+    categoryId: 1,
+    categoryName: 'City break',
+    country: 'Portugal',
+    isSchengenArea: true,
+    averagePlaceRating: null,
+    ratedPlaceCount: 0,
+    visibility: 'Public',
+    thumbnail: { attachmentId: null, url: null, source: 'placeholder' },
+    creatorId: 7,
+    creatorName: 'Marina Velasco',
+  }
+}
+
 interface BackendOptions {
   trips?: TravelTripSummary[]
+  destinations?: DestinationSummary[]
 }
 
 function mockBackend(options: BackendOptions = {}) {
   const trips = options.trips ?? [makeTrip(1)]
-  const requests: Array<{ method: string; url: string }> = []
+  const destinations = options.destinations ?? [makeDestination(10)]
+  const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     await Promise.resolve()
     const url = urlOf(input)
     const method = init?.method ?? 'GET'
+    const body: unknown =
+      typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
 
     if (url === '/api/session/antiforgery') return json({ csrfToken: 'token' })
     if (url === '/api/session' && method === 'GET') return json(session)
@@ -137,6 +163,41 @@ function mockBackend(options: BackendOptions = {}) {
         { id: 1, name: 'Flight', sortOrder: 1 },
         { id: 2, name: 'Lodging', sortOrder: 2 },
       ])
+    }
+    if (url.startsWith('/api/destinations/categories')) {
+      return json([{ id: 1, name: 'City break', sortOrder: 1 }])
+    }
+    if (url.match(/^\/api\/destinations\/\d+$/) && method === 'GET') {
+      const id = Number(url.match(/\/api\/destinations\/(\d+)/)?.[1] ?? '10')
+      const destination =
+        destinations.find((candidate) => candidate.id === id) ?? makeDestination(id)
+      return json({
+        ...destination,
+        entryRequirements: null,
+        notes: null,
+        attachments: [],
+        createdById: destination.creatorId,
+        createdByName: destination.creatorName,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedById: null,
+        updatedByName: null,
+        updatedAt: null,
+      })
+    }
+    if (url.startsWith('/api/destinations') && method === 'GET') {
+      requests.push({ method, url })
+      const parsed = new URL(url, 'http://localhost')
+      const visibility = parsed.searchParams.get('visibility')
+      const filtered =
+        visibility == null
+          ? destinations
+          : destinations.filter((destination) => destination.visibility === visibility)
+      return json({
+        items: filtered,
+        page: Number(parsed.searchParams.get('page') ?? '1'),
+        pageSize: Number(parsed.searchParams.get('pageSize') ?? '10'),
+        totalCount: filtered.length,
+      })
     }
     if (url.startsWith('/api/configuration/suppliers')) {
       return json([{ id: 1, name: 'Iberia', sortOrder: 1 }])
@@ -183,6 +244,15 @@ function mockBackend(options: BackendOptions = {}) {
         totalCount: filtered.length,
       })
     }
+    if (url === '/api/travel/trips' && method === 'POST') {
+      requests.push({ method, url, body })
+      return json({ ...makeTripDetail(99), ...(body as object), id: 99 }, 201)
+    }
+    if (url.match(/^\/api\/travel\/trips\/\d+$/) && method === 'PUT') {
+      const id = Number(url.match(/\/api\/travel\/trips\/(\d+)/)?.[1] ?? '1')
+      requests.push({ method, url, body })
+      return json({ ...makeTripDetail(id), ...(body as object) })
+    }
 
     throw new Error(`Unexpected request: ${method} ${url}`)
   })
@@ -204,6 +274,7 @@ describe('Travel trips view', () => {
 
     expect(await screen.findByText('Trip 01')).toBeInTheDocument()
     expect(screen.getByText('Trip 02')).toBeInTheDocument()
+    expect(screen.getAllByText('Porto · Portugal').length).toBeGreaterThan(0)
   })
 
   it('serializes the search term into the trips request', async () => {
@@ -238,6 +309,7 @@ describe('Travel trips view', () => {
     await user.click(await screen.findByRole('button', { name: 'Open Trip 01' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit trip' })
+    expect(within(dialog).getByText('Porto')).toBeInTheDocument()
     expect(within(dialog).getByDisplayValue('Flight to Porto')).toBeInTheDocument()
     expect(within(dialog).queryByText('Hotel Ribeira')).not.toBeInTheDocument()
 
@@ -247,4 +319,59 @@ describe('Travel trips view', () => {
     // The amount appears both as the per-currency total and on the expense row.
     expect(within(dialog).getAllByText('€250.00').length).toBeGreaterThanOrEqual(1)
   })
+
+  it('selects a public destination for a public trip and submits its id', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      destinations: [makeDestination(10, 'Porto'), makeDestination(11, 'Barcelona')],
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'New trip' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New trip' })
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Summer trip')
+    await user.click(within(dialog).getByRole('button', { name: 'Browse destinations' }))
+    expect(await screen.findByText('Select a destination')).toBeInTheDocument()
+
+    await waitFor(() =>
+      expect(requests.some((request) => request.url.includes('visibility=Public'))).toBe(
+        true,
+      ),
+    )
+    const row = screen.getByText('Barcelona').closest('[role="row"]') as HTMLElement
+    await user.click(within(row).getByRole('button', { name: 'Select' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/travel/trips' &&
+            isRecord(request.body) &&
+            request.body.destinationId === 11,
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('shows a neutral placeholder for an unresolved destination', async () => {
+    mockBackend({
+      trips: [
+        makeTrip(1, {
+          destinationId: 99,
+          destinationName: null,
+          destinationCountry: null,
+        }),
+      ],
+    })
+    render(<App />)
+
+    expect(await screen.findByText('Destination unavailable')).toBeInTheDocument()
+  })
 })
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null
+}

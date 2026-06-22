@@ -100,6 +100,7 @@ export interface DestinationListQuery {
   search?: string | null
   category?: number | null
   isSchengenArea?: boolean | null
+  visibility?: DestinationVisibility | null
   page?: number
   pageSize?: number
   sort?: DestinationSortField
@@ -138,6 +139,11 @@ export interface CreatePlaceRequest {
 
 export type UpdatePlaceRequest = CreatePlaceRequest
 
+export interface DestinationDeletionImpact {
+  isReferenced: boolean
+  referenceCount: number
+}
+
 function buildQuery<T extends object>(query: T): string {
   const parameters = new URLSearchParams()
   Object.entries(query as Record<string, unknown>).forEach(([key, value]) => {
@@ -166,6 +172,11 @@ export const destinationsApi = {
     ),
   getDestination: (destinationId: number, signal?: AbortSignal) =>
     apiRequest<Destination>(`/api/destinations/${destinationId}`, { signal }),
+  getDestinationDeletionImpact: (destinationId: number, signal?: AbortSignal) =>
+    apiRequest<DestinationDeletionImpact>(
+      `/api/destinations/${destinationId}/deletion-impact`,
+      { signal },
+    ),
   createDestination: (request: CreateDestinationRequest, signal?: AbortSignal) =>
     apiRequest<Destination>('/api/destinations', {
       method: 'POST',

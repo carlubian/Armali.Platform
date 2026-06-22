@@ -126,6 +126,10 @@ function mockBackend(
     if (url.match(/^\/api\/destinations\/\d+\/attachments$/) && method === 'GET') {
       return json([])
     }
+    if (url.match(/^\/api\/destinations\/\d+\/deletion-impact$/) && method === 'GET') {
+      requests.push({ method, url })
+      return json({ isReferenced: true, referenceCount: 2 })
+    }
     if (url.match(/^\/api\/destinations\/\d+$/) && method === 'GET') {
       requests.push({ method, url })
       const id = Number(url.match(/\/api\/destinations\/(\d+)/)?.[1] ?? '1')
@@ -262,6 +266,45 @@ describe('Destinations page', () => {
     expect(window.location.search).toContain('newDestination=true')
   })
 
+  it('shows privacy-neutral trip impact before deleting a destination', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      destinations: [makeDestination(1, { name: 'Barcelona' })],
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Open Barcelona' }))
+    const editor = await screen.findByRole('dialog', { name: 'Edit destination' })
+    await user.click(within(editor).getByRole('button', { name: 'Delete destination' }))
+
+    expect(
+      await screen.findByText(
+        '2 trips reference this destination. Deleting it will clear those trip links without revealing trip details.',
+      ),
+    ).toBeInTheDocument()
+
+    const confirm = screen.getByRole('dialog', { name: 'Delete this destination?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Delete destination' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            request.url === '/api/destinations/1/deletion-impact',
+        ),
+      ).toBe(true),
+    )
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'DELETE' && request.url === '/api/destinations/1',
+        ),
+      ).toBe(true),
+    )
+  })
+
   it('navigates from a card to the destination-scoped places route', async () => {
     const user = userEvent.setup()
     mockBackend()
@@ -382,7 +425,7 @@ describe('Destinations page', () => {
     })
     expect(
       within(confirm).getByText(
-        /Trip links are cleared without revealing private trip details/,
+        /trips reference this destination/,
       ),
     ).toBeInTheDocument()
     await user.click(

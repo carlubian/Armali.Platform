@@ -37,6 +37,7 @@ import {
   destinationsApi,
   type CreateDestinationRequest,
   type Destination,
+  type DestinationDeletionImpact,
   type DestinationPageSize,
   type DestinationSortField,
   type DestinationSummary,
@@ -73,6 +74,7 @@ import {
   type DestinationFormValues,
 } from './destinationForm'
 import { destinationsKeys, useDestinationCategories } from './queries'
+import { travelKeys } from '@/modules/travel/queries'
 
 import './DestinationsPage.css'
 
@@ -152,6 +154,7 @@ export function DestinationsPage() {
 
   const handleDeleted = (destination: Destination) => {
     invalidateDestinations()
+    void queryClient.invalidateQueries({ queryKey: travelKeys.trips() })
     setToast({ kind: 'deleted', name: destination.name })
     closeDialog()
   }
@@ -737,6 +740,19 @@ function DestinationEditorForm({
   const [createdDestination, setCreatedDestination] = useState<Destination | null>(null)
   const editedRef = useRef(false)
 
+  const deletionImpactQuery = useQuery({
+    queryKey: [
+      ...destinationsKeys.destination(destinationId ?? 0),
+      'deletion-impact',
+    ] as const,
+    queryFn: ({ signal }) =>
+      destinationsApi.getDestinationDeletionImpact(destinationId as number, signal),
+    enabled: confirmingDelete && mode === 'edit' && destinationId != null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  })
+
   const mutation = useMutation({
     mutationFn: (request: CreateDestinationRequest) =>
       mode === 'create'
@@ -987,7 +1003,12 @@ function DestinationEditorForm({
         <Dialog
           width={460}
           title={t('editor.delete.title')}
-          description={t('editor.delete.description')}
+          description={deleteDescription(
+            deletionImpactQuery.data,
+            deletionImpactQuery.isPending,
+            deletionImpactQuery.isError,
+            t,
+          )}
           onClose={() => setConfirmingDelete(false)}
           closeLabel={t('editor.delete.cancel')}
           footer={
@@ -1002,7 +1023,7 @@ function DestinationEditorForm({
               <Button
                 variant="danger"
                 onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
+                disabled={deleteMutation.isPending || deletionImpactQuery.isError}
               >
                 {deleteMutation.isPending
                   ? t('editor.delete.deleting')
@@ -1087,6 +1108,18 @@ function TextAreaField({ label, error, ...props }: TextAreaFieldProps) {
       )}
     </label>
   )
+}
+
+function deleteDescription(
+  impact: DestinationDeletionImpact | undefined,
+  loading: boolean,
+  failed: boolean,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (loading) return t('editor.delete.loadingImpact')
+  if (failed) return t('editor.delete.impactError')
+  if (impact == null || !impact.isReferenced) return t('editor.delete.impactNone')
+  return t('editor.delete.impact', { count: impact.referenceCount })
 }
 
 function mapServerError(error: unknown, t: (key: string) => string): string {

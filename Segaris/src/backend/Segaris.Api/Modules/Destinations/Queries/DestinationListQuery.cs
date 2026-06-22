@@ -1,6 +1,7 @@
 using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Api;
+using Segaris.Shared.Authorization;
 
 namespace Segaris.Api.Modules.Destinations.Queries;
 
@@ -11,6 +12,8 @@ internal sealed class DestinationListQuery
     public int? Category { get; init; }
 
     public bool? IsSchengenArea { get; init; }
+
+    public string? Visibility { get; init; }
 
     public int? Page { get; init; }
 
@@ -62,7 +65,23 @@ internal sealed class DestinationListQuery
     public DestinationFilter ToFilter()
     {
         var search = string.IsNullOrWhiteSpace(Search) ? null : Search.Trim();
-        return new DestinationFilter(search, Category, IsSchengenArea);
+        return new DestinationFilter(search, Category, IsSchengenArea, ParseVisibility());
+    }
+
+    private RecordVisibility? ParseVisibility()
+    {
+        if (string.IsNullOrWhiteSpace(Visibility))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<RecordVisibility>(Visibility.Trim(), ignoreCase: true, out var parsed)
+            && Enum.IsDefined(parsed))
+        {
+            return parsed;
+        }
+
+        throw Problem("visibility", "Visibility must be Public or Private.");
     }
 
     private static void Throw(Dictionary<string, string[]> errors)
@@ -90,4 +109,5 @@ internal sealed class DestinationListQuery
 internal sealed record DestinationFilter(
     string? Search,
     int? CategoryId,
-    bool? IsSchengenArea);
+    bool? IsSchengenArea,
+    RecordVisibility? Visibility);

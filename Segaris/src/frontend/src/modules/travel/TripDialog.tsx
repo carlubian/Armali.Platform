@@ -1,10 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Globe, Lock, Plus, Trash2 } from 'lucide-react'
-import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { Globe, Link2, Lock, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
+import {
+  destinationsApi,
+  type DestinationSummary,
+} from '@/app/api/destinations'
 import {
   travelApi,
   type CreateTravelTripRequest,
@@ -13,6 +17,10 @@ import {
   type TravelVisibility,
 } from '@/app/api/travel'
 import { isApiError } from '@/app/api/errors'
+import {
+  EntityReferenceField,
+  type EntityReference,
+} from '@/components/entity-selection'
 import {
   Button,
   Dialog,
@@ -25,6 +33,11 @@ import {
 } from '@/components/ui'
 
 import { TravelAttachments } from './TravelAttachments'
+import {
+  DestinationEntitySelector,
+  destinationReference,
+} from '@/modules/destinations/DestinationEntitySelector'
+import { destinationsKeys } from '@/modules/destinations/contracts'
 import { TripExpenses } from './TripExpenses'
 import {
   blankItineraryEntry,
@@ -194,7 +207,6 @@ function TripEditorForm({
         nameRequired: t('tripEditor.validation.nameRequired'),
         nameTooLong: t('tripEditor.validation.nameTooLong'),
         tripTypeRequired: t('tripEditor.validation.tripTypeRequired'),
-        destinationTooLong: t('tripEditor.validation.destinationTooLong'),
         startDateRequired: t('tripEditor.validation.startDateRequired'),
         endDateRequired: t('tripEditor.validation.endDateRequired'),
         endBeforeStart: t('tripEditor.validation.endBeforeStart'),
@@ -213,14 +225,80 @@ function TripEditorForm({
     resolver: zodResolver(schema),
     defaultValues: initialValues,
   })
-  const { register, control, handleSubmit, formState, getValues } = form
+  const { register, control, handleSubmit, formState, getValues, setValue } = form
   const itinerary = useFieldArray({ control, name: 'itinerary' })
 
   const [serverError, setServerError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'details' | 'expenses'>('details')
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [selectorOpen, setSelectorOpen] = useState(false)
+  const [pickedDestination, setPickedDestination] = useState<DestinationSummary | null>(
+    null,
+  )
   const editedRef = useRef(false)
+  const visibility = useWatch({ control, name: 'visibility' })
+  const destinationId = useWatch({ control, name: 'destinationId' })
+  const destinationIdNum = destinationId.trim() === '' ? null : Number(destinationId)
+  const initialDestinationId = trip?.destinationId ?? null
+
+  const linkResolution = useQuery({
+    queryKey: destinationsKeys.destination(initialDestinationId ?? 0),
+    queryFn: ({ signal }) =>
+      destinationsApi.getDestination(initialDestinationId as number, signal),
+    enabled: initialDestinationId != null,
+    retry: false,
+  })
+
+  const linkedDestination: DestinationSummary | undefined =
+    pickedDestination?.id === destinationIdNum
+      ? pickedDestination
+      : initialDestinationId === destinationIdNum
+        ? linkResolution.data
+        : undefined
+
+  useEffect(() => {
+    if (
+      visibility === 'Public' &&
+      linkedDestination != null &&
+      linkedDestination.visibility !== 'Public'
+    ) {
+      setValue('destinationId', '', { shouldDirty: true, shouldValidate: true })
+      editedRef.current = true
+    }
+  }, [visibility, linkedDestination, setValue])
+
+  const selectDestination = (destination: DestinationSummary) => {
+    setPickedDestination(destination)
+    setValue('destinationId', String(destination.id), {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    editedRef.current = true
+    setSelectorOpen(false)
+  }
+
+  const clearDestination = () => {
+    setPickedDestination(null)
+    setValue('destinationId', '', { shouldDirty: true, shouldValidate: true })
+    editedRef.current = true
+  }
+
+  let destinationReferenceValue: EntityReference | null = null
+  let resolvingDestination = false
+  if (destinationIdNum != null) {
+    if (linkedDestination != null) {
+      destinationReferenceValue = destinationReference(linkedDestination)
+    } else if (initialDestinationId === destinationIdNum && linkResolution.isLoading) {
+      resolvingDestination = true
+    } else {
+      destinationReferenceValue = {
+        primary: trip?.destinationName ?? t('common.unknownDestination'),
+        secondary: trip?.destinationCountry ?? undefined,
+        unavailable: true,
+      }
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (request: CreateTravelTripRequest) =>
@@ -364,11 +442,6 @@ function TripEditorForm({
                   options={catalogOptions(tripTypes)}
                 />
               </Field>
-              <Input
-                label={t('tripEditor.fields.destination')}
-                error={formState.errors.destination?.message}
-                {...register('destination')}
-              />
               <Field label={t('tripEditor.fields.status')}>
                 <Select
                   {...register('status')}
@@ -411,6 +484,29 @@ function TripEditorForm({
                   }))}
                 />
               </ToggleField>
+            </div>
+            <div className="seg-trv-editor__link">
+              <span className="seg-trv-editor__field-label" id="trv-field-destination">
+                {t('tripEditor.fields.destination')}
+              </span>
+              <EntityReferenceField
+                aria-labelledby="trv-field-destination"
+                value={destinationReferenceValue}
+                busy={resolvingDestination}
+                busyLabel={t('tripEditor.destinationLink.resolving')}
+                icon={<Link2 size={19} aria-hidden="true" />}
+                placeholder={t('tripEditor.fields.destinationPlaceholder')}
+                helperText={
+                  visibility === 'Public'
+                    ? t('tripEditor.destinationLink.publicOnly')
+                    : t('tripEditor.destinationLink.helper')
+                }
+                browseLabel={t('tripEditor.destinationLink.browse')}
+                changeLabel={t('tripEditor.destinationLink.change')}
+                clearLabel={t('tripEditor.destinationLink.clear')}
+                onBrowse={() => setSelectorOpen(true)}
+                onClear={clearDestination}
+              />
             </div>
           </section>
 
@@ -591,6 +687,19 @@ function TripEditorForm({
               </Button>
             </>
           }
+        />
+      )}
+      {selectorOpen && (
+        <DestinationEntitySelector
+          currentDestinationId={destinationIdNum}
+          forcedVisibility={visibility === 'Public' ? 'Public' : null}
+          description={
+            visibility === 'Public'
+              ? t('tripEditor.destinationLink.selectorPublicDescription')
+              : t('tripEditor.destinationLink.selectorDescription')
+          }
+          onSelect={selectDestination}
+          onClose={() => setSelectorOpen(false)}
         />
       )}
     </>

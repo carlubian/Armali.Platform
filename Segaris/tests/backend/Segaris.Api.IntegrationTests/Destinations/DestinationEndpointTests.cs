@@ -84,6 +84,28 @@ public sealed class DestinationEndpointTests
     }
 
     [Fact]
+    public async Task Visibility_filter_limits_accessible_destination_list()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        await DestinationsTestData.SeedDestinationAsync(server.Services, founderId, name: "Public city");
+        await DestinationsTestData.SeedDestinationAsync(
+            server.Services,
+            founderId,
+            name: "Private city",
+            visibility: RecordVisibility.Private);
+
+        var publicPage = await GetPageAsync(client, "/api/destinations?visibility=Public");
+        var privatePage = await GetPageAsync(client, "/api/destinations?visibility=Private");
+
+        Assert.Contains(publicPage.Items, destination => destination.Name == "Public city");
+        Assert.DoesNotContain(publicPage.Items, destination => destination.Name == "Private city");
+        Assert.Contains(privatePage.Items, destination => destination.Name == "Private city");
+        Assert.DoesNotContain(privatePage.Items, destination => destination.Name == "Public city");
+    }
+
+    [Fact]
     public async Task List_and_detail_include_derived_rating_projection()
     {
         using var server = new CapexTestServer();

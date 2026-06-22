@@ -189,6 +189,11 @@ internal sealed class DestinationsReadService(SegarisDbContext database, IAttach
             destinations = destinations.Where(destination => destination.IsSchengenArea == isSchengenArea);
         }
 
+        if (filter.Visibility is { } visibility)
+        {
+            destinations = destinations.Where(destination => destination.Visibility == visibility);
+        }
+
         return destinations;
     }
 

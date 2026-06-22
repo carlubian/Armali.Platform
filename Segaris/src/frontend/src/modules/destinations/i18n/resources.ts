@@ -13,6 +13,35 @@ export const destinations = {
   common: {
     none: '-',
   },
+  selector: {
+    eyebrow: 'Link · Destination',
+    title: 'Select a destination',
+    description: 'Choose the destination to link.',
+    searchLabel: 'Search destinations',
+    searchPlaceholder: 'Search destination name',
+    count_one: '{{count}} destination matches',
+    count_other: '{{count}} destinations match',
+    pageInfo: 'Showing {{start}}-{{end}} of {{total}}',
+    clearAll: 'Clear all',
+    removeFilter: 'Remove {{label}} filter',
+    select: 'Select',
+    current: 'Linked',
+    cancel: 'Cancel',
+    close: 'Close',
+    loading: 'Loading destinations...',
+    refetching: 'Updating results',
+    error: 'The destinations could not be loaded. Please try again.',
+    retry: 'Try again',
+    empty: 'No destinations are available to link yet.',
+    emptyFiltered: 'No destinations match the current filters.',
+    clearFilters: 'Clear filters',
+    previousPage: 'Previous page',
+    nextPage: 'Next page',
+    filters: {
+      allCategories: 'All categories',
+      allVisibilities: 'Any visibility',
+    },
+  },
   pagination: {
     rowsPerPage: 'Rows per page',
     previous: 'Previous',
@@ -246,6 +275,15 @@ export const destinations = {
       title: 'Delete this destination?',
       description:
         'This permanently removes the destination and its attachments. Trip links are cleared without revealing private trip details.',
+      loadingImpact: 'Checking linked trips...',
+      impactNone:
+        'No trips currently reference this destination. Deleting it will remove the destination and its attachments.',
+      impact_one:
+        '{{count}} trip references this destination. Deleting it will clear the trip link without revealing trip details.',
+      impact_other:
+        '{{count}} trips reference this destination. Deleting it will clear those trip links without revealing trip details.',
+      impactError:
+        'The trip-reference impact could not be checked. Please try again.',
       cancel: 'Cancel',
       confirm: 'Delete destination',
       deleting: 'Deleting...',
