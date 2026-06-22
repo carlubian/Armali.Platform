@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Destination, DestinationSummary } from '@/app/api/destinations'
+import type {
+  Destination,
+  DestinationSummary,
+  Place,
+  PlaceSummary,
+} from '@/app/api/destinations'
 
 const session = {
   userId: 7,
@@ -65,8 +70,34 @@ function makeDestinationDetail(id: number): Destination {
   }
 }
 
-function mockBackend(options: { destinations?: DestinationSummary[] } = {}) {
+function makePlace(id: number, overrides: Partial<PlaceSummary> = {}): PlaceSummary {
+  return {
+    id,
+    destinationId: 1,
+    name: id === 1 ? 'Park Guell' : `Place ${id}`,
+    categoryId: 1,
+    categoryName: 'Restaurant',
+    rating: 5,
+    review: 'Great views and easy to revisit.',
+    address: 'Barcelona',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: null,
+    ...overrides,
+  }
+}
+
+function makePlaceDetail(id: number, overrides: Partial<Place> = {}): Place {
+  return {
+    ...makePlace(id),
+    ...overrides,
+  }
+}
+
+function mockBackend(
+  options: { destinations?: DestinationSummary[]; places?: PlaceSummary[] } = {},
+) {
   const destinations = options.destinations ?? [makeDestination(1)]
+  const places = options.places ?? [makePlace(1)]
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -112,6 +143,41 @@ function mockBackend(options: { destinations?: DestinationSummary[] } = {}) {
     if (url === '/api/destinations' && method === 'POST') {
       requests.push({ method, url, body })
       return json({ ...makeDestinationDetail(99), ...(body as object), id: 99 }, 201)
+    }
+    if (url.match(/^\/api\/destinations\/\d+\/places\/\d+$/) && method === 'GET') {
+      requests.push({ method, url })
+      const id = Number(url.match(/\/places\/(\d+)/)?.[1] ?? '1')
+      return json(makePlaceDetail(id))
+    }
+    if (url.match(/^\/api\/destinations\/\d+\/places\/\d+$/) && method === 'PUT') {
+      requests.push({ method, url, body })
+      const id = Number(url.match(/\/places\/(\d+)/)?.[1] ?? '1')
+      return json({ ...makePlaceDetail(id), ...(body as object) })
+    }
+    if (url.match(/^\/api\/destinations\/\d+\/places\/\d+$/) && method === 'DELETE') {
+      requests.push({ method, url })
+      return new Response(null, { status: 204 })
+    }
+    if (url.match(/^\/api\/destinations\/\d+\/places$/) && method === 'POST') {
+      requests.push({ method, url, body })
+      return json({ ...makePlaceDetail(99), ...(body as object), id: 99 }, 201)
+    }
+    if (url.match(/^\/api\/destinations\/\d+\/places/) && method === 'GET') {
+      requests.push({ method, url })
+      const parsed = new URL(url, 'http://localhost')
+      const params = parsed.searchParams
+      const page = Number(params.get('page') ?? '1')
+      const pageSize = Number(params.get('pageSize') ?? '25')
+      const search = params.get('search')?.toLowerCase() ?? ''
+      const category = params.get('category')
+      const rating = params.get('rating')
+      const filtered = places.filter(
+        (place) =>
+          (search === '' || place.name.toLowerCase().includes(search)) &&
+          (category == null || String(place.categoryId) === category) &&
+          (rating == null || String(place.rating) === rating),
+      )
+      return json({ items: filtered, page, pageSize, totalCount: filtered.length })
     }
     if (url.startsWith('/api/destinations') && method === 'GET') {
       requests.push({ method, url })
@@ -210,11 +276,81 @@ describe('Destinations page', () => {
     expect(
       await screen.findByRole('heading', { name: 'Destination 01 places' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'The place list, editor, ratings, and destination-scoped filters are scheduled for Wave 7.',
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Park Guell')).toBeInTheDocument()
+    expect(screen.getAllByText('Restaurant').length).toBeGreaterThan(0)
+  })
+
+  it('keeps place filters scoped to the selected destination route', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    window.history.replaceState({}, '', '/destinations/1/places')
+    render(<App />)
+
+    await screen.findByText('Park Guell')
+    await user.type(screen.getByLabelText('Search places'), 'Park')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Place category' }),
+      '1',
+    )
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rating' }), '5')
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.url.includes('/api/destinations/1/places') &&
+            request.url.includes('search=Park') &&
+            request.url.includes('category=1') &&
+            request.url.includes('rating=5'),
+        ),
+      ).toBe(true),
+    )
+    expect(window.location.pathname).toBe('/destinations/1/places')
+  })
+
+  it('creates a destination-scoped place without losing list state', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    window.history.replaceState({}, '', '/destinations/1/places?search=Park')
+    render(<App />)
+
+    await screen.findByText('Park Guell')
+    await user.click(screen.getByRole('button', { name: 'New place' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New place' })
+    expect(window.location.search).toContain('search=Park')
+    expect(window.location.search).toContain('newPlace=true')
+
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Casa Mila')
+    await user.selectOptions(within(dialog).getByLabelText('Rating'), '4')
+    await user.type(within(dialog).getByLabelText('Address'), 'Passeig de Gracia')
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url === '/api/destinations/1/places' &&
+            (request.body as { name?: string }).name === 'Casa Mila',
+        ),
+      ).toBe(true),
+    )
+  })
+
+  it('validates place name before submitting', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    window.history.replaceState({}, '', '/destinations/1/places')
+    render(<App />)
+
+    await screen.findByText('Park Guell')
+    await user.click(screen.getByRole('button', { name: 'New place' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New place' })
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await within(dialog).findByText('A name is required.')).toBeInTheDocument()
   })
 
   it('validates destination name before submitting', async () => {
