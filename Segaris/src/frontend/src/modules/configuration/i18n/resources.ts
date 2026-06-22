@@ -31,6 +31,7 @@ export const configuration = {
     maintenance: 'Maintenance',
     firebird: 'Firebird',
     processes: 'Processes',
+    recipes: 'Recipes',
     projects: 'Projects',
   },
   catalogs: {
@@ -218,6 +219,18 @@ export const configuration = {
       namePlaceholder: 'Category name',
       empty: 'No categories yet. Add the first one so processes can use it.',
       itemName: 'process category',
+    },
+    recipeCategories: {
+      tab: 'Categories',
+      title: 'Recipe categories',
+      description: 'Categories that classify recipes in the household cookbook.',
+      addAction: 'New category',
+      createTitle: 'New recipe category',
+      editTitle: 'Edit recipe category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No recipe categories yet. Add the first one so recipes can use it.',
+      itemName: 'recipe category',
     },
     personCategories: {
       tab: 'Person categories',

@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Recipe, RecipeSummary } from '@/app/api/recipes'
+import type {
+  Recipe,
+  RecipeSummary,
+  WeeklyMenu,
+  WeeklyMenuSummary,
+} from '@/app/api/recipes'
 
 const session = {
   userId: 7,
@@ -83,10 +88,40 @@ interface CreatedRecipeBody {
 
 interface BackendOptions {
   recipes?: RecipeSummary[]
+  menus?: WeeklyMenuSummary[]
+  menu?: WeeklyMenu
 }
 
 function mockBackend(options: BackendOptions = {}) {
   const recipes = options.recipes ?? [makeRecipeSummary(1)]
+  const menus = options.menus ?? []
+  const menu =
+    options.menu ??
+    ({
+      id: 45,
+      week: '2026-06-22',
+      name: 'This week',
+      visibility: 'Public',
+      slots: [
+        {
+          day: 'Monday',
+          slot: 'Breakfast',
+          recipes: [
+            {
+              recipeId: 1,
+              recipeName: 'Recipe 01',
+              thumbnail: { attachmentId: null, url: null, source: 'placeholder' },
+            },
+          ],
+        },
+      ],
+      createdById: 7,
+      createdByName: 'Marina Velasco',
+      createdAt: '2026-06-22T10:00:00Z',
+      updatedById: null,
+      updatedByName: null,
+      updatedAt: null,
+    } satisfies WeeklyMenu)
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -109,6 +144,17 @@ function mockBackend(options: BackendOptions = {}) {
         { id: 1, name: 'Main', sortOrder: 1 },
         { id: 2, name: 'Dessert', sortOrder: 2 },
       ])
+    }
+    if (url.startsWith('/api/recipes/menus') && method === 'GET') {
+      requests.push({ method, url })
+      if (/\/api\/recipes\/menus\/\d+/.test(url)) return json(menu)
+      return json(menus)
+    }
+    if (url === '/api/recipes/menus' && method === 'POST') {
+      const bodyText = typeof init?.body === 'string' ? init.body : '{}'
+      const body = JSON.parse(bodyText) as Record<string, unknown>
+      requests.push({ method, url, body })
+      return json({ ...menu, ...body, id: 99 })
     }
     if (url.startsWith('/api/recipes') && method === 'GET') {
       requests.push({ method, url })
@@ -205,6 +251,67 @@ describe('Recipes collection', () => {
       ingredients: [{ name: 'Eggs', quantity: '4', itemId: null }],
       steps: [{ instruction: 'Beat the eggs' }],
       visibility: 'Public',
+    })
+  })
+})
+
+describe('Recipes menu planner', () => {
+  it('renders a weekly menu grid and serializes week navigation', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      menus: [
+        {
+          id: 45,
+          week: '2026-06-22',
+          name: 'This week',
+          visibility: 'Public',
+          creatorId: 7,
+          creatorName: 'Marina Velasco',
+        },
+      ],
+    })
+    window.history.replaceState({}, '', '/recipes/menus?week=2026-06-22')
+    render(<App />)
+
+    expect(await screen.findByText('Menu planner')).toBeInTheDocument()
+    expect(screen.getByText('22 Jun - 28 Jun')).toBeInTheDocument()
+    expect(await screen.findByText('Recipe 01')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Next week/ }))
+
+    await waitFor(() =>
+      expect(
+        requests.some((request) => request.url.includes('week=2026-06-29')),
+      ).toBe(true),
+    )
+  })
+
+  it('creates a menu with a recipe selected through the shared selector', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({ menus: [], recipes: [makeRecipeSummary(1)] })
+    window.history.replaceState({}, '', '/recipes/menus?week=2026-06-22')
+    render(<App />)
+
+    await screen.findByText('No menu for this week')
+    await user.click(screen.getByRole('button', { name: 'New menu' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Plan a week' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Guest week')
+    await user.click(within(dialog).getAllByRole('button', { name: 'Add' })[0])
+
+    const selector = await screen.findByRole('dialog', { name: /Select recipe/ })
+    await user.click(within(selector).getByRole('button', { name: 'Select' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Create menu' }))
+
+    await waitFor(() =>
+      expect(requests.some((request) => request.method === 'POST')).toBe(true),
+    )
+    const create = requests.find((request) => request.method === 'POST')
+    expect(create?.body).toMatchObject({
+      week: '2026-06-22',
+      name: 'Guest week',
+      visibility: 'Public',
+      slots: [{ day: 'Monday', slot: 'Breakfast', recipeIds: [1] }],
     })
   })
 })

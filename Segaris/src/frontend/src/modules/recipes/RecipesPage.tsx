@@ -10,6 +10,7 @@ import {
   ArrowUpZA,
   BookOpen,
   CalendarDays,
+  CalendarPlus,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -29,24 +30,41 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import {
   recipeMenusRoutePath,
   recipePageSizes,
   recipesApi,
   type CreateRecipeRequest,
+  type MealSlot,
+  type MenuDay,
   type Recipe,
   type RecipeCategory,
   type RecipeDifficulty,
+  type RecipeListQuery,
   type RecipePageSize,
   type RecipeSortField,
   type RecipeSummary,
   type RecipeVisibility,
+  type WeeklyMenu,
+  type WeeklyMenuSlotInput,
+  type WeeklyMenuSummary,
+  mealSlots,
+  menuDays,
 } from '@/app/api/recipes'
 import { isApiError } from '@/app/api/errors'
 import { useSession } from '@/app/session/SessionContext'
-import { EntityReferenceField } from '@/components/entity-selection'
+import {
+  EntityReferenceField,
+  EntitySelectorDialog,
+  type EntityQueryResult,
+  type EntityReference,
+  type EntitySelectorColumn,
+  type EntitySelectorFilter,
+  type EntitySelectorLabels,
+  type EntitySelectorState,
+} from '@/components/entity-selection'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
 import {
   Badge,
@@ -65,6 +83,7 @@ import {
   inventoryItemReference,
 } from './InventoryItemEntitySelector'
 import { RecipeAttachments } from './RecipeAttachments'
+import { useMenusState } from './menusState'
 import { recipesKeys, useRecipeCategories } from './queries'
 import {
   activeRecipeFilterCount,
@@ -94,6 +113,8 @@ interface ToastState {
 const difficulties: RecipeDifficulty[] = ['Easy', 'Medium', 'Hard']
 const visibilities: RecipeVisibility[] = ['Public', 'Private']
 const sortFields: RecipeSortField[] = ['name', 'category']
+const menuSlotLabels: MealSlot[] = [...mealSlots]
+const menuDayLabels: MenuDay[] = [...menuDays]
 
 const visibilityMeta: Record<
   RecipeVisibility,
@@ -106,6 +127,12 @@ const visibilityMeta: Record<
 const categoryTones = ['aqua', 'azure', 'gold', 'sea', 'rose'] as const
 
 export function RecipesPage() {
+  const location = useLocation()
+  if (location.pathname.endsWith('/menus')) return <RecipesMenuPlannerPage />
+  return <RecipesCollectionPage />
+}
+
+function RecipesCollectionPage() {
   const { t } = useTranslation('recipes')
   const { session } = useSession()
   const queryClient = useQueryClient()
@@ -256,6 +283,865 @@ export function RecipesPage() {
       )}
     </main>
   )
+}
+
+function RecipesMenuPlannerPage() {
+  const { t } = useTranslation('recipes')
+  const queryClient = useQueryClient()
+  const {
+    week,
+    dialog,
+    goToPreviousWeek,
+    goToNextWeek,
+    goToCurrentWeek,
+    openCreateDialog,
+    openEditDialog,
+    closeDialog,
+  } = useMenusState()
+  const [selectedMenuId, setSelectedMenuId] = useState<number | null>(null)
+
+  const menusQuery = useQuery({
+    queryKey: recipesKeys.menuWeek(week),
+    queryFn: ({ signal }) => recipesApi.listMenus(week, signal),
+  })
+
+  const menus = menusQuery.data ?? []
+  const selectedSummary =
+    menus.find((menu) => menu.id === selectedMenuId) ?? menus[0] ?? null
+  const selectedMenuIdForQuery = selectedSummary?.id ?? 0
+
+  const menuQuery = useQuery({
+    queryKey: recipesKeys.menu(selectedMenuIdForQuery),
+    queryFn: ({ signal }) => recipesApi.getMenu(selectedMenuIdForQuery, signal),
+    enabled: selectedSummary != null,
+  })
+
+  const invalidateMenus = (menuId?: number) => {
+    void queryClient.invalidateQueries({ queryKey: recipesKeys.menus() })
+    void queryClient.invalidateQueries({ queryKey: recipesKeys.recipes() })
+    if (menuId != null)
+      void queryClient.invalidateQueries({ queryKey: recipesKeys.menu(menuId) })
+  }
+
+  const handleSaved = (menu: WeeklyMenu) => {
+    queryClient.setQueryData(recipesKeys.menu(menu.id), menu)
+    setSelectedMenuId(menu.id)
+    invalidateMenus(menu.id)
+    closeDialog()
+  }
+
+  const handleDeleted = (menu: WeeklyMenu) => {
+    invalidateMenus(menu.id)
+    setSelectedMenuId(null)
+    closeDialog()
+  }
+
+  if (menusQuery.isError) {
+    const error = menusQuery.error
+    if (isApiError(error) && ['unavailable', 'transient'].includes(error.kind)) {
+      return <ServiceUnavailable onRetry={() => void menusQuery.refetch()} />
+    }
+  }
+
+  return (
+    <main className="seg-recipes armali-aurora">
+      <section className="seg-recipes__head">
+        <div>
+          <div className="armali-eyebrow">{t('menus.page.eyebrow')}</div>
+          <h1>{t('menus.page.title')}</h1>
+          <p>{t('menus.page.description')}</p>
+        </div>
+        <div className="seg-recipes__head-actions">
+          <Link className="seg-recipes__view-link" to="/recipes">
+            <BookOpen size={16} aria-hidden="true" />
+            {t('menus.page.recipes')}
+          </Link>
+          <Button iconLeft={<Plus size={16} />} onClick={openCreateDialog}>
+            {t('menus.actions.newMenu')}
+          </Button>
+        </div>
+      </section>
+
+      <section className="seg-menu-toolbar" aria-label={t('menus.week.label')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconLeft={<ChevronLeft size={16} />}
+          onClick={goToPreviousWeek}
+        >
+          {t('menus.week.previous')}
+        </Button>
+        <div className="seg-menu-toolbar__range">
+          <strong>{formatWeekRange(week)}</strong>
+          <span>{selectedSummary?.name ?? t('menus.week.noMenu')}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconRight={<ChevronRight size={16} />}
+          onClick={goToNextWeek}
+        >
+          {t('menus.week.next')}
+        </Button>
+        <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
+          {t('menus.week.current')}
+        </Button>
+      </section>
+
+      {menusQuery.isPending ? (
+        <div className="seg-recipes__loading">
+          <Spinner label={t('menus.states.loading')} />
+        </div>
+      ) : menusQuery.isError ? (
+        <p className="seg-recipes__error" role="alert">
+          {t('menus.states.loadError')}
+        </p>
+      ) : menus.length === 0 ? (
+        <EmptyWeek week={week} onCreate={openCreateDialog} />
+      ) : (
+        <>
+          <MenuTabs
+            menus={menus}
+            selectedId={selectedSummary?.id ?? null}
+            onSelect={setSelectedMenuId}
+            onEdit={openEditDialog}
+          />
+          {menuQuery.isPending ? (
+            <div className="seg-recipes__loading">
+              <Spinner label={t('menus.states.loadingMenu')} />
+            </div>
+          ) : menuQuery.isError ? (
+            <p className="seg-recipes__error" role="alert">
+              {t('menus.states.loadMenuError')}
+            </p>
+          ) : menuQuery.data != null ? (
+            <WeeklyMenuGrid
+              menu={menuQuery.data}
+              onEdit={() => openEditDialog(menuQuery.data.id)}
+            />
+          ) : null}
+        </>
+      )}
+
+      {dialog.mode !== 'closed' && (
+        <MenuDialog
+          mode={dialog.mode}
+          menuId={dialog.mode === 'edit' ? dialog.menuId : undefined}
+          week={week}
+          onClose={closeDialog}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
+      )}
+    </main>
+  )
+}
+
+function EmptyWeek({ week, onCreate }: { week: string; onCreate: () => void }) {
+  const { t } = useTranslation('recipes')
+  return (
+    <section className="seg-menu-empty">
+      <span className="seg-menu-empty__icon">
+        <CalendarPlus size={28} aria-hidden="true" />
+      </span>
+      <h2>{t('menus.states.emptyTitle')}</h2>
+      <p>{t('menus.states.emptyDescription', { week: formatWeekRange(week) })}</p>
+      <Button iconLeft={<Plus size={16} />} onClick={onCreate}>
+        {t('menus.actions.createForWeek')}
+      </Button>
+    </section>
+  )
+}
+
+function MenuTabs({
+  menus,
+  selectedId,
+  onSelect,
+  onEdit,
+}: {
+  menus: WeeklyMenuSummary[]
+  selectedId: number | null
+  onSelect: (menuId: number) => void
+  onEdit: (menuId: number) => void
+}) {
+  const { t } = useTranslation('recipes')
+  return (
+    <section className="seg-menu-list" aria-label={t('menus.list.label')}>
+      {menus.map((menu) => (
+        <article
+          key={menu.id}
+          className={
+            'seg-menu-list__item' +
+            (menu.id === selectedId ? ' seg-menu-list__item--active' : '')
+          }
+        >
+          <button type="button" onClick={() => onSelect(menu.id)}>
+            <strong>{menu.name ?? t('menus.list.untitled')}</strong>
+            <span>{t(`visibility.${menu.visibility}`)}</span>
+            <small>{t('menus.list.by', { name: menu.creatorName })}</small>
+          </button>
+          <Button variant="ghost" size="sm" onClick={() => onEdit(menu.id)}>
+            {t('menus.actions.editMenu')}
+          </Button>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function WeeklyMenuGrid({ menu, onEdit }: { menu: WeeklyMenu; onEdit: () => void }) {
+  const { t } = useTranslation('recipes')
+  const slots = slotMap(menu.slots)
+  return (
+    <section className="seg-menu-grid-wrap">
+      <div className="seg-menu-grid__head">
+        <Badge tone={menu.visibility === 'Private' ? 'neutral' : 'aqua'}>
+          {t(`visibility.${menu.visibility}`)}
+        </Badge>
+        <Button
+          variant="primary"
+          size="sm"
+          iconLeft={<CalendarDays size={15} />}
+          onClick={onEdit}
+        >
+          {t('menus.actions.editMenu')}
+        </Button>
+      </div>
+      <div className="seg-menu-grid" aria-label={t('menus.grid.label')}>
+        <div className="seg-menu-grid__row seg-menu-grid__row--head">
+          <span />
+          {menuDayLabels.map((day, index) => (
+            <strong key={day}>
+              {t(`menus.days.${day}`)}
+              <small>{formatDay(menu.week, index)}</small>
+            </strong>
+          ))}
+        </div>
+        {menuSlotLabels.map((slot) => (
+          <div key={slot} className="seg-menu-grid__row">
+            <strong className="seg-menu-grid__slot">
+              {t(`menus.slots.${slot}`)}
+            </strong>
+            {menuDayLabels.map((day) => {
+              const recipes = slots.get(slotKey(day, slot)) ?? []
+              return (
+                <div key={`${day}-${slot}`} className="seg-menu-cell">
+                  {recipes.length === 0 ? (
+                    <span className="seg-menu-cell__empty">
+                      {t('menus.grid.emptySlot')}
+                    </span>
+                  ) : (
+                    recipes.map((recipe) => (
+                      <span key={recipe.recipeId} className="seg-menu-chip">
+                        <span className="seg-menu-chip__thumb">
+                          {recipe.thumbnail.url != null ? (
+                            <img src={recipe.thumbnail.url} alt="" />
+                          ) : (
+                            <UtensilsCrossed size={14} aria-hidden="true" />
+                          )}
+                        </span>
+                        {recipe.recipeName ?? t('menus.grid.unavailableRecipe')}
+                      </span>
+                    ))
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function slotKey(day: MenuDay, slot: MealSlot) {
+  return `${day}:${slot}`
+}
+
+function slotMap(slots: WeeklyMenu['slots']) {
+  const map = new Map<string, WeeklyMenu['slots'][number]['recipes']>()
+  for (const slot of slots) map.set(slotKey(slot.day, slot.slot), slot.recipes)
+  return map
+}
+
+function formatWeekRange(week: string) {
+  const start = parseCivilDate(week)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+  const fmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+  return `${fmt.format(start)} - ${fmt.format(end)}`
+}
+
+function formatDay(week: string, offset: number) {
+  const date = parseCivilDate(week)
+  date.setDate(date.getDate() + offset)
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(
+    date,
+  )
+}
+
+function parseCivilDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+interface MenuDialogProps {
+  mode: 'create' | 'edit'
+  menuId?: number
+  week: string
+  onClose: () => void
+  onSaved: (menu: WeeklyMenu) => void
+  onDeleted: (menu: WeeklyMenu) => void
+}
+
+type SlotDraft = Record<string, RecipeSummary[]>
+
+function MenuDialog({
+  mode,
+  menuId,
+  week,
+  onClose,
+  onSaved,
+  onDeleted,
+}: MenuDialogProps) {
+  const { t } = useTranslation('recipes')
+  const menuQuery = useQuery({
+    queryKey: recipesKeys.menu(menuId as number),
+    queryFn: ({ signal }) => recipesApi.getMenu(menuId as number, signal),
+    enabled: mode === 'edit' && menuId != null,
+  })
+
+  const title = mode === 'create' ? t('menus.editor.createTitle') : t('menus.editor.editTitle')
+
+  if (mode === 'edit' && menuQuery.isPending) {
+    return (
+      <Dialog scrollable width={980} title={title} onClose={onClose} closeLabel={t('menus.editor.cancel')}>
+        <div className="seg-recipes-editor__status">
+          <Spinner />
+          <span>{t('menus.states.loadingMenu')}</span>
+        </div>
+      </Dialog>
+    )
+  }
+
+  if (mode === 'edit' && menuQuery.isError) {
+    return (
+      <Dialog
+        width={520}
+        title={title}
+        onClose={onClose}
+        closeLabel={t('menus.editor.cancel')}
+        footer={<Button onClick={onClose}>{t('menus.editor.cancel')}</Button>}
+      >
+        <p className="seg-recipes-editor__error" role="alert">
+          {t('menus.states.loadMenuError')}
+        </p>
+      </Dialog>
+    )
+  }
+
+  return (
+    <MenuEditorForm
+      mode={mode}
+      menu={mode === 'edit' ? menuQuery.data : undefined}
+      week={mode === 'edit' ? (menuQuery.data?.week ?? week) : week}
+      title={title}
+      onClose={onClose}
+      onSaved={onSaved}
+      onDeleted={onDeleted}
+    />
+  )
+}
+
+function MenuEditorForm({
+  mode,
+  menu,
+  week,
+  title,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  mode: 'create' | 'edit'
+  menu?: WeeklyMenu
+  week: string
+  title: string
+  onClose: () => void
+  onSaved: (menu: WeeklyMenu) => void
+  onDeleted: (menu: WeeklyMenu) => void
+}) {
+  const { t } = useTranslation('recipes')
+  const [name, setName] = useState(menu?.name ?? '')
+  const [visibility, setVisibility] = useState<RecipeVisibility>(
+    menu?.visibility ?? 'Public',
+  )
+  const [slots, setSlots] = useState<SlotDraft>(() => draftFromMenu(menu))
+  const [selecting, setSelecting] = useState<{ day: MenuDay; slot: MealSlot } | null>(
+    null,
+  )
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      mode === 'create'
+        ? recipesApi.createMenu(toMenuRequest(week, name, visibility, slots))
+        : recipesApi.updateMenu(
+            menu?.id as number,
+            toMenuRequest(week, name, visibility, slots),
+          ),
+    onSuccess: onSaved,
+    onError: (error) => setServerError(mapMenuServerError(error, t)),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => recipesApi.deleteMenu(menu?.id as number),
+    onSuccess: () => {
+      if (menu != null) onDeleted(menu)
+    },
+    onError: (error) => {
+      setConfirmingDelete(false)
+      setServerError(mapMenuServerError(error, t))
+    },
+  })
+
+  const addRecipe = (recipe: RecipeSummary) => {
+    if (selecting == null) return
+    const key = slotKey(selecting.day, selecting.slot)
+    setSlots((current) => {
+      const existing = current[key] ?? []
+      if (existing.some((candidate) => candidate.id === recipe.id)) return current
+      return { ...current, [key]: [...existing, recipe] }
+    })
+    setSelecting(null)
+  }
+
+  const removeRecipe = (day: MenuDay, slot: MealSlot, recipeId: number) => {
+    const key = slotKey(day, slot)
+    setSlots((current) => ({
+      ...current,
+      [key]: (current[key] ?? []).filter((recipe) => recipe.id !== recipeId),
+    }))
+  }
+
+  const count = Object.values(slots).reduce((sum, list) => sum + list.length, 0)
+
+  return (
+    <>
+      <Dialog
+        scrollable
+        width={1040}
+        title={title}
+        description={t('menus.editor.description')}
+        onClose={onClose}
+        closeLabel={t('menus.editor.cancel')}
+        footer={
+          <>
+            {mode === 'edit' && (
+              <Button
+                variant="ghost"
+                className="seg-recipes-editor__delete"
+                iconLeft={<Trash2 size={15} />}
+                onClick={() => setConfirmingDelete(true)}
+                disabled={saveMutation.isPending || deleteMutation.isPending}
+              >
+                {t('menus.editor.delete.action')}
+              </Button>
+            )}
+            <span className="seg-menu-editor__count">
+              {t('menus.editor.placed', { count })}
+            </span>
+            <Button variant="ghost" onClick={onClose} disabled={saveMutation.isPending}>
+              {t('menus.editor.cancel')}
+            </Button>
+            <Button
+              disabled={saveMutation.isPending}
+              onClick={() => {
+                setServerError(null)
+                saveMutation.mutate()
+              }}
+            >
+              {saveMutation.isPending
+                ? t('menus.editor.saving')
+                : mode === 'create'
+                  ? t('menus.editor.create')
+                  : t('menus.editor.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="seg-menu-editor">
+          {serverError != null && (
+            <p className="seg-recipes-editor__error" role="alert">
+              {serverError}
+            </p>
+          )}
+          <section className="seg-menu-editor__top">
+            <span className="seg-menu-editor__week">
+              <CalendarDays size={15} aria-hidden="true" />
+              {formatWeekRange(week)}
+            </span>
+            <Input
+              label={t('menus.editor.name')}
+              placeholder={t('menus.editor.namePlaceholder')}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <ToggleField id="recipes-menu-visibility" label={t('editor.fields.visibility')}>
+              <SegmentedControl
+                aria-labelledby="recipes-menu-visibility"
+                name="recipes-menu-visibility"
+                value={visibility}
+                onChange={(event) => setVisibility(event.target.value as RecipeVisibility)}
+                options={visibilities.map((value) => ({
+                  value,
+                  label: t(`visibility.${value}`),
+                  icon: visibilityMeta[value].icon,
+                  tone: visibilityMeta[value].tone,
+                }))}
+              />
+            </ToggleField>
+          </section>
+
+          <section className="seg-menu-editgrid" aria-label={t('menus.editor.gridLabel')}>
+            <div className="seg-menu-editgrid__row seg-menu-editgrid__row--head">
+              <span />
+              {menuDayLabels.map((day) => (
+                <strong key={day}>{t(`menus.days.${day}`)}</strong>
+              ))}
+            </div>
+            {menuSlotLabels.map((slot) => (
+              <div key={slot} className="seg-menu-editgrid__row">
+                <strong>{t(`menus.slots.${slot}`)}</strong>
+                {menuDayLabels.map((day) => {
+                  const key = slotKey(day, slot)
+                  const recipes = slots[key] ?? []
+                  return (
+                    <div key={key} className="seg-menu-editcell">
+                      {recipes.map((recipe) => (
+                        <span key={recipe.id} className="seg-menu-chip">
+                          <span className="seg-menu-chip__thumb">
+                            {recipe.thumbnail.url != null ? (
+                              <img src={recipe.thumbnail.url} alt="" />
+                            ) : (
+                              <UtensilsCrossed size={14} aria-hidden="true" />
+                            )}
+                          </span>
+                          {recipe.name}
+                          <button
+                            type="button"
+                            onClick={() => removeRecipe(day, slot, recipe.id)}
+                            aria-label={t('menus.editor.removeRecipe', {
+                              name: recipe.name,
+                            })}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        iconLeft={<Plus size={13} />}
+                        onClick={() => setSelecting({ day, slot })}
+                      >
+                        {t('menus.editor.addRecipe')}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </section>
+        </div>
+      </Dialog>
+
+      {confirmingDelete && (
+        <Dialog
+          width={460}
+          title={t('menus.editor.delete.title')}
+          description={t('menus.editor.delete.description')}
+          onClose={() => setConfirmingDelete(false)}
+          closeLabel={t('menus.editor.delete.cancel')}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                disabled={deleteMutation.isPending}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                {t('menus.editor.delete.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+              >
+                {deleteMutation.isPending
+                  ? t('menus.editor.delete.deleting')
+                  : t('menus.editor.delete.confirm')}
+              </Button>
+            </>
+          }
+        />
+      )}
+
+      {selecting != null && (
+        <RecipeEntitySelector
+          currentRecipeIds={(slots[slotKey(selecting.day, selecting.slot)] ?? []).map(
+            (recipe) => recipe.id,
+          )}
+          menuVisibility={visibility}
+          slotLabel={`${t(`menus.days.${selecting.day}`)} · ${t(
+            `menus.slots.${selecting.slot}`,
+          )}`}
+          onClose={() => setSelecting(null)}
+          onSelect={addRecipe}
+        />
+      )}
+    </>
+  )
+}
+
+function draftFromMenu(menu: WeeklyMenu | undefined): SlotDraft {
+  const draft: SlotDraft = {}
+  if (menu == null) return draft
+  for (const slot of menu.slots) {
+    draft[slotKey(slot.day, slot.slot)] = slot.recipes.map((recipe) => ({
+      id: recipe.recipeId,
+      name: recipe.recipeName ?? 'Unavailable recipe',
+      categoryId: 0,
+      categoryName: '',
+      difficulty: null,
+      visibility: menu.visibility,
+      thumbnail: recipe.thumbnail,
+      creatorId: menu.createdById,
+      creatorName: menu.createdByName,
+    }))
+  }
+  return draft
+}
+
+function toMenuRequest(
+  week: string,
+  name: string,
+  visibility: RecipeVisibility,
+  slots: SlotDraft,
+) {
+  const slotInputs: WeeklyMenuSlotInput[] = []
+  for (const day of menuDayLabels) {
+    for (const slot of menuSlotLabels) {
+      const recipeIds = (slots[slotKey(day, slot)] ?? []).map((recipe) => recipe.id)
+      if (recipeIds.length > 0) slotInputs.push({ day, slot, recipeIds })
+    }
+  }
+  return {
+    week,
+    name: name.trim() === '' ? null : name.trim(),
+    visibility,
+    slots: slotInputs,
+  }
+}
+
+function recipeReference(recipe: RecipeSummary): EntityReference {
+  return {
+    primary: recipe.name,
+    secondary: recipe.categoryName,
+    icon:
+      recipe.thumbnail.url != null ? (
+        <img src={recipe.thumbnail.url} alt="" />
+      ) : (
+        <UtensilsCrossed size={18} aria-hidden="true" />
+      ),
+  }
+}
+
+function RecipeEntitySelector({
+  currentRecipeIds,
+  menuVisibility,
+  slotLabel,
+  onSelect,
+  onClose,
+}: {
+  currentRecipeIds: number[]
+  menuVisibility: RecipeVisibility
+  slotLabel: string
+  onSelect: (recipe: RecipeSummary) => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation('recipes')
+  const categories = useRecipeCategories()
+
+  const useEntities = (state: EntitySelectorState): EntityQueryResult<RecipeSummary> => {
+    const result = useQuery({
+      queryKey: recipesKeys.recipeList(buildRecipeSelectorQuery(state, menuVisibility)),
+      queryFn: ({ signal }) =>
+        recipesApi.listRecipes(buildRecipeSelectorQuery(state, menuVisibility), signal),
+      placeholderData: keepPreviousData,
+    })
+    return {
+      items: result.data?.items ?? [],
+      total: result.data?.totalCount ?? 0,
+      isLoading: result.isLoading,
+      isFetching: result.isFetching,
+      isError: result.isError,
+      refetch: () => void result.refetch(),
+    }
+  }
+
+  const columns: ReadonlyArray<EntitySelectorColumn<RecipeSummary>> = [
+    {
+      id: 'name',
+      header: t('menus.selector.columns.recipe'),
+      sortField: 'name',
+      width: 'minmax(0, 1.7fr)',
+      render: (recipe) => (
+        <span className="seg-menu-selector-ref">{recipeReference(recipe).icon}<strong>{recipe.name}</strong></span>
+      ),
+    },
+    {
+      id: 'category',
+      header: t('menus.selector.columns.category'),
+      sortField: 'category',
+      render: (recipe) => recipe.categoryName,
+    },
+    {
+      id: 'difficulty',
+      header: t('filters.difficulty'),
+      render: (recipe) =>
+        recipe.difficulty == null ? t('difficulty.none') : t(`difficulty.${recipe.difficulty}`),
+    },
+    {
+      id: 'visibility',
+      header: t('filters.visibility'),
+      render: (recipe) => (
+        <Badge tone={recipe.visibility === 'Private' ? 'neutral' : 'azure'}>
+          {t(`visibility.${recipe.visibility}`)}
+        </Badge>
+      ),
+    },
+  ]
+
+  const filters: EntitySelectorFilter[] = [
+    {
+      id: 'category',
+      label: t('filters.category'),
+      options: [
+        { value: '', label: t('filters.all') },
+        ...(categories.data ?? []).map((category) => ({
+          value: String(category.id),
+          label: category.name,
+        })),
+      ],
+    },
+    {
+      id: 'difficulty',
+      label: t('filters.difficulty'),
+      options: [
+        { value: '', label: t('filters.anyDifficulty') },
+        ...difficulties.map((difficulty) => ({
+          value: difficulty,
+          label: t(`difficulty.${difficulty}`),
+        })),
+      ],
+    },
+  ]
+
+  if (menuVisibility === 'Private') {
+    filters.push({
+      id: 'visibility',
+      label: t('filters.visibility'),
+      options: [
+        { value: '', label: t('filters.allVisibilities') },
+        ...visibilities.map((visibility) => ({
+          value: visibility,
+          label: t(`visibility.${visibility}`),
+        })),
+      ],
+    })
+  }
+
+  const labels: EntitySelectorLabels = {
+    title: t('menus.selector.title'),
+    eyebrow: t('menus.selector.eyebrow'),
+    description: t('menus.selector.description', { slot: slotLabel }),
+    searchLabel: t('menus.selector.searchLabel'),
+    searchPlaceholder: t('menus.selector.searchPlaceholder'),
+    resultCount: (count) => t('menus.selector.count', { count }),
+    pageInfo: (start, end, total) =>
+      t('selector.pageInfo', { start, end, total }),
+    clearAll: t('selector.clearAll'),
+    removeFilter: (label) => t('selector.removeFilter', { label }),
+    selectAction: t('selector.select'),
+    currentTag: t('selector.current'),
+    cancel: t('selector.cancel'),
+    close: t('selector.close'),
+    loading: t('menus.selector.loading'),
+    refetching: t('selector.refetching'),
+    error: t('menus.selector.error'),
+    retry: t('selector.retry'),
+    empty: t('menus.selector.empty'),
+    filteredEmpty: t('menus.selector.emptyFiltered'),
+    clearFilters: t('selector.clearFilters'),
+    previousPage: t('selector.previousPage'),
+    nextPage: t('selector.nextPage'),
+  }
+
+  return (
+    <EntitySelectorDialog
+      useEntities={useEntities}
+      columns={columns}
+      filters={filters}
+      labels={labels}
+      rowId={(recipe) => String(recipe.id)}
+      currentId={currentRecipeIds.length === 1 ? String(currentRecipeIds[0]) : null}
+      onSelect={onSelect}
+      onClose={onClose}
+      defaultSort={{ field: 'name', direction: 'asc' }}
+      pageSize={10}
+      width={1040}
+    />
+  )
+}
+
+function buildRecipeSelectorQuery(
+  state: EntitySelectorState,
+  menuVisibility: RecipeVisibility,
+): RecipeListQuery {
+  return {
+    search: state.search.trim() === '' ? null : state.search.trim(),
+    category: state.filters.category ? Number(state.filters.category) : null,
+    difficulty: state.filters.difficulty
+      ? (state.filters.difficulty as RecipeDifficulty)
+      : null,
+    visibility:
+      menuVisibility === 'Public'
+        ? 'Public'
+        : state.filters.visibility
+          ? (state.filters.visibility as RecipeVisibility)
+          : null,
+    page: state.page,
+    pageSize: state.pageSize,
+    sort: (state.sort?.field ?? 'name') as RecipeSortField,
+    sortDirection: state.sort?.direction ?? 'asc',
+  }
+}
+
+function mapMenuServerError(error: unknown, t: (key: string) => string): string {
+  if (isApiError(error)) {
+    switch (error.problem?.code) {
+      case 'recipes.menu.validation':
+        return t('menus.editor.errors.validation')
+      case 'recipes.menu.visibility_forbidden':
+        return t('menus.editor.errors.visibilityForbidden')
+      case 'recipes.menu.recipe_not_accessible':
+        return t('menus.editor.errors.recipeNotAccessible')
+      case 'recipes.menu.recipe_visibility_forbidden':
+        return t('menus.editor.errors.recipeVisibilityForbidden')
+    }
+    if (error.kind === 'not-found') return t('menus.editor.errors.notFound')
+  }
+  return t('menus.editor.errors.generic')
 }
 
 interface RecipesFiltersProps {

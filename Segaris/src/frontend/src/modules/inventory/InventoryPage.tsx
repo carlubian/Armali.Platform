@@ -126,7 +126,7 @@ function ItemsPanel({ onToast }: PanelProps) {
 
   const handleDeleted = (item: InventoryItem) => {
     invalidateItems()
-    void queryClient.invalidateQueries({ queryKey: recipesKeys.recipes() })
+    void queryClient.invalidateQueries({ queryKey: recipesKeys.all })
     onToast('itemDeleted', item.name)
     close()
   }
