@@ -11,6 +11,7 @@ import { mood } from '@/modules/mood/i18n/resources'
 import { opex } from '@/modules/opex/i18n/resources'
 import { processes } from '@/modules/processes/i18n/resources'
 import { projects } from '@/modules/projects/i18n/resources'
+import { recipes } from '@/modules/recipes/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
 
 import { i18n } from './i18n'
@@ -31,6 +32,7 @@ const namespaces = [
   'opex',
   'processes',
   'projects',
+  'recipes',
   'travel',
 ] as const
 
@@ -111,6 +113,12 @@ describe('platform translations', () => {
   it('registers every projects resource key', () => {
     for (const key of leafKeys(projects)) {
       expect(i18n.exists(key, { ns: 'projects', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every recipes resource key', () => {
+    for (const key of leafKeys(recipes)) {
+      expect(i18n.exists(key, { ns: 'recipes', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

@@ -8,6 +8,7 @@ import {
   Luggage,
   Network,
   Receipt,
+  ScrollText,
   Shirt,
   SlidersHorizontal,
   Smile,
@@ -116,6 +117,15 @@ export function LauncherPage() {
         tone: 'azure',
         attention: requiresAttention('assets'),
         attentionLabel: t('assets:launcher.attention'),
+      },
+      {
+        key: 'recipes',
+        title: t('recipes:launcher.title'),
+        description: t('recipes:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/recipes',
+        icon: ScrollText,
+        tone: 'gold',
       },
       {
         key: 'projects',
