@@ -1,20 +1,21 @@
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Destinations.Contracts;
+using Segaris.Api.Modules.Destinations.Domain;
 using Segaris.Api.Modules.Destinations.Mutations;
 using Segaris.Api.Modules.Destinations.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Api;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Destinations;
 
 /// <summary>
-/// Maps the Destinations HTTP surface. Wave 1 adds the two module-owned category
-/// catalogue reads and administrator management endpoints surfaced through
-/// Configuration; later waves add destination, place, and attachment behaviour.
-/// State-changing routes carry antiforgery protection and never expose EF Core
-/// entities.
+/// Maps the Destinations HTTP surface. Wave 2 exposes destination reads and
+/// mutations alongside the two module-owned category catalogues surfaced through
+/// Configuration; later waves add place and attachment behaviour. State-changing
+/// routes carry antiforgery protection and never expose EF Core entities.
 /// </summary>
 internal static class DestinationsEndpoints
 {
@@ -23,10 +24,48 @@ internal static class DestinationsEndpoints
         var group = endpoints.MapSegarisApiGroup(DestinationsApiRoutes.Destinations, DestinationsApiRoutes.Tag)
             .RequireAuthorization();
 
+        MapDestinationEndpoints(group);
         MapCategoryEndpoints(group);
         MapPlaceCategoryEndpoints(group);
 
         return endpoints;
+    }
+
+    private static void MapDestinationEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("", ListDestinationsAsync)
+            .WithName("ListDestinations")
+            .WithSummary("Returns a paginated, filtered, and sorted destination gallery")
+            .Produces<PaginatedResponse<DestinationSummaryResponse>>();
+
+        group.MapGet(DestinationsApiRoutes.DestinationById, GetDestinationAsync)
+            .WithName("GetDestination")
+            .WithSummary("Returns the detail of an accessible destination")
+            .Produces<DestinationResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("", CreateDestinationAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("CreateDestination")
+            .WithSummary("Creates a destination")
+            .Produces<DestinationResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPut(DestinationsApiRoutes.DestinationById, UpdateDestinationAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("UpdateDestination")
+            .WithSummary("Updates an accessible destination")
+            .Produces<DestinationResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapDelete(DestinationsApiRoutes.DestinationById, DeleteDestinationAsync)
+            .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithName("DeleteDestination")
+            .WithSummary("Deletes an accessible destination and its places")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -154,6 +193,123 @@ internal static class DestinationsEndpoints
 
     private static async Task<IResult> ListPlaceCategoriesAsync(DestinationsCatalogReadService read, CancellationToken token) =>
         TypedResults.Ok(await read.ListPlaceCategoriesAsync(token));
+
+    private static async Task<IResult> ListDestinationsAsync(
+        [AsParameters] DestinationListQuery query,
+        DestinationsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await read.ListDestinationsAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken));
+    }
+
+    private static async Task<IResult> GetDestinationAsync(
+        int destinationId,
+        DestinationsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var destination = await read.GetDestinationAsync(destinationId, userId, cancellationToken);
+        if (destination is null)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        return TypedResults.Ok(destination);
+    }
+
+    private static async Task<IResult> CreateDestinationAsync(
+        CreateDestinationRequest request,
+        DestinationWriteService write,
+        DestinationsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int destinationId;
+        try
+        {
+            destinationId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (DestinationsValidationException exception)
+        {
+            throw DestinationProblem.From(exception);
+        }
+
+        var destination = await read.GetDestinationAsync(destinationId, userId, cancellationToken);
+        return TypedResults.Created($"/api/destinations/{destinationId}", destination);
+    }
+
+    private static async Task<IResult> UpdateDestinationAsync(
+        int destinationId,
+        UpdateDestinationRequest request,
+        DestinationWriteService write,
+        DestinationsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(destinationId, request, userId, cancellationToken);
+        }
+        catch (DestinationsValidationException exception)
+        {
+            throw DestinationProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        var destination = await read.GetDestinationAsync(destinationId, userId, cancellationToken);
+        return TypedResults.Ok(destination);
+    }
+
+    private static async Task<IResult> DeleteDestinationAsync(
+        int destinationId,
+        DestinationWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(destinationId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw DestinationProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static async Task<IResult> CreateCategoryAsync(
         DestinationCategoryRequest request, DestinationCategoryManagementService service, ICurrentUser user, CancellationToken token)

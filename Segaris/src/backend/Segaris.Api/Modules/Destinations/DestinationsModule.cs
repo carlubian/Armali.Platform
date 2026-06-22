@@ -8,13 +8,11 @@ using Segaris.Persistence;
 namespace Segaris.Api.Modules.Destinations;
 
 /// <summary>
-/// Business module for visited destinations and destination-scoped places. Wave 0
-/// registered the module and froze its public contracts; Wave 1 adds the persistence
-/// model, the one-time category initialization, and the two module-owned category
-/// catalogue read and administrator management endpoints surfaced through
-/// Configuration; later waves add destination, place, and attachment operations, the
-/// Travel destination reference, and the frontend surfaces. The module registers no
-/// launcher attention contributor: its launcher card never requests attention.
+/// Business module for visited destinations and destination-scoped places. Wave 2
+/// adds the destination read and mutation APIs on top of the persisted model and
+/// category catalogues; later waves add place APIs, attachment operations, the Travel
+/// destination reference, and the frontend surfaces. The module registers no launcher
+/// attention contributor: its launcher card never requests attention.
 /// </summary>
 internal sealed class DestinationsModule : ISegarisModule
 {
@@ -25,6 +23,8 @@ internal sealed class DestinationsModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, DestinationsModelContributor>();
         services.AddScoped<DestinationsSeeder>();
         services.AddScoped<DestinationsCatalogReadService>();
+        services.AddScoped<DestinationsReadService>();
+        services.AddScoped<DestinationWriteService>();
         services.AddScoped<DestinationCategoryManagementService>();
         services.AddScoped<PlaceCategoryManagementService>();
     }
