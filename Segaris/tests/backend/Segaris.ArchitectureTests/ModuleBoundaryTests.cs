@@ -28,6 +28,8 @@ public sealed class ModuleBoundaryTests
     private const string ProcessesNamespace = "Segaris.Api.Modules.Processes";
     private const string FirebirdNamespace = "Segaris.Api.Modules.Firebird";
     private const string RecipesNamespace = "Segaris.Api.Modules.Recipes";
+    private const string DestinationsNamespace = "Segaris.Api.Modules.Destinations";
+    private const string DestinationsContractsNamespace = "Segaris.Api.Modules.Destinations.Contracts";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -50,6 +52,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(ProcessesNamespace));
         Assert.NotEmpty(TypesIn(FirebirdNamespace));
         Assert.NotEmpty(TypesIn(RecipesNamespace));
+        Assert.NotEmpty(TypesIn(DestinationsNamespace));
     }
 
     [Fact]
@@ -154,6 +157,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(TravelNamespace, AssetsNamespace);
         AssertNoDependency(TravelNamespace, MoodNamespace);
         AssertNoDependency(TravelNamespace, MaintenanceNamespace);
+        AssertNoDependency(TravelNamespace, RecipesNamespace);
     }
 
     [Fact]
@@ -296,6 +300,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, ProcessesNamespace);
         AssertNoDependency(LauncherNamespace, FirebirdNamespace);
         AssertNoDependency(LauncherNamespace, RecipesNamespace);
+        AssertNoDependency(LauncherNamespace, DestinationsNamespace);
     }
 
     [Fact]
@@ -598,6 +603,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(RecipesNamespace, ProjectsNamespace);
         AssertNoDependency(RecipesNamespace, ProcessesNamespace);
         AssertNoDependency(RecipesNamespace, FirebirdNamespace);
+        AssertNoDependency(RecipesNamespace, DestinationsNamespace);
     }
 
     [Fact]
@@ -678,6 +684,119 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(ProjectsNamespace, RecipesNamespace);
         AssertNoDependency(ProcessesNamespace, RecipesNamespace);
         AssertNoDependency(FirebirdNamespace, RecipesNamespace);
+        AssertNoDependency(DestinationsNamespace, RecipesNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_destinations()
+    {
+        AssertNoDependency(ConfigurationNamespace, DestinationsNamespace);
+    }
+
+    [Fact]
+    public void Destinations_depends_on_configuration_contracts()
+    {
+        // Destinations owns DestinationCategory and PlaceCategory catalogues surfaced
+        // through the Configuration presentation boundary, so it consumes
+        // Configuration's published contracts. Its absence would mean the
+        // catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(DestinationsNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Destinations must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Destinations_does_not_depend_on_other_business_modules()
+    {
+        // Destinations is an independent business module that publishes the
+        // destination reference seam consumed by Travel. It may consume
+        // Configuration and platform contracts, but it must not depend on any other
+        // business module and contributes no launcher attention.
+        AssertNoDependency(DestinationsNamespace, CapexNamespace);
+        AssertNoDependency(DestinationsNamespace, OpexNamespace);
+        AssertNoDependency(DestinationsNamespace, InventoryNamespace);
+        AssertNoDependency(DestinationsNamespace, TravelNamespace);
+        AssertNoDependency(DestinationsNamespace, ClothesNamespace);
+        AssertNoDependency(DestinationsNamespace, AssetsNamespace);
+        AssertNoDependency(DestinationsNamespace, MoodNamespace);
+        AssertNoDependency(DestinationsNamespace, MaintenanceNamespace);
+        AssertNoDependency(DestinationsNamespace, ProjectsNamespace);
+        AssertNoDependency(DestinationsNamespace, ProcessesNamespace);
+        AssertNoDependency(DestinationsNamespace, FirebirdNamespace);
+        AssertNoDependency(DestinationsNamespace, RecipesNamespace);
+    }
+
+    [Fact]
+    public void Destinations_does_not_depend_on_launcher()
+    {
+        // Destinations contributes no launcher attention, so it must not reference the
+        // Launcher namespace at all.
+        AssertNoDependency(DestinationsNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Travel_may_only_consume_destinations_through_published_contracts()
+    {
+        // The Travel -> Destinations seam is policed like the other business-to-business
+        // dependencies: Travel may reference only Destinations.Contracts and never
+        // Destinations domain, persistence, queries, or mutations.
+        var violations = TypesIn(TravelNamespace)
+            .SelectMany(type => ReferencedTypes(type)
+                .Where(referenced => IsInNamespace(referenced, DestinationsNamespace)
+                    && !IsInNamespace(referenced, DestinationsContractsNamespace))
+                .Select(referenced => $"{type.FullName} -> {referenced.FullName}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            violations.Length == 0,
+            "Travel may consume Destinations only through 'Destinations.Contracts':"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, violations));
+    }
+
+    [Fact]
+    public void Destinations_publishes_the_cross_module_reference_contracts()
+    {
+        // The read contract and deletion-reference contract are the cross-module
+        // seam. Keeping them in the Destinations namespace is what preserves the
+        // Travel -> Destinations direction when Travel consumes and implements them.
+        var reader = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Destinations.Contracts.IDestinationReferenceReader",
+            throwOnError: false);
+        var deletionHandler = ApiAssembly.GetType(
+            "Segaris.Api.Modules.Destinations.Contracts.IDestinationDeletionReferenceHandler",
+            throwOnError: false);
+
+        Assert.NotNull(reader);
+        Assert.NotNull(deletionHandler);
+        Assert.True(IsInNamespace(reader!, DestinationsContractsNamespace));
+        Assert.True(IsInNamespace(deletionHandler!, DestinationsContractsNamespace));
+    }
+
+    [Fact]
+    public void Only_travel_may_depend_on_destinations()
+    {
+        // Destinations publishes a cross-module reference seam only for Travel. Other
+        // modules, including Configuration and Launcher, may not reference
+        // Destinations directly.
+        AssertNoDependency(ConfigurationNamespace, DestinationsNamespace);
+        AssertNoDependency(LauncherNamespace, DestinationsNamespace);
+        AssertNoDependency(CapexNamespace, DestinationsNamespace);
+        AssertNoDependency(OpexNamespace, DestinationsNamespace);
+        AssertNoDependency(InventoryNamespace, DestinationsNamespace);
+        AssertNoDependency(ClothesNamespace, DestinationsNamespace);
+        AssertNoDependency(AssetsNamespace, DestinationsNamespace);
+        AssertNoDependency(MoodNamespace, DestinationsNamespace);
+        AssertNoDependency(MaintenanceNamespace, DestinationsNamespace);
+        AssertNoDependency(ProjectsNamespace, DestinationsNamespace);
+        AssertNoDependency(ProcessesNamespace, DestinationsNamespace);
+        AssertNoDependency(FirebirdNamespace, DestinationsNamespace);
+        AssertNoDependency(RecipesNamespace, DestinationsNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
