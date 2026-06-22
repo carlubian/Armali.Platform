@@ -291,6 +291,20 @@ Module purpose: Record moods or emotions for long term trend analysis.
 | Resolved | Implementation plan | Delivery is divided into Waves 0-6 in `docs/planning/MOOD_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Implementation and acceptance | Deliver the plan and map every requirement acceptance criterion to covering code and tests. |
 
+### Recipes
+
+Module purpose: Manage food recipes and weekly menus composed of recipes.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| Resolved | Entities and properties | A `Recipe` carries a required name, a required `RecipeCategory`, an optional fixed `Easy`/`Medium`/`Hard` difficulty, optional servings and preparation/cook times, an ordered ingredient list, an ordered step list, notes, attachments with an optional primary image, and Public/Private visibility, with no lifecycle status. Each `RecipeIngredient` has a required free-text name, an optional free-text quantity (units written inline, not modelled), and an optional live link to one Inventory item; each `RecipeStep` is an ordered free-text instruction. See `docs/requirements/RECIPES_REQUIREMENTS.md`. |
+| Resolved | Weekly menus | A `WeeklyMenu` is pinned to one Monday-anchored ISO week with an optional name and Public/Private visibility, is created explicitly, allows multiple menus per week, and exposes a fixed grid of seven days by four fixed slots (`Breakfast`/`Lunch`/`Snack`/`Dinner`) where each slot holds zero or more live recipe references and no free text. |
+| Resolved | Ingredient-to-Inventory reference | A recipe ingredient optionally references one Inventory item, the second cross-business-module reference after Maintenance→Assets, under the same visibility rule (a public recipe references only public items; a private recipe references any accessible item). Deleting a referenced item clears the link on every affected ingredient (the line survives as free text), never blocks, and is implemented by contract inversion so Inventory never depends on Recipes. The menu→recipe link is intra-module: deleting a recipe removes it from every slot. |
+| Resolved | Catalogue | Recipes owns `RecipeCategory` (required, replace-only) through Configuration, seeded once with the established module-owned catalogue pattern. Difficulty and the meal-slot set are fixed enums, not configurable. |
+| Resolved | User workflow | Recipes opens on a server-paginated thumbnail gallery with search, category/difficulty filters, name/category sorting, and a URL-aware recipe editor (ordered ingredient/step editors and the shared entity selector for the item link). A separate menu-planner surface shows a Monday-anchored weekly grid with week navigation and the shared entity selector for slot recipes. The launcher card never requests attention. See `docs/requirements/RECIPES_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-9 in `docs/planning/RECIPES_IMPLEMENTATION_PLAN.md`. |
+| Deferred | Future Recipes scope | Shopping-list generation, stock consumption when cooking, serving-driven quantity scaling, nutrition data, ratings/favourites, cooking history, recipe import, an ingredient unit catalogue, arbitrary-range or attachment-bearing menus, menu-level launcher attention, and Analytics/Calendar integration remain future versions. See `docs/requirements/RECIPES_REQUIREMENTS.md`. |
+
 ### Analytics
 
 Module purpose: Module to see aggregated trends of the financial modules.
