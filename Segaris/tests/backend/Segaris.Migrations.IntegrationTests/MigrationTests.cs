@@ -151,8 +151,8 @@ public sealed class MigrationTests
     [Fact]
     public void Recipes_domain_persistence_is_the_current_tail()
     {
-        // The Recipes Wave 1 model is the current tail and migrates from the Firebird
-        // model that preceded it.
+        // Recipes Wave 6 primary attachments are the current tail and migrate from the
+        // Recipes domain model that preceded them.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -164,8 +164,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("RecipesDomainPersistence", migrations[^1]);
-            Assert.Equal("FirebirdDomainPersistence", migrations[^2]);
+            Assert.Equal("RecipesPrimaryAttachment", migrations[^1]);
+            Assert.Equal("RecipesDomainPersistence", migrations[^2]);
         }
     }
 

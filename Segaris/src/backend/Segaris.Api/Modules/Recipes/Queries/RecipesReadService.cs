@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory.Contracts;
@@ -5,6 +6,7 @@ using Segaris.Api.Modules.Recipes.Contracts;
 using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 
@@ -14,7 +16,10 @@ namespace Segaris.Api.Modules.Recipes.Queries;
 /// Read-side queries for Recipes. Every recipe query filters to accessible records
 /// before projection, pagination, or detail lookup.
 /// </summary>
-internal sealed class RecipesReadService(SegarisDbContext database, IInventoryItemReferenceReader itemReferences)
+internal sealed class RecipesReadService(
+    SegarisDbContext database,
+    IInventoryItemReferenceReader itemReferences,
+    IAttachmentService attachments)
 {
     public async Task<IReadOnlyList<RecipeCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
@@ -50,25 +55,65 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
                     .Where(category => category.Id == recipe.CategoryId).Select(category => category.Name).First(),
                 recipe.Difficulty,
                 recipe.Visibility,
+                recipe.PrimaryAttachmentId,
                 recipe.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == recipe.CreatedBy).Select(user => user.DisplayName).First()))
-            .ToArrayAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
-        var page = rows
-            .Select(row => new RecipeSummaryResponse(
+        var page = new RecipeSummaryResponse[rows.Count];
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            var descriptors = await attachments.ListByOwnerAsync(
+                RecipesAttachments.RecipeOwner(row.Id),
+                cancellationToken);
+            page[index] = new RecipeSummaryResponse(
                 row.Id,
                 row.Name,
                 row.CategoryId,
                 row.CategoryName,
                 row.Difficulty?.ToString(),
                 row.Visibility.ToString(),
-                PlaceholderThumbnail(),
+                RecipeThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
                 row.CreatorId,
-                row.CreatorName))
-            .ToArray();
+                row.CreatorName);
+        }
 
         return PaginatedResponse<RecipeSummaryResponse>.Create(page, pagination, totalCount);
+    }
+
+    public Task<bool> RecipeAccessibleAsync(
+        int recipeId,
+        UserId userId,
+        CancellationToken cancellationToken) =>
+        database.Set<Recipe>()
+            .AsNoTracking()
+            .Where(RecipePolicies.AccessibleTo(userId))
+            .AnyAsync(recipe => recipe.Id == recipeId, cancellationToken);
+
+    public async Task<IReadOnlyList<RecipeAttachmentResponse>?> ListRecipeAttachmentsAsync(
+        int recipeId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var recipe = await database.Set<Recipe>()
+            .AsNoTracking()
+            .Where(RecipePolicies.AccessibleTo(userId))
+            .Where(candidate => candidate.Id == recipeId)
+            .Select(candidate => new { candidate.PrimaryAttachmentId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (recipe is null)
+        {
+            return null;
+        }
+
+        var descriptors = await attachments.ListByOwnerAsync(
+            RecipesAttachments.RecipeOwner(recipeId),
+            cancellationToken);
+        return descriptors
+            .Select(descriptor => ToAttachmentResponse(descriptor, recipe.PrimaryAttachmentId))
+            .ToArray();
     }
 
     public async Task<RecipeResponse?> GetRecipeAsync(
@@ -92,6 +137,7 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
                 recipe.CookMinutes,
                 recipe.Notes,
                 recipe.Visibility,
+                recipe.PrimaryAttachmentId,
                 recipe.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == recipe.CreatedBy).Select(user => user.DisplayName).First(),
@@ -147,6 +193,9 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
             .Select(step => new RecipeStepResponse(step.Id, step.Instruction, step.Position))
             .ToArrayAsync(cancellationToken);
 
+        var descriptors = await attachments.ListByOwnerAsync(
+            RecipesAttachments.RecipeOwner(row.Id),
+            cancellationToken);
         return new RecipeResponse(
             row.Id,
             row.Name,
@@ -160,8 +209,8 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
             steps,
             row.Notes,
             row.Visibility.ToString(),
-            PlaceholderThumbnail(),
-            Attachments: [],
+            RecipeThumbnailResolver.Resolve(row.Id, row.PrimaryAttachmentId, descriptors),
+            descriptors.Select(descriptor => ToAttachmentResponse(descriptor, row.PrimaryAttachmentId)).ToArray(),
             row.CreatedById,
             row.CreatedByName,
             row.CreatedAt,
@@ -217,7 +266,16 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
         return ascending ? ordered.ThenBy(recipe => recipe.Id) : ordered.ThenByDescending(recipe => recipe.Id);
     }
 
-    private static RecipeThumbnailResponse PlaceholderThumbnail() => new(null, null, "placeholder");
+    private static RecipeAttachmentResponse ToAttachmentResponse(
+        AttachmentDescriptor descriptor,
+        int? primaryAttachmentId) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        descriptor.Id.Value == primaryAttachmentId);
 
     private static string Escape(string value) => value
         .Replace("\\", "\\\\", StringComparison.Ordinal)
@@ -231,6 +289,7 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
         string CategoryName,
         RecipeDifficulty? Difficulty,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatorId,
         string CreatorName);
 
@@ -252,6 +311,7 @@ internal sealed class RecipesReadService(SegarisDbContext database, IInventoryIt
         int? CookMinutes,
         string? Notes,
         RecordVisibility Visibility,
+        int? PrimaryAttachmentId,
         int CreatedById,
         string CreatedByName,
         DateTimeOffset CreatedAt,

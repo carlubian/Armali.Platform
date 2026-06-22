@@ -66,6 +66,7 @@ internal sealed class Recipe
     public int? CookMinutes { get; private set; }
     public string? Notes { get; private set; }
     public RecordVisibility Visibility { get; private set; }
+    public int? PrimaryAttachmentId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public int CreatedBy { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -90,6 +91,25 @@ internal sealed class Recipe
     public void Update(RecipeValues values, UserId actorId, DateTimeOffset now)
     {
         Apply(values, actorId, now);
+    }
+
+    internal void SetPrimaryAttachment(int? attachmentId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        PrimaryAttachmentId = attachmentId;
+        StampModification(actorId, now);
+    }
+
+    internal void ClearPrimaryAttachmentIf(int attachmentId, UserId actorId, DateTimeOffset now)
+    {
+        if (PrimaryAttachmentId != attachmentId)
+        {
+            return;
+        }
+
+        EnsureUtc(now);
+        PrimaryAttachmentId = null;
+        StampModification(actorId, now);
     }
 
     /// <summary>

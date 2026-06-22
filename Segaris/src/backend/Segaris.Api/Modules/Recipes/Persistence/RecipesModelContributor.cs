@@ -53,6 +53,7 @@ internal sealed class RecipesModelContributor : ISegarisModelContributor
                 .HasMaxLength(RecipesDefaults.NotesMaximumLength);
             builder.Property(recipe => recipe.Visibility)
                 .HasConversion<string>().HasMaxLength(10).IsRequired();
+            builder.Property(recipe => recipe.PrimaryAttachmentId);
             builder.Property(recipe => recipe.CreatedAt).IsRequired();
             builder.Property(recipe => recipe.UpdatedAt).IsRequired();
             builder.ToTable(table =>

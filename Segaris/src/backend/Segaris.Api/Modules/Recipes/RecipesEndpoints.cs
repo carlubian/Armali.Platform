@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Api.Modules.Recipes.Mutations;
 using Segaris.Api.Modules.Recipes.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Recipes;
@@ -56,17 +59,36 @@ internal static class RecipesEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapGet(RecipesApiRoutes.RecipeAttachments, NotImplemented).WithName("ListRecipeAttachments");
-        group.MapPost(RecipesApiRoutes.RecipeAttachments, NotImplemented)
+        group.MapGet(RecipesApiRoutes.RecipeAttachments, ListRecipeAttachmentsAsync)
+            .WithName("ListRecipeAttachments")
+            .WithSummary("Lists the attachments of an accessible recipe")
+            .Produces<IReadOnlyList<RecipeAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(RecipesApiRoutes.RecipeAttachments, UploadRecipeAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("UploadRecipeAttachment");
-        group.MapGet(RecipesApiRoutes.RecipeAttachmentById, NotImplemented).WithName("DownloadRecipeAttachment");
-        group.MapDelete(RecipesApiRoutes.RecipeAttachmentById, NotImplemented)
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
+            .WithName("UploadRecipeAttachment")
+            .WithSummary("Uploads one attachment for an accessible recipe")
+            .Produces<RecipeAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(RecipesApiRoutes.RecipeAttachmentById, DownloadRecipeAttachmentAsync)
+            .WithName("DownloadRecipeAttachment")
+            .WithSummary("Downloads one attachment of an accessible recipe")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(RecipesApiRoutes.RecipeAttachmentById, DeleteRecipeAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("DeleteRecipeAttachment");
-        group.MapPut(RecipesApiRoutes.RecipePrimaryAttachment, NotImplemented)
+            .WithName("DeleteRecipeAttachment")
+            .WithSummary("Removes one attachment of an accessible recipe, clearing primary when needed")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(RecipesApiRoutes.RecipePrimaryAttachment, SetRecipePrimaryAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
-            .WithName("SetRecipePrimaryAttachment");
+            .WithName("SetRecipePrimaryAttachment")
+            .WithSummary("Marks one image attachment as the recipe's primary image")
+            .Produces<RecipeAttachmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         var menus = group.MapGroup("/menus");
         menus.MapGet("", ListWeeklyMenusAsync)
@@ -278,6 +300,163 @@ internal static class RecipesEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<IResult> ListRecipeAttachmentsAsync(
+        int recipeId,
+        RecipesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var attachments = await read.ListRecipeAttachmentsAsync(recipeId, userId, cancellationToken);
+        if (attachments is null)
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        return TypedResults.Ok(attachments);
+    }
+
+    private static async Task<IResult> UploadRecipeAttachmentAsync(
+        int recipeId,
+        HttpRequest request,
+        RecipesReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.RecipeAccessibleAsync(recipeId, userId, cancellationToken))
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw RecipesRecipeProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw RecipesRecipeProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(RecipesAttachments.RecipeOwner(recipeId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw RecipesRecipeProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/recipes/{recipeId}/attachments/{created.Id.Value}",
+            ToAttachment(created, isPrimary: false));
+    }
+
+    private static async Task<IResult> DownloadRecipeAttachmentAsync(
+        int recipeId,
+        int attachmentId,
+        RecipesReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.RecipeAccessibleAsync(recipeId, userId, cancellationToken))
+        {
+            throw RecipesRecipeProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            RecipesAttachments.RecipeOwner(recipeId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw RecipesRecipeProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteRecipeAttachmentAsync(
+        int recipeId,
+        int attachmentId,
+        RecipesRecipeWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var outcome = await write.DeleteAttachmentAsync(recipeId, attachmentId, userId, cancellationToken);
+        return outcome switch
+        {
+            RecipeDeleteAttachmentOutcome.RecipeNotFound => throw RecipesRecipeProblem.NotFound(),
+            RecipeDeleteAttachmentOutcome.AttachmentNotFound => throw RecipesRecipeProblem.AttachmentNotFound(),
+            _ => TypedResults.NoContent(),
+        };
+    }
+
+    private static async Task<IResult> SetRecipePrimaryAttachmentAsync(
+        int recipeId,
+        int attachmentId,
+        RecipesRecipeWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await write.SetPrimaryAttachmentAsync(recipeId, attachmentId, userId, cancellationToken);
+        return result.Outcome switch
+        {
+            RecipeSetPrimaryOutcome.RecipeNotFound => throw RecipesRecipeProblem.NotFound(),
+            RecipeSetPrimaryOutcome.AttachmentNotFound => throw RecipesRecipeProblem.AttachmentNotFound(),
+            RecipeSetPrimaryOutcome.NotImage => throw RecipesRecipeProblem.PrimaryNotImage(),
+            _ => TypedResults.Ok(ToAttachment(result.Descriptor!, isPrimary: true)),
+        };
+    }
+
+    private static RecipeAttachmentResponse ToAttachment(AttachmentDescriptor descriptor, bool isPrimary) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        isPrimary);
+
     private static async Task<IResult> ListWeeklyMenusAsync(
         [AsParameters] WeeklyMenuListQuery query,
         WeeklyMenusReadService read,
@@ -438,6 +617,4 @@ internal static class RecipesEndpoints
         return TypedResults.NoContent();
     }
 
-    private static IResult NotImplemented() =>
-        Results.StatusCode(StatusCodes.Status501NotImplemented);
 }

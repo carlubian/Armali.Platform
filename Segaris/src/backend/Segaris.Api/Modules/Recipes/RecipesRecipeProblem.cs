@@ -15,6 +15,28 @@ internal static class RecipesRecipeProblem
         RecipesErrorCodes.RecipeNotFound,
         "The requested recipe was not found.");
 
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        RecipesErrorCodes.AttachmentNotFound,
+        "The requested recipe attachment was not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        RecipesErrorCodes.AttachmentInvalid,
+        "The attachment is invalid.",
+        errors: errors ?? new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            [field] = [message],
+        });
+
+    public static ApiProblemException PrimaryNotImage() => new(
+        StatusCodes.Status400BadRequest,
+        RecipesErrorCodes.AttachmentPrimaryInvalid,
+        "Only image attachments can be marked as the primary image.");
+
     public static ApiProblemException From(RecipesValidationException exception)
     {
         ArgumentNullException.ThrowIfNull(exception);

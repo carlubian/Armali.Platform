@@ -2344,6 +2344,9 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.Property<int?>("PreparationMinutes")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("PrimaryAttachmentId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("Servings")
                         .HasColumnType("INTEGER");
 

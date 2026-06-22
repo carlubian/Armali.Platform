@@ -3,6 +3,7 @@ using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Recipes.Contracts;
 using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -17,6 +18,7 @@ namespace Segaris.Api.Modules.Recipes.Mutations;
 internal sealed class RecipesRecipeWriteService(
     SegarisDbContext database,
     IInventoryItemReferenceReader itemReferences,
+    IAttachmentService attachments,
     IClock clock)
 {
     public async Task<int> CreateAsync(
@@ -90,6 +92,7 @@ internal sealed class RecipesRecipeWriteService(
         UserId actorId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var recipe = await database.Set<Recipe>()
             .Where(RecipePolicies.MutableBy(actorId))
             .Where(candidate => candidate.Id == recipeId)
@@ -105,7 +108,68 @@ internal sealed class RecipesRecipeWriteService(
         database.RemoveRange(slots);
         database.Remove(recipe);
         await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        await DeleteAttachmentFilesAsync(recipeId, cancellationToken);
         return true;
+    }
+
+    public async Task<RecipeSetPrimaryResult> SetPrimaryAttachmentAsync(
+        int recipeId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var recipe = await database.Set<Recipe>()
+            .Where(RecipePolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == recipeId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (recipe is null)
+        {
+            return new(RecipeSetPrimaryOutcome.RecipeNotFound, null);
+        }
+
+        var owner = RecipesAttachments.RecipeOwner(recipeId);
+        var descriptor = await attachments.FindAsync(new(attachmentId), owner, cancellationToken);
+        if (descriptor is null)
+        {
+            return new(RecipeSetPrimaryOutcome.AttachmentNotFound, null);
+        }
+
+        if (!RecipesAttachments.IsImageContentType(descriptor.ContentType))
+        {
+            return new(RecipeSetPrimaryOutcome.NotImage, null);
+        }
+
+        recipe.SetPrimaryAttachment(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return new(RecipeSetPrimaryOutcome.Assigned, descriptor);
+    }
+
+    public async Task<RecipeDeleteAttachmentOutcome> DeleteAttachmentAsync(
+        int recipeId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var recipe = await database.Set<Recipe>()
+            .Where(RecipePolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == recipeId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (recipe is null)
+        {
+            return RecipeDeleteAttachmentOutcome.RecipeNotFound;
+        }
+
+        var owner = RecipesAttachments.RecipeOwner(recipeId);
+        var removed = await attachments.DeleteAsync(new(attachmentId), owner, cancellationToken);
+        if (!removed)
+        {
+            return RecipeDeleteAttachmentOutcome.AttachmentNotFound;
+        }
+
+        recipe.ClearPrimaryAttachmentIf(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return RecipeDeleteAttachmentOutcome.Deleted;
     }
 
     private async Task ValidateReferencesAsync(
@@ -147,6 +211,16 @@ internal sealed class RecipesRecipeWriteService(
             throw new RecipesValidationException(
                 "A public recipe may reference only public Inventory items.",
                 RecipesValidationReason.IngredientItemVisibilityForbidden);
+        }
+    }
+
+    private async Task DeleteAttachmentFilesAsync(int recipeId, CancellationToken cancellationToken)
+    {
+        var owner = RecipesAttachments.RecipeOwner(recipeId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
         }
     }
 
