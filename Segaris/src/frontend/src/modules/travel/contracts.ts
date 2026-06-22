@@ -37,6 +37,7 @@ const optionalText = (max: number) =>
 
 const requiredText = (max: number) => z.string().trim().min(1).max(max)
 const moneySchema = z.number().nonnegative().multipleOf(0.01)
+const optionalReference = z.number().int().positive().nullable()
 
 export const travelItineraryEntryRequestSchema = z.object({
   date: z.iso.date(),
@@ -51,7 +52,7 @@ export const travelTripRequestSchema = z
   .object({
     name: requiredText(200),
     tripTypeId: z.number().int().positive(),
-    destination: optionalText(200),
+    destinationId: optionalReference,
     startDate: z.iso.date(),
     endDate: z.iso.date(),
     status: z.enum(['Planned', 'Ongoing', 'Completed', 'Cancelled']),

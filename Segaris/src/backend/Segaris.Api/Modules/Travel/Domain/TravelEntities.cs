@@ -47,7 +47,7 @@ internal sealed record TravelItineraryEntryValues(
 internal sealed record TravelTripValues(
     string Name,
     int TripTypeId,
-    string? Destination,
+    int? DestinationId,
     DateOnly StartDate,
     DateOnly EndDate,
     TravelTripStatus Status,
@@ -59,7 +59,7 @@ internal sealed record TravelTripValues(
 /// A household trip. The trip is the only top-level Travel entity: it owns a light,
 /// embedded itinerary through full-collection replacement and is the privacy and
 /// authorization root for its itinerary and its expenses. It stores its type,
-/// destination, civil start and end dates, manual status, visibility, and notes.
+/// optional destination reference, civil start and end dates, manual status, visibility, and notes.
 /// There is no normalized trip total; per-currency totals are computed from the
 /// expenses at read time.
 /// </summary>
@@ -74,7 +74,7 @@ internal sealed class TravelTrip
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public int TripTypeId { get; private set; }
-    public string? Destination { get; private set; }
+    public int? DestinationId { get; private set; }
     public DateOnly StartDate { get; private set; }
     public DateOnly EndDate { get; private set; }
     public TravelTripStatus Status { get; private set; }
@@ -121,12 +121,23 @@ internal sealed class TravelTrip
         StampModification(actorId, now);
     }
 
+    internal void ClearDestinationReference(int destinationId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (DestinationId != destinationId)
+        {
+            return;
+        }
+
+        DestinationId = null;
+        StampModification(actorId, now);
+    }
+
     private void Apply(TravelTripValues values)
     {
         ArgumentNullException.ThrowIfNull(values);
 
         var name = TravelValidation.ValidateTripName(values.Name);
-        var destination = TravelValidation.ValidateDestination(values.Destination);
         var notes = TravelValidation.ValidateTripNotes(values.Notes);
         if (!Enum.IsDefined(values.Status) || !Enum.IsDefined(values.Visibility))
         {
@@ -136,6 +147,11 @@ internal sealed class TravelTrip
         if (values.TripTypeId <= 0)
         {
             throw new TravelValidationException("Catalog identifiers must be positive.");
+        }
+
+        if (values.DestinationId is <= 0)
+        {
+            throw new TravelValidationException("Destination identifiers must be positive.");
         }
 
         if (values.EndDate < values.StartDate)
@@ -149,7 +165,7 @@ internal sealed class TravelTrip
 
         Name = name;
         TripTypeId = values.TripTypeId;
-        Destination = destination;
+        DestinationId = values.DestinationId;
         StartDate = values.StartDate;
         EndDate = values.EndDate;
         Status = values.Status;

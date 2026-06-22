@@ -60,7 +60,9 @@ export interface TravelTripSummary {
   name: string
   tripTypeId: number
   tripTypeName: string
-  destination: string | null
+  destinationId: number | null
+  destinationName: string | null
+  destinationCountry: string | null
   startDate: string
   endDate: string
   status: TravelTripStatus
@@ -91,7 +93,9 @@ export interface TravelTrip {
   name: string
   tripTypeId: number
   tripTypeName: string
-  destination: string | null
+  destinationId: number | null
+  destinationName: string | null
+  destinationCountry: string | null
   startDate: string
   endDate: string
   status: TravelTripStatus
@@ -170,7 +174,7 @@ export interface TravelItineraryEntryRequest {
 export interface CreateTravelTripRequest {
   name: string
   tripTypeId: number
-  destination: string | null
+  destinationId: number | null
   startDate: string
   endDate: string
   status: TravelTripStatus

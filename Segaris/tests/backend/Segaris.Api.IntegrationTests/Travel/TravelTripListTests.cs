@@ -80,19 +80,18 @@ public sealed class TravelTripListTests
     }
 
     [Fact]
-    public async Task Search_matches_name_destination_and_notes()
+    public async Task Search_matches_name_and_notes()
     {
         using var server = new CapexTestServer();
         using var client = await server.CreateAuthenticatedClientAsync();
         var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
         await TravelTestData.SeedTripAsync(server.Services, founderId, name: "Lisbon getaway");
-        await TravelTestData.SeedTripAsync(server.Services, founderId, name: "Plain", destination: "Lisbon");
         await TravelTestData.SeedTripAsync(server.Services, founderId, name: "Conference", notes: "Train through Lisbon");
-        await TravelTestData.SeedTripAsync(server.Services, founderId, name: "Unrelated", destination: "Paris");
+        await TravelTestData.SeedTripAsync(server.Services, founderId, name: "Unrelated");
 
         var page = await GetPageAsync(client, "/api/travel/trips?search=LISBON");
 
-        Assert.Equal(3, page.TotalCount);
+        Assert.Equal(2, page.TotalCount);
         Assert.DoesNotContain(page.Items, trip => trip.Name == "Unrelated");
     }
 

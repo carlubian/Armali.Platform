@@ -14,6 +14,9 @@ export const travel = {
     title: 'Travel',
     description: 'Browse and maintain trips, itineraries, and expenses.',
   },
+  common: {
+    unknownDestination: 'Destination unavailable',
+  },
   pagination: {
     rowsPerPage: 'Rows per page',
     previous: 'Previous',
@@ -43,6 +46,7 @@ export const travel = {
       name: 'Name',
       tripType: 'Type',
       destination: 'Destination',
+      destinationPlaceholder: 'No destination linked',
       startDate: 'Start',
       endDate: 'End',
       status: 'Status',
@@ -170,6 +174,7 @@ export const travel = {
       namePlaceholder: 'e.g. Summer holiday in Porto',
       tripType: 'Type',
       destination: 'Destination',
+      destinationPlaceholder: 'No destination linked',
       status: 'Status',
       startDate: 'Start date',
       endDate: 'End date',
@@ -181,7 +186,6 @@ export const travel = {
       nameRequired: 'Name is required.',
       nameTooLong: 'Name must be at most 200 characters.',
       tripTypeRequired: 'Select a trip type.',
-      destinationTooLong: 'Destination must be at most 200 characters.',
       startDateRequired: 'Start date is required.',
       endDateRequired: 'End date is required.',
       endBeforeStart: 'End date cannot be before the start date.',
@@ -192,6 +196,16 @@ export const travel = {
       entryPlaceTooLong: 'Place must be at most 200 characters.',
       entryLocatorTooLong: 'Locator must be at most 200 characters.',
       entryNoteTooLong: 'Note must be at most 1000 characters.',
+    },
+    destinationLink: {
+      helper: 'Link this trip to a destination from the Destinations gallery.',
+      publicOnly: 'Public trips can only link public destinations.',
+      browse: 'Browse destinations',
+      change: 'Change destination',
+      clear: 'Clear linked destination',
+      resolving: 'Resolving linked destination',
+      selectorDescription: 'Choose the destination this trip points to.',
+      selectorPublicDescription: 'Choose a public destination for this public trip.',
     },
     delete: {
       action: 'Delete',
@@ -205,7 +219,8 @@ export const travel = {
     errors: {
       validation: 'Please review the trip details and try again.',
       itineraryValidation: 'Please review the itinerary entries and try again.',
-      visibilityForbidden: 'You cannot change the visibility of this trip.',
+      visibilityForbidden:
+        'This trip visibility is not compatible with the selected destination or your permissions.',
       unknownReference: 'A selected value is no longer available. Refresh and retry.',
       notFound: 'This trip is no longer available.',
       conflict: 'The trip could not be saved. Please try again.',

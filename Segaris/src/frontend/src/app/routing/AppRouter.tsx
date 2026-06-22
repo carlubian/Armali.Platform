@@ -39,6 +39,18 @@ const TravelPage = lazy(() =>
   })),
 )
 
+const DestinationsPage = lazy(() =>
+  import('@/modules/destinations/DestinationsPage').then((module) => ({
+    default: module.DestinationsPage,
+  })),
+)
+
+const DestinationPlacesPage = lazy(() =>
+  import('@/modules/destinations/DestinationPlacesPage').then((module) => ({
+    default: module.DestinationPlacesPage,
+  })),
+)
+
 const ClothesPage = lazy(() =>
   import('@/modules/clothes/ClothesPage').then((module) => ({
     default: module.ClothesPage,
@@ -190,6 +202,26 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <TravelPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="destinations"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <DestinationsPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="destinations/:destinationId/places"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <DestinationPlacesPage />
               </Suspense>
             </ModuleBoundary>
           }

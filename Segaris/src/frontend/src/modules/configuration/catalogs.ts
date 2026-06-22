@@ -29,9 +29,15 @@ import {
   travelExpenseCategoriesManagementApi,
   travelTripTypesManagementApi,
 } from '@/app/api/travel'
+import {
+  destinationCategoriesManagementApi,
+  destinationsApi,
+  placeCategoriesManagementApi,
+} from '@/app/api/destinations'
 import { assetsKeys } from '@/modules/assets/contracts'
 import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
+import { destinationsKeys } from '@/modules/destinations/contracts'
 import { firebirdKeys } from '@/modules/firebird/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
 import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
@@ -52,6 +58,8 @@ export type CatalogKey =
   | 'inventoryLocations'
   | 'travelTripTypes'
   | 'travelExpenseCategories'
+  | 'destinationCategories'
+  | 'placeCategories'
   | 'clothingCategories'
   | 'clothingColors'
   | 'assetCategories'
@@ -69,6 +77,7 @@ export type CatalogSectionId =
   | 'opex'
   | 'inventory'
   | 'travel'
+  | 'destinations'
   | 'clothes'
   | 'assets'
   | 'maintenance'
@@ -252,6 +261,32 @@ export const travelExpenseCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(travelExpenseCategoriesManagementApi),
 }
 
+export const destinationCategoriesDescriptor: CatalogDescriptor = {
+  key: 'destinationCategories',
+  section: 'destinations',
+  urlSlug: 'categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: destinationsKeys.categories(),
+  dependentKeys: [destinationsKeys.destinations()],
+  read: (signal) => destinationsApi.categories(signal),
+  management: asDescriptorClient(destinationCategoriesManagementApi),
+}
+
+export const placeCategoriesDescriptor: CatalogDescriptor = {
+  key: 'placeCategories',
+  section: 'destinations',
+  urlSlug: 'place-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: destinationsKeys.placeCategories(),
+  dependentKeys: [destinationsKeys.destinations()],
+  read: (signal) => destinationsApi.placeCategories(signal),
+  management: asDescriptorClient(placeCategoriesManagementApi),
+}
+
 export const clothingCategoriesDescriptor: CatalogDescriptor = {
   key: 'clothingCategories',
   section: 'clothes',
@@ -386,6 +421,12 @@ export const travelCatalogs: readonly CatalogDescriptor[] = [
   travelExpenseCategoriesDescriptor,
 ]
 
+/** Destinations-section catalogs, in tab order. */
+export const destinationsCatalogs: readonly CatalogDescriptor[] = [
+  destinationCategoriesDescriptor,
+  placeCategoriesDescriptor,
+]
+
 /** Clothes-section catalogs, in tab order. */
 export const clothesCatalogs: readonly CatalogDescriptor[] = [
   clothingCategoriesDescriptor,
@@ -410,6 +451,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   opexCategoriesDescriptor,
   ...inventoryCatalogs,
   ...travelCatalogs,
+  ...destinationsCatalogs,
   ...clothesCatalogs,
   ...assetsCatalogs,
   maintenanceTypesDescriptor,
@@ -443,6 +485,8 @@ export function sectionCatalogs(
       return inventoryCatalogs
     case 'travel':
       return travelCatalogs
+    case 'destinations':
+      return destinationsCatalogs
     case 'clothes':
       return clothesCatalogs
     case 'assets':

@@ -122,7 +122,7 @@ export function TripsTable({
                 </button>
               </td>
               <td>{trip.tripTypeName}</td>
-              <td>{trip.destination ?? '—'}</td>
+              <td>{destinationDisplay(trip, t)}</td>
               <td>{formatDate(trip.startDate, language)}</td>
               <td>{formatDate(trip.endDate, language)}</td>
               <td>
@@ -141,4 +141,17 @@ export function TripsTable({
       </table>
     </div>
   )
+}
+
+function destinationDisplay(
+  trip: TravelTripSummary,
+  t: (key: string) => string,
+): string {
+  if (trip.destinationName != null) {
+    return trip.destinationCountry == null
+      ? trip.destinationName
+      : `${trip.destinationName} · ${trip.destinationCountry}`
+  }
+
+  return trip.destinationId == null ? '—' : t('common.unknownDestination')
 }

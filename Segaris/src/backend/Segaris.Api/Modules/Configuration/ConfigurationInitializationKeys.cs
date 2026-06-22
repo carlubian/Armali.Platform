@@ -53,6 +53,10 @@ internal static class ConfigurationInitializationKeys
 
     public const string RecipeCategories = "recipes.categories";
 
+    public const string DestinationCategories = "destinations.categories";
+
+    public const string DestinationPlaceCategories = "destinations.place-categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -73,5 +77,7 @@ internal static class ConfigurationInitializationKeys
         FirebirdPersonCategories,
         FirebirdUsernamePlatforms,
         RecipeCategories,
+        DestinationCategories,
+        DestinationPlaceCategories,
     ];
 }

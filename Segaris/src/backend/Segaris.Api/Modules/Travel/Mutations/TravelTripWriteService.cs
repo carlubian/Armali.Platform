@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Segaris.Api.Modules.Destinations.Contracts;
 using Segaris.Api.Modules.Travel.Contracts;
 using Segaris.Api.Modules.Travel.Domain;
 using Segaris.Persistence;
@@ -18,6 +19,7 @@ namespace Segaris.Api.Modules.Travel.Mutations;
 internal sealed class TravelTripWriteService(
     SegarisDbContext database,
     IAttachmentService attachments,
+    IDestinationReferenceReader destinationReferences,
     IClock clock)
 {
     public async Task<int> CreateAsync(
@@ -30,6 +32,7 @@ internal sealed class TravelTripWriteService(
         var values = await MapCreateAsync(request, cancellationToken);
         var trip = TravelTrip.Create(values, actorId, clock.UtcNow);
         await ValidateTripTypeAsync(values.TripTypeId, cancellationToken);
+        await ValidateDestinationReferenceAsync(values.DestinationId, values.Visibility, actorId, cancellationToken);
 
         database.Add(trip);
         await database.SaveChangesAsync(cancellationToken);
@@ -56,6 +59,7 @@ internal sealed class TravelTripWriteService(
 
         var values = MapUpdate(request);
         ValidateVisibilityChange(trip, values.Visibility, actorId);
+        await ValidateDestinationReferenceAsync(values.DestinationId, values.Visibility, actorId, cancellationToken);
         trip.Update(values, actorId, clock.UtcNow);
         await ValidateTripTypeAsync(values.TripTypeId, cancellationToken);
 
@@ -110,7 +114,7 @@ internal sealed class TravelTripWriteService(
         return new(
             request.Name ?? string.Empty,
             tripTypeId,
-            request.Destination,
+            request.DestinationId,
             startDate,
             endDate,
             ParseEnum(request.Status, TravelDefaults.TripStatus, "status"),
@@ -123,7 +127,7 @@ internal sealed class TravelTripWriteService(
         new(
             request.Name ?? string.Empty,
             request.TripTypeId,
-            request.Destination,
+            request.DestinationId,
             request.StartDate,
             request.EndDate,
             ParseEnum(request.Status, TravelDefaults.TripStatus, "status"),
@@ -164,6 +168,34 @@ internal sealed class TravelTripWriteService(
             throw new TravelValidationException(
                 "The selected trip type does not exist.",
                 TravelValidationReason.CatalogReference);
+        }
+    }
+
+    private async Task ValidateDestinationReferenceAsync(
+        int? destinationId,
+        RecordVisibility tripVisibility,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        if (destinationId is null)
+        {
+            return;
+        }
+
+        var destination = await destinationReferences.FindAccessibleAsync(destinationId.Value, actorId, cancellationToken);
+        if (destination is null)
+        {
+            throw new TravelValidationException(
+                "The selected destination does not exist or is not accessible.",
+                TravelValidationReason.CatalogReference);
+        }
+
+        if (tripVisibility == RecordVisibility.Public
+            && destination.Visibility != RecordVisibility.Public)
+        {
+            throw new TravelValidationException(
+                "A public trip may reference only a public destination.",
+                TravelValidationReason.VisibilityForbidden);
         }
     }
 

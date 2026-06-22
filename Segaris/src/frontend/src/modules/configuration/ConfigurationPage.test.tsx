@@ -61,6 +61,8 @@ interface BackendOptions {
   opexCategories?: Row[]
   travelTripTypes?: Row[]
   travelExpenseCategories?: Row[]
+  destinationCategories?: Row[]
+  placeCategories?: Row[]
   clothingCategories?: Row[]
   clothingColors?: Row[]
   assetCategories?: Row[]
@@ -89,6 +91,8 @@ const catalogPaths: Record<string, string> = {
   'opex/categories': 'opexCategories',
   'travel/trip-types': 'travelTripTypes',
   'travel/expense-categories': 'travelExpenseCategories',
+  'destinations/categories': 'destinationCategories',
+  'destinations/place-categories': 'placeCategories',
   'clothes/categories': 'clothingCategories',
   'clothes/colors': 'clothingColors',
   'assets/categories': 'assetCategories',
@@ -120,6 +124,12 @@ function mockBackend(options: BackendOptions = {}) {
     ],
     travelExpenseCategories: options.travelExpenseCategories ?? [
       { id: 1, name: 'Transport', sortOrder: 1 },
+    ],
+    destinationCategories: options.destinationCategories ?? [
+      { id: 1, name: 'City break', sortOrder: 1 },
+    ],
+    placeCategories: options.placeCategories ?? [
+      { id: 1, name: 'Restaurant', sortOrder: 1 },
     ],
     clothingCategories: options.clothingCategories ?? [
       { id: 1, name: 'Tops', sortOrder: 1 },
@@ -236,7 +246,7 @@ function mockBackend(options: BackendOptions = {}) {
       }
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|destinations\/(?:categories|place-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -394,6 +404,22 @@ describe('Configuration navigation and states', () => {
       await screen.findByRole('heading', { name: 'Travel expense categories' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Transport')).toBeInTheDocument()
+  })
+
+  it('shows the Destinations catalog tabs', async () => {
+    mockBackend()
+    renderAt('/configuration/destinations?catalog=categories')
+    expect(
+      await screen.findByRole('heading', { name: 'Destination categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('City break')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Place categories' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Place categories' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Restaurant')).toBeInTheDocument()
   })
 
   it('shows the Clothes catalog tabs and the colour swatch column', async () => {

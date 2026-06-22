@@ -123,7 +123,7 @@ describe('travel contracts', () => {
       travelTripRequestSchema.safeParse({
         name: 'Porto',
         tripTypeId: 1,
-        destination: 'Porto',
+        destinationId: 10,
         startDate: '2026-06-17',
         endDate: '2026-06-16',
         status: 'Planned',

@@ -18,7 +18,7 @@ public sealed class TravelTripMutationTests
         var request = new CreateTravelTripRequest(
             "  Madrid weekend  ",
             TripTypeId: 0,
-            Destination: null,
+            DestinationId: null,
             StartDate: default,
             EndDate: default,
             Status: null,
@@ -98,7 +98,7 @@ public sealed class TravelTripMutationTests
         var update = new UpdateTravelTripRequest(
             "Updated",
             tripTypeId,
-            "Lisbon",
+            DestinationId: null,
             new DateOnly(2026, 8, 1),
             new DateOnly(2026, 8, 3),
             "Ongoing",
@@ -184,7 +184,7 @@ public sealed class TravelTripMutationTests
         new(
             "Trip",
             tripTypeId,
-            "Madrid",
+            DestinationId: null,
             startDate ?? new DateOnly(2026, 7, 1),
             endDate ?? new DateOnly(2026, 7, 2),
             "Planned",
@@ -198,7 +198,7 @@ public sealed class TravelTripMutationTests
         new(
             "Updated",
             tripTypeId,
-            "Madrid",
+            DestinationId: null,
             new DateOnly(2026, 7, 1),
             new DateOnly(2026, 7, 2),
             "Planned",
