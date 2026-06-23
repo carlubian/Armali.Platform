@@ -29,6 +29,7 @@ internal sealed class HealthModule : ISegarisModule
         services.AddScoped<DiseaseWriteService>();
         services.AddScoped<MedicineReadService>();
         services.AddScoped<MedicineWriteService>();
+        services.AddScoped<HealthAssociationService>();
         services.AddScoped<DiseaseCategoryManagementService>();
         services.AddScoped<MedicineCategoryManagementService>();
     }

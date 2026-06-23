@@ -37,7 +37,14 @@ internal sealed class DiseaseReadService(SegarisDbContext database)
                 database.Set<DiseaseCategory>()
                     .Where(category => category.Id == disease.CategoryId).Select(category => category.Name).First(),
                 disease.Visibility.ToString(),
-                database.Set<DiseaseMedicine>().Count(association => association.DiseaseId == disease.Id),
+                database.Set<DiseaseMedicine>()
+                    .Where(association => association.DiseaseId == disease.Id)
+                    .Join(
+                        database.Set<Medicine>().Where(HealthMedicinePolicies.AccessibleTo(userId)),
+                        association => association.MedicineId,
+                        medicine => medicine.Id,
+                        (association, _) => association)
+                    .Count(),
                 disease.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == disease.CreatedBy).Select(user => user.DisplayName).First()))

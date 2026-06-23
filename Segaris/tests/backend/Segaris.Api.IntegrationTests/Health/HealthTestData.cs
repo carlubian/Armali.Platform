@@ -45,6 +45,41 @@ internal static class HealthTestData
         return await database.Set<Medicine>().AnyAsync(medicine => medicine.Id == medicineId);
     }
 
+    public static async Task<bool> AssociationExistsAsync(IServiceProvider services, int diseaseId, int medicineId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<DiseaseMedicine>()
+            .AnyAsync(association => association.DiseaseId == diseaseId && association.MedicineId == medicineId);
+    }
+
+    public static async Task<int> AssociationCountAsync(IServiceProvider services, int diseaseId, int medicineId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<DiseaseMedicine>()
+            .CountAsync(association => association.DiseaseId == diseaseId && association.MedicineId == medicineId);
+    }
+
+    public static async Task SeedAssociationAsync(IServiceProvider services, int diseaseId, int medicineId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var exists = await database.Set<DiseaseMedicine>()
+            .AnyAsync(association => association.DiseaseId == diseaseId && association.MedicineId == medicineId);
+        if (exists)
+        {
+            return;
+        }
+
+        database.Add(new DiseaseMedicine
+        {
+            DiseaseId = diseaseId,
+            MedicineId = medicineId,
+        });
+        await database.SaveChangesAsync();
+    }
+
     public static async Task<int> SeedDiseaseAsync(
         IServiceProvider services,
         int creatorId,

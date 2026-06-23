@@ -63,6 +63,7 @@ internal sealed class DiseaseWriteService(SegarisDbContext database, IClock cloc
             request.Visibility);
 
         ValidateVisibilityChange(disease, values.Visibility, actorId);
+        await ValidatePublishAsync(disease, values.Visibility, cancellationToken);
         disease.Update(values, actorId, clock.UtcNow);
         await ValidateCategoryAsync(values.CategoryId, cancellationToken);
 
@@ -115,6 +116,32 @@ internal sealed class DiseaseWriteService(SegarisDbContext database, IClock cloc
             throw new HealthValidationException(
                 "Only the creator may change disease visibility.",
                 HealthValidationReason.VisibilityForbidden);
+        }
+    }
+
+    private async Task ValidatePublishAsync(
+        Disease disease,
+        RecordVisibility requestedVisibility,
+        CancellationToken cancellationToken)
+    {
+        if (disease.Visibility != RecordVisibility.Private || requestedVisibility != RecordVisibility.Public)
+        {
+            return;
+        }
+
+        var blockingCount = await database.Set<DiseaseMedicine>()
+            .Where(association => association.DiseaseId == disease.Id)
+            .Join(
+                database.Set<Medicine>().Where(medicine => medicine.Visibility != RecordVisibility.Public),
+                association => association.MedicineId,
+                medicine => medicine.Id,
+                (association, _) => association)
+            .CountAsync(cancellationToken);
+        if (blockingCount > 0)
+        {
+            throw new HealthValidationException(
+                $"The disease cannot be published while {blockingCount} associated medicine record(s) are not public.",
+                HealthValidationReason.AssociationPublishBlocked);
         }
     }
 

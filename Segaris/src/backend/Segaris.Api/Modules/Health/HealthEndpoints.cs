@@ -64,14 +64,16 @@ internal static class HealthEndpoints
             .WithSummary("Deletes an accessible Health disease")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
-        group.MapGet(HealthApiRoutes.DiseaseMedicines, Placeholder)
+        group.MapGet(HealthApiRoutes.DiseaseMedicines, ListDiseaseMedicinesAsync)
             .WithName("ListHealthDiseaseMedicines")
-            .Produces<IReadOnlyList<MedicineSummaryResponse>>();
-        group.MapPost(HealthApiRoutes.DiseaseMedicineById, Placeholder)
+            .Produces<IReadOnlyList<MedicineSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(HealthApiRoutes.DiseaseMedicineById, AddDiseaseMedicineAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("AddHealthDiseaseMedicine")
-            .Produces(StatusCodes.Status204NoContent);
-        group.MapDelete(HealthApiRoutes.DiseaseMedicineById, Placeholder)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapDelete(HealthApiRoutes.DiseaseMedicineById, RemoveDiseaseMedicineAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("RemoveHealthDiseaseMedicine")
             .Produces(StatusCodes.Status204NoContent);
@@ -108,14 +110,16 @@ internal static class HealthEndpoints
             .WithSummary("Deletes an accessible Health medicine")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
-        group.MapGet(HealthApiRoutes.MedicineDiseases, Placeholder)
+        group.MapGet(HealthApiRoutes.MedicineDiseases, ListMedicineDiseasesAsync)
             .WithName("ListHealthMedicineDiseases")
-            .Produces<IReadOnlyList<DiseaseSummaryResponse>>();
-        group.MapPost(HealthApiRoutes.MedicineDiseaseById, Placeholder)
+            .Produces<IReadOnlyList<DiseaseSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(HealthApiRoutes.MedicineDiseaseById, AddMedicineDiseaseAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("AddHealthMedicineDisease")
-            .Produces(StatusCodes.Status204NoContent);
-        group.MapDelete(HealthApiRoutes.MedicineDiseaseById, Placeholder)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapDelete(HealthApiRoutes.MedicineDiseaseById, RemoveMedicineDiseaseAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("RemoveHealthMedicineDisease")
             .Produces(StatusCodes.Status204NoContent);
@@ -523,6 +527,102 @@ internal static class HealthEndpoints
 
         return TypedResults.NoContent();
     }
+
+    private static async Task<IResult> ListDiseaseMedicinesAsync(
+        int diseaseId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var medicines = await associations.ListMedicinesForDiseaseAsync(diseaseId, userId, cancellationToken);
+        if (medicines is null)
+        {
+            throw HealthDiseaseProblem.NotFound();
+        }
+
+        return TypedResults.Ok(medicines);
+    }
+
+    private static async Task<IResult> ListMedicineDiseasesAsync(
+        int medicineId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var diseases = await associations.ListDiseasesForMedicineAsync(medicineId, userId, cancellationToken);
+        if (diseases is null)
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        return TypedResults.Ok(diseases);
+    }
+
+    private static async Task<IResult> AddDiseaseMedicineAsync(
+        int diseaseId,
+        int medicineId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        try
+        {
+            await associations.AddAsync(diseaseId, medicineId, userId, cancellationToken);
+        }
+        catch (HealthValidationException exception)
+        {
+            throw HealthAssociationProblem.From(exception);
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> AddMedicineDiseaseAsync(
+        int medicineId,
+        int diseaseId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        await AddDiseaseMedicineAsync(diseaseId, medicineId, associations, currentUser, cancellationToken);
+
+    private static async Task<IResult> RemoveDiseaseMedicineAsync(
+        int diseaseId,
+        int medicineId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        await associations.RemoveAsync(diseaseId, medicineId, userId, cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> RemoveMedicineDiseaseAsync(
+        int medicineId,
+        int diseaseId,
+        HealthAssociationService associations,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        await RemoveDiseaseMedicineAsync(diseaseId, medicineId, associations, currentUser, cancellationToken);
 
     private static async Task<IResult> CreateMedicineCategoryAsync(
         CatalogItemRequest request, MedicineCategoryManagementService service, ICurrentUser user, CancellationToken token)
