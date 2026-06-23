@@ -25,6 +25,8 @@ internal sealed class HealthModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, HealthModelContributor>();
         services.AddScoped<HealthSeeder>();
         services.AddScoped<HealthCatalogReadService>();
+        services.AddScoped<DiseaseReadService>();
+        services.AddScoped<DiseaseWriteService>();
         services.AddScoped<DiseaseCategoryManagementService>();
         services.AddScoped<MedicineCategoryManagementService>();
     }

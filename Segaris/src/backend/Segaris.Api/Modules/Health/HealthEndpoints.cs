@@ -1,5 +1,6 @@
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Health.Contracts;
+using Segaris.Api.Modules.Health.Domain;
 using Segaris.Api.Modules.Health.Mutations;
 using Segaris.Api.Modules.Health.Queries;
 using Segaris.Api.Modules.Identity;
@@ -34,25 +35,35 @@ internal static class HealthEndpoints
 
     private static void MapDiseaseEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/diseases", Placeholder)
+        group.MapGet("/diseases", ListDiseasesAsync)
             .WithName("ListHealthDiseases")
+            .WithSummary("Returns a paginated, filtered, and sorted list of accessible Health diseases")
             .Produces<PaginatedResponse<DiseaseSummaryResponse>>();
-        group.MapPost("/diseases", Placeholder)
+        group.MapPost("/diseases", CreateDiseaseAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateHealthDisease")
-            .Produces<DiseaseResponse>(StatusCodes.Status201Created);
-        group.MapGet(HealthApiRoutes.DiseaseById, Placeholder)
+            .WithSummary("Creates a Health disease")
+            .Produces<DiseaseResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet(HealthApiRoutes.DiseaseById, GetDiseaseAsync)
             .WithName("GetHealthDisease")
+            .WithSummary("Returns the detail of an accessible Health disease")
             .Produces<DiseaseResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        group.MapPut(HealthApiRoutes.DiseaseById, Placeholder)
+        group.MapPut(HealthApiRoutes.DiseaseById, UpdateDiseaseAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdateHealthDisease")
-            .Produces<DiseaseResponse>();
-        group.MapDelete(HealthApiRoutes.DiseaseById, Placeholder)
+            .WithSummary("Replaces an accessible Health disease")
+            .Produces<DiseaseResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(HealthApiRoutes.DiseaseById, DeleteDiseaseAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteHealthDisease")
-            .Produces(StatusCodes.Status204NoContent);
+            .WithSummary("Deletes an accessible Health disease")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet(HealthApiRoutes.DiseaseMedicines, Placeholder)
             .WithName("ListHealthDiseaseMedicines")
             .Produces<IReadOnlyList<MedicineSummaryResponse>>();
@@ -266,6 +277,124 @@ internal static class HealthEndpoints
 
     private static async Task<IResult> ListMedicineCategoriesAsync(HealthCatalogReadService read, CancellationToken token) =>
         TypedResults.Ok(await read.ListMedicineCategoriesAsync(token));
+
+    private static async Task<IResult> ListDiseasesAsync(
+        [AsParameters] DiseaseListQuery query,
+        DiseaseReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListDiseasesAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetDiseaseAsync(
+        int diseaseId,
+        DiseaseReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var disease = await read.GetDiseaseAsync(diseaseId, userId, cancellationToken);
+        if (disease is null)
+        {
+            throw HealthDiseaseProblem.NotFound();
+        }
+
+        return TypedResults.Ok(disease);
+    }
+
+    private static async Task<IResult> CreateDiseaseAsync(
+        CreateDiseaseRequest request,
+        DiseaseWriteService write,
+        DiseaseReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int diseaseId;
+        try
+        {
+            diseaseId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (HealthValidationException exception)
+        {
+            throw HealthDiseaseProblem.From(exception);
+        }
+
+        var created = await read.GetDiseaseAsync(diseaseId, userId, cancellationToken);
+        return TypedResults.Created($"/api/health/diseases/{diseaseId}", created);
+    }
+
+    private static async Task<IResult> UpdateDiseaseAsync(
+        int diseaseId,
+        UpdateDiseaseRequest request,
+        DiseaseWriteService write,
+        DiseaseReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(diseaseId, request, userId, cancellationToken);
+        }
+        catch (HealthValidationException exception)
+        {
+            throw HealthDiseaseProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw HealthDiseaseProblem.NotFound();
+        }
+
+        var disease = await read.GetDiseaseAsync(diseaseId, userId, cancellationToken);
+        return TypedResults.Ok(disease);
+    }
+
+    private static async Task<IResult> DeleteDiseaseAsync(
+        int diseaseId,
+        DiseaseWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(diseaseId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw HealthDiseaseProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
 
     private static async Task<IResult> CreateMedicineCategoryAsync(
         CatalogItemRequest request, MedicineCategoryManagementService service, ICurrentUser user, CancellationToken token)
