@@ -71,6 +71,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_TravelDestinationReference"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_HealthDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -117,6 +120,10 @@ public sealed class MigrationTests
                 // Destinations, places, and the destination and place category catalogs.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND (name = 'destinations' OR name LIKE 'destination_%' OR name = 'place_categories')";
                 Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
+                // Diseases, medicines, the disease-medicine join, and the disease and
+                // medicine category catalogs.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'health_%'";
+                Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -157,13 +164,14 @@ public sealed class MigrationTests
         Assert.Contains("RecipesDomainPersistence", sqliteNames);
         Assert.Contains("DestinationsDomainPersistence", sqliteNames);
         Assert.Contains("TravelDestinationReference", sqliteNames);
+        Assert.Contains("HealthDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Travel_destination_reference_is_the_current_tail()
+    public void Health_domain_persistence_is_the_current_tail()
     {
-        // Destinations Wave 5 replaces Travel's free-text destination field with
-        // the optional destination reference, so it follows Destinations persistence.
+        // Health Wave 1 persistence is the latest migration, following the Travel
+        // destination reference that closed the Destinations work.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -175,8 +183,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("TravelDestinationReference", migrations[^1]);
-            Assert.Equal("DestinationsDomainPersistence", migrations[^2]);
+            Assert.Equal("HealthDomainPersistence", migrations[^1]);
+            Assert.Equal("TravelDestinationReference", migrations[^2]);
         }
     }
 
@@ -283,6 +291,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_RecipesDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_DestinationsDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_TravelDestinationReference"));
+            Assert.Contains(applied, migration => migration.EndsWith("_HealthDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
