@@ -152,6 +152,29 @@ public sealed class HealthDomainTests
         Assert.Null(medicine.Notes);
     }
 
+    [Fact]
+    public void Medicine_clears_matching_inventory_item_reference_and_stamps_modification()
+    {
+        var medicine = Medicine.Create(MedicineValues(inventoryItemId: 8), Creator, Now);
+        var later = Now.AddHours(1);
+
+        medicine.ClearInventoryItemReference(8, Creator, later);
+
+        Assert.Null(medicine.InventoryItemId);
+        Assert.Equal(later, medicine.UpdatedAt);
+    }
+
+    [Fact]
+    public void Medicine_keeps_non_matching_inventory_item_reference_unchanged()
+    {
+        var medicine = Medicine.Create(MedicineValues(inventoryItemId: 8), Creator, Now);
+
+        medicine.ClearInventoryItemReference(9, Creator, Now.AddHours(1));
+
+        Assert.Equal(8, medicine.InventoryItemId);
+        Assert.Equal(Now, medicine.UpdatedAt);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
     private static DiseaseValues DiseaseValues(

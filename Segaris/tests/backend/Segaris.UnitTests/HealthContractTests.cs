@@ -114,6 +114,7 @@ public sealed class HealthContractTests
         Assert.Equal("health.medicine.not_found", HealthErrorCodes.MedicineNotFound.Value);
         Assert.Equal("health.medicine.validation", HealthErrorCodes.MedicineValidation.Value);
         Assert.Equal("health.medicine.item_not_accessible", HealthErrorCodes.MedicineItemNotAccessible.Value);
+        Assert.Equal("health.medicine.item_visibility_forbidden", HealthErrorCodes.MedicineItemVisibilityForbidden.Value);
         Assert.Equal("health.association.not_accessible", HealthErrorCodes.AssociationNotAccessible.Value);
         Assert.Equal("health.association.visibility_forbidden", HealthErrorCodes.AssociationVisibilityForbidden.Value);
         Assert.Equal("health.association.publish_blocked", HealthErrorCodes.AssociationPublishBlocked.Value);

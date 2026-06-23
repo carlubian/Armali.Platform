@@ -259,6 +259,18 @@ internal sealed class Medicine
         StampModification(actorId, now);
     }
 
+    internal void ClearInventoryItemReference(int itemId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (InventoryItemId != itemId)
+        {
+            return;
+        }
+
+        InventoryItemId = null;
+        StampModification(actorId, now);
+    }
+
     private void Apply(MedicineValues values, UserId actorId, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(values);

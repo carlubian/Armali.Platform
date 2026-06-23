@@ -51,6 +51,14 @@ internal static class HealthMedicineProblem
                 StatusCodes.Status403Forbidden,
                 HealthErrorCodes.MedicineVisibilityForbidden,
                 exception.Message),
+            HealthValidationReason.ItemNotAccessible => new ApiProblemException(
+                StatusCodes.Status400BadRequest,
+                HealthErrorCodes.MedicineItemNotAccessible,
+                exception.Message),
+            HealthValidationReason.ItemVisibilityForbidden => new ApiProblemException(
+                StatusCodes.Status403Forbidden,
+                HealthErrorCodes.MedicineItemVisibilityForbidden,
+                exception.Message),
             HealthValidationReason.AssociationPublishBlocked => HealthAssociationProblem.From(exception),
             _ => new ApiProblemException(
                 StatusCodes.Status400BadRequest,

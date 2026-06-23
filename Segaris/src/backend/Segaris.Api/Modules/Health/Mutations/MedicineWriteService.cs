@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Health.Contracts;
 using Segaris.Api.Modules.Health.Domain;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Persistence;
 using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
@@ -15,6 +16,7 @@ namespace Segaris.Api.Modules.Health.Mutations;
 /// </summary>
 internal sealed class MedicineWriteService(
     SegarisDbContext database,
+    IInventoryItemReferenceReader itemReferences,
     IAttachmentService attachments,
     IClock clock)
 {
@@ -30,11 +32,12 @@ internal sealed class MedicineWriteService(
             request.CategoryId,
             request.Posology,
             request.RequiresPrescription,
+            request.InventoryItemId,
             request.Notes,
             request.Visibility);
 
         var medicine = Medicine.Create(values, actorId, clock.UtcNow);
-        await ValidateCategoryAsync(values.CategoryId, cancellationToken);
+        await ValidateReferencesAsync(values, actorId, cancellationToken);
 
         database.Add(medicine);
         await database.SaveChangesAsync(cancellationToken);
@@ -63,13 +66,14 @@ internal sealed class MedicineWriteService(
             request.CategoryId,
             request.Posology,
             request.RequiresPrescription,
+            request.InventoryItemId,
             request.Notes,
             request.Visibility);
 
         ValidateVisibilityChange(medicine, values.Visibility, actorId);
         await ValidatePublishAsync(medicine, values.Visibility, cancellationToken);
         medicine.Update(values, actorId, clock.UtcNow);
-        await ValidateCategoryAsync(values.CategoryId, cancellationToken);
+        await ValidateReferencesAsync(values, actorId, cancellationToken);
 
         await database.SaveChangesAsync(cancellationToken);
         return true;
@@ -175,18 +179,39 @@ internal sealed class MedicineWriteService(
         return MedicineDeleteAttachmentOutcome.Deleted;
     }
 
-    private async Task ValidateCategoryAsync(
-        int categoryId,
+    private async Task ValidateReferencesAsync(
+        MedicineValues values,
+        UserId actorId,
         CancellationToken cancellationToken)
     {
         var categoryExists = await database.Set<MedicineCategory>()
-            .AnyAsync(category => category.Id == categoryId, cancellationToken);
+            .AnyAsync(category => category.Id == values.CategoryId, cancellationToken);
 
         if (!categoryExists)
         {
             throw new HealthValidationException(
                 "The medicine category does not exist.",
                 HealthValidationReason.CatalogReference);
+        }
+
+        if (values.InventoryItemId is not { } itemId)
+        {
+            return;
+        }
+
+        var item = await itemReferences.FindAccessibleAsync(itemId, actorId, cancellationToken);
+        if (item is null)
+        {
+            throw new HealthValidationException(
+                "The referenced Inventory item was not found.",
+                HealthValidationReason.ItemNotAccessible);
+        }
+
+        if (values.Visibility == RecordVisibility.Public && item.Visibility != RecordVisibility.Public)
+        {
+            throw new HealthValidationException(
+                "A public medicine may reference only public Inventory items.",
+                HealthValidationReason.ItemVisibilityForbidden);
         }
     }
 
@@ -235,13 +260,14 @@ internal sealed class MedicineWriteService(
         int categoryId,
         string? posology,
         bool? requiresPrescription,
+        int? inventoryItemId,
         string? notes,
         string? visibility) => new(
             name ?? string.Empty,
             categoryId,
             posology,
             requiresPrescription ?? HealthDefaults.RequiresPrescription,
-            null,
+            inventoryItemId,
             notes,
             ParseEnum(visibility, HealthDefaults.Visibility, "visibility"));
 

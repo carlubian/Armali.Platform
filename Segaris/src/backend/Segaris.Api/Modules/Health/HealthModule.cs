@@ -1,4 +1,5 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Health.Mutations;
 using Segaris.Api.Modules.Health.Persistence;
 using Segaris.Api.Modules.Health.Queries;
@@ -32,6 +33,7 @@ internal sealed class HealthModule : ISegarisModule
         services.AddScoped<HealthAssociationService>();
         services.AddScoped<DiseaseCategoryManagementService>();
         services.AddScoped<MedicineCategoryManagementService>();
+        services.AddScoped<IInventoryItemDeletionReferenceHandler, HealthInventoryItemDeletionReferenceHandler>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

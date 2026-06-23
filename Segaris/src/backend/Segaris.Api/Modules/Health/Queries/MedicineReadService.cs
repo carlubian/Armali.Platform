@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Health.Contracts;
 using Segaris.Api.Modules.Health.Domain;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Persistence;
 using Segaris.Shared.Api;
 using Segaris.Shared.Attachments;
@@ -17,7 +18,10 @@ namespace Segaris.Api.Modules.Health.Queries;
 /// resolution remains deferred to Wave 6. Every medicine query filters to accessible
 /// records before projection, pagination, or detail lookup.
 /// </summary>
-internal sealed class MedicineReadService(SegarisDbContext database, IAttachmentService attachments)
+internal sealed class MedicineReadService(
+    SegarisDbContext database,
+    IInventoryItemReferenceReader itemReferences,
+    IAttachmentService attachments)
 {
     public async Task<PaginatedResponse<MedicineSummaryResponse>> ListMedicinesAsync(
         MedicineFilter filter,
@@ -42,12 +46,21 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
                 database.Set<MedicineCategory>()
                     .Where(category => category.Id == medicine.CategoryId).Select(category => category.Name).First(),
                 medicine.RequiresPrescription,
+                medicine.InventoryItemId,
                 medicine.Visibility,
                 medicine.PrimaryAttachmentId,
                 medicine.CreatedBy,
                 database.Set<SegarisUser>()
                     .Where(user => user.Id == medicine.CreatedBy).Select(user => user.DisplayName).First()))
             .ToArrayAsync(cancellationToken);
+
+        var itemIds = rows
+            .Select(row => row.InventoryItemId)
+            .Where(itemId => itemId.HasValue)
+            .Select(itemId => itemId!.Value)
+            .Distinct()
+            .ToArray();
+        var resolvedItems = await itemReferences.ResolveAccessibleAsync(itemIds, userId, cancellationToken);
 
         var page = new MedicineSummaryResponse[rows.Length];
         for (var index = 0; index < rows.Length; index++)
@@ -62,8 +75,10 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
                 row.CategoryId,
                 row.CategoryName,
                 row.RequiresPrescription,
-                null,
-                null,
+                row.InventoryItemId,
+                row.InventoryItemId is { } itemId && resolvedItems.TryGetValue(itemId, out var item)
+                    ? item.Name
+                    : null,
                 row.Visibility.ToString(),
                 ResolveThumbnail(row.Id, row.PrimaryAttachmentId, descriptors),
                 row.CreatorId,
@@ -90,6 +105,7 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
                     .Where(category => category.Id == medicine.CategoryId).Select(category => category.Name).First(),
                 medicine.Posology,
                 medicine.RequiresPrescription,
+                medicine.InventoryItemId,
                 medicine.Notes,
                 medicine.Visibility,
                 medicine.PrimaryAttachmentId,
@@ -111,6 +127,9 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
         var descriptors = await attachments.ListByOwnerAsync(
             HealthAttachments.MedicineOwner(row.Id),
             cancellationToken);
+        var item = row.InventoryItemId is { } itemId
+            ? await itemReferences.FindAccessibleAsync(itemId, userId, cancellationToken)
+            : null;
         return new MedicineResponse(
             row.Id,
             row.Name,
@@ -118,8 +137,8 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
             row.CategoryName,
             row.Posology,
             row.RequiresPrescription,
-            null,
-            null,
+            row.InventoryItemId,
+            item?.Name,
             row.Notes,
             row.Visibility.ToString(),
             descriptors.Select(descriptor => ToAttachmentResponse(descriptor, row.PrimaryAttachmentId)).ToArray(),
@@ -289,6 +308,7 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
         int CategoryId,
         string CategoryName,
         bool RequiresPrescription,
+        int? InventoryItemId,
         RecordVisibility Visibility,
         int? PrimaryAttachmentId,
         int CreatorId,
@@ -301,6 +321,7 @@ internal sealed class MedicineReadService(SegarisDbContext database, IAttachment
         string CategoryName,
         string? Posology,
         bool RequiresPrescription,
+        int? InventoryItemId,
         string? Notes,
         RecordVisibility Visibility,
         int? PrimaryAttachmentId,

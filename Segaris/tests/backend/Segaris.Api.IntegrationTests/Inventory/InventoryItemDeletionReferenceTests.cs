@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Segaris.Api.IntegrationTests.Capex;
+using Segaris.Api.IntegrationTests.Health;
 using Segaris.Api.IntegrationTests.Recipes;
 using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Recipes.Domain;
@@ -72,6 +73,66 @@ public sealed class InventoryItemDeletionReferenceTests
     }
 
     [Fact]
+    public async Task Deletion_impact_reports_health_medicine_references_without_disclosing_records()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var memberId = await server.CreateUserAsync("inventory-health-impact-member", "InventoryHealthImpactMember123!");
+        var itemId = await InventoryTestData.SeedItemAsync(server.Services, founderId, name: "Aspirin");
+        await HealthTestData.SeedMedicineAsync(
+            server.Services,
+            founderId,
+            name: "Public aspirin",
+            inventoryItemId: itemId,
+            visibility: RecordVisibility.Public);
+        await HealthTestData.SeedMedicineAsync(
+            server.Services,
+            memberId,
+            name: "Private aspirin",
+            inventoryItemId: itemId,
+            visibility: RecordVisibility.Private);
+
+        using var response = await client.GetAsync($"/api/inventory/items/{itemId}/deletion-impact", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var impact = await response.Content.ReadFromJsonAsync<InventoryItemDeletionImpactResponse>(CancellationToken.None);
+        Assert.NotNull(impact);
+        Assert.True(impact.IsReferenced);
+        Assert.Equal(2, impact.ReferenceCount);
+    }
+
+    [Fact]
+    public async Task Delete_clears_health_medicine_item_links_across_mixed_ownership_medicines()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+        var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        var memberId = await server.CreateUserAsync("inventory-health-owner", "InventoryHealthOwner123!");
+        var itemId = await InventoryTestData.SeedItemAsync(server.Services, founderId, name: "Paracetamol");
+        var publicMedicineId = await HealthTestData.SeedMedicineAsync(
+            server.Services,
+            founderId,
+            name: "Public paracetamol",
+            inventoryItemId: itemId,
+            visibility: RecordVisibility.Public);
+        var privateMedicineId = await HealthTestData.SeedMedicineAsync(
+            server.Services,
+            memberId,
+            name: "Private paracetamol",
+            inventoryItemId: itemId,
+            visibility: RecordVisibility.Private);
+
+        using var response = await CapexApi.DeleteAsync(client, $"/api/inventory/items/{itemId}", csrf);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.False(await InventoryTestData.ItemExistsAsync(server.Services, itemId));
+        Assert.Null(await HealthTestData.MedicineInventoryItemIdAsync(server.Services, publicMedicineId));
+        Assert.Null(await HealthTestData.MedicineInventoryItemIdAsync(server.Services, privateMedicineId));
+    }
+
+    [Fact]
     public async Task Delete_rolls_back_item_and_recipe_links_when_a_reference_handler_fails()
     {
         using var server = new CapexTestServer(configureServices: services =>
@@ -86,12 +147,19 @@ public sealed class InventoryItemDeletionReferenceTests
             name: "Rice bowl",
             ingredients: [new RecipeIngredientValues("Rice", "250g", itemId)],
             visibility: RecordVisibility.Public);
+        var medicineId = await HealthTestData.SeedMedicineAsync(
+            server.Services,
+            founderId,
+            name: "Rice medicine",
+            inventoryItemId: itemId,
+            visibility: RecordVisibility.Public);
 
         using var response = await CapexApi.DeleteAsync(client, $"/api/inventory/items/{itemId}", csrf);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.True(await InventoryTestData.ItemExistsAsync(server.Services, itemId));
         Assert.Equal([itemId], await RecipesTestData.IngredientItemIdsAsync(server.Services, recipeId));
+        Assert.Equal(itemId, await HealthTestData.MedicineInventoryItemIdAsync(server.Services, medicineId));
     }
 
     private sealed class FailingInventoryItemDeletionReferenceHandler : IInventoryItemDeletionReferenceHandler

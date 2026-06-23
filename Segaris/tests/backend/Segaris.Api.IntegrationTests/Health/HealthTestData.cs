@@ -121,6 +121,7 @@ internal static class HealthTestData
         string categoryName = "Other",
         string? posology = null,
         bool requiresPrescription = false,
+        int? inventoryItemId = null,
         string? notes = null,
         RecordVisibility visibility = RecordVisibility.Public)
     {
@@ -138,7 +139,7 @@ internal static class HealthTestData
                 categoryId,
                 posology,
                 requiresPrescription,
-                null,
+                inventoryItemId,
                 notes,
                 visibility),
             new UserId(creatorId),
@@ -147,5 +148,15 @@ internal static class HealthTestData
         database.Add(medicine);
         await database.SaveChangesAsync();
         return medicine.Id;
+    }
+
+    public static async Task<int?> MedicineInventoryItemIdAsync(IServiceProvider services, int medicineId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<Medicine>()
+            .Where(medicine => medicine.Id == medicineId)
+            .Select(medicine => medicine.InventoryItemId)
+            .SingleAsync();
     }
 }
