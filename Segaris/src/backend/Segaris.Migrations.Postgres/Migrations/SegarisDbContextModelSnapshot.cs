@@ -1499,6 +1499,9 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<int?>("PrimaryAttachmentId")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("RequiresPrescription")
                         .HasColumnType("boolean");
 

@@ -165,13 +165,14 @@ public sealed class MigrationTests
         Assert.Contains("DestinationsDomainPersistence", sqliteNames);
         Assert.Contains("TravelDestinationReference", sqliteNames);
         Assert.Contains("HealthDomainPersistence", sqliteNames);
+        Assert.Contains("MedicinePrimaryAttachment", sqliteNames);
     }
 
     [Fact]
     public void Health_domain_persistence_is_the_current_tail()
     {
-        // Health Wave 1 persistence is the latest migration, following the Travel
-        // destination reference that closed the Destinations work.
+        // Health Wave 5 adds the medicine primary-attachment column on top of the Wave 1
+        // persistence, making it the latest migration.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -183,8 +184,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("HealthDomainPersistence", migrations[^1]);
-            Assert.Equal("TravelDestinationReference", migrations[^2]);
+            Assert.Equal("MedicinePrimaryAttachment", migrations[^1]);
+            Assert.Equal("HealthDomainPersistence", migrations[^2]);
         }
     }
 

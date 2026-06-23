@@ -123,6 +123,7 @@ internal sealed class HealthModelContributor : ISegarisModelContributor
                 .HasMaxLength(HealthDefaults.NotesMaximumLength);
             builder.Property(medicine => medicine.Visibility)
                 .HasConversion<string>().HasMaxLength(10).IsRequired();
+            builder.Property(medicine => medicine.PrimaryAttachmentId);
             builder.Property(medicine => medicine.CreatedAt).IsRequired();
             builder.Property(medicine => medicine.UpdatedAt).IsRequired();
             builder.ToTable(table =>

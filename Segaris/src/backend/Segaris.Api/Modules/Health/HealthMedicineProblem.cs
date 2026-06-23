@@ -15,6 +15,28 @@ internal static class HealthMedicineProblem
         HealthErrorCodes.MedicineNotFound,
         "The requested Health medicine was not found.");
 
+    public static ApiProblemException AttachmentNotFound() => new(
+        StatusCodes.Status404NotFound,
+        HealthErrorCodes.AttachmentNotFound,
+        "The requested attachment was not found.");
+
+    public static ApiProblemException AttachmentInvalid(
+        string field,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null) => new(
+        StatusCodes.Status400BadRequest,
+        HealthErrorCodes.AttachmentInvalid,
+        "The attachment is invalid.",
+        errors: errors ?? new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            [field] = [message],
+        });
+
+    public static ApiProblemException PrimaryNotImage() => new(
+        StatusCodes.Status400BadRequest,
+        HealthErrorCodes.AttachmentPrimaryInvalid,
+        "Only image attachments can be marked as the primary image.");
+
     public static ApiProblemException From(HealthValidationException exception)
     {
         ArgumentNullException.ThrowIfNull(exception);

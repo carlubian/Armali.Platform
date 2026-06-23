@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Health.Contracts;
 using Segaris.Api.Modules.Health.Domain;
@@ -6,7 +7,9 @@ using Segaris.Api.Modules.Health.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
+using Segaris.Api.Platform.Attachments;
 using Segaris.Shared.Api;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Health;
@@ -123,23 +126,36 @@ internal static class HealthEndpoints
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("RemoveHealthMedicineDisease")
             .Produces(StatusCodes.Status204NoContent);
-        group.MapGet(HealthApiRoutes.MedicineAttachments, Placeholder)
+        group.MapGet(HealthApiRoutes.MedicineAttachments, ListMedicineAttachmentsAsync)
             .WithName("ListHealthMedicineAttachments")
-            .Produces<IReadOnlyList<MedicineAttachmentResponse>>();
-        group.MapPost(HealthApiRoutes.MedicineAttachments, Placeholder)
+            .WithSummary("Lists the attachments of an accessible Health medicine")
+            .Produces<IReadOnlyList<MedicineAttachmentResponse>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost(HealthApiRoutes.MedicineAttachments, UploadMedicineAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
+            .WithRequestBodyLimit(AttachmentPolicy.MaximumFileSize + (1024 * 1024))
             .WithName("UploadHealthMedicineAttachment")
-            .Produces<MedicineAttachmentResponse>(StatusCodes.Status201Created);
-        group.MapGet(HealthApiRoutes.MedicineAttachmentById, Placeholder)
-            .WithName("DownloadHealthMedicineAttachment");
-        group.MapDelete(HealthApiRoutes.MedicineAttachmentById, Placeholder)
+            .WithSummary("Uploads one attachment for an accessible Health medicine")
+            .Produces<MedicineAttachmentResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapGet(HealthApiRoutes.MedicineAttachmentById, DownloadMedicineAttachmentAsync)
+            .WithName("DownloadHealthMedicineAttachment")
+            .WithSummary("Downloads one attachment of an accessible Health medicine")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(HealthApiRoutes.MedicineAttachmentById, DeleteMedicineAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteHealthMedicineAttachment")
-            .Produces(StatusCodes.Status204NoContent);
-        group.MapPut(HealthApiRoutes.MedicinePrimaryAttachment, Placeholder)
+            .WithSummary("Removes one attachment of an accessible Health medicine, clearing the primary image when needed")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut(HealthApiRoutes.MedicinePrimaryAttachment, SetMedicinePrimaryAttachmentAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("SetHealthMedicinePrimaryAttachment")
-            .Produces<MedicineAttachmentResponse>();
+            .WithSummary("Marks one image attachment as the medicine's primary image")
+            .Produces<MedicineAttachmentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapCategoryEndpoints(RouteGroupBuilder group)
@@ -660,5 +676,160 @@ internal static class HealthEndpoints
         return TypedResults.NoContent();
     }
 
-    private static IResult Placeholder() => TypedResults.StatusCode(StatusCodes.Status501NotImplemented);
+    private static async Task<IResult> ListMedicineAttachmentsAsync(
+        int medicineId,
+        MedicineReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var attachments = await read.ListMedicineAttachmentsAsync(medicineId, userId, cancellationToken);
+        if (attachments is null)
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        return TypedResults.Ok(attachments);
+    }
+
+    private static async Task<IResult> UploadMedicineAttachmentAsync(
+        int medicineId,
+        HttpRequest request,
+        MedicineReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.MedicineAccessibleAsync(medicineId, userId, cancellationToken))
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        if (!request.HasFormContentType)
+        {
+            throw HealthMedicineProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        var form = await request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+        {
+            throw HealthMedicineProblem.AttachmentInvalid("file", "A multipart form file is required.");
+        }
+
+        AttachmentDescriptor created;
+        await using (var stream = file.OpenReadStream())
+        {
+            try
+            {
+                created = await attachments.CreateAsync(
+                    new(HealthAttachments.MedicineOwner(medicineId), file.FileName, file.ContentType, stream),
+                    userId,
+                    cancellationToken);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == StatusCodes.Status400BadRequest)
+            {
+                throw HealthMedicineProblem.AttachmentInvalid("file", exception.Message, exception.Errors);
+            }
+        }
+
+        return TypedResults.Created(
+            $"/api/health/medicines/{medicineId}/attachments/{created.Id.Value}",
+            ToAttachment(created, isPrimary: false));
+    }
+
+    private static async Task<IResult> DownloadMedicineAttachmentAsync(
+        int medicineId,
+        int attachmentId,
+        MedicineReadService read,
+        IAttachmentService attachments,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await read.MedicineAccessibleAsync(medicineId, userId, cancellationToken))
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        var download = await attachments.OpenReadAsync(
+            new(attachmentId),
+            HealthAttachments.MedicineOwner(medicineId),
+            cancellationToken);
+        if (download is null)
+        {
+            throw HealthMedicineProblem.AttachmentNotFound();
+        }
+
+        return Results.Stream(
+            download.Content,
+            download.Descriptor.ContentType,
+            download.Descriptor.FileName,
+            enableRangeProcessing: false);
+    }
+
+    private static async Task<IResult> DeleteMedicineAttachmentAsync(
+        int medicineId,
+        int attachmentId,
+        MedicineWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var outcome = await write.DeleteAttachmentAsync(medicineId, attachmentId, userId, cancellationToken);
+        return outcome switch
+        {
+            MedicineDeleteAttachmentOutcome.MedicineNotFound => throw HealthMedicineProblem.NotFound(),
+            MedicineDeleteAttachmentOutcome.AttachmentNotFound => throw HealthMedicineProblem.AttachmentNotFound(),
+            _ => TypedResults.NoContent(),
+        };
+    }
+
+    private static async Task<IResult> SetMedicinePrimaryAttachmentAsync(
+        int medicineId,
+        int attachmentId,
+        MedicineWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await write.SetPrimaryAttachmentAsync(medicineId, attachmentId, userId, cancellationToken);
+        return result.Outcome switch
+        {
+            MedicineSetPrimaryOutcome.MedicineNotFound => throw HealthMedicineProblem.NotFound(),
+            MedicineSetPrimaryOutcome.AttachmentNotFound => throw HealthMedicineProblem.AttachmentNotFound(),
+            MedicineSetPrimaryOutcome.NotImage => throw HealthMedicineProblem.PrimaryNotImage(),
+            _ => TypedResults.Ok(ToAttachment(result.Descriptor!, isPrimary: true)),
+        };
+    }
+
+    private static MedicineAttachmentResponse ToAttachment(AttachmentDescriptor descriptor, bool isPrimary) => new(
+        descriptor.Id.Value.ToString(CultureInfo.InvariantCulture),
+        descriptor.FileName,
+        descriptor.ContentType,
+        descriptor.Size,
+        descriptor.CreatedBy.Value,
+        descriptor.CreatedAt,
+        isPrimary);
 }

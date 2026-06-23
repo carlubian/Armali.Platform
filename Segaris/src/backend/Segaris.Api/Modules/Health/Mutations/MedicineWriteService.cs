@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Segaris.Api.Modules.Health.Contracts;
 using Segaris.Api.Modules.Health.Domain;
 using Segaris.Persistence;
+using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
 using Segaris.Shared.Time;
@@ -12,7 +13,10 @@ namespace Segaris.Api.Modules.Health.Mutations;
 /// Write-side operations on Health medicines. Inaccessible medicines are reported as
 /// not found so private records are never disclosed.
 /// </summary>
-internal sealed class MedicineWriteService(SegarisDbContext database, IClock clock)
+internal sealed class MedicineWriteService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IClock clock)
 {
     public async Task<int> CreateAsync(
         CreateMedicineRequest request,
@@ -87,7 +91,88 @@ internal sealed class MedicineWriteService(SegarisDbContext database, IClock clo
 
         database.Remove(medicine);
         await database.SaveChangesAsync(cancellationToken);
+
+        var owner = HealthAttachments.MedicineOwner(medicineId);
+        var descriptors = await attachments.ListByOwnerAsync(owner, cancellationToken);
+        foreach (var descriptor in descriptors)
+        {
+            await attachments.DeleteAsync(descriptor.Id, owner, cancellationToken);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Marks one image attachment as the medicine's primary image. Inaccessible
+    /// medicines are reported as not found so private records are never disclosed; a
+    /// missing or non-image attachment is rejected without mutating the medicine.
+    /// </summary>
+    public async Task<MedicineSetPrimaryResult> SetPrimaryAttachmentAsync(
+        int medicineId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var medicine = await database.Set<Medicine>()
+            .Where(HealthMedicinePolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == medicineId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (medicine is null)
+        {
+            return new(MedicineSetPrimaryOutcome.MedicineNotFound, null);
+        }
+
+        var owner = HealthAttachments.MedicineOwner(medicineId);
+        var descriptor = await attachments.FindAsync(new(attachmentId), owner, cancellationToken);
+        if (descriptor is null)
+        {
+            return new(MedicineSetPrimaryOutcome.AttachmentNotFound, null);
+        }
+
+        if (!HealthAttachments.IsImageContentType(descriptor.ContentType))
+        {
+            return new(MedicineSetPrimaryOutcome.NotImage, null);
+        }
+
+        medicine.SetPrimaryAttachment(attachmentId, actorId, clock.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        return new(MedicineSetPrimaryOutcome.Assigned, descriptor);
+    }
+
+    /// <summary>
+    /// Removes one attachment from a medicine, clearing the primary-image reference when
+    /// the removed attachment was the primary. Inaccessible medicines are reported as not
+    /// found so private records are never disclosed.
+    /// </summary>
+    public async Task<MedicineDeleteAttachmentOutcome> DeleteAttachmentAsync(
+        int medicineId,
+        int attachmentId,
+        UserId actorId,
+        CancellationToken cancellationToken)
+    {
+        var medicine = await database.Set<Medicine>()
+            .Where(HealthMedicinePolicies.MutableBy(actorId))
+            .Where(candidate => candidate.Id == medicineId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (medicine is null)
+        {
+            return MedicineDeleteAttachmentOutcome.MedicineNotFound;
+        }
+
+        var owner = HealthAttachments.MedicineOwner(medicineId);
+        var removed = await attachments.DeleteAsync(new(attachmentId), owner, cancellationToken);
+        if (!removed)
+        {
+            return MedicineDeleteAttachmentOutcome.AttachmentNotFound;
+        }
+
+        if (medicine.PrimaryAttachmentId == attachmentId)
+        {
+            medicine.ClearPrimaryAttachment(actorId, clock.UtcNow);
+            await database.SaveChangesAsync(cancellationToken);
+        }
+
+        return MedicineDeleteAttachmentOutcome.Deleted;
     }
 
     private async Task ValidateCategoryAsync(
@@ -176,4 +261,29 @@ internal sealed class MedicineWriteService(SegarisDbContext database, IClock clo
 
         throw new HealthValidationException($"The {field} is not a recognized value.");
     }
+}
+
+/// <summary>Outcome of a primary-image assignment.</summary>
+internal enum MedicineSetPrimaryOutcome
+{
+    MedicineNotFound,
+    AttachmentNotFound,
+    NotImage,
+    Assigned,
+}
+
+/// <summary>
+/// Result of <see cref="MedicineWriteService.SetPrimaryAttachmentAsync"/>, carrying the
+/// assigned attachment descriptor when the assignment succeeded.
+/// </summary>
+internal sealed record MedicineSetPrimaryResult(
+    MedicineSetPrimaryOutcome Outcome,
+    AttachmentDescriptor? Descriptor);
+
+/// <summary>Outcome of an attachment deletion.</summary>
+internal enum MedicineDeleteAttachmentOutcome
+{
+    MedicineNotFound,
+    AttachmentNotFound,
+    Deleted,
 }

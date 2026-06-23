@@ -183,6 +183,7 @@ internal sealed class Medicine
     public int? InventoryItemId { get; private set; }
     public string? Notes { get; private set; }
     public RecordVisibility Visibility { get; private set; }
+    public int? PrimaryAttachmentId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public int CreatedBy { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -221,6 +222,40 @@ internal sealed class Medicine
         }
 
         CategoryId = categoryId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Marks <paramref name="attachmentId"/> as the medicine's primary image. The caller
+    /// is responsible for verifying the attachment belongs to the medicine and is an
+    /// image; the medicine only records the reference and stamps the change.
+    /// </summary>
+    internal void SetPrimaryAttachment(int attachmentId, UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (attachmentId <= 0)
+        {
+            throw new HealthValidationException("Attachment identifiers must be positive.");
+        }
+
+        PrimaryAttachmentId = attachmentId;
+        StampModification(actorId, now);
+    }
+
+    /// <summary>
+    /// Clears the primary-image reference, keeping it consistent when the referenced
+    /// attachment is removed. The medicine is untouched and unstamped when no primary
+    /// image is set.
+    /// </summary>
+    internal void ClearPrimaryAttachment(UserId actorId, DateTimeOffset now)
+    {
+        EnsureUtc(now);
+        if (PrimaryAttachmentId is null)
+        {
+            return;
+        }
+
+        PrimaryAttachmentId = null;
         StampModification(actorId, now);
     }
 
