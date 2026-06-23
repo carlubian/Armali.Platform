@@ -245,11 +245,7 @@ export const healthApi = {
       `/api/health/medicines/${medicineId}/attachments`,
       { signal },
     ),
-  uploadMedicineAttachment: (
-    medicineId: number,
-    file: File,
-    signal?: AbortSignal,
-  ) => {
+  uploadMedicineAttachment: (medicineId: number, file: File, signal?: AbortSignal) => {
     const body = new FormData()
     body.append('file', file)
     return apiRequest<MedicineAttachment>(
@@ -264,10 +260,13 @@ export const healthApi = {
     attachmentId: string,
     signal?: AbortSignal,
   ) =>
-    apiRequest<void>(`/api/health/medicines/${medicineId}/attachments/${attachmentId}`, {
-      method: 'DELETE',
-      signal,
-    }),
+    apiRequest<void>(
+      `/api/health/medicines/${medicineId}/attachments/${attachmentId}`,
+      {
+        method: 'DELETE',
+        signal,
+      },
+    ),
   setPrimaryMedicineAttachment: (
     medicineId: number,
     attachmentId: string,

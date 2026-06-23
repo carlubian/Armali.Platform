@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Disease, DiseaseSummary, Medicine, MedicineSummary } from '@/app/api/health'
+import type {
+  Disease,
+  DiseaseSummary,
+  Medicine,
+  MedicineSummary,
+} from '@/app/api/health'
 import type { InventoryItemSummary } from '@/app/api/inventory'
 
 const session = {
@@ -166,7 +171,12 @@ function mockBackend(options: BackendOptions = {}) {
       const params = new URL(url, 'http://localhost').searchParams
       const page = Number(params.get('page') ?? '1')
       const pageSize = Number(params.get('pageSize') ?? '10')
-      return json({ items: inventoryItems, page, pageSize, totalCount: inventoryItems.length })
+      return json({
+        items: inventoryItems,
+        page,
+        pageSize,
+        totalCount: inventoryItems.length,
+      })
     }
     const assoc = url.match(/^\/api\/health\/diseases\/(\d+)\/medicines\/(\d+)$/)
     if (assoc != null && (method === 'POST' || method === 'DELETE')) {
@@ -177,7 +187,9 @@ function mockBackend(options: BackendOptions = {}) {
       requests.push({ method, url })
       return json(diseaseMedicines)
     }
-    const medicineAssoc = url.match(/^\/api\/health\/medicines\/(\d+)\/diseases\/(\d+)$/)
+    const medicineAssoc = url.match(
+      /^\/api\/health\/medicines\/(\d+)\/diseases\/(\d+)$/,
+    )
     if (medicineAssoc != null && (method === 'POST' || method === 'DELETE')) {
       requests.push({ method, url })
       return new Response(null, { status: 204 })
@@ -412,7 +424,9 @@ describe('Health page — diseases tab', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New medicine' })
 
     await user.type(within(dialog).getByLabelText(/Name/), 'Paracetamol')
-    await user.click(within(dialog).getByRole('checkbox', { name: 'Requires prescription' }))
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Requires prescription' }),
+    )
     await user.click(within(dialog).getByRole('button', { name: 'Add diseases' }))
 
     const selector = await screen.findByRole('dialog', { name: /Select diseases/ })
@@ -457,7 +471,9 @@ describe('Configuration — Health disease categories', () => {
     expect(
       await screen.findByRole('heading', { name: 'Disease categories' }),
     ).toBeInTheDocument()
-    expect(await screen.findByRole('tab', { name: 'Medicine categories' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('tab', { name: 'Medicine categories' }),
+    ).toBeInTheDocument()
     expect(await screen.findByText('Respiratory')).toBeInTheDocument()
   })
 })

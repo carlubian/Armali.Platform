@@ -537,14 +537,13 @@ function MedicineDialog({
   })
   const diseasesQuery = useQuery({
     queryKey: healthKeys.medicineDiseases(medicineId as number),
-    queryFn: ({ signal }) => healthApi.listMedicineDiseases(medicineId as number, signal),
+    queryFn: ({ signal }) =>
+      healthApi.listMedicineDiseases(medicineId as number, signal),
     enabled: mode === 'edit' && medicineId != null,
   })
 
   const title =
-    mode === 'create'
-      ? t('medicineEditor.createTitle')
-      : t('medicineEditor.editTitle')
+    mode === 'create' ? t('medicineEditor.createTitle') : t('medicineEditor.editTitle')
   const description =
     mode === 'create'
       ? t('medicineEditor.createDescription')
@@ -996,7 +995,10 @@ function MedicineEditorForm({
           </section>
 
           <section className="seg-health-editor__section">
-            <span id="seg-health-medicine-visibility" className="seg-health-editor__label">
+            <span
+              id="seg-health-medicine-visibility"
+              className="seg-health-editor__label"
+            >
               {t('medicineEditor.fields.visibility')}
             </span>
             <SegmentedControl
@@ -1133,7 +1135,8 @@ function StagedAttachments({ files, onChange }: StagedAttachmentsProps) {
           accept={attachmentAccept}
           className="seg-health-attach__input"
           onChange={(event) => {
-            const next = event.target.files == null ? [] : Array.from(event.target.files)
+            const next =
+              event.target.files == null ? [] : Array.from(event.target.files)
             onChange([...files, ...next])
             event.target.value = ''
           }}

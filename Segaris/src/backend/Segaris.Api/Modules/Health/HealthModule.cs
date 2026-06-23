@@ -1,9 +1,9 @@
 using Segaris.Api.Composition;
-using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Health.Mutations;
 using Segaris.Api.Modules.Health.Persistence;
 using Segaris.Api.Modules.Health.Queries;
 using Segaris.Api.Modules.Health.Seeding;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Health;

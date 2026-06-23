@@ -42,7 +42,9 @@ export function DiseaseEntitySelector({
   const forcedVisibility: HealthVisibility | null =
     medicineVisibility === 'Public' ? 'Public' : null
 
-  const useEntities = (state: EntitySelectorState): EntityQueryResult<DiseaseSummary> => {
+  const useEntities = (
+    state: EntitySelectorState,
+  ): EntityQueryResult<DiseaseSummary> => {
     const query = buildDiseaseQuery(state, forcedVisibility)
     const result = useQuery({
       queryKey: healthKeys.diseaseList(query),

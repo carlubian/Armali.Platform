@@ -275,8 +275,7 @@ export const configuration = {
     medicineCategories: {
       tab: 'Medicine categories',
       title: 'Medicine categories',
-      description:
-        'Categories that classify medicines in the household health record.',
+      description: 'Categories that classify medicines in the household health record.',
       addAction: 'New category',
       createTitle: 'New medicine category',
       editTitle: 'Edit medicine category',

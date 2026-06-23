@@ -224,7 +224,10 @@ export function MedicineAttachments({
               ) : null}
               <a
                 className="seg-health-attach__action"
-                href={healthApi.medicineAttachmentDownloadUrl(medicineId, attachment.id)}
+                href={healthApi.medicineAttachmentDownloadUrl(
+                  medicineId,
+                  attachment.id,
+                )}
                 download={attachment.fileName}
                 aria-label={t('medicineEditor.attachments.download', {
                   name: attachment.fileName,
