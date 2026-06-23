@@ -111,6 +111,14 @@ const MoodDashboardPage = lazy(() =>
   })),
 )
 
+// The Health module is lazily loaded so its two-tab surface, disease table, and
+// editor stay out of the initial platform bundle.
+const HealthPage = lazy(() =>
+  import('@/modules/health/HealthPage').then((module) => ({
+    default: module.HealthPage,
+  })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -299,6 +307,16 @@ export function AppRouter() {
             }
           />
         ))}
+        <Route
+          path="health"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <HealthPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
         <Route path="mood" element={<Navigate to="/mood/log" replace />} />
         <Route
           path="mood/log"

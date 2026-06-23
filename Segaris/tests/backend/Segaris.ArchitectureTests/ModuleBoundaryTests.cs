@@ -30,6 +30,8 @@ public sealed class ModuleBoundaryTests
     private const string RecipesNamespace = "Segaris.Api.Modules.Recipes";
     private const string DestinationsNamespace = "Segaris.Api.Modules.Destinations";
     private const string DestinationsContractsNamespace = "Segaris.Api.Modules.Destinations.Contracts";
+    private const string HealthNamespace = "Segaris.Api.Modules.Health";
+    private const string HealthContractsNamespace = "Segaris.Api.Modules.Health.Contracts";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -53,6 +55,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(FirebirdNamespace));
         Assert.NotEmpty(TypesIn(RecipesNamespace));
         Assert.NotEmpty(TypesIn(DestinationsNamespace));
+        Assert.NotEmpty(TypesIn(HealthNamespace));
     }
 
     [Fact]
@@ -127,6 +130,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(InventoryNamespace, OpexNamespace);
         AssertNoDependency(InventoryNamespace, TravelNamespace);
         AssertNoDependency(InventoryNamespace, MaintenanceNamespace);
+        AssertNoDependency(InventoryNamespace, HealthNamespace);
     }
 
     [Fact]
@@ -301,6 +305,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, FirebirdNamespace);
         AssertNoDependency(LauncherNamespace, RecipesNamespace);
         AssertNoDependency(LauncherNamespace, DestinationsNamespace);
+        AssertNoDependency(LauncherNamespace, HealthNamespace);
     }
 
     [Fact]
@@ -797,6 +802,94 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(ProcessesNamespace, DestinationsNamespace);
         AssertNoDependency(FirebirdNamespace, DestinationsNamespace);
         AssertNoDependency(RecipesNamespace, DestinationsNamespace);
+        AssertNoDependency(HealthNamespace, DestinationsNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_health()
+    {
+        AssertNoDependency(ConfigurationNamespace, HealthNamespace);
+    }
+
+    [Fact]
+    public void Health_depends_on_configuration_contracts()
+    {
+        var dependsOnConfiguration = TypesIn(HealthNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Health must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Health_does_not_depend_on_forbidden_business_modules()
+    {
+        // Health may consume Configuration, Inventory.Contracts, and platform
+        // contracts. It must remain independent from all other business modules and
+        // contributes no launcher attention.
+        AssertNoDependency(HealthNamespace, CapexNamespace);
+        AssertNoDependency(HealthNamespace, OpexNamespace);
+        AssertNoDependency(HealthNamespace, TravelNamespace);
+        AssertNoDependency(HealthNamespace, ClothesNamespace);
+        AssertNoDependency(HealthNamespace, AssetsNamespace);
+        AssertNoDependency(HealthNamespace, MoodNamespace);
+        AssertNoDependency(HealthNamespace, MaintenanceNamespace);
+        AssertNoDependency(HealthNamespace, ProjectsNamespace);
+        AssertNoDependency(HealthNamespace, ProcessesNamespace);
+        AssertNoDependency(HealthNamespace, FirebirdNamespace);
+        AssertNoDependency(HealthNamespace, RecipesNamespace);
+        AssertNoDependency(HealthNamespace, DestinationsNamespace);
+        AssertNoDependency(HealthNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Health_may_only_consume_inventory_through_published_contracts()
+    {
+        var violations = TypesIn(HealthNamespace)
+            .SelectMany(type => ReferencedTypes(type)
+                .Where(referenced => IsInNamespace(referenced, InventoryNamespace)
+                    && !IsInNamespace(referenced, InventoryContractsNamespace))
+                .Select(referenced => $"{type.FullName} -> {referenced.FullName}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            violations.Length == 0,
+            "Health may consume Inventory only through 'Inventory.Contracts':"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, violations));
+    }
+
+    [Fact]
+    public void Inventory_does_not_depend_on_health()
+    {
+        AssertNoDependency(InventoryNamespace, HealthNamespace);
+    }
+
+    [Fact]
+    public void Health_publishes_no_cross_module_business_contracts()
+    {
+        // Health's contracts are currently API/configuration/inventory-consumption
+        // contracts for its own implementation. No sibling business module may
+        // reference Health in Wave 0.
+        Assert.NotEmpty(TypesIn(HealthContractsNamespace));
+        AssertNoDependency(ConfigurationNamespace, HealthNamespace);
+        AssertNoDependency(LauncherNamespace, HealthNamespace);
+        AssertNoDependency(CapexNamespace, HealthNamespace);
+        AssertNoDependency(OpexNamespace, HealthNamespace);
+        AssertNoDependency(InventoryNamespace, HealthNamespace);
+        AssertNoDependency(TravelNamespace, HealthNamespace);
+        AssertNoDependency(ClothesNamespace, HealthNamespace);
+        AssertNoDependency(AssetsNamespace, HealthNamespace);
+        AssertNoDependency(MoodNamespace, HealthNamespace);
+        AssertNoDependency(MaintenanceNamespace, HealthNamespace);
+        AssertNoDependency(ProjectsNamespace, HealthNamespace);
+        AssertNoDependency(ProcessesNamespace, HealthNamespace);
+        AssertNoDependency(FirebirdNamespace, HealthNamespace);
+        AssertNoDependency(RecipesNamespace, HealthNamespace);
+        AssertNoDependency(DestinationsNamespace, HealthNamespace);
     }
 
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)

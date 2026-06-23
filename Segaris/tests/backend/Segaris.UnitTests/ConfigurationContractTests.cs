@@ -94,7 +94,7 @@ public sealed class ConfigurationContractTests
     public void Initialization_keys_are_frozen()
     {
         Assert.Equal(
-            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories", "clothes.categories", "clothes.colors", "assets.categories", "assets.locations", "maintenance.types", "processes.categories", "firebird.person-categories", "firebird.username-platforms", "recipes.categories", "destinations.categories", "destinations.place-categories"],
+            ["configuration.suppliers", "configuration.cost-centers", "configuration.currencies", "capex.categories", "opex.categories", "inventory.categories", "inventory.locations", "travel.trip-types", "travel.expense-categories", "clothes.categories", "clothes.colors", "assets.categories", "assets.locations", "maintenance.types", "processes.categories", "firebird.person-categories", "firebird.username-platforms", "recipes.categories", "destinations.categories", "destinations.place-categories", "health.disease-categories", "health.medicine-categories"],
             ConfigurationInitializationKeys.All);
     }
 

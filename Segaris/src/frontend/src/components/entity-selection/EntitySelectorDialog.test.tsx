@@ -265,4 +265,63 @@ describe('EntitySelectorDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(dataRowNames()).toHaveLength(7)
   })
+
+  it('toggles rows and stays open in multi-select mode', async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+    const onClose = vi.fn()
+    const selected = new Set<string>(['2'])
+
+    const useEntities = (state: EntitySelectorState) => {
+      const all = queryRows(state)
+      const start = (state.page - 1) * state.pageSize
+      return {
+        items: all.slice(start, start + state.pageSize),
+        total: all.length,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        refetch: vi.fn(),
+      }
+    }
+
+    render(
+      <EntitySelectorDialog<Row>
+        useEntities={useEntities}
+        columns={columns}
+        filters={filters}
+        labels={{
+          ...labels,
+          selectAction: 'Add',
+          selectedAction: 'Added',
+          done: 'Done',
+          selectionCount: (count) => `${count} selected`,
+        }}
+        rowId={(row) => row.id}
+        selectedIds={selected}
+        onToggle={onToggle}
+        onSelect={vi.fn()}
+        onClose={onClose}
+        defaultSort={{ field: 'name', direction: 'asc' }}
+        searchDebounceMs={0}
+      />,
+    )
+
+    // The already-selected row shows the remove affordance; the rest offer Add.
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
+    const bravoRow = screen.getByText('Bravo').closest('[role="row"]') as HTMLElement
+    expect(within(bravoRow).getByRole('button', { name: 'Added' })).toBeInTheDocument()
+
+    const golfRow = screen.getByText('Golf').closest('[role="row"]') as HTMLElement
+    await user.click(within(golfRow).getByRole('button', { name: 'Add' }))
+    expect(onToggle).toHaveBeenCalledWith(expect.objectContaining({ id: '7' }), true)
+
+    // Toggling does not close the dialog; only Done does.
+    await user.click(within(bravoRow).getByRole('button', { name: 'Added' }))
+    expect(onToggle).toHaveBeenCalledWith(expect.objectContaining({ id: '2' }), false)
+    expect(onClose).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
 })

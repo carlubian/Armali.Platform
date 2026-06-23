@@ -57,6 +57,10 @@ internal static class ConfigurationInitializationKeys
 
     public const string DestinationPlaceCategories = "destinations.place-categories";
 
+    public const string HealthDiseaseCategories = "health.disease-categories";
+
+    public const string HealthMedicineCategories = "health.medicine-categories";
+
     public static IReadOnlyList<string> All { get; } =
     [
         Suppliers,
@@ -79,5 +83,7 @@ internal static class ConfigurationInitializationKeys
         RecipeCategories,
         DestinationCategories,
         DestinationPlaceCategories,
+        HealthDiseaseCategories,
+        HealthMedicineCategories,
     ];
 }

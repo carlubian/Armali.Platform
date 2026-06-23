@@ -7,6 +7,7 @@ import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { destinations } from '@/modules/destinations/i18n/resources'
 import { firebird } from '@/modules/firebird/i18n/resources'
+import { health } from '@/modules/health/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { maintenance } from '@/modules/maintenance/i18n/resources'
 import { mood } from '@/modules/mood/i18n/resources'
@@ -33,6 +34,7 @@ void i18n.use(initReactI18next).init({
     'configuration',
     'destinations',
     'firebird',
+    'health',
     'inventory',
     'maintenance',
     'mood',
@@ -51,6 +53,7 @@ void i18n.use(initReactI18next).init({
       configuration,
       destinations,
       firebird,
+      health,
       inventory,
       maintenance,
       mood,

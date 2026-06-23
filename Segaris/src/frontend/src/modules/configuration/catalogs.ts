@@ -17,6 +17,12 @@ import {
   usernamePlatformsManagementApi,
 } from '@/app/api/firebird'
 import {
+  healthApi,
+  diseaseCategoriesManagementApi,
+  medicineCategoriesManagementApi,
+} from '@/app/api/health'
+import { healthKeys } from '@/modules/health/contracts'
+import {
   inventoryApi,
   inventoryCategoriesManagementApi,
   inventoryLocationsManagementApi,
@@ -67,6 +73,8 @@ export type CatalogKey =
   | 'maintenanceTypes'
   | 'processCategories'
   | 'recipeCategories'
+  | 'diseaseCategories'
+  | 'medicineCategories'
   | 'personCategories'
   | 'usernamePlatforms'
 
@@ -85,6 +93,7 @@ export type CatalogSectionId =
   | 'projects'
   | 'processes'
   | 'recipes'
+  | 'health'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -376,6 +385,32 @@ export const recipeCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(recipeCategoriesManagementApi),
 }
 
+export const diseaseCategoriesDescriptor: CatalogDescriptor = {
+  key: 'diseaseCategories',
+  section: 'health',
+  urlSlug: 'disease-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: healthKeys.diseaseCategories(),
+  dependentKeys: [healthKeys.diseases()],
+  read: (signal) => healthApi.diseaseCategories(signal),
+  management: asDescriptorClient(diseaseCategoriesManagementApi),
+}
+
+export const medicineCategoriesDescriptor: CatalogDescriptor = {
+  key: 'medicineCategories',
+  section: 'health',
+  urlSlug: 'medicine-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: healthKeys.medicineCategories(),
+  dependentKeys: [healthKeys.medicines()],
+  read: (signal) => healthApi.medicineCategories(signal),
+  management: asDescriptorClient(medicineCategoriesManagementApi),
+}
+
 export const personCategoriesDescriptor: CatalogDescriptor = {
   key: 'personCategories',
   section: 'firebird',
@@ -457,6 +492,8 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   maintenanceTypesDescriptor,
   processCategoriesDescriptor,
   recipeCategoriesDescriptor,
+  diseaseCategoriesDescriptor,
+  medicineCategoriesDescriptor,
   ...firebirdCatalogs,
 ]
 
@@ -501,6 +538,8 @@ export function sectionCatalogs(
       return [processCategoriesDescriptor]
     case 'recipes':
       return [recipeCategoriesDescriptor]
+    case 'health':
+      return [diseaseCategoriesDescriptor, medicineCategoriesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

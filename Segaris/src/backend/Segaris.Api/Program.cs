@@ -7,6 +7,7 @@ using Segaris.Api.Modules.Clothes.Seeding;
 using Segaris.Api.Modules.Configuration.Seeding;
 using Segaris.Api.Modules.Destinations.Seeding;
 using Segaris.Api.Modules.Firebird.Seeding;
+using Segaris.Api.Modules.Health.Seeding;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Api.Modules.Inventory.Seeding;
 using Segaris.Api.Modules.Maintenance.Seeding;
@@ -54,6 +55,7 @@ await app.Services.SeedProcessesAsync();
 await app.Services.SeedFirebirdAsync();
 await app.Services.SeedRecipesAsync();
 await app.Services.SeedDestinationsAsync();
+await app.Services.SeedHealthAsync();
 
 app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>

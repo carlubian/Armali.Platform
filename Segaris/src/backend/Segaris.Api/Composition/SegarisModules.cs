@@ -4,6 +4,7 @@ using Segaris.Api.Modules.Clothes;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Destinations;
 using Segaris.Api.Modules.Firebird;
+using Segaris.Api.Modules.Health;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory;
 using Segaris.Api.Modules.Launcher;
@@ -38,6 +39,7 @@ internal static class SegarisModules
         new FirebirdModule(),
         new RecipesModule(),
         new DestinationsModule(),
+        new HealthModule(),
         new LauncherModule(),
     ];
 
