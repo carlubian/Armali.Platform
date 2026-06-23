@@ -272,6 +272,19 @@ export const configuration = {
       empty: 'No disease categories yet. Add the first one so diseases can use it.',
       itemName: 'disease category',
     },
+    medicineCategories: {
+      tab: 'Medicine categories',
+      title: 'Medicine categories',
+      description:
+        'Categories that classify medicines in the household health record.',
+      addAction: 'New category',
+      createTitle: 'New medicine category',
+      editTitle: 'Edit medicine category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No medicine categories yet. Add the first one so medicines can use it.',
+      itemName: 'medicine category',
+    },
     personCategories: {
       tab: 'Person categories',
       title: 'Person categories',

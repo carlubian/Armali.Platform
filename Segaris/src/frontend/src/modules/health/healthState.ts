@@ -67,10 +67,28 @@ export interface DiseaseFilterPatch {
   mine?: boolean
 }
 
+export interface MedicineFilterPatch {
+  search?: string
+  category?: number | null
+  requiresPrescription?: boolean | null
+  visibility?: HealthVisibility | ''
+  mine?: boolean
+}
+
 export function activeDiseaseFilterCount(state: DiseaseListState): number {
   let count = 0
   if (state.search.trim() !== '') count += 1
   if (state.category != null) count += 1
+  if (state.visibility !== '') count += 1
+  if (state.mine) count += 1
+  return count
+}
+
+export function activeMedicineFilterCount(state: MedicineListState): number {
+  let count = 0
+  if (state.search.trim() !== '') count += 1
+  if (state.category != null) count += 1
+  if (state.requiresPrescription != null) count += 1
   if (state.visibility !== '') count += 1
   if (state.mine) count += 1
   return count
@@ -235,6 +253,27 @@ export function useHealthState(currentUserId: number | null) {
     [patchParams, currentUserId],
   )
 
+  const setMedicineFilters = useCallback(
+    (patch: MedicineFilterPatch) => {
+      const next: Record<string, string | null> = { medicinePage: null }
+      if (patch.search !== undefined)
+        next.medicineSearch = patch.search === '' ? null : patch.search
+      if (patch.category !== undefined)
+        next.medicineCategory = patch.category == null ? null : String(patch.category)
+      if (patch.requiresPrescription !== undefined) {
+        next.requiresPrescription =
+          patch.requiresPrescription == null ? null : String(patch.requiresPrescription)
+      }
+      if (patch.visibility !== undefined)
+        next.medicineVisibility = patch.visibility === '' ? null : patch.visibility
+      if (patch.mine !== undefined)
+        next.medicineCreator =
+          patch.mine && currentUserId != null ? String(currentUserId) : null
+      patchParams(next)
+    },
+    [patchParams, currentUserId],
+  )
+
   return {
     state,
     dialog,
@@ -242,6 +281,7 @@ export function useHealthState(currentUserId: number | null) {
     medicineListQuery,
     setTab: (tab: HealthTab) => patchParams({ tab }),
     setDiseaseFilters,
+    setMedicineFilters,
     clearDiseaseFilters: () =>
       patchParams({
         diseaseSearch: null,
@@ -249,6 +289,15 @@ export function useHealthState(currentUserId: number | null) {
         diseaseVisibility: null,
         diseaseCreator: null,
         diseasePage: null,
+      }),
+    clearMedicineFilters: () =>
+      patchParams({
+        medicineSearch: null,
+        medicineCategory: null,
+        requiresPrescription: null,
+        medicineVisibility: null,
+        medicineCreator: null,
+        medicinePage: null,
       }),
     setDiseaseSort: (field: DiseaseSortField) => {
       const current = state.diseases
@@ -266,6 +315,23 @@ export function useHealthState(currentUserId: number | null) {
       patchParams({
         diseasePageSize: pageSize === defaultPageSize ? null : String(pageSize),
         diseasePage: null,
+      }),
+    setMedicineSort: (field: MedicineSortField) => {
+      const current = state.medicines
+      const direction: HealthSortDirection =
+        current.sort === field && current.sortDirection === 'asc' ? 'desc' : 'asc'
+      patchParams({
+        medicineSort: field,
+        medicineSortDirection: direction,
+        medicinePage: null,
+      })
+    },
+    setMedicinePage: (page: number) =>
+      patchParams({ medicinePage: page <= 1 ? null : String(page) }),
+    setMedicinePageSize: (pageSize: HealthPageSize) =>
+      patchParams({
+        medicinePageSize: pageSize === defaultPageSize ? null : String(pageSize),
+        medicinePage: null,
       }),
     openCreateDisease: () =>
       patchParams({

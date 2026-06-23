@@ -16,7 +16,11 @@ import {
   personCategoriesManagementApi,
   usernamePlatformsManagementApi,
 } from '@/app/api/firebird'
-import { healthApi, diseaseCategoriesManagementApi } from '@/app/api/health'
+import {
+  healthApi,
+  diseaseCategoriesManagementApi,
+  medicineCategoriesManagementApi,
+} from '@/app/api/health'
 import { healthKeys } from '@/modules/health/contracts'
 import {
   inventoryApi,
@@ -70,6 +74,7 @@ export type CatalogKey =
   | 'processCategories'
   | 'recipeCategories'
   | 'diseaseCategories'
+  | 'medicineCategories'
   | 'personCategories'
   | 'usernamePlatforms'
 
@@ -383,6 +388,7 @@ export const recipeCategoriesDescriptor: CatalogDescriptor = {
 export const diseaseCategoriesDescriptor: CatalogDescriptor = {
   key: 'diseaseCategories',
   section: 'health',
+  urlSlug: 'disease-categories',
   hasCode: false,
   canClear: false,
   isCurrency: false,
@@ -390,6 +396,19 @@ export const diseaseCategoriesDescriptor: CatalogDescriptor = {
   dependentKeys: [healthKeys.diseases()],
   read: (signal) => healthApi.diseaseCategories(signal),
   management: asDescriptorClient(diseaseCategoriesManagementApi),
+}
+
+export const medicineCategoriesDescriptor: CatalogDescriptor = {
+  key: 'medicineCategories',
+  section: 'health',
+  urlSlug: 'medicine-categories',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: healthKeys.medicineCategories(),
+  dependentKeys: [healthKeys.medicines()],
+  read: (signal) => healthApi.medicineCategories(signal),
+  management: asDescriptorClient(medicineCategoriesManagementApi),
 }
 
 export const personCategoriesDescriptor: CatalogDescriptor = {
@@ -474,6 +493,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   processCategoriesDescriptor,
   recipeCategoriesDescriptor,
   diseaseCategoriesDescriptor,
+  medicineCategoriesDescriptor,
   ...firebirdCatalogs,
 ]
 
@@ -519,7 +539,7 @@ export function sectionCatalogs(
     case 'recipes':
       return [recipeCategoriesDescriptor]
     case 'health':
-      return [diseaseCategoriesDescriptor]
+      return [diseaseCategoriesDescriptor, medicineCategoriesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

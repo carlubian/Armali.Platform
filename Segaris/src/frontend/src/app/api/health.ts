@@ -245,8 +245,38 @@ export const healthApi = {
       `/api/health/medicines/${medicineId}/attachments`,
       { signal },
     ),
+  uploadMedicineAttachment: (
+    medicineId: number,
+    file: File,
+    signal?: AbortSignal,
+  ) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest<MedicineAttachment>(
+      `/api/health/medicines/${medicineId}/attachments`,
+      { method: 'POST', body, signal, timeoutMs: 60_000 },
+    )
+  },
   medicineAttachmentDownloadUrl: (medicineId: number, attachmentId: string) =>
     `/api/health/medicines/${medicineId}/attachments/${attachmentId}`,
+  deleteMedicineAttachment: (
+    medicineId: number,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<void>(`/api/health/medicines/${medicineId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      signal,
+    }),
+  setPrimaryMedicineAttachment: (
+    medicineId: number,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ) =>
+    apiRequest<MedicineAttachment>(
+      `/api/health/medicines/${medicineId}/attachments/${attachmentId}/primary`,
+      { method: 'PUT', signal },
+    ),
 }
 
 export const diseaseCategoriesManagementApi: CatalogManagementClient<

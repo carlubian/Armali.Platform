@@ -54,6 +54,7 @@ import {
 } from '@/components/ui'
 
 import { MedicineEntitySelector } from './MedicineEntitySelector'
+import { MedicinesTab } from './HealthMedicineTab'
 import { healthKeys, useDiseaseCategories } from './queries'
 import {
   activeDiseaseFilterCount,
@@ -129,22 +130,9 @@ export function HealthPage() {
       {state.tab === 'diseases' ? (
         <DiseasesTab health={health} currentUserId={currentUserId} />
       ) : (
-        <MedicinesPlaceholder />
+        <MedicinesTab health={health} currentUserId={currentUserId} />
       )}
     </main>
-  )
-}
-
-function MedicinesPlaceholder() {
-  const { t } = useTranslation('health')
-  return (
-    <section className="seg-health__placeholder">
-      <span className="seg-health__placeholder-icon">
-        <Pill size={28} aria-hidden="true" />
-      </span>
-      <h2>{t('medicines.placeholderTitle')}</h2>
-      <p>{t('medicines.placeholderBody')}</p>
-    </section>
   )
 }
 
