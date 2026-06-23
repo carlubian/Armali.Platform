@@ -33,6 +33,7 @@ export const configuration = {
     firebird: 'Firebird',
     processes: 'Processes',
     recipes: 'Recipes',
+    health: 'Health',
     projects: 'Projects',
   },
   catalogs: {
@@ -258,6 +259,18 @@ export const configuration = {
       namePlaceholder: 'Category name',
       empty: 'No recipe categories yet. Add the first one so recipes can use it.',
       itemName: 'recipe category',
+    },
+    diseaseCategories: {
+      tab: 'Disease categories',
+      title: 'Disease categories',
+      description: 'Categories that classify diseases in the household health record.',
+      addAction: 'New category',
+      createTitle: 'New disease category',
+      editTitle: 'Edit disease category',
+      nameLabel: 'Name',
+      namePlaceholder: 'Category name',
+      empty: 'No disease categories yet. Add the first one so diseases can use it.',
+      itemName: 'disease category',
     },
     personCategories: {
       tab: 'Person categories',

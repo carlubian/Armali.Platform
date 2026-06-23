@@ -76,6 +76,18 @@ export interface EntitySelectorLabels {
   removeFilter: (label: string) => string
   selectAction: string
   currentTag: ReactNode
+  /**
+   * Multi-select only: action label on a row that is already in the working set,
+   * which removes it. Falls back to {@link currentTag} when omitted.
+   */
+  selectedAction?: ReactNode
+  /**
+   * Multi-select only: label for the footer confirm button that closes the
+   * dialog while keeping the working set. Falls back to {@link cancel}.
+   */
+  done?: ReactNode
+  /** Multi-select only: live summary of how many rows are in the working set. */
+  selectionCount?: (count: number) => ReactNode
   cancel: string
   close: string
   loading: ReactNode
@@ -99,6 +111,15 @@ export interface EntitySelectorDialogProps<T> {
   rowId: (item: T) => string
   /** Identifier of the already-linked entity, marked as current. */
   currentId?: string | null
+  /**
+   * Opts the dialog into multi-select mode. When provided, the dialog renders a
+   * toggle per row against this working set and stays open across toggles; the
+   * single-select {@link currentId}/{@link onSelect} path is ignored. The caller
+   * owns the set and reacts to {@link onToggle}.
+   */
+  selectedIds?: ReadonlySet<string>
+  /** Multi-select only: toggles a row in or out of the working set. */
+  onToggle?: (item: T, selected: boolean) => void
   onSelect: (item: T) => void
   onClose: () => void
   defaultSort?: { field: string; direction: SortDirection }
@@ -183,6 +204,8 @@ export function EntitySelectorDialog<T>({
   labels,
   rowId,
   currentId,
+  selectedIds,
+  onToggle,
   onSelect,
   onClose,
   defaultSort,
@@ -190,6 +213,7 @@ export function EntitySelectorDialog<T>({
   width = 960,
   searchDebounceMs = 300,
 }: EntitySelectorDialogProps<T>) {
+  const multiMode = selectedIds != null
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, string>>(() =>
@@ -362,12 +386,13 @@ export function EntitySelectorDialog<T>({
 
         {items.map((item) => {
           const id = rowId(item)
-          const current = currentId != null && id === currentId
+          const selected = selectedIds != null && selectedIds.has(id)
+          const current = !multiMode && currentId != null && id === currentId
           return (
             <div
               key={id}
               role="row"
-              className={'seg-selrow' + (current ? ' is-current' : '')}
+              className={'seg-selrow' + (current || selected ? ' is-current' : '')}
             >
               {columns.map((column) => (
                 <span
@@ -381,7 +406,18 @@ export function EntitySelectorDialog<T>({
                 </span>
               ))}
               <span role="cell" className="seg-selrow__act">
-                {current ? (
+                {multiMode ? (
+                  <Button
+                    variant={selected ? 'outline' : 'primary'}
+                    size="sm"
+                    aria-pressed={selected}
+                    onClick={() => onToggle?.(item, !selected)}
+                  >
+                    {selected
+                      ? (labels.selectedAction ?? labels.currentTag)
+                      : labels.selectAction}
+                  </Button>
+                ) : current ? (
                   <span className="seg-current-tag">{labels.currentTag}</span>
                 ) : (
                   <Button variant="primary" size="sm" onClick={() => onSelect(item)}>
@@ -458,9 +494,15 @@ export function EntitySelectorDialog<T>({
               </button>
             </nav>
           )}
-          <Button variant="ghost" onClick={onClose}>
-            {labels.cancel}
-          </Button>
+          {multiMode ? (
+            <Button variant="primary" onClick={onClose}>
+              {labels.done ?? labels.cancel}
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={onClose}>
+              {labels.cancel}
+            </Button>
+          )}
         </div>
       }
     >
@@ -495,6 +537,11 @@ export function EntitySelectorDialog<T>({
               label={labels.refetching}
               className="seg-selector__busy"
             />
+          )}
+          {multiMode && labels.selectionCount != null && (
+            <span className="seg-selector__selected" aria-live="polite">
+              {labels.selectionCount(selectedIds?.size ?? 0)}
+            </span>
           )}
         </span>
         {hasActiveFilters && (

@@ -16,6 +16,8 @@ import {
   personCategoriesManagementApi,
   usernamePlatformsManagementApi,
 } from '@/app/api/firebird'
+import { healthApi, diseaseCategoriesManagementApi } from '@/app/api/health'
+import { healthKeys } from '@/modules/health/contracts'
 import {
   inventoryApi,
   inventoryCategoriesManagementApi,
@@ -67,6 +69,7 @@ export type CatalogKey =
   | 'maintenanceTypes'
   | 'processCategories'
   | 'recipeCategories'
+  | 'diseaseCategories'
   | 'personCategories'
   | 'usernamePlatforms'
 
@@ -85,6 +88,7 @@ export type CatalogSectionId =
   | 'projects'
   | 'processes'
   | 'recipes'
+  | 'health'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -376,6 +380,18 @@ export const recipeCategoriesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(recipeCategoriesManagementApi),
 }
 
+export const diseaseCategoriesDescriptor: CatalogDescriptor = {
+  key: 'diseaseCategories',
+  section: 'health',
+  hasCode: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: healthKeys.diseaseCategories(),
+  dependentKeys: [healthKeys.diseases()],
+  read: (signal) => healthApi.diseaseCategories(signal),
+  management: asDescriptorClient(diseaseCategoriesManagementApi),
+}
+
 export const personCategoriesDescriptor: CatalogDescriptor = {
   key: 'personCategories',
   section: 'firebird',
@@ -457,6 +473,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   maintenanceTypesDescriptor,
   processCategoriesDescriptor,
   recipeCategoriesDescriptor,
+  diseaseCategoriesDescriptor,
   ...firebirdCatalogs,
 ]
 
@@ -501,6 +518,8 @@ export function sectionCatalogs(
       return [processCategoriesDescriptor]
     case 'recipes':
       return [recipeCategoriesDescriptor]
+    case 'health':
+      return [diseaseCategoriesDescriptor]
     case 'capex':
       return [categoriesDescriptor]
     case 'opex':

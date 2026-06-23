@@ -33,6 +33,7 @@ const sections: CatalogSectionId[] = [
   'firebird',
   'processes',
   'recipes',
+  'health',
   'projects',
 ]
 

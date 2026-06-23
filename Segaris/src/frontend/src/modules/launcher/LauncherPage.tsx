@@ -4,6 +4,7 @@ import {
   Boxes,
   Contact,
   Hammer,
+  HeartPulse,
   ListChecks,
   Luggage,
   MapPinned,
@@ -116,6 +117,15 @@ export function LauncherPage() {
         href: '/mood',
         icon: Smile,
         tone: 'aqua',
+      },
+      {
+        key: 'health',
+        title: t('health:launcher.title'),
+        description: t('health:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/health',
+        icon: HeartPulse,
+        tone: 'rose',
       },
       {
         key: 'assets',

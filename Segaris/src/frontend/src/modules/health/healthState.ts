@@ -60,6 +60,22 @@ export type HealthDialogState =
   | { mode: 'createMedicine' }
   | { mode: 'editMedicine'; medicineId: number }
 
+export interface DiseaseFilterPatch {
+  search?: string
+  category?: number | null
+  visibility?: HealthVisibility | ''
+  mine?: boolean
+}
+
+export function activeDiseaseFilterCount(state: DiseaseListState): number {
+  let count = 0
+  if (state.search.trim() !== '') count += 1
+  if (state.category != null) count += 1
+  if (state.visibility !== '') count += 1
+  if (state.mine) count += 1
+  return count
+}
+
 function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | '' {
   return value != null && (allowed as readonly string[]).includes(value)
     ? (value as T)
@@ -202,12 +218,55 @@ export function useHealthState(currentUserId: number | null) {
     [setSearchParams],
   )
 
+  const setDiseaseFilters = useCallback(
+    (patch: DiseaseFilterPatch) => {
+      const next: Record<string, string | null> = { diseasePage: null }
+      if (patch.search !== undefined)
+        next.diseaseSearch = patch.search === '' ? null : patch.search
+      if (patch.category !== undefined)
+        next.diseaseCategory = patch.category == null ? null : String(patch.category)
+      if (patch.visibility !== undefined)
+        next.diseaseVisibility = patch.visibility === '' ? null : patch.visibility
+      if (patch.mine !== undefined)
+        next.diseaseCreator =
+          patch.mine && currentUserId != null ? String(currentUserId) : null
+      patchParams(next)
+    },
+    [patchParams, currentUserId],
+  )
+
   return {
     state,
     dialog,
     diseaseListQuery,
     medicineListQuery,
     setTab: (tab: HealthTab) => patchParams({ tab }),
+    setDiseaseFilters,
+    clearDiseaseFilters: () =>
+      patchParams({
+        diseaseSearch: null,
+        diseaseCategory: null,
+        diseaseVisibility: null,
+        diseaseCreator: null,
+        diseasePage: null,
+      }),
+    setDiseaseSort: (field: DiseaseSortField) => {
+      const current = state.diseases
+      const direction: HealthSortDirection =
+        current.sort === field && current.sortDirection === 'asc' ? 'desc' : 'asc'
+      patchParams({
+        diseaseSort: field,
+        diseaseSortDirection: direction,
+        diseasePage: null,
+      })
+    },
+    setDiseasePage: (page: number) =>
+      patchParams({ diseasePage: page <= 1 ? null : String(page) }),
+    setDiseasePageSize: (pageSize: HealthPageSize) =>
+      patchParams({
+        diseasePageSize: pageSize === defaultPageSize ? null : String(pageSize),
+        diseasePage: null,
+      }),
     openCreateDisease: () =>
       patchParams({
         newDisease: 'true',
