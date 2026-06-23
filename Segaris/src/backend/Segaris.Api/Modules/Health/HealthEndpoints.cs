@@ -79,25 +79,35 @@ internal static class HealthEndpoints
 
     private static void MapMedicineEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/medicines", Placeholder)
+        group.MapGet("/medicines", ListMedicinesAsync)
             .WithName("ListHealthMedicines")
+            .WithSummary("Returns a paginated, filtered, and sorted list of accessible Health medicines")
             .Produces<PaginatedResponse<MedicineSummaryResponse>>();
-        group.MapPost("/medicines", Placeholder)
+        group.MapPost("/medicines", CreateMedicineAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateHealthMedicine")
-            .Produces<MedicineResponse>(StatusCodes.Status201Created);
-        group.MapGet(HealthApiRoutes.MedicineById, Placeholder)
+            .WithSummary("Creates a Health medicine")
+            .Produces<MedicineResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet(HealthApiRoutes.MedicineById, GetMedicineAsync)
             .WithName("GetHealthMedicine")
+            .WithSummary("Returns the detail of an accessible Health medicine")
             .Produces<MedicineResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        group.MapPut(HealthApiRoutes.MedicineById, Placeholder)
+        group.MapPut(HealthApiRoutes.MedicineById, UpdateMedicineAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdateHealthMedicine")
-            .Produces<MedicineResponse>();
-        group.MapDelete(HealthApiRoutes.MedicineById, Placeholder)
+            .WithSummary("Replaces an accessible Health medicine")
+            .Produces<MedicineResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapDelete(HealthApiRoutes.MedicineById, DeleteMedicineAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteHealthMedicine")
-            .Produces(StatusCodes.Status204NoContent);
+            .WithSummary("Deletes an accessible Health medicine")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet(HealthApiRoutes.MedicineDiseases, Placeholder)
             .WithName("ListHealthMedicineDiseases")
             .Produces<IReadOnlyList<DiseaseSummaryResponse>>();
@@ -391,6 +401,124 @@ internal static class HealthEndpoints
         if (!deleted)
         {
             throw HealthDiseaseProblem.NotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListMedicinesAsync(
+        [AsParameters] MedicineListQuery query,
+        MedicineReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var result = await read.ListMedicinesAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken);
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<IResult> GetMedicineAsync(
+        int medicineId,
+        MedicineReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var medicine = await read.GetMedicineAsync(medicineId, userId, cancellationToken);
+        if (medicine is null)
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        return TypedResults.Ok(medicine);
+    }
+
+    private static async Task<IResult> CreateMedicineAsync(
+        CreateMedicineRequest request,
+        MedicineWriteService write,
+        MedicineReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int medicineId;
+        try
+        {
+            medicineId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (HealthValidationException exception)
+        {
+            throw HealthMedicineProblem.From(exception);
+        }
+
+        var created = await read.GetMedicineAsync(medicineId, userId, cancellationToken);
+        return TypedResults.Created($"/api/health/medicines/{medicineId}", created);
+    }
+
+    private static async Task<IResult> UpdateMedicineAsync(
+        int medicineId,
+        UpdateMedicineRequest request,
+        MedicineWriteService write,
+        MedicineReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(medicineId, request, userId, cancellationToken);
+        }
+        catch (HealthValidationException exception)
+        {
+            throw HealthMedicineProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw HealthMedicineProblem.NotFound();
+        }
+
+        var medicine = await read.GetMedicineAsync(medicineId, userId, cancellationToken);
+        return TypedResults.Ok(medicine);
+    }
+
+    private static async Task<IResult> DeleteMedicineAsync(
+        int medicineId,
+        MedicineWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(medicineId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw HealthMedicineProblem.NotFound();
         }
 
         return TypedResults.NoContent();

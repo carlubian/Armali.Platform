@@ -21,11 +21,28 @@ internal static class HealthTestData
             .SingleAsync();
     }
 
+    public static async Task<int> MedicineCategoryIdAsync(IServiceProvider services, string name)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<MedicineCategory>()
+            .Where(category => category.Name == name)
+            .Select(category => category.Id)
+            .SingleAsync();
+    }
+
     public static async Task<bool> DiseaseExistsAsync(IServiceProvider services, int diseaseId)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
         return await database.Set<Disease>().AnyAsync(disease => disease.Id == diseaseId);
+    }
+
+    public static async Task<bool> MedicineExistsAsync(IServiceProvider services, int medicineId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        return await database.Set<Medicine>().AnyAsync(medicine => medicine.Id == medicineId);
     }
 
     public static async Task<int> SeedDiseaseAsync(
@@ -60,5 +77,40 @@ internal static class HealthTestData
         database.Add(disease);
         await database.SaveChangesAsync();
         return disease.Id;
+    }
+
+    public static async Task<int> SeedMedicineAsync(
+        IServiceProvider services,
+        int creatorId,
+        string name = "Medicine",
+        string categoryName = "Other",
+        string? posology = null,
+        bool requiresPrescription = false,
+        string? notes = null,
+        RecordVisibility visibility = RecordVisibility.Public)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+
+        var categoryId = await database.Set<MedicineCategory>()
+            .Where(category => category.Name == categoryName)
+            .Select(category => category.Id)
+            .SingleAsync();
+
+        var medicine = Medicine.Create(
+            new MedicineValues(
+                name,
+                categoryId,
+                posology,
+                requiresPrescription,
+                null,
+                notes,
+                visibility),
+            new UserId(creatorId),
+            SeedNow);
+
+        database.Add(medicine);
+        await database.SaveChangesAsync();
+        return medicine.Id;
     }
 }
