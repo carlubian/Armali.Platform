@@ -1,4 +1,8 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Calendar.Mutations;
+using Segaris.Api.Modules.Calendar.Persistence;
+using Segaris.Api.Modules.Calendar.Queries;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Calendar;
 
@@ -13,6 +17,9 @@ internal sealed class CalendarModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ISegarisModelContributor, CalendarModelContributor>();
+        services.AddScoped<CalendarDailyNoteReadService>();
+        services.AddScoped<CalendarDailyNoteWriteService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

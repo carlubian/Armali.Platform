@@ -303,6 +303,59 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.ToTable("asset_locations", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Calendar.Domain.CalendarDailyNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("CreatedBy", "Id");
+
+                    b.HasIndex("Date", "Id");
+
+                    b.HasIndex("Visibility", "Date", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Date", "Id");
+
+                    b.ToTable("calendar_daily_notes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_calendar_daily_notes_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -3522,6 +3575,21 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.HasOne("Segaris.Api.Modules.Assets.Domain.AssetLocation", null)
                         .WithMany()
                         .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Calendar.Domain.CalendarDailyNote", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
