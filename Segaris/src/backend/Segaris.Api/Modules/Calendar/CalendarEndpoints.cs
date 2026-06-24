@@ -1,3 +1,4 @@
+using System.Globalization;
 using Segaris.Api.Modules.Calendar.Contracts;
 using Segaris.Api.Modules.Calendar.Domain;
 using Segaris.Api.Modules.Calendar.Mutations;
@@ -14,6 +15,12 @@ internal static class CalendarEndpoints
     {
         var group = endpoints.MapSegarisApiGroup(CalendarApiRoutes.Calendar, CalendarApiRoutes.Tag)
             .RequireAuthorization();
+
+        group.MapGet(CalendarApiRoutes.Entries, ListEntriesAsync)
+            .WithName("ListCalendarEntries")
+            .WithSummary("Returns accessible Calendar entries for an inclusive date range")
+            .Produces<IReadOnlyList<CalendarEntryResponse>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapGet(CalendarApiRoutes.Notes, ListNotesAsync)
             .WithName("ListCalendarNotes")
@@ -51,6 +58,22 @@ internal static class CalendarEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> ListEntriesAsync(
+        HttpRequest request,
+        CalendarEntriesReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var filter = ValidateEntriesFilter(request);
+        var entries = await read.ListEntriesAsync(filter, userId, cancellationToken);
+        return TypedResults.Ok(entries);
     }
 
     private static async Task<IResult> ListNotesAsync(
@@ -168,6 +191,41 @@ internal static class CalendarEndpoints
         return TypedResults.NoContent();
     }
 
+    private static CalendarEntriesFilter ValidateEntriesFilter(HttpRequest request)
+    {
+        var from = ParseRequiredDate(
+            request.Query[CalendarApiRoutes.QueryParameters.From].FirstOrDefault(),
+            CalendarApiRoutes.QueryParameters.From);
+        var to = ParseRequiredDate(
+            request.Query[CalendarApiRoutes.QueryParameters.To].FirstOrDefault(),
+            CalendarApiRoutes.QueryParameters.To);
+
+        if (to < from)
+        {
+            throw CalendarProblem.EntryRangeInvalid(
+                CalendarApiRoutes.QueryParameters.To,
+                "The to date must be on or after the from date.");
+        }
+
+        if ((to.DayNumber - from.DayNumber) + 1 > CalendarEntriesQuery.MaximumRangeDays)
+        {
+            throw CalendarProblem.EntryRangeInvalid(
+                CalendarApiRoutes.QueryParameters.To,
+                $"Calendar entry ranges may not exceed {CalendarEntriesQuery.MaximumRangeDays} days.");
+        }
+
+        var sourceModules = ParseFilters(
+            request.Query[CalendarApiRoutes.QueryParameters.SourceModule],
+            CalendarSourceModules.AllowedFilters,
+            CalendarProblem.EntrySourceModuleUnsupported);
+        var visualFamilies = ParseFilters(
+            request.Query[CalendarApiRoutes.QueryParameters.VisualFamily],
+            CalendarVisualFamilies.AllowedFilters,
+            CalendarProblem.EntryVisualFamilyUnsupported);
+
+        return CalendarEntriesQuery.Create(from, to, sourceModules, visualFamilies);
+    }
+
     private static (DateOnly From, DateOnly To) ValidateRange(DateOnly? from, DateOnly? to)
     {
         if (from is null)
@@ -188,5 +246,45 @@ internal static class CalendarEndpoints
         }
 
         return (from.Value, to.Value);
+    }
+
+    private static DateOnly ParseRequiredDate(string? value, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw CalendarProblem.EntryRangeInvalid(field, $"The {field} date is required.");
+        }
+
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            throw CalendarProblem.EntryRangeInvalid(field, $"The {field} date must use yyyy-MM-dd.");
+        }
+
+        return date;
+    }
+
+    private static IReadOnlyList<string> ParseFilters(
+        IEnumerable<string> values,
+        IReadOnlySet<string> allowed,
+        Func<string, ApiProblemException> unsupported)
+    {
+        var filters = new List<string>();
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            var normalized = value.Trim();
+            if (!allowed.Contains(normalized))
+            {
+                throw unsupported(normalized);
+            }
+
+            filters.Add(normalized);
+        }
+
+        return filters;
     }
 }

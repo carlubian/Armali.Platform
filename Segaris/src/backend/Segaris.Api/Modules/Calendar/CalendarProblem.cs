@@ -5,6 +5,24 @@ namespace Segaris.Api.Modules.Calendar;
 
 internal static class CalendarProblem
 {
+    public static ApiProblemException EntryRangeInvalid(string field, string message) => new(
+        StatusCodes.Status400BadRequest,
+        CalendarErrorCodes.EntryRangeInvalid,
+        "The Calendar entry range is invalid.",
+        errors: Errors(field, message));
+
+    public static ApiProblemException EntrySourceModuleUnsupported(string value) => new(
+        StatusCodes.Status400BadRequest,
+        CalendarErrorCodes.EntrySourceModuleUnsupported,
+        "The Calendar source-module filter is unsupported.",
+        errors: Errors(CalendarApiRoutes.QueryParameters.SourceModule, $"Unsupported Calendar source module '{value}'."));
+
+    public static ApiProblemException EntryVisualFamilyUnsupported(string value) => new(
+        StatusCodes.Status400BadRequest,
+        CalendarErrorCodes.EntryVisualFamilyUnsupported,
+        "The Calendar visual-family filter is unsupported.",
+        errors: Errors(CalendarApiRoutes.QueryParameters.VisualFamily, $"Unsupported Calendar visual family '{value}'."));
+
     public static ApiProblemException NoteNotFound() => new(
         StatusCodes.Status404NotFound,
         CalendarErrorCodes.NoteNotFound,

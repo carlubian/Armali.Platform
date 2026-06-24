@@ -18,6 +18,7 @@ internal sealed class CalendarModule : ISegarisModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISegarisModelContributor, CalendarModelContributor>();
+        services.AddScoped<CalendarEntriesReadService>();
         services.AddScoped<CalendarDailyNoteReadService>();
         services.AddScoped<CalendarDailyNoteWriteService>();
     }
