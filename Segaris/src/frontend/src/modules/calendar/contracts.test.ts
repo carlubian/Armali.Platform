@@ -11,8 +11,13 @@ import {
 } from '@/app/api/calendar'
 
 import {
+  addCalendarMonths,
+  formatCalendarMonth,
+  formatCivilDate,
+  getVisibleCalendarGrid,
   parseCalendarDialogState,
   parseCalendarState,
+  resolveCalendarMonth,
   toCalendarEntriesQuery,
 } from './calendarState'
 import { calendarDailyNoteRequestSchema, calendarKeys } from './contracts'
@@ -107,6 +112,28 @@ describe('calendar contracts', () => {
       sourceModule: ['travel'],
       visualFamily: ['Travel'],
     })
+  })
+
+  it('calculates Monday-first month grids including adjacent days', () => {
+    const june = getVisibleCalendarGrid('2026-06')
+
+    expect(june).toHaveLength(35)
+    expect(june[0]).toEqual({ date: '2026-06-01', inMonth: true })
+    expect(june.at(-1)).toEqual({ date: '2026-07-05', inMonth: false })
+
+    const july = getVisibleCalendarGrid('2026-07')
+    expect(july[0]).toEqual({ date: '2026-06-29', inMonth: false })
+    expect(july.at(-1)).toEqual({ date: '2026-08-02', inMonth: false })
+  })
+
+  it('formats, resolves, and increments civil months without time components', () => {
+    const today = new Date(2026, 5, 24)
+
+    expect(formatCivilDate(today)).toBe('2026-06-24')
+    expect(formatCalendarMonth(today)).toBe('2026-06')
+    expect(resolveCalendarMonth('current', today)).toBe('2026-06')
+    expect(addCalendarMonths('2026-01', -1)).toBe('2025-12')
+    expect(addCalendarMonths('2026-12', 1)).toBe('2027-01')
   })
 
   it('validates daily note request boundaries and private default', () => {

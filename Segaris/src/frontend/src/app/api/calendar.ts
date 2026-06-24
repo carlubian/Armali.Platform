@@ -111,30 +111,47 @@ export interface CalendarDailyNoteRequest {
   visibility: CalendarVisibility
 }
 
-function buildQuery<T extends object>(query: T): string {
+type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined
+
+function appendQueryValue(parameters: URLSearchParams, key: string, value: QueryValue) {
+  if (value == null) return
+  if (Array.isArray(value)) {
+    value.forEach((item) => parameters.append(key, String(item)))
+    return
+  }
+  const text = String(value).trim()
+  if (text.length > 0) parameters.set(key, text)
+}
+
+function buildQuery(query: Record<string, QueryValue>): string {
   const parameters = new URLSearchParams()
-  Object.entries(query as Record<string, unknown>).forEach(([key, value]) => {
-    if (value == null) return
-    if (Array.isArray(value)) {
-      value.forEach((item) => parameters.append(key, String(item)))
-      return
-    }
-    const text = String(value).trim()
-    if (text.length > 0) parameters.set(key, text)
-  })
+  Object.entries(query).forEach(([key, value]) =>
+    appendQueryValue(parameters, key, value),
+  )
   const search = parameters.toString()
   return search ? `?${search}` : ''
 }
 
 export const calendarApi = {
   entries: (query: CalendarEntriesQuery, signal?: AbortSignal) =>
-    apiRequest<CalendarEntry[]>(`/api/calendar/entries${buildQuery({ ...query })}`, {
-      signal,
-    }),
+    apiRequest<CalendarEntry[]>(
+      `/api/calendar/entries${buildQuery({
+        from: query.from,
+        to: query.to,
+        sourceModule: query.sourceModule,
+        visualFamily: query.visualFamily,
+      })}`,
+      {
+        signal,
+      },
+    ),
   notes: (query: CalendarNotesQuery, signal?: AbortSignal) =>
-    apiRequest<CalendarDailyNote[]>(`/api/calendar/notes${buildQuery(query)}`, {
-      signal,
-    }),
+    apiRequest<CalendarDailyNote[]>(
+      `/api/calendar/notes${buildQuery({ from: query.from, to: query.to })}`,
+      {
+        signal,
+      },
+    ),
   getNote: (noteId: number, signal?: AbortSignal) =>
     apiRequest<CalendarDailyNote>(`/api/calendar/notes/${noteId}`, { signal }),
   createNote: (request: CalendarDailyNoteRequest, signal?: AbortSignal) =>

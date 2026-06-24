@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Archive,
   Boxes,
+  CalendarDays,
   Contact,
   Hammer,
   HeartPulse,
@@ -126,6 +127,15 @@ export function LauncherPage() {
         href: '/health',
         icon: HeartPulse,
         tone: 'rose',
+      },
+      {
+        key: 'calendar',
+        title: t('calendar:launcher.title'),
+        description: t('calendar:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/calendar',
+        icon: CalendarDays,
+        tone: 'aqua',
       },
       {
         key: 'assets',

@@ -119,6 +119,14 @@ const HealthPage = lazy(() =>
   })),
 )
 
+// Calendar is lazily loaded so the month grid and projection UI stay out of the
+// initial platform bundle.
+const CalendarPage = lazy(() =>
+  import('@/modules/calendar/CalendarPage').then((module) => ({
+    default: module.CalendarPage,
+  })),
+)
+
 // The administrative Configuration experience is admin-only and lazily loaded so
 // its catalog tables and dialogs stay out of the initial platform bundle.
 const ConfigurationPage = lazy(() =>
@@ -313,6 +321,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <HealthPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="calendar"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <CalendarPage />
               </Suspense>
             </ModuleBoundary>
           }

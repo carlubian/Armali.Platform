@@ -20,7 +20,7 @@ export interface CalendarFilterState {
 }
 
 export interface CalendarRouteState {
-  month: string | typeof defaultCalendarMonth
+  month: string
   day: string | null
   filters: CalendarFilterState
 }
@@ -29,6 +29,74 @@ export type CalendarDialogState =
   | { mode: 'closed' }
   | { mode: 'createNote' }
   | { mode: 'editNote'; noteId: number }
+
+export interface CalendarGridDay {
+  date: string
+  inMonth: boolean
+}
+
+export const calendarWeekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+export function formatCivilDate(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+export function formatCalendarMonth(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
+}
+
+export function parseCivilDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+export function parseCalendarMonth(value: string): Date {
+  const [year, month] = value.split('-').map(Number)
+  return new Date(year, month - 1, 1)
+}
+
+export function addCalendarMonths(month: string, amount: number): string {
+  const date = parseCalendarMonth(month)
+  date.setMonth(date.getMonth() + amount)
+  return formatCalendarMonth(date)
+}
+
+function addDays(date: Date, amount: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + amount)
+  return next
+}
+
+function mondayOf(date: Date): Date {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const mondayFirstDay = (next.getDay() + 6) % 7
+  next.setDate(next.getDate() - mondayFirstDay)
+  return next
+}
+
+export function resolveCalendarMonth(month: string, today = new Date()) {
+  return month === defaultCalendarMonth ? formatCalendarMonth(today) : month
+}
+
+export function getVisibleCalendarGrid(month: string): CalendarGridDay[] {
+  const view = parseCalendarMonth(month)
+  const start = mondayOf(view)
+  const last = new Date(view.getFullYear(), view.getMonth() + 1, 0)
+  const endWeekStart = mondayOf(last)
+  const weeks =
+    Math.round((endWeekStart.getTime() - start.getTime()) / (7 * 86400000)) + 1
+  return Array.from({ length: weeks * 7 }, (_, index) => {
+    const date = addDays(start, index)
+    return {
+      date: formatCivilDate(date),
+      inMonth: date.getMonth() === view.getMonth(),
+    }
+  })
+}
 
 function allowedValues<T extends string>(
   values: string[],
@@ -45,6 +113,10 @@ function intOrNull(value: string | null): number | null {
   if (value == null) return null
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function isStringArray(value: string | readonly string[]): value is readonly string[] {
+  return Array.isArray(value)
 }
 
 export function parseCalendarState(params: URLSearchParams): CalendarRouteState {
@@ -102,7 +174,7 @@ export function useCalendarState() {
         Object.entries(patch).forEach(([key, value]) => {
           next.delete(key)
           if (value == null) return
-          if (Array.isArray(value)) {
+          if (isStringArray(value)) {
             value.forEach((item) => next.append(key, item))
             return
           }
