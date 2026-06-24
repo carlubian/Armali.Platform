@@ -44,11 +44,17 @@ export const calendar = {
     empty: 'No entries in this visible range.',
     loadError: 'Calendar entries could not be loaded. Please try again.',
     retry: 'Retry',
-    selectedEmpty: 'No entries on the selected day.',
-    selectedHint: 'Day details arrive in the next Calendar wave.',
   },
   indicators: {
     family: '{{family}} entry: {{title}}',
     more: '{{count}} more entry families',
+  },
+  detail: {
+    label: 'Detail for {{day}}',
+    empty: 'No entries on the selected day.',
+    groupCount: '{{count}} in this family',
+    tripDay: 'Day {{current}} of {{total}}',
+    open: 'Open {{title}} in {{source}}',
+    informational: 'Informational only',
   },
 } as const

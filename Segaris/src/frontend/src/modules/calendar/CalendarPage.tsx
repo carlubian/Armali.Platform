@@ -1,10 +1,12 @@
 import {
+  ArrowUpRight,
   CalendarDays,
   Cake,
   ChevronLeft,
   ChevronRight,
   CircleDot,
   Contact,
+  Info,
   Layers,
   ListChecks,
   Luggage,
@@ -19,6 +21,7 @@ import {
 import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 
 import {
   calendarIndicatorPriority,
@@ -30,7 +33,7 @@ import {
 } from '@/app/api/calendar'
 import { isApiError } from '@/app/api/errors'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
-import { Badge, Button, IconButton, Spinner } from '@/components/ui'
+import { Badge, Button, IconButton, Spinner, Tooltip } from '@/components/ui'
 
 import {
   addCalendarMonths,
@@ -94,6 +97,35 @@ function orderedFamilies(entries: CalendarEntry[]) {
   return calendarIndicatorPriority.filter((family) => present.has(family))
 }
 
+interface DayDetailGroup {
+  family: CalendarVisualFamily
+  entries: CalendarEntry[]
+}
+
+function groupEntriesByFamily(entries: CalendarEntry[]): DayDetailGroup[] {
+  return calendarIndicatorPriority
+    .map((family) => ({
+      family,
+      entries: entries.filter((entry) => entry.visualFamily === family),
+    }))
+    .filter((group) => group.entries.length > 0)
+}
+
+const dayInMs = 86_400_000
+
+function tripDayInfo(entry: CalendarEntry, day: string) {
+  const start = parseCivilDate(entry.startDate).getTime()
+  const end = parseCivilDate(entry.endDate ?? entry.startDate).getTime()
+  const current = parseCivilDate(day).getTime()
+  const total = Math.round((end - start) / dayInMs) + 1
+  const index = Math.round((current - start) / dayInMs) + 1
+  return { current: Math.min(Math.max(index, 1), total), total }
+}
+
+function isInternalRoute(route: string | null): route is string {
+  return route != null && route.startsWith('/')
+}
+
 function toggleAllowList<T extends string>(
   allValues: readonly T[],
   current: readonly T[],
@@ -132,13 +164,9 @@ function formatShortDayLabel(date: string, language: string) {
 
 export function CalendarPage() {
   const { t, i18n } = useTranslation('calendar')
-  const {
-    state,
-    setMonth,
-    setDay,
-    setSourceModules,
-    setVisualFamilies,
-  } = useCalendarState()
+  const navigate = useNavigate()
+  const { state, setMonth, setDay, setSourceModules, setVisualFamilies } =
+    useCalendarState()
   const today = formatCivilDate(new Date())
   const currentMonth = resolveCalendarMonth(state.month)
   const days = useMemo(() => getVisibleCalendarGrid(currentMonth), [currentMonth])
@@ -238,18 +266,27 @@ export function CalendarPage() {
             language={i18n.language}
             onSelect={setDay}
           />
-          <aside className="seg-cal__selected" aria-label={t('page.selectedDay')}>
-            <div>
+          <aside
+            className="seg-cal__selected"
+            aria-label={t('detail.label', {
+              day: formatDayLabel(selectedDay, i18n.language),
+            })}
+          >
+            <div className="seg-cal__selected-head">
               <div className="armali-eyebrow">{t('page.selectedDay')}</div>
               <h2>{formatDayLabel(selectedDay, i18n.language)}</h2>
-              <p>{t('grid.selectedHint')}</p>
             </div>
             {selectedEntries.length === 0 ? (
-              <p className="seg-cal__selected-empty">{t('grid.selectedEmpty')}</p>
+              <p className="seg-cal__selected-empty">{t('detail.empty')}</p>
             ) : (
               <div className="seg-cal__selected-list">
-                {selectedEntries.map((entry) => (
-                  <EntrySummary key={entry.id} entry={entry} />
+                {groupEntriesByFamily(selectedEntries).map((group) => (
+                  <DayDetailGroupSection
+                    key={group.family}
+                    group={group}
+                    selectedDay={selectedDay}
+                    onOpenRoute={(route) => void navigate(route)}
+                  />
                 ))}
               </div>
             )}
@@ -331,11 +368,7 @@ function FilterBar({
               })}
               onClick={() =>
                 onFamilies(
-                  toggleAllowList(
-                    calendarVisualFamilies,
-                    selectedFamilies,
-                    family,
-                  ),
+                  toggleAllowList(calendarVisualFamilies, selectedFamilies, family),
                 )
               }
             >
@@ -527,26 +560,131 @@ function DayCell({ day, entries, selected, today, label, onSelect }: DayCellProp
   )
 }
 
-function EntrySummary({ entry }: { entry: CalendarEntry }) {
+interface DayDetailGroupProps {
+  group: DayDetailGroup
+  selectedDay: string
+  onOpenRoute: (route: string) => void
+}
+
+function DayDetailGroupSection({
+  group,
+  selectedDay,
+  onOpenRoute,
+}: DayDetailGroupProps) {
+  const { t } = useTranslation('calendar')
+  const Icon = familyIcons[group.family]
+  return (
+    <section
+      className={['seg-cal-group', familyClasses[group.family]].join(' ')}
+      aria-label={t(`families.${group.family}`)}
+    >
+      <header className="seg-cal-group__head">
+        <span className="seg-cal-group__icon">
+          <Icon size={14} />
+        </span>
+        <span className="seg-cal-group__lbl">{t(`families.${group.family}`)}</span>
+        <span
+          className="seg-cal-group__n"
+          aria-label={t('detail.groupCount', { count: group.entries.length })}
+        >
+          {group.entries.length}
+        </span>
+      </header>
+      <div className="seg-cal-group__items">
+        {group.entries.map((entry) => (
+          <DayDetailEntry
+            key={entry.id}
+            entry={entry}
+            selectedDay={selectedDay}
+            onOpenRoute={onOpenRoute}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+interface DayDetailEntryProps {
+  entry: CalendarEntry
+  selectedDay: string
+  onOpenRoute: (route: string) => void
+}
+
+function DayDetailEntry({ entry, selectedDay, onOpenRoute }: DayDetailEntryProps) {
   const { t } = useTranslation('calendar')
   const Icon = familyIcons[entry.visualFamily]
   const SourceIcon = sourceIcons[entry.sourceModule]
-  return (
-    <article
-      className={['seg-cal-entry', familyClasses[entry.visualFamily]].join(' ')}
-    >
-      <span className="seg-cal-entry__icon">
+  const sourceLabel = t(`sources.${entry.sourceModule}`)
+  const navigable = isInternalRoute(entry.targetRoute)
+  const trip =
+    entry.visualFamily === 'Travel' && entry.endDate != null
+      ? tripDayInfo(entry, selectedDay)
+      : null
+
+  const content = (
+    <>
+      <span className="seg-cal-item__icon">
         <Icon size={16} />
       </span>
-      <span className="seg-cal-entry__body">
-        <strong>{entry.title}</strong>
-        {entry.subtitle != null ? <span>{entry.subtitle}</span> : null}
-        <small>
-          <SourceIcon size={12} />
-          {t(`sources.${entry.sourceModule}`)}
-          {entry.status != null ? ` · ${entry.status}` : ''}
-        </small>
+      <span className="seg-cal-item__body">
+        <span className="seg-cal-item__title">{entry.title}</span>
+        {entry.subtitle != null ? (
+          <span className="seg-cal-item__sub">{entry.subtitle}</span>
+        ) : null}
+        <span className="seg-cal-item__meta">
+          <span className="seg-cal-item__src">
+            <SourceIcon size={12} />
+            {sourceLabel}
+          </span>
+          {trip != null ? (
+            <>
+              <span className="seg-cal-item__sep" aria-hidden="true" />
+              <span className="seg-cal-item__span">{t('detail.tripDay', trip)}</span>
+            </>
+          ) : null}
+          {entry.status != null ? (
+            <>
+              <span className="seg-cal-item__sep" aria-hidden="true" />
+              <span className="seg-cal-item__status">{entry.status}</span>
+            </>
+          ) : null}
+        </span>
       </span>
-    </article>
+    </>
+  )
+
+  const className = [
+    'seg-cal-item',
+    familyClasses[entry.visualFamily],
+    navigable ? 'is-navigable' : 'is-info',
+  ].join(' ')
+
+  if (navigable) {
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-label={t('detail.open', { title: entry.title, source: sourceLabel })}
+        onClick={() => onOpenRoute(entry.targetRoute as string)}
+      >
+        {content}
+        <span className="seg-cal-item__chev" aria-hidden="true">
+          <ArrowUpRight size={15} />
+        </span>
+      </button>
+    )
+  }
+
+  return (
+    <div className={className}>
+      {content}
+      <Tooltip
+        className="seg-cal-item__chev"
+        label={t('detail.informational')}
+        side="top"
+      >
+        <Info size={15} aria-label={t('detail.informational')} />
+      </Tooltip>
+    </div>
   )
 }

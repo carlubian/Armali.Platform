@@ -46,7 +46,10 @@ function entry(id: string, overrides: Partial<CalendarEntry>): CalendarEntry {
   }
 }
 
-function mockBackend(entries: CalendarEntry[] = calendarEntries) {
+function mockBackend(
+  entries: CalendarEntry[] = calendarEntries,
+  options: { passthrough?: boolean } = {},
+) {
   const requests: Array<{ method: string; url: string }> = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     await Promise.resolve()
@@ -68,6 +71,7 @@ function mockBackend(entries: CalendarEntry[] = calendarEntries) {
       return json(entries)
     }
 
+    if (options.passthrough) return json([])
     throw new Error(`Unexpected request: ${method} ${url}`)
   })
   return { requests }
@@ -192,6 +196,47 @@ describe('CalendarPage', () => {
     )
   })
 
+  it('groups the selected-day detail by family with source, status, and trip metadata', async () => {
+    mockBackend()
+    render(<App />)
+
+    const detail = await screen.findByRole('complementary', {
+      name: /Detail for/,
+    })
+    expect(within(detail).getByRole('region', { name: 'Travel' })).toBeInTheDocument()
+    expect(within(detail).getByRole('region', { name: 'Birthday' })).toBeInTheDocument()
+    expect(within(detail).getByRole('region', { name: 'Note' })).toBeInTheDocument()
+    expect(within(detail).getByRole('region', { name: 'Other' })).toBeInTheDocument()
+
+    // The selected day (24 June) is the first day of the 24-28 June trip.
+    expect(within(detail).getByText('Day 1 of 5')).toBeInTheDocument()
+    expect(within(detail).getByText('Recurring')).toBeInTheDocument()
+    expect(within(detail).getByText('Whole household')).toBeInTheDocument()
+  })
+
+  it('navigates to the source record when a projected entry has a target route', async () => {
+    const user = userEvent.setup()
+    mockBackend(calendarEntries, { passthrough: true })
+    render(<App />)
+
+    const open = await screen.findByRole('button', {
+      name: 'Open Girona & the Costa Brava in Travel',
+    })
+    await user.click(open)
+
+    expect(window.location.pathname).toBe('/travel')
+    expect(window.location.search).toContain('tripId=1')
+  })
+
+  it('shows informational-only treatment for entries without a target route', async () => {
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Abuela Carmen')
+    expect(screen.queryByRole('button', { name: /Open Abuela Carmen/ })).toBeNull()
+    expect(screen.getAllByLabelText('Informational only').length).toBeGreaterThan(0)
+  })
+
   it('surfaces loading failure with a retry action', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       await Promise.resolve()
@@ -216,7 +261,9 @@ describe('CalendarPage', () => {
     render(<App />)
 
     expect(
-      await screen.findByText('Calendar entries could not be loaded. Please try again.'),
+      await screen.findByText(
+        'Calendar entries could not be loaded. Please try again.',
+      ),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })
