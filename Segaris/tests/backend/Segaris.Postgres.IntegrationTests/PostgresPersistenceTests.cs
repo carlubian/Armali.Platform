@@ -16,6 +16,8 @@ using Npgsql;
 using Segaris.Api.Modules.Assets.Contracts;
 using Segaris.Api.Modules.Assets.Domain;
 using Segaris.Api.Modules.Assets.Mutations;
+using Segaris.Api.Modules.Calendar.Contracts;
+using Segaris.Api.Modules.Calendar.Queries;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
@@ -238,6 +240,89 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         verificationDatabase.Remove(stored);
         await verificationDatabase.SaveChangesAsync();
         Assert.Equal(0, await verificationDatabase.Set<Step>().CountAsync(step => step.ProcessId == processId));
+    }
+
+    [Fact]
+    public async Task Postgres_projects_date_bound_source_entries_within_the_calendar_range()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-calendar-owner";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgCalendarPass123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>()
+            .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var owner = new UserId(userId);
+        var now = new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero);
+        var today = new DateOnly(2026, 6, 15);
+
+        var categoryId = await database.Set<InventoryCategory>()
+            .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+        var locationId = await database.Set<InventoryLocation>()
+            .Where(location => location.Name == "Other").Select(location => location.Id).SingleAsync();
+        var supplierId = await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var maintenanceTypeId = await database.Set<MaintenanceType>().Select(type => type.Id).FirstAsync();
+        var processCategoryId = await database.Set<ProcessCategory>().Select(category => category.Id).FirstAsync();
+
+        var item = InventoryItem.Create(
+            new("PG calendar item", InventoryItemStatus.Active, null, categoryId, locationId, 0m, 0m, [supplierId], RecordVisibility.Public),
+            owner,
+            now);
+        database.Add(item);
+        await database.SaveChangesAsync();
+
+        // The nullable DateOnly comparisons and the Step/Process join are the
+        // provider-sensitive parts of the Calendar projection queries.
+        var inRangeOrder = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Planning, currencyId, null, new DateOnly(2026, 6, 20), null, RecordVisibility.Public, [new InventoryOrderLineValues(item.Id, 1m, 5m)]),
+            owner,
+            now);
+        var outOfRangeOrder = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Planning, currencyId, null, new DateOnly(2026, 7, 5), null, RecordVisibility.Public, [new InventoryOrderLineValues(item.Id, 1m, 5m)]),
+            owner,
+            now);
+        database.Add(inRangeOrder);
+        database.Add(outOfRangeOrder);
+
+        var task = MaintenanceTask.Create(
+            new("PG calendar task", maintenanceTypeId, MaintenanceStatus.InProgress, MaintenancePriority.Medium, new DateOnly(2026, 6, 18), null, null, RecordVisibility.Public),
+            owner,
+            now,
+            today);
+        database.Add(task);
+
+        var process = SegarisProcess.Create(
+            new ProcessValues("PG calendar process", processCategoryId, null, null, RecordVisibility.Public),
+            owner,
+            now);
+        database.Add(process);
+        await database.SaveChangesAsync();
+
+        var inRangeStep = Step.Create(process.Id, new StepValues("Due soon", new DateOnly(2026, 6, 22), null, false), 0, owner, now);
+        var outOfRangeStep = Step.Create(process.Id, new StepValues("Later", new DateOnly(2026, 7, 10), null, false), 1, owner, now);
+        database.Add(inRangeStep);
+        database.Add(outOfRangeStep);
+        await database.SaveChangesAsync();
+
+        var reader = scope.ServiceProvider.GetRequiredService<CalendarEntriesReadService>();
+        var filter = CalendarEntriesQuery.Create(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 30));
+        var entries = await reader.ListEntriesAsync(filter, owner, CancellationToken.None);
+        var ids = entries.Select(entry => entry.Id).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains($"inventory:order:{inRangeOrder.Id}", ids);
+        Assert.Contains($"maintenance:task:{task.Id}", ids);
+        Assert.Contains($"processes:step:{inRangeStep.Id}", ids);
+        Assert.DoesNotContain($"inventory:order:{outOfRangeOrder.Id}", ids);
+        Assert.DoesNotContain($"processes:step:{outOfRangeStep.Id}", ids);
     }
 
     [Fact]

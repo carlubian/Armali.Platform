@@ -360,6 +360,7 @@ published by other modules, plus small manual daily notes.
 | In discussion | Entities and properties | Calendar consumes source-module projections for Firebird birthdays, non-cancelled Travel trips, Planning/Active Inventory expected receipts, non-Retired Assets expected end of life, open Maintenance due dates, and pending Process step due dates. Calendar owns private-by-default daily notes. Capex and Opex are excluded from the initial scope. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
 | In discussion | User workflow | Calendar opens on a month grid with Monday-first weeks, selected-day details, source/family filters, compact day indicators for birthday/travel/note/other families, source-record navigation for projected entries, and URL-aware note editing. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
 | In discussion | Implementation plan | Delivery is drafted in Waves 0-7 in `docs/planning/CALENDAR_IMPLEMENTATION_PLAN.md`. |
+| Deferred | Source projection date-range indexes | Wave 3 wires the six source providers and reuses each source module's existing indexes for the new civil-date-range projection queries; no projection-specific indexes were added at current household volumes. Dedicated date-range indexes wait on representative data volumes, alongside the projection caching/materialization deferral. |
 
 ### Cross-Domain Features
 
