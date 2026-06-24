@@ -350,6 +350,17 @@ Module purpose: Module to see aggregated trends of the financial modules.
 | Open | Entities and properties | Targeted modules, charts and statistics, date filtering. |
 | Open | User workflow | How to interact with the module, entry point, layout. |
 
+### Calendar
+
+Module purpose: Shared calendar view for date-bound household information
+published by other modules, plus small manual daily notes.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| In discussion | Entities and properties | Calendar consumes source-module projections for Firebird birthdays, non-cancelled Travel trips, Planning/Active Inventory expected receipts, non-Retired Assets expected end of life, open Maintenance due dates, and pending Process step due dates. Calendar owns private-by-default daily notes. Capex and Opex are excluded from the initial scope. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
+| In discussion | User workflow | Calendar opens on a month grid with Monday-first weeks, selected-day details, source/family filters, compact day indicators for birthday/travel/note/other families, source-record navigation for projected entries, and URL-aware note editing. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
+| In discussion | Implementation plan | Delivery is drafted in Waves 0-7 in `docs/planning/CALENDAR_IMPLEMENTATION_PLAN.md`. |
+
 ### Cross-Domain Features
 
 | Status | Decision | Notes |
