@@ -11,4 +11,12 @@ export function useCalendarEntries(query: CalendarEntriesQuery) {
   })
 }
 
+export function useCalendarNote(noteId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: calendarKeys.note(noteId),
+    queryFn: ({ signal }) => calendarApi.getNote(noteId, signal),
+    enabled,
+  })
+}
+
 export { calendarKeys }

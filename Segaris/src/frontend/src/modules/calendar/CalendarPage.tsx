@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowUpRight,
   CalendarDays,
@@ -11,14 +12,16 @@ import {
   ListChecks,
   Luggage,
   Package,
+  Pencil,
   Plane,
+  Plus,
   RotateCcw,
   StickyNote,
   Warehouse,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -27,13 +30,15 @@ import {
   calendarIndicatorPriority,
   calendarSourceModules,
   calendarVisualFamilies,
+  type CalendarDailyNote,
   type CalendarEntry,
   type CalendarSourceModule,
   type CalendarVisualFamily,
 } from '@/app/api/calendar'
 import { isApiError } from '@/app/api/errors'
+import { useSession } from '@/app/session/SessionContext'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
-import { Badge, Button, IconButton, Spinner, Tooltip } from '@/components/ui'
+import { Badge, Button, IconButton, Spinner, Toast, Tooltip } from '@/components/ui'
 
 import {
   addCalendarMonths,
@@ -47,7 +52,8 @@ import {
   useCalendarState,
   type CalendarGridDay,
 } from './calendarState'
-import { useCalendarEntries } from './queries'
+import { CalendarNoteDialog, type CalendarNoteMutationKind } from './NoteDialog'
+import { calendarKeys, useCalendarEntries } from './queries'
 
 import './CalendarPage.css'
 
@@ -126,6 +132,19 @@ function isInternalRoute(route: string | null): route is string {
   return route != null && route.startsWith('/')
 }
 
+const noteIdPattern = /^calendar:note:(\d+)$/
+
+/**
+ * The Calendar-owned daily note id encoded in a projected entry id, or `null`
+ * for cross-module projections. Notes are the only entries the user can edit in
+ * place, so this drives the day-detail edit affordance.
+ */
+function calendarNoteId(entry: CalendarEntry): number | null {
+  if (entry.sourceModule !== 'calendar') return null
+  const match = noteIdPattern.exec(entry.id)
+  return match ? Number(match[1]) : null
+}
+
 function toggleAllowList<T extends string>(
   allValues: readonly T[],
   current: readonly T[],
@@ -165,8 +184,21 @@ function formatShortDayLabel(date: string, language: string) {
 export function CalendarPage() {
   const { t, i18n } = useTranslation('calendar')
   const navigate = useNavigate()
-  const { state, setMonth, setDay, setSourceModules, setVisualFamilies } =
-    useCalendarState()
+  const queryClient = useQueryClient()
+  const { session } = useSession()
+  const currentUserId = session?.userId ?? null
+  const {
+    state,
+    dialog,
+    setMonth,
+    setDay,
+    setSourceModules,
+    setVisualFamilies,
+    openCreateNote,
+    openEditNote,
+    closeDialog,
+  } = useCalendarState()
+  const [toast, setToast] = useState<CalendarNoteMutationKind | null>(null)
   const today = formatCivilDate(new Date())
   const currentMonth = resolveCalendarMonth(state.month)
   const days = useMemo(() => getVisibleCalendarGrid(currentMonth), [currentMonth])
@@ -185,6 +217,23 @@ export function CalendarPage() {
   const selectedEntries = byDay.get(selectedDay) ?? []
   const activeFilters =
     state.filters.sourceModules.length + state.filters.visualFamilies.length
+
+  // A note mutation can change month indicators and the day-detail list, both of
+  // which derive from the entries query, and the cached note detail. Refreshing
+  // the entries family and the touched note keeps every surface in sync.
+  const handleNoteMutated = (
+    kind: CalendarNoteMutationKind,
+    note: CalendarDailyNote,
+  ) => {
+    if (kind === 'deleted') {
+      queryClient.removeQueries({ queryKey: calendarKeys.note(note.id) })
+    } else {
+      queryClient.setQueryData(calendarKeys.note(note.id), note)
+    }
+    void queryClient.invalidateQueries({ queryKey: calendarKeys.entries() })
+    setToast(kind)
+    closeDialog()
+  }
 
   if (entriesQuery.isError) {
     const error = entriesQuery.error
@@ -216,6 +265,9 @@ export function CalendarPage() {
             }}
           >
             {t('page.today')}
+          </Button>
+          <Button iconLeft={<Plus size={16} />} onClick={openCreateNote}>
+            {t('page.newNote')}
           </Button>
         </div>
       </section>
@@ -277,7 +329,17 @@ export function CalendarPage() {
               <h2>{formatDayLabel(selectedDay, i18n.language)}</h2>
             </div>
             {selectedEntries.length === 0 ? (
-              <p className="seg-cal__selected-empty">{t('detail.empty')}</p>
+              <div className="seg-cal__selected-empty">
+                <p>{t('detail.emptyHint')}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  iconLeft={<Plus size={15} />}
+                  onClick={openCreateNote}
+                >
+                  {t('detail.addNote')}
+                </Button>
+              </div>
             ) : (
               <div className="seg-cal__selected-list">
                 {groupEntriesByFamily(selectedEntries).map((group) => (
@@ -286,11 +348,43 @@ export function CalendarPage() {
                     group={group}
                     selectedDay={selectedDay}
                     onOpenRoute={(route) => void navigate(route)}
+                    onEditNote={openEditNote}
                   />
                 ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="seg-cal__add-note"
+                  iconLeft={<Plus size={15} />}
+                  onClick={openCreateNote}
+                >
+                  {t('detail.addNoteToDay')}
+                </Button>
               </div>
             )}
           </aside>
+        </div>
+      )}
+
+      {dialog.mode !== 'closed' && (
+        <CalendarNoteDialog
+          mode={dialog.mode === 'createNote' ? 'create' : 'edit'}
+          noteId={dialog.mode === 'editNote' ? dialog.noteId : undefined}
+          defaultDate={selectedDay}
+          currentUserId={currentUserId}
+          onClose={closeDialog}
+          onMutated={handleNoteMutated}
+        />
+      )}
+
+      {toast != null && (
+        <div className="seg-cal__toast">
+          <Toast
+            tone="success"
+            title={t(`toast.${toast}`)}
+            onClose={() => setToast(null)}
+            closeLabel={t('editor.actions.close')}
+          />
         </div>
       )}
     </main>
@@ -564,12 +658,14 @@ interface DayDetailGroupProps {
   group: DayDetailGroup
   selectedDay: string
   onOpenRoute: (route: string) => void
+  onEditNote: (noteId: number) => void
 }
 
 function DayDetailGroupSection({
   group,
   selectedDay,
   onOpenRoute,
+  onEditNote,
 }: DayDetailGroupProps) {
   const { t } = useTranslation('calendar')
   const Icon = familyIcons[group.family]
@@ -597,6 +693,7 @@ function DayDetailGroupSection({
             entry={entry}
             selectedDay={selectedDay}
             onOpenRoute={onOpenRoute}
+            onEditNote={onEditNote}
           />
         ))}
       </div>
@@ -608,14 +705,21 @@ interface DayDetailEntryProps {
   entry: CalendarEntry
   selectedDay: string
   onOpenRoute: (route: string) => void
+  onEditNote: (noteId: number) => void
 }
 
-function DayDetailEntry({ entry, selectedDay, onOpenRoute }: DayDetailEntryProps) {
+function DayDetailEntry({
+  entry,
+  selectedDay,
+  onOpenRoute,
+  onEditNote,
+}: DayDetailEntryProps) {
   const { t } = useTranslation('calendar')
   const Icon = familyIcons[entry.visualFamily]
   const SourceIcon = sourceIcons[entry.sourceModule]
   const sourceLabel = t(`sources.${entry.sourceModule}`)
-  const navigable = isInternalRoute(entry.targetRoute)
+  const noteId = calendarNoteId(entry)
+  const navigable = noteId == null && isInternalRoute(entry.targetRoute)
   const trip =
     entry.visualFamily === 'Travel' && entry.endDate != null
       ? tripDayInfo(entry, selectedDay)
@@ -656,8 +760,24 @@ function DayDetailEntry({ entry, selectedDay, onOpenRoute }: DayDetailEntryProps
   const className = [
     'seg-cal-item',
     familyClasses[entry.visualFamily],
-    navigable ? 'is-navigable' : 'is-info',
+    navigable || noteId != null ? 'is-navigable' : 'is-info',
   ].join(' ')
+
+  if (noteId != null) {
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-label={t('detail.editNote', { title: entry.title })}
+        onClick={() => onEditNote(noteId)}
+      >
+        {content}
+        <span className="seg-cal-item__chev" aria-hidden="true">
+          <Pencil size={15} />
+        </span>
+      </button>
+    )
+  }
 
   if (navigable) {
     return (

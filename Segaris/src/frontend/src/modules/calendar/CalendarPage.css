@@ -279,11 +279,20 @@
   text-transform: capitalize;
 }
 .seg-cal__selected-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
   margin: auto;
   padding: var(--space-6);
   text-align: center;
   color: var(--text-muted);
   font-weight: var(--weight-emphasis);
+}
+.seg-cal__add-note {
+  align-self: stretch;
+  justify-content: center;
+  margin-top: var(--space-2);
 }
 .seg-cal__selected-head {
   flex: none;
@@ -456,6 +465,12 @@
 }
 .seg-cal__error {
   color: var(--danger);
+}
+.seg-cal__toast {
+  position: fixed;
+  z-index: 110;
+  right: var(--space-6);
+  bottom: var(--space-6);
 }
 
 @media (max-width: 1040px) {
