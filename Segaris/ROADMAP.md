@@ -69,7 +69,7 @@ remaining business modules are still in functional definition.
 | Resolved | Navigation model | Segaris uses a central dashboard as a module launcher. Modules are immersive, self-contained experiences with their own internal navigation; switching modules requires returning to the launcher rather than using persistent global navigation. The launcher contains no summaries or aggregated domain data, although each module may expose a simple current-user attention indicator on its card. See `docs/architecture/user-experience.md`. |
 | Resolved | Design system | Segaris adopts the Project Armali design system (tokens, fonts, and shared components) and the `segaris/` prototype screens under `docs/ui-design/` as the frontend's visual foundation and shared shell, with Login variant A (centered card) and User management variant B (cards), and the supplied raster logo replacing the prototype's inline brand mark. See `docs/architecture/design-system.md`. |
 | Resolved | Attention and feedback model | Segaris uses three distinct mechanisms: module-owned attention indicators on launcher cards, transient toast feedback for actions and background processes, and persistent events or due dates shown through a calendar view. There is no initial unified notification inbox, email, or push delivery. Calendar ownership and detailed event rules remain Phase 2 functional decisions. See `docs/architecture/user-experience.md`. |
-| Open | Reporting model | Dashboards, charts, exports, household summaries. |
+| In discussion | Reporting model | Initial financial Analytics is defined for Capex, Opex, Inventory, and Travel yearly charts. Exports, budgets, forecasts, and broader household summaries remain deferred. See `docs/requirements/ANALYTICS_REQUIREMENTS.md`. |
 
 ### Development And Operations
 
@@ -347,8 +347,9 @@ Module purpose: Module to see aggregated trends of the financial modules.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Targeted modules, charts and statistics, date filtering. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | Analytics consumes current-user financial projections from Capex, Opex, Inventory, and Travel, normalizes values to EUR with current Configuration exchange rates, and includes the accepted yearly module and cross-module charts. See `docs/requirements/ANALYTICS_REQUIREMENTS.md`. |
+| Resolved | User workflow | Analytics opens on a yearly reporting surface with previous/next/current year controls and lazy-loaded tabs for Overview, Capex, Opex, Inventory, Travel, and Cross-module. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-11 in `docs/planning/ANALYTICS_IMPLEMENTATION_PLAN.md`. |
 
 ### Calendar
 
