@@ -74,6 +74,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_HealthDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_CalendarDailyNotes"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -124,6 +127,8 @@ public sealed class MigrationTests
                 // medicine category catalogs.
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'health_%'";
                 Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'calendar_%'";
+                Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -166,13 +171,14 @@ public sealed class MigrationTests
         Assert.Contains("TravelDestinationReference", sqliteNames);
         Assert.Contains("HealthDomainPersistence", sqliteNames);
         Assert.Contains("MedicinePrimaryAttachment", sqliteNames);
+        Assert.Contains("CalendarDailyNotes", sqliteNames);
     }
 
     [Fact]
-    public void Health_domain_persistence_is_the_current_tail()
+    public void Calendar_daily_notes_is_the_current_tail()
     {
-        // Health Wave 5 adds the medicine primary-attachment column on top of the Wave 1
-        // persistence, making it the latest migration.
+        // Calendar Wave 1 adds the daily-note persistence table after the accepted
+        // Health migration pair.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -184,8 +190,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("MedicinePrimaryAttachment", migrations[^1]);
-            Assert.Equal("HealthDomainPersistence", migrations[^2]);
+            Assert.Equal("CalendarDailyNotes", migrations[^1]);
+            Assert.Equal("MedicinePrimaryAttachment", migrations[^2]);
         }
     }
 

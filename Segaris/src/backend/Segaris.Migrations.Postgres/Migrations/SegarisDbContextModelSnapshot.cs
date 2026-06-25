@@ -318,6 +318,61 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.ToTable("asset_locations", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Calendar.Domain.CalendarDailyNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("CreatedBy", "Id");
+
+                    b.HasIndex("Date", "Id");
+
+                    b.HasIndex("Visibility", "Date", "Id");
+
+                    b.HasIndex("CreatedBy", "Visibility", "Date", "Id");
+
+                    b.ToTable("calendar_daily_notes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_calendar_daily_notes_visibility", "\"Visibility\" IN ('Public', 'Private')");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -3653,6 +3708,21 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.HasOne("Segaris.Api.Modules.Assets.Domain.AssetLocation", null)
                         .WithMany()
                         .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Calendar.Domain.CalendarDailyNote", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

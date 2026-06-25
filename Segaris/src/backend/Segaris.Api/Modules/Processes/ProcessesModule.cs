@@ -35,6 +35,7 @@ internal sealed class ProcessesModule : ISegarisModule
         services.AddScoped<ProcessCategoryReadService>();
         services.AddScoped<ProcessCategoryManagementService>();
         services.AddScoped<ProcessReadService>();
+        services.AddScoped<Contracts.IProcessesCalendarProjectionProvider, ProcessesCalendarProjectionProvider>();
         services.AddScoped<ProcessWriteService>();
         services.AddScoped<ILauncherAttentionContributor, ProcessesAttentionContributor>();
     }

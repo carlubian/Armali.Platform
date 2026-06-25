@@ -14,19 +14,24 @@ public sealed class ModuleBoundaryTests
 {
     private const string ConfigurationNamespace = "Segaris.Api.Modules.Configuration";
     private const string CapexNamespace = "Segaris.Api.Modules.Capex";
+    private const string CalendarNamespace = "Segaris.Api.Modules.Calendar";
     private const string LauncherNamespace = "Segaris.Api.Modules.Launcher";
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
     private const string InventoryContractsNamespace = "Segaris.Api.Modules.Inventory.Contracts";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
+    private const string TravelContractsNamespace = "Segaris.Api.Modules.Travel.Contracts";
     private const string ClothesNamespace = "Segaris.Api.Modules.Clothes";
     private const string AssetsNamespace = "Segaris.Api.Modules.Assets";
     private const string AssetsContractsNamespace = "Segaris.Api.Modules.Assets.Contracts";
     private const string MoodNamespace = "Segaris.Api.Modules.Mood";
     private const string MaintenanceNamespace = "Segaris.Api.Modules.Maintenance";
+    private const string MaintenanceContractsNamespace = "Segaris.Api.Modules.Maintenance.Contracts";
     private const string ProjectsNamespace = "Segaris.Api.Modules.Projects";
     private const string ProcessesNamespace = "Segaris.Api.Modules.Processes";
+    private const string ProcessesContractsNamespace = "Segaris.Api.Modules.Processes.Contracts";
     private const string FirebirdNamespace = "Segaris.Api.Modules.Firebird";
+    private const string FirebirdContractsNamespace = "Segaris.Api.Modules.Firebird.Contracts";
     private const string RecipesNamespace = "Segaris.Api.Modules.Recipes";
     private const string DestinationsNamespace = "Segaris.Api.Modules.Destinations";
     private const string DestinationsContractsNamespace = "Segaris.Api.Modules.Destinations.Contracts";
@@ -42,6 +47,7 @@ public sealed class ModuleBoundaryTests
         // is renamed or emptied.
         Assert.NotEmpty(TypesIn(ConfigurationNamespace));
         Assert.NotEmpty(TypesIn(CapexNamespace));
+        Assert.NotEmpty(TypesIn(CalendarNamespace));
         Assert.NotEmpty(TypesIn(LauncherNamespace));
         Assert.NotEmpty(TypesIn(OpexNamespace));
         Assert.NotEmpty(TypesIn(InventoryNamespace));
@@ -306,6 +312,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, RecipesNamespace);
         AssertNoDependency(LauncherNamespace, DestinationsNamespace);
         AssertNoDependency(LauncherNamespace, HealthNamespace);
+        AssertNoDependency(LauncherNamespace, CalendarNamespace);
     }
 
     [Fact]
@@ -892,6 +899,51 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(DestinationsNamespace, HealthNamespace);
     }
 
+    [Fact]
+    public void Calendar_consumes_only_initial_source_projection_contracts()
+    {
+        AssertCalendarReferencesContract(FirebirdContractsNamespace);
+        AssertCalendarReferencesContract(TravelContractsNamespace);
+        AssertCalendarReferencesContract(InventoryContractsNamespace);
+        AssertCalendarReferencesContract(AssetsContractsNamespace);
+        AssertCalendarReferencesContract(MaintenanceContractsNamespace);
+        AssertCalendarReferencesContract(ProcessesContractsNamespace);
+
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, FirebirdNamespace, FirebirdContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, TravelNamespace, TravelContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, InventoryNamespace, InventoryContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, AssetsNamespace, AssetsContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, MaintenanceNamespace, MaintenanceContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(CalendarNamespace, ProcessesNamespace, ProcessesContractsNamespace);
+
+        AssertNoDependency(CalendarNamespace, CapexNamespace);
+        AssertNoDependency(CalendarNamespace, OpexNamespace);
+        AssertNoDependency(CalendarNamespace, ClothesNamespace);
+        AssertNoDependency(CalendarNamespace, MoodNamespace);
+        AssertNoDependency(CalendarNamespace, ProjectsNamespace);
+        AssertNoDependency(CalendarNamespace, RecipesNamespace);
+        AssertNoDependency(CalendarNamespace, DestinationsNamespace);
+        AssertNoDependency(CalendarNamespace, HealthNamespace);
+        AssertNoDependency(CalendarNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Source_modules_do_not_depend_on_calendar()
+    {
+        AssertNoDependency(FirebirdNamespace, CalendarNamespace);
+        AssertNoDependency(TravelNamespace, CalendarNamespace);
+        AssertNoDependency(InventoryNamespace, CalendarNamespace);
+        AssertNoDependency(AssetsNamespace, CalendarNamespace);
+        AssertNoDependency(MaintenanceNamespace, CalendarNamespace);
+        AssertNoDependency(ProcessesNamespace, CalendarNamespace);
+        AssertNoDependency(CapexNamespace, CalendarNamespace);
+        AssertNoDependency(OpexNamespace, CalendarNamespace);
+        AssertNoDependency(RecipesNamespace, CalendarNamespace);
+        AssertNoDependency(DestinationsNamespace, CalendarNamespace);
+        AssertNoDependency(HealthNamespace, CalendarNamespace);
+        AssertNoDependency(LauncherNamespace, CalendarNamespace);
+    }
+
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
     {
         var violations = TypesIn(sourceNamespace)
@@ -906,6 +958,37 @@ public sealed class ModuleBoundaryTests
             $"Types in '{sourceNamespace}' must not depend on '{forbiddenNamespace}':"
                 + Environment.NewLine
                 + string.Join(Environment.NewLine, violations));
+    }
+
+    private static void AssertMayOnlyReferenceNamespaceThroughContracts(
+        string sourceNamespace,
+        string dependencyNamespace,
+        string contractsNamespace)
+    {
+        var violations = TypesIn(sourceNamespace)
+            .SelectMany(type => ReferencedTypes(type)
+                .Where(referenced => IsInNamespace(referenced, dependencyNamespace)
+                    && !IsInNamespace(referenced, contractsNamespace))
+                .Select(referenced => $"{type.FullName} -> {referenced.FullName}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(
+            violations.Length == 0,
+            $"Types in '{sourceNamespace}' may consume '{dependencyNamespace}' only through '{contractsNamespace}':"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, violations));
+    }
+
+    private static void AssertCalendarReferencesContract(string contractsNamespace)
+    {
+        var referencesContract = TypesIn(CalendarNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, contractsNamespace));
+
+        Assert.True(
+            referencesContract,
+            $"Calendar must consume a published projection contract from '{contractsNamespace}'.");
     }
 
     private static List<Type> TypesIn(string @namespace) =>

@@ -1,0 +1,98 @@
+.seg-cal-note__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.seg-cal-note__grid2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.seg-cal-note__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.seg-cal-note__label {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.seg-cal-note__label--req::after {
+  content: ' *';
+  color: var(--danger);
+}
+.seg-cal-note__optional {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.seg-cal-note__hint {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: var(--leading-snug);
+}
+.seg-cal-note__textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-solid);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  resize: vertical;
+}
+.seg-cal-note__textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.seg-cal-note__textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.seg-cal-note__count {
+  align-self: flex-end;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.seg-cal-note__field-error,
+.seg-cal-note__error {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--danger);
+}
+.seg-cal-note__error {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+.seg-cal-note__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: var(--text-secondary);
+  font-weight: var(--weight-emphasis);
+}
+.seg-cal-note__delete {
+  margin-inline-end: auto;
+  color: var(--danger);
+}
+
+@media (max-width: 560px) {
+  .seg-cal-note__grid2 {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,6 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import { assets } from '@/modules/assets/i18n/resources'
+import { calendar } from '@/modules/calendar/i18n/resources'
 import { capex } from '@/modules/capex/i18n/resources'
 import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
@@ -29,6 +30,7 @@ void i18n.use(initReactI18next).init({
   ns: [
     'platform',
     'assets',
+    'calendar',
     'capex',
     'clothes',
     'configuration',
@@ -48,6 +50,7 @@ void i18n.use(initReactI18next).init({
     [fallbackLanguage]: {
       platform,
       assets,
+      calendar,
       capex,
       clothes,
       configuration,

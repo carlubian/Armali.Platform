@@ -36,6 +36,7 @@ internal sealed class MaintenanceModule : ISegarisModule
         services.AddScoped<MaintenanceTypeReadService>();
         services.AddScoped<MaintenanceTypeManagementService>();
         services.AddScoped<MaintenanceTaskReadService>();
+        services.AddScoped<Contracts.IMaintenanceCalendarProjectionProvider, MaintenanceCalendarProjectionProvider>();
         services.AddScoped<MaintenanceTaskWriteService>();
         services.AddScoped<IAssetDeletionReferenceHandler, MaintenanceAssetDeletionReferenceHandler>();
         services.AddScoped<ILauncherAttentionContributor, MaintenanceAttentionContributor>();

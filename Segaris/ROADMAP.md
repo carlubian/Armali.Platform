@@ -90,7 +90,7 @@ remaining business modules are still in functional definition.
 | Resolved | Restore procedure | `scripts/restore.sh` restores a `segaris-backup.tar` package (pg_restore plus attachment mirror) into the running stack and requires explicit confirmation; the household administrator owns recovery and rehearses it at least quarterly. See `docs/operations/backup-and-restore.md` and `docs/operations/rollback.md`. |
 | Resolved | Required CI checks | `Segaris Backend`, `Segaris PostgreSQL`, and `Segaris Compose` are required checks for `main`; branches must be current, review conversations resolved, and force pushes/deletion blocked. No approval is required while the repository has one regular maintainer. See `docs/planning/BACKEND_CI_DECISIONS.md`. |
 | Resolved | Frontend core implementation plan | A dependency-ordered, wave-based plan covering the frontend scaffold, design-system port, shared shell, login, self-service profile (including avatar), administrative user management, a minimal launcher, a scoped backend Identity-profile extension, and the container/Compose/CI changes needed to serve the real frontend image. See `docs/planning/FRONTEND_CORE_IMPLEMENTATION_PLAN.md`. |
-| Resolved | Frontend foundation conventions | Node 24.16.0 and pnpm 11.6.0 are pinned at repository level. ESLint/Prettier/TypeScript, Vitest/Testing Library, and Playwright have explicit ownership and placement conventions; local API access uses a same-origin Vite `/api` proxy; public build-time environment values and the module-oriented source tree are fixed for the Wave 2 scaffold. See `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`. |
+| Resolved | Frontend foundation conventions | Node 24.16.0 is pinned at repository level, while pnpm is accepted across the 11.x line so Corepack patch/minor updates do not break builds. ESLint/Prettier/TypeScript, Vitest/Testing Library, and Playwright have explicit ownership and placement conventions; local API access uses a same-origin Vite `/api` proxy; public build-time environment values and the module-oriented source tree are fixed for the Wave 2 scaffold. See `docs/planning/FRONTEND_FOUNDATION_DECISIONS.md`. |
 | Resolved | Capex implementation plan | A dependency-ordered plan covers Configuration catalogs, Capex persistence and APIs, Launcher attention aggregation, the Entries table and popup editor, attachments, migrations, and end-to-end acceptance. See `docs/planning/CAPEX_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Configuration management implementation plan | A dependency-ordered plan covers administrator catalog CRUD and ordering, one-time initialization, safe deletion and reference migration, the unified Configuration frontend, advanced currency conversion, provider migrations, and acceptance. See `docs/planning/CONFIGURATION_IMPLEMENTATION_PLAN.md`. |
 
@@ -349,6 +349,21 @@ Module purpose: Module to see aggregated trends of the financial modules.
 | --- | --- | --- |
 | Open | Entities and properties | Targeted modules, charts and statistics, date filtering. |
 | Open | User workflow | How to interact with the module, entry point, layout. |
+
+### Calendar
+
+Module purpose: Shared calendar view for date-bound household information
+published by other modules, plus small manual daily notes.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| Resolved | Entities and properties | Calendar consumes source-module projections for Firebird birthdays, non-cancelled Travel trips, Planning/Active Inventory expected receipts, non-Retired Assets expected end of life, open Maintenance due dates, and pending Process step due dates. Calendar owns private-by-default daily notes. Capex and Opex are excluded from the initial scope. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
+| Resolved | User workflow | Calendar opens on a month grid with Monday-first weeks, selected-day details, source/family filters, compact day indicators for birthday/travel/note/other families, source-record navigation for projected entries, and URL-aware note editing. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/CALENDAR_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation and acceptance | The Calendar implementation plan is delivered through Wave 7. All fifteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/CALENDAR_ACCEPTANCE.md`. |
+| Deferred | Second-user Calendar privacy E2E journey | Public collaboration, private isolation, source projection visibility, and privacy-safe not-found behaviour are covered by API integration and component tests (`CalendarEntriesEndpointTests`, `CalendarNoteEndpointTests`, `CalendarSourceProjectionsTests`, `CalendarPage.test.tsx`, `NoteDialog.test.tsx`). Browser-level multi-account coverage waits on shared multi-account Playwright infrastructure, matching earlier modules. |
+| Deferred | Source projection date-range indexes | Wave 3 wires the six source providers and reuses each source module's existing indexes for the new civil-date-range projection queries; no projection-specific indexes were added at current household volumes. Dedicated date-range indexes wait on representative data volumes, alongside the projection caching/materialization deferral. |
+| Deferred | Future Calendar scope | Travel itinerary entries, Capex/Opex projections, Recipes weekly menus, agenda/week/year views, daily-note recurrence, attachments, tags, reminders, links from notes to source records, launcher attention, external calendar synchronization, import, export, ICS feeds, and projection materialization remain future versions. See `docs/requirements/CALENDAR_REQUIREMENTS.md`. |
 
 ### Cross-Domain Features
 

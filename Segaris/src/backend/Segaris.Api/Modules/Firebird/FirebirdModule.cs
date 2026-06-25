@@ -1,5 +1,6 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Firebird.Attention;
+using Segaris.Api.Modules.Firebird.Contracts;
 using Segaris.Api.Modules.Firebird.Mutations;
 using Segaris.Api.Modules.Firebird.Persistence;
 using Segaris.Api.Modules.Firebird.Queries;
@@ -27,6 +28,7 @@ internal sealed class FirebirdModule : ISegarisModule
         services.AddScoped<FirebirdSeeder>();
         services.AddScoped<FirebirdCatalogReadService>();
         services.AddScoped<FirebirdPersonReadService>();
+        services.AddScoped<IFirebirdCalendarProjectionProvider, FirebirdCalendarProjectionProvider>();
         services.AddScoped<FirebirdPersonWriteService>();
         services.AddScoped<FirebirdSubResourceService>();
         services.AddScoped<FirebirdAvatarService>();

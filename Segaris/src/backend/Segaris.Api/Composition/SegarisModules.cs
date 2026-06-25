@@ -1,4 +1,5 @@
 using Segaris.Api.Modules.Assets;
+using Segaris.Api.Modules.Calendar;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Clothes;
 using Segaris.Api.Modules.Configuration;
@@ -40,6 +41,7 @@ internal static class SegarisModules
         new RecipesModule(),
         new DestinationsModule(),
         new HealthModule(),
+        new CalendarModule(),
         new LauncherModule(),
     ];
 

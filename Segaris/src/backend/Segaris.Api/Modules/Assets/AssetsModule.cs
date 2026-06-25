@@ -29,6 +29,7 @@ internal sealed class AssetsModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, AssetsModelContributor>();
         services.AddScoped<AssetsSeeder>();
         services.AddScoped<AssetReadService>();
+        services.AddScoped<IAssetsCalendarProjectionProvider, AssetsCalendarProjectionProvider>();
         services.AddScoped<IAssetReferenceReader, AssetReferenceReader>();
         services.AddScoped<AssetWriteService>();
         services.AddScoped<AssetCatalogValidator>();

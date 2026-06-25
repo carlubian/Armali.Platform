@@ -58,6 +58,25 @@ internal static class FirebirdBirthdayRules
             : occurrence;
     }
 
+    /// <summary>
+    /// Yields every observed birthday occurrence that falls within the inclusive
+    /// <paramref name="from"/>/<paramref name="to"/> civil-date range, applying the
+    /// source-owned leap-day rule. A range may span two civil years, so a birthday can
+    /// appear at most twice (for example a 29 February birthday observed on 1 March in
+    /// a non-leap year). Occurrences are returned in ascending date order.
+    /// </summary>
+    public static IEnumerable<DateOnly> OccurrencesInRange(FirebirdBirthday birthday, DateOnly from, DateOnly to)
+    {
+        for (var year = from.Year; year <= to.Year; year++)
+        {
+            var occurrence = ObservedDateInYear(birthday, year);
+            if (occurrence >= from && occurrence <= to)
+            {
+                yield return occurrence;
+            }
+        }
+    }
+
     private static int DaysInMonth(int month) =>
         month switch
         {

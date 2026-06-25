@@ -32,6 +32,7 @@ public sealed class ModuleRegistrationTests
         Assert.Contains("Recipes", names);
         Assert.Contains("Destinations", names);
         Assert.Contains("Health", names);
+        Assert.Contains("Calendar", names);
         Assert.Contains("Launcher", names);
     }
 
@@ -196,5 +197,18 @@ public sealed class ModuleRegistrationTests
         Assert.True(
             names.IndexOf("Health") < names.IndexOf("Launcher"),
             "Health must be registered before Launcher.");
+    }
+
+    [Fact]
+    public void Calendar_is_registered_after_health_and_before_launcher()
+    {
+        var names = SegarisModules.ModuleNames.ToList();
+
+        Assert.True(
+            names.IndexOf("Health") < names.IndexOf("Calendar"),
+            "Calendar must be registered after Health.");
+        Assert.True(
+            names.IndexOf("Calendar") < names.IndexOf("Launcher"),
+            "Calendar must be registered before Launcher.");
     }
 }

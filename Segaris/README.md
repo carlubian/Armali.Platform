@@ -80,7 +80,8 @@ Add `-Seq` to `infra-up.ps1` when the local Seq UI is needed.
 ## Frontend Development
 
 The frontend is a Vite + React + TypeScript single-page application under
-`src/frontend`, managed with pnpm (provisioned through Corepack). Create
+`src/frontend`, managed with pnpm 11.x (usually provisioned through Corepack;
+the exact pnpm patch/minor version is intentionally not pinned). Create
 `src/frontend/.env` from `src/frontend/.env.example`, then use the repository
 scripts:
 

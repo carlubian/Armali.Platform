@@ -3,6 +3,7 @@
 # pnpm 10+ reads project-wide settings from this file rather than `.npmrc`
 # (which it now treats as npm-registry/auth only). These mirror the foundation
 # decisions in docs/planning/FRONTEND_FOUNDATION_DECISIONS.md: dependency
-# versions are pinned exactly and the pinned Node engine is enforced.
+# versions are pinned exactly while package-manager engine mismatches remain
+# warnings so Corepack-provisioned pnpm patch/minor updates do not break builds.
 saveExact: true
-engineStrict: true
+engineStrict: false
