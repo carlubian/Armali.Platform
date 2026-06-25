@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   Archive,
+  BarChart3,
   Boxes,
   CalendarDays,
   Contact,
@@ -136,6 +137,15 @@ export function LauncherPage() {
         href: '/calendar',
         icon: CalendarDays,
         tone: 'aqua',
+      },
+      {
+        key: 'analytics',
+        title: t('analytics:launcher.title'),
+        description: t('analytics:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/analytics',
+        icon: BarChart3,
+        tone: 'azure',
       },
       {
         key: 'assets',

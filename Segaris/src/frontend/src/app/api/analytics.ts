@@ -108,6 +108,23 @@ export interface AnalyticsViewResponse<TChart> {
   missingExchangeRateCurrencyCodes: string[]
 }
 
+export interface AnalyticsOverviewTotals {
+  selectedYearExpenseAmountEur: number
+  previousYearExpenseAmountEur: number
+  selectedYearIncomeAmountEur: number
+  previousYearIncomeAmountEur: number
+  selectedYearNetBalanceEur: number
+  previousYearNetBalanceEur: number
+}
+
+export interface AnalyticsOverviewResponse {
+  selectedYear: number
+  previousYear: number
+  totals: AnalyticsOverviewTotals
+  charts: AnalyticsChartResponse<AnalyticsMoneySeriesPoint>[]
+  missingExchangeRateCurrencyCodes: string[]
+}
+
 export interface AnalyticsInventoryResponse {
   selectedYear: number
   previousYear: number
@@ -127,9 +144,10 @@ function buildYearQuery(query: AnalyticsYearQuery): string {
 
 export const analyticsApi = {
   overview: (query: AnalyticsYearQuery, signal?: AbortSignal) =>
-    apiRequest<
-      AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsMoneySeriesPoint>>
-    >(`/api/analytics/overview${buildYearQuery(query)}`, { signal }),
+    apiRequest<AnalyticsOverviewResponse>(
+      `/api/analytics/overview${buildYearQuery(query)}`,
+      { signal },
+    ),
   capex: (query: AnalyticsYearQuery, signal?: AbortSignal) =>
     apiRequest<
       AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>

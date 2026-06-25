@@ -10,8 +10,7 @@ import {
 export const analyticsKeys = {
   all: ['analytics'] as const,
   year: (year: number) => [...analyticsKeys.all, year] as const,
-  tab: (year: number, tab: AnalyticsTab) =>
-    [...analyticsKeys.year(year), tab] as const,
+  tab: (year: number, tab: AnalyticsTab) => [...analyticsKeys.year(year), tab] as const,
 }
 
 export const analyticsYearSchema = z

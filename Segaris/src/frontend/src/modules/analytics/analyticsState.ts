@@ -13,7 +13,8 @@ export interface AnalyticsRouteState {
   tab: AnalyticsTab
 }
 
-function currentMadridYear(today: Date): number {
+/** Current civil year in the household time zone (`Europe/Madrid`). */
+export function currentAnalyticsYear(today = new Date()): number {
   return Number(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: analyticsHouseholdTimeZone,
@@ -23,10 +24,10 @@ function currentMadridYear(today: Date): number {
 }
 
 function parseYear(value: string | null, today: Date): number {
-  if (value == null || !/^\d{4}$/.test(value)) return currentMadridYear(today)
+  if (value == null || !/^\d{4}$/.test(value)) return currentAnalyticsYear(today)
   const year = Number(value)
   if (year < analyticsMinimumYear || year > analyticsMaximumYear) {
-    return currentMadridYear(today)
+    return currentAnalyticsYear(today)
   }
   return year
 }

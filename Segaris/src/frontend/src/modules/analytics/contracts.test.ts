@@ -62,18 +62,18 @@ describe('analytics contracts', () => {
   it('parses URL-backed year and tab with current-year and overview fallbacks', () => {
     const today = new Date('2025-12-31T23:30:00.000Z')
 
-    expect(parseAnalyticsState(new URLSearchParams('year=2026&tab=travel'), today)).toEqual(
-      {
-        year: 2026,
-        tab: 'travel',
-      },
-    )
-    expect(parseAnalyticsState(new URLSearchParams('year=1999&tab=unknown'), today)).toEqual(
-      {
-        year: 2026,
-        tab: defaultAnalyticsTab,
-      },
-    )
+    expect(
+      parseAnalyticsState(new URLSearchParams('year=2026&tab=travel'), today),
+    ).toEqual({
+      year: 2026,
+      tab: 'travel',
+    })
+    expect(
+      parseAnalyticsState(new URLSearchParams('year=1999&tab=unknown'), today),
+    ).toEqual({
+      year: 2026,
+      tab: defaultAnalyticsTab,
+    })
   })
 
   it('clamps year navigation to the supported range', () => {
