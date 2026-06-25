@@ -9,8 +9,6 @@ internal sealed class AnalyticsOverviewService(
     IEnumerable<IAnalyticsFinancialProjectionProvider> providers,
     ICurrencyExchangeRateProvider exchangeRates)
 {
-    private const int EurScale = 2;
-
     public async Task<AnalyticsOverviewResponse> GetOverviewAsync(
         AnalyticsYearQuery query,
         UserId viewer,
@@ -18,18 +16,16 @@ internal sealed class AnalyticsOverviewService(
     {
         var previousRange = query.PreviousYearRange();
         var selectedRange = query.SelectedYearRange();
-        var projections = await ListProjectionRowsAsync(
+        var projections = await AnalyticsProjectionStream.LoadOrderedAsync(
+            providers,
             previousRange.From,
             selectedRange.To,
             viewer,
             cancellationToken);
 
         var rates = await exchangeRates.ListCurrentExchangeRatesAsync(cancellationToken);
-        var rateLookup = rates.ToDictionary(
-            rate => rate.CurrencyCode,
-            rate => rate.ExchangeRateToEur,
-            StringComparer.OrdinalIgnoreCase);
-        var missingRates = MissingExchangeRateCurrencyCodes(projections, rateLookup);
+        var rateLookup = AnalyticsExchangeRates.BuildLookup(rates);
+        var missingRates = AnalyticsExchangeRates.MissingCurrencyCodes(projections, rateLookup);
 
         if (missingRates.Count > 0)
         {
@@ -43,7 +39,7 @@ internal sealed class AnalyticsOverviewService(
 
         foreach (var projection in projections)
         {
-            var normalizedAmount = projection.Amount * rateLookup[projection.CurrencyCode]!.Value;
+            var normalizedAmount = AnalyticsExchangeRates.ToEur(projection, rateLookup);
             if (projection.AccountingDate.Year == query.SelectedYear)
             {
                 AddProjection(projection, normalizedAmount, selectedExpenses, selectedIncome);
@@ -70,41 +66,6 @@ internal sealed class AnalyticsOverviewService(
                 CreateMonthlyChart(AnalyticsChartIds.OverviewMonthlyNetBalance, Net(selectedIncome, selectedExpenses), Net(previousIncome, previousExpenses)),
             ],
             []);
-    }
-
-    private async Task<IReadOnlyList<AnalyticsFinancialProjection>> ListProjectionRowsAsync(
-        DateOnly from,
-        DateOnly to,
-        UserId viewer,
-        CancellationToken cancellationToken)
-    {
-        var rows = new List<AnalyticsFinancialProjection>();
-        foreach (var provider in providers)
-        {
-            rows.AddRange(await provider.ListFinancialProjectionsAsync(from, to, viewer, cancellationToken));
-        }
-
-        return rows
-            .OrderBy(row => row.AccountingDate)
-            .ThenBy(row => row.SourceModule, StringComparer.Ordinal)
-            .ThenBy(row => row.SourceType, StringComparer.Ordinal)
-            .ThenBy(row => row.SourceId, StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private static IReadOnlyList<string> MissingExchangeRateCurrencyCodes(
-        IReadOnlyList<AnalyticsFinancialProjection> projections,
-        IReadOnlyDictionary<string, decimal?> rates)
-    {
-        return projections
-            .Select(projection => projection.CurrencyCode.Trim().ToUpperInvariant())
-            .Distinct(StringComparer.Ordinal)
-            .Where(code => !rates.TryGetValue(code, out var rate)
-                || rate is null
-                || rate <= 0m
-                || DecimalPlaces(rate.Value) > 8)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
     }
 
     private static AnalyticsOverviewResponse EmptyResponse(
@@ -164,12 +125,5 @@ internal sealed class AnalyticsOverviewService(
         return values;
     }
 
-    private static decimal Round(decimal value) =>
-        decimal.Round(value, EurScale, MidpointRounding.AwayFromZero);
-
-    private static int DecimalPlaces(decimal value)
-    {
-        var bits = decimal.GetBits(value);
-        return (bits[3] >> 16) & 0x7F;
-    }
+    private static decimal Round(decimal value) => AnalyticsAmounts.RoundEur(value);
 }

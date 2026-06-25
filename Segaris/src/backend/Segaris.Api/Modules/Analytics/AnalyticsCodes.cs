@@ -82,3 +82,13 @@ internal static class AnalyticsModuleContract
 {
     public const bool ContributesLauncherAttention = false;
 }
+
+internal static class AnalyticsLabels
+{
+    /// <summary>
+    /// Stable label used when a grouped projection has no optional supplier or
+    /// cost-centre value. Backend-owned because Analytics has no Spanish
+    /// translations in the initial version.
+    /// </summary>
+    public const string Unassigned = "Unassigned";
+}

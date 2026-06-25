@@ -20,6 +20,18 @@ internal static class AnalyticsEndpoints
             .Produces<AnalyticsOverviewResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        group.MapGet(AnalyticsApiRoutes.Capex, GetCapexAsync)
+            .WithName("GetAnalyticsCapex")
+            .WithSummary("Returns yearly Capex Analytics charts grouped by category, supplier, and cost centre")
+            .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapGet(AnalyticsApiRoutes.Opex, GetOpexAsync)
+            .WithName("GetAnalyticsOpex")
+            .WithSummary("Returns yearly Opex Analytics charts grouped by category, supplier, and cost centre")
+            .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         return endpoints;
     }
 
@@ -35,10 +47,47 @@ internal static class AnalyticsEndpoints
             return TypedResults.Unauthorized();
         }
 
-        AnalyticsYearQuery query;
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await overview.GetOverviewAsync(query, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> GetCapexAsync(
+        HttpRequest request,
+        AnalyticsModuleGroupingService grouping,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await grouping.GetCapexAsync(query, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> GetOpexAsync(
+        HttpRequest request,
+        AnalyticsModuleGroupingService grouping,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await grouping.GetOpexAsync(query, userId, cancellationToken));
+    }
+
+    private static AnalyticsYearQuery ParseYear(HttpRequest request, IClock clock)
+    {
         try
         {
-            query = AnalyticsYearQuery.Parse(
+            return AnalyticsYearQuery.Parse(
                 request.Query[AnalyticsApiRoutes.QueryParameters.Year].FirstOrDefault(),
                 clock);
         }
@@ -50,7 +99,5 @@ internal static class AnalyticsEndpoints
         {
             throw AnalyticsProblem.YearInvalid();
         }
-
-        return TypedResults.Ok(await overview.GetOverviewAsync(query, userId, cancellationToken));
     }
 }

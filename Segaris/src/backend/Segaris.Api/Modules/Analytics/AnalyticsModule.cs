@@ -16,6 +16,7 @@ internal sealed class AnalyticsModule : ISegarisModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<AnalyticsOverviewService>();
+        services.AddScoped<AnalyticsModuleGroupingService>();
         services.AddScoped<IAnalyticsFinancialProjectionProvider, CapexAnalyticsFinancialProjectionAdapter>();
         services.AddScoped<IAnalyticsFinancialProjectionProvider, OpexAnalyticsFinancialProjectionAdapter>();
         services.AddScoped<IAnalyticsFinancialProjectionProvider, InventoryAnalyticsFinancialProjectionAdapter>();

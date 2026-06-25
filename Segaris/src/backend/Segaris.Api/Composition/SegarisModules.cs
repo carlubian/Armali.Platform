@@ -1,5 +1,5 @@
-using Segaris.Api.Modules.Assets;
 using Segaris.Api.Modules.Analytics;
+using Segaris.Api.Modules.Assets;
 using Segaris.Api.Modules.Calendar;
 using Segaris.Api.Modules.Capex;
 using Segaris.Api.Modules.Clothes;
