@@ -36,5 +36,12 @@ internal sealed record CatalogItem(int Id, string Name, int SortOrder);
 /// <summary>
 /// Bounded read model for a currency value. <see cref="Code"/> is the editable
 /// three-letter display code; <see cref="Name"/> is localizable.
+/// <see cref="ExchangeRateToEur"/> is the current rate to EUR, or
+/// <see langword="null"/> when no rate has been configured yet.
 /// </summary>
-internal sealed record CurrencyItem(int Id, string Code, string Name, int SortOrder);
+internal sealed record CurrencyItem(
+    int Id,
+    string Code,
+    string Name,
+    int SortOrder,
+    decimal? ExchangeRateToEur);

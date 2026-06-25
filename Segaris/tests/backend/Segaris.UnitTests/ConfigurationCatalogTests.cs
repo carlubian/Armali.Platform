@@ -45,6 +45,76 @@ public sealed class ConfigurationCatalogTests
         Assert.All(currencies, entity =>
             Assert.Equal(CatalogNormalization.Normalize(entity.Code), entity.NormalizedCode));
         Assert.Equal("EUR", currencies[0].Code);
+        // EUR is fixed at 1; the non-EUR seeds carry their development placeholder rates.
+        Assert.Equal(1m, currencies[0].ExchangeRateToEur);
+        Assert.All(currencies, entity =>
+            Assert.NotNull(entity.ExchangeRateToEur));
+        Assert.All(currencies, entity =>
+            Assert.True(entity.ExchangeRateToEur > 0));
+    }
+
+    [Theory]
+    [InlineData("EUR", null, 1.0)]
+    [InlineData("EUR", 1.0, 1.0)]
+    [InlineData("USD", 0.92, 0.92)]
+    [InlineData("GBP", 1.17, 1.17)]
+    [InlineData("JPY", 0.00610000, 0.0061)]
+    public void Exchange_rate_resolution_accepts_valid_values(
+        string code,
+        double? input,
+        double expected)
+    {
+        var rate = ConfigurationCatalogManagementService.ResolveCurrencyExchangeRate(
+            code,
+            input is { } value ? (decimal)value : null);
+
+        Assert.Equal((decimal)expected, rate);
+    }
+
+    [Fact]
+    public void Exchange_rate_resolution_rejects_a_non_one_euro_rate()
+    {
+        var problem = Assert.Throws<Segaris.Api.Platform.Api.ApiProblemException>(
+            () => ConfigurationCatalogManagementService.ResolveCurrencyExchangeRate("EUR", 1.5m));
+
+        Assert.Equal("configuration.currency.exchange_rate_not_one", problem.Code.Value);
+    }
+
+    [Fact]
+    public void Exchange_rate_resolution_requires_a_rate_for_non_euro_currencies()
+    {
+        var problem = Assert.Throws<Segaris.Api.Platform.Api.ApiProblemException>(
+            () => ConfigurationCatalogManagementService.ResolveCurrencyExchangeRate("USD", null));
+
+        Assert.Equal("configuration.currency.exchange_rate_required", problem.Code.Value);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1.123456789)] // Nine decimal places.
+    public void Exchange_rate_resolution_rejects_non_positive_or_too_precise_rates(double input)
+    {
+        var problem = Assert.Throws<Segaris.Api.Platform.Api.ApiProblemException>(
+            () => ConfigurationCatalogManagementService.ResolveCurrencyExchangeRate("USD", (decimal)input));
+
+        Assert.Equal("configuration.currency.exchange_rate_invalid", problem.Code.Value);
+    }
+
+    [Fact]
+    public async Task Exchange_rate_provider_publishes_current_rates_in_catalog_order()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        await fixture.SeedAsync();
+        var provider = new CurrencyExchangeRateProvider(fixture.Database);
+
+        var snapshots = await provider.ListCurrentExchangeRatesAsync(CancellationToken.None);
+
+        Assert.Equal("EUR", snapshots[0].CurrencyCode);
+        Assert.Equal(1m, snapshots[0].ExchangeRateToEur);
+        Assert.Equal(
+            ConfigurationCatalog.Currencies.Select(seed => seed.Code).ToArray(),
+            snapshots.Select(snapshot => snapshot.CurrencyCode).ToArray());
     }
 
     [Fact]

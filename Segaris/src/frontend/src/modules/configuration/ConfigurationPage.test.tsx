@@ -11,6 +11,7 @@ interface Row {
   name: string
   code?: string
   colorValue?: string
+  exchangeRateToEur?: number | null
   sortOrder: number
   programId?: number
 }
@@ -112,8 +113,8 @@ function mockBackend(options: BackendOptions = {}) {
     ],
     costCenters: options.costCenters ?? [{ id: 1, name: 'Household', sortOrder: 1 }],
     currencies: options.currencies ?? [
-      { id: 1, code: 'EUR', name: 'Euro', sortOrder: 1 },
-      { id: 2, code: 'USD', name: 'US Dollar', sortOrder: 2 },
+      { id: 1, code: 'EUR', name: 'Euro', exchangeRateToEur: 1, sortOrder: 1 },
+      { id: 2, code: 'USD', name: 'US Dollar', exchangeRateToEur: 0.92, sortOrder: 2 },
     ],
     categories: options.categories ?? [{ id: 1, name: 'Other', sortOrder: 1 }],
     opexCategories: options.opexCategories ?? [
@@ -258,12 +259,18 @@ function mockBackend(options: BackendOptions = {}) {
         if (id == null && method === 'POST') {
           calls.push({ method, url, body })
           if (options.createResponse) return options.createResponse()
-          const input = body as { name: string; code?: string; colorValue?: string }
+          const input = body as {
+            name: string
+            code?: string
+            colorValue?: string
+            exchangeRateToEur?: number
+          }
           const created: Row = {
             id: nextId++,
             name: input.name,
             code: input.code,
             colorValue: input.colorValue,
+            exchangeRateToEur: input.exchangeRateToEur,
             sortOrder: rows.length + 1,
           }
           rows.push(created)
@@ -285,12 +292,19 @@ function mockBackend(options: BackendOptions = {}) {
         }
         if (id != null && suffix == null && method === 'PUT') {
           calls.push({ method, url, body })
-          const input = body as { name: string; code?: string; colorValue?: string }
+          const input = body as {
+            name: string
+            code?: string
+            colorValue?: string
+            exchangeRateToEur?: number
+          }
           const target = rows.find((row) => row.id === id)
           if (target != null) {
             target.name = input.name
             if (input.code != null) target.code = input.code
             if (input.colorValue != null) target.colorValue = input.colorValue
+            if (input.exchangeRateToEur != null)
+              target.exchangeRateToEur = input.exchangeRateToEur
           }
           return json(target ?? {})
         }
@@ -726,6 +740,104 @@ describe('Configuration creation and editing', () => {
 
     expect(
       await within(dialog).findByText('Use exactly three letters, for example EUR.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the currency exchange-rate column', async () => {
+    mockBackend()
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    expect(
+      screen.getByRole('columnheader', { name: 'Rate to EUR' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('0.92')).toBeInTheDocument()
+  })
+
+  it('creates a non-EUR currency with its exchange rate to EUR', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New currency' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New currency' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Pound Sterling')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'GBP')
+    await userEvent.type(within(dialog).getByLabelText('Exchange rate to EUR'), '1.17')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) =>
+            call.method === 'POST' && call.url === '/api/configuration/currencies',
+        )?.body,
+      ).toEqual({ name: 'Pound Sterling', code: 'GBP', exchangeRateToEur: 1.17 }),
+    )
+  })
+
+  it('locks the exchange rate to 1 for EUR', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New currency' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New currency' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Euro clone')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'EUR')
+
+    const rate = within(dialog).getByLabelText('Exchange rate to EUR')
+    expect(rate).toBeDisabled()
+    expect(rate).toHaveValue('1')
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) =>
+            call.method === 'POST' && call.url === '/api/configuration/currencies',
+        )?.body,
+      ).toEqual({ name: 'Euro clone', code: 'EUR', exchangeRateToEur: 1 }),
+    )
+  })
+
+  it('requires a positive exchange rate for a non-EUR currency', async () => {
+    mockBackend()
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New currency' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New currency' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Yen')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'JPY')
+    // Leave the rate empty and submit.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(
+      await within(dialog).findByText('Enter the exchange rate to EUR.'),
+    ).toBeInTheDocument()
+  })
+
+  it('rejects an exchange rate with too many decimal places', async () => {
+    mockBackend()
+    renderAt('/configuration/global?catalog=currencies')
+    await screen.findByText('Euro')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New currency' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New currency' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Yen')
+    await userEvent.type(within(dialog).getByLabelText('Code'), 'JPY')
+    await userEvent.type(
+      within(dialog).getByLabelText('Exchange rate to EUR'),
+      '1.123456789',
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(
+      await within(dialog).findByText(
+        'Enter a positive rate with at most eight decimal places, for example 0.92.',
+      ),
     ).toBeInTheDocument()
   })
 

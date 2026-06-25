@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { useController, useForm, type Control } from 'react-hook-form'
+import { useEffect, useRef, useState } from 'react'
+import { useController, useForm, useWatch, type Control } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
@@ -12,6 +12,12 @@ import type { CatalogDescriptor, CatalogRow, CatalogWriteBody } from './catalogs
 
 /** Hex pattern shared by the schema, swatch fallback, and server-error mapping. */
 const hexColor = /^#[0-9A-Fa-f]{6}$/
+
+/** The EUR currency code is fixed at an exchange rate of 1. */
+const euroCode = 'EUR'
+
+/** A positive decimal with at most eight fractional digits, mirroring the server. */
+const exchangeRatePattern = /^\d+(\.\d{1,8})?$/
 
 export interface CatalogFormDialogProps {
   descriptor: CatalogDescriptor
@@ -31,14 +37,25 @@ function buildSchema(t: TFunc, descriptor: CatalogDescriptor) {
     .min(1, t('form.nameRequired'))
     .max(100, t('form.nameTooLong'))
   if (descriptor.hasCode) {
-    return z.object({
-      name,
-      code: z
-        .string()
-        .trim()
-        .transform((value) => value.toUpperCase())
-        .pipe(z.string().regex(/^[A-Z]{3}$/, t('form.codeInvalid'))),
-    })
+    const code = z
+      .string()
+      .trim()
+      .transform((value) => value.toUpperCase())
+      .pipe(z.string().regex(/^[A-Z]{3}$/, t('form.codeInvalid')))
+    const exchangeRateToEur = z
+      .string()
+      .trim()
+      .min(1, t('form.rateRequired'))
+      .refine(
+        (value) => exchangeRatePattern.test(value) && Number(value) > 0,
+        t('form.rateInvalid'),
+      )
+    return z
+      .object({ name, code, exchangeRateToEur })
+      .refine(
+        (value) => value.code !== euroCode || Number(value.exchangeRateToEur) === 1,
+        { path: ['exchangeRateToEur'], message: t('form.rateMustBeOne') },
+      )
   }
   if (descriptor.hasColorValue) {
     return z.object({
@@ -49,7 +66,12 @@ function buildSchema(t: TFunc, descriptor: CatalogDescriptor) {
   return z.object({ name })
 }
 
-type FormValues = { name: string; code?: string; colorValue?: string }
+type FormValues = {
+  name: string
+  code?: string
+  colorValue?: string
+  exchangeRateToEur?: string
+}
 
 /**
  * Creation and editing dialog shared by the four catalogs. Currency adds the
@@ -74,6 +96,8 @@ export function CatalogFormDialog({
       name: row?.name ?? '',
       code: row?.code ?? '',
       colorValue: row?.colorValue ?? '#000000',
+      exchangeRateToEur:
+        row?.exchangeRateToEur != null ? String(row.exchangeRateToEur) : '',
     },
   })
   const { register, handleSubmit, formState, setError, control } = form
@@ -86,7 +110,11 @@ export function CatalogFormDialog({
   const mutation = useMutation({
     mutationFn: (values: FormValues) => {
       const body: CatalogWriteBody = descriptor.hasCode
-        ? { name: values.name.trim(), code: (values.code ?? '').trim().toUpperCase() }
+        ? {
+            name: values.name.trim(),
+            code: (values.code ?? '').trim().toUpperCase(),
+            exchangeRateToEur: Number((values.exchangeRateToEur ?? '').trim()),
+          }
         : descriptor.hasColorValue
           ? { name: values.name.trim(), colorValue: (values.colorValue ?? '').trim() }
           : { name: values.name.trim() }
@@ -111,6 +139,18 @@ export function CatalogFormDialog({
       }
       if (code.endsWith('invalid_code')) {
         setError('code', { message: t('form.codeInvalid') })
+        return
+      }
+      if (code.endsWith('exchange_rate_required')) {
+        setError('exchangeRateToEur', { message: t('form.rateRequired') })
+        return
+      }
+      if (code.endsWith('exchange_rate_not_one')) {
+        setError('exchangeRateToEur', { message: t('form.rateMustBeOne') })
+        return
+      }
+      if (code.endsWith('exchange_rate_invalid')) {
+        setError('exchangeRateToEur', { message: t('form.rateInvalid') })
         return
       }
       // The colour value is validated on the client; this guards the rare case
@@ -202,6 +242,15 @@ export function CatalogFormDialog({
               {...register('code')}
             />
           )}
+          {descriptor.hasCode && (
+            <ExchangeRateField
+              control={control}
+              label={t(`${labels}.rateLabel`)}
+              placeholder={t(`${labels}.ratePlaceholder`)}
+              euroHint={t(`${labels}.rateEuroHint`)}
+              error={formState.errors.exchangeRateToEur?.message}
+            />
+          )}
           {descriptor.hasColorValue && (
             <ColorField
               control={control}
@@ -233,6 +282,59 @@ export function CatalogFormDialog({
         />
       )}
     </>
+  )
+}
+
+interface ExchangeRateFieldProps {
+  control: Control<FormValues>
+  label: string
+  placeholder: string
+  /** Shown instead of the editable hint when the code is EUR and the field locks. */
+  euroHint: string
+  error?: string
+}
+
+/**
+ * Exchange-rate-to-EUR sub-editor for currencies. It owns its own controlled
+ * subscription so rate edits re-render only this component, keeping the Dialog's
+ * `onClose` identity stable and focus uninterrupted while typing. When the code is
+ * EUR the rate is fixed at 1, so the field locks to `1` and is disabled.
+ */
+function ExchangeRateField({
+  control,
+  label,
+  placeholder,
+  euroHint,
+  error,
+}: ExchangeRateFieldProps) {
+  const { field } = useController({ name: 'exchangeRateToEur', control })
+  const code = useWatch({ control, name: 'code' }) ?? ''
+  const isEuro = code.trim().toUpperCase() === euroCode
+
+  // Keep the stored value aligned with the locked display so submission always
+  // sends 1 for EUR, even if a non-EUR rate was typed before switching the code.
+  useEffect(() => {
+    if (isEuro && field.value !== '1') {
+      field.onChange('1')
+    }
+  }, [isEuro, field])
+
+  const value = typeof field.value === 'string' ? field.value : ''
+  return (
+    <Input
+      label={label}
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      placeholder={placeholder}
+      disabled={isEuro}
+      required={!isEuro}
+      value={isEuro ? '1' : value}
+      hint={isEuro ? euroHint : undefined}
+      error={error}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
   )
 }
 

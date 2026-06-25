@@ -82,6 +82,90 @@ public sealed class ConfigurationManagementEndpointTests
     }
 
     [Fact]
+    public async Task Currencies_list_with_their_current_exchange_rates_to_eur()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+
+        var currencies = await client.GetFromJsonAsync<CurrencyResponse[]>("/api/configuration/currencies", CancellationToken.None);
+
+        var euro = Assert.Single(currencies!, currency => currency.Code == "EUR");
+        Assert.Equal(1m, euro.ExchangeRateToEur);
+        var dollar = Assert.Single(currencies!, currency => currency.Code == "USD");
+        Assert.Equal(0.92m, dollar.ExchangeRateToEur);
+    }
+
+    [Fact]
+    public async Task Currency_create_persists_a_positive_exchange_rate()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var nonEuro = await CapexApi.PostJsonAsync(client, "/api/configuration/currencies", new CurrencyItemRequest("Swiss Franc", "CHF", 1.05m), csrf);
+        Assert.Equal(HttpStatusCode.Created, nonEuro.StatusCode);
+        var franc = await nonEuro.Content.ReadFromJsonAsync<CurrencyResponse>(CancellationToken.None);
+        Assert.Equal(1.05m, franc!.ExchangeRateToEur);
+
+        var currencies = await client.GetFromJsonAsync<CurrencyResponse[]>("/api/configuration/currencies", CancellationToken.None);
+        Assert.Contains(currencies!, currency => currency.Code == "CHF" && currency.ExchangeRateToEur == 1.05m);
+    }
+
+    [Fact]
+    public async Task Currency_update_changes_the_exchange_rate()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+        var currencies = await client.GetFromJsonAsync<CurrencyResponse[]>("/api/configuration/currencies", CancellationToken.None);
+        var dollar = Assert.Single(currencies!, currency => currency.Code == "USD");
+
+        using var response = await CapexApi.PutJsonAsync(client, $"/api/configuration/currencies/{dollar.Id}", new CurrencyItemRequest("US Dollar", "USD", 0.95m), csrf);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<CurrencyResponse>(CancellationToken.None);
+        Assert.Equal(0.95m, updated!.ExchangeRateToEur);
+    }
+
+    [Theory]
+    [InlineData(null, "configuration.currency.exchange_rate_required")]
+    [InlineData(0.0, "configuration.currency.exchange_rate_invalid")]
+    [InlineData(1.123456789, "configuration.currency.exchange_rate_invalid")]
+    public async Task Currency_create_rejects_missing_or_invalid_non_euro_rates(double? rate, string expectedCode)
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            "/api/configuration/currencies",
+            new CurrencyItemRequest("Norwegian Krone", "NOK", rate is { } value ? (decimal)value : null),
+            csrf);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(expectedCode, problem!.Code);
+    }
+
+    [Fact]
+    public async Task Currency_create_rejects_a_non_one_euro_rate()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(client);
+
+        using var response = await CapexApi.PostJsonAsync(
+            client,
+            "/api/configuration/currencies",
+            new CurrencyItemRequest("Euro alias", "EUR", 1.5m),
+            csrf);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("configuration.currency.exchange_rate_not_one", problem!.Code);
+    }
+
+    [Fact]
     public async Task Referenced_values_report_private_neutral_impact_and_reject_direct_delete()
     {
         using var server = new CapexTestServer();

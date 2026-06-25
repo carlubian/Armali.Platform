@@ -13,6 +13,13 @@ internal sealed record CostCenterResponse(int Id, string Name, int SortOrder);
 /// <summary>
 /// Frozen response contract for <c>GET /api/configuration/currencies</c>.
 /// <see cref="Code"/> is the editable three-letter display code (for example
-/// <c>EUR</c>).
+/// <c>EUR</c>). <see cref="ExchangeRateToEur"/> is the current rate to EUR
+/// (<c>1 currency = ExchangeRateToEur EUR</c>); it is <see langword="null"/> only
+/// for currencies migrated from before Analytics that never received a rate.
 /// </summary>
-internal sealed record CurrencyResponse(int Id, string Code, string Name, int SortOrder);
+internal sealed record CurrencyResponse(
+    int Id,
+    string Code,
+    string Name,
+    int SortOrder,
+    decimal? ExchangeRateToEur);

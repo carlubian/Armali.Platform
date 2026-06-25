@@ -172,13 +172,14 @@ public sealed class MigrationTests
         Assert.Contains("HealthDomainPersistence", sqliteNames);
         Assert.Contains("MedicinePrimaryAttachment", sqliteNames);
         Assert.Contains("CalendarDailyNotes", sqliteNames);
+        Assert.Contains("CurrencyExchangeRateToEur", sqliteNames);
     }
 
     [Fact]
-    public void Calendar_daily_notes_is_the_current_tail()
+    public void Currency_exchange_rate_is_the_current_tail()
     {
-        // Calendar Wave 1 adds the daily-note persistence table after the accepted
-        // Health migration pair.
+        // Analytics Wave 1 adds the administrator-managed exchange rate to EUR on
+        // currencies after the accepted Calendar migration.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -190,8 +191,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("CalendarDailyNotes", migrations[^1]);
-            Assert.Equal("MedicinePrimaryAttachment", migrations[^2]);
+            Assert.Equal("CurrencyExchangeRateToEur", migrations[^1]);
+            Assert.Equal("CalendarDailyNotes", migrations[^2]);
         }
     }
 
@@ -249,6 +250,54 @@ public sealed class MigrationTests
             // Every populated catalog is marked initialized so startup never reseeds it.
             command.CommandText = "SELECT COUNT(*) FROM configuration_catalog_initializations";
             Assert.Equal(4L, (long)(await command.ExecuteScalarAsync())!);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task Sqlite_upgrade_backfills_seeded_currency_exchange_rates()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-rates-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
+            var baseline = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_CalendarDailyNotes", StringComparison.Ordinal));
+            var migrator = database.GetService<IMigrator>();
+
+            // Apply the pre-Wave-1 schema (currencies without an exchange rate) and
+            // insert two seeded currencies and one administrator-created currency.
+            await migrator.MigrateAsync(baseline);
+            await database.Database.OpenConnectionAsync();
+            await ExecuteAsync(database,
+                "INSERT INTO configuration_currencies (\"Code\", \"NormalizedCode\", \"Name\", \"NormalizedName\", \"SortOrder\", \"CreatedAt\", \"UpdatedAt\") " +
+                "VALUES ('EUR', 'EUR', 'Euro', 'EURO', 0, '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00'), " +
+                "('USD', 'USD', 'US Dollar', 'US DOLLAR', 1, '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00'), " +
+                "('JPY', 'JPY', 'Japanese Yen', 'JAPANESE YEN', 2, '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00');");
+
+            // Upgrade to the exchange-rate model.
+            await migrator.MigrateAsync();
+
+            await using var command = database.Database.GetDbConnection().CreateCommand();
+            command.CommandText =
+                "SELECT \"NormalizedCode\", \"ExchangeRateToEur\" FROM configuration_currencies ORDER BY \"SortOrder\"";
+            await using var reader = await command.ExecuteReaderAsync();
+
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("EUR", reader.GetString(0));
+            Assert.Equal(1m, reader.GetDecimal(1));
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("USD", reader.GetString(0));
+            Assert.Equal(0.92m, reader.GetDecimal(1));
+            // The administrator-created currency keeps a null rate until one is set.
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("JPY", reader.GetString(0));
+            Assert.True(await reader.IsDBNullAsync(1));
+            Assert.False(await reader.ReadAsync());
         }
         finally
         {

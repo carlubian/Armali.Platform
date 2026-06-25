@@ -59,6 +59,7 @@ internal sealed class ConfigurationSeeder(SegarisDbContext database, CatalogInit
                     NormalizedCode = CatalogNormalization.Normalize(seed.Code),
                     Name = seed.Name,
                     NormalizedName = CatalogNormalization.Normalize(seed.Name),
+                    ExchangeRateToEur = seed.ExchangeRateToEur,
                     SortOrder = sortOrder,
                     CreatedAt = now,
                     UpdatedAt = now,

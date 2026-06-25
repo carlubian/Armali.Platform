@@ -128,6 +128,9 @@ public sealed class ConfigurationContractTests
         Assert.Equal("configuration.catalog.duplicate_name", ConfigurationErrorCodes.CatalogDuplicateName.Value);
         Assert.Equal("configuration.currency.duplicate_code", ConfigurationErrorCodes.CurrencyDuplicateCode.Value);
         Assert.Equal("configuration.currency.invalid_code", ConfigurationErrorCodes.CurrencyInvalidCode.Value);
+        Assert.Equal("configuration.currency.exchange_rate_required", ConfigurationErrorCodes.CurrencyExchangeRateRequired.Value);
+        Assert.Equal("configuration.currency.exchange_rate_invalid", ConfigurationErrorCodes.CurrencyExchangeRateInvalid.Value);
+        Assert.Equal("configuration.currency.exchange_rate_not_one", ConfigurationErrorCodes.CurrencyExchangeRateNotOne.Value);
         Assert.Equal("configuration.catalog.required_not_empty", ConfigurationErrorCodes.CatalogRequiredNotEmpty.Value);
         Assert.Equal("configuration.catalog.referenced", ConfigurationErrorCodes.CatalogReferenced.Value);
         Assert.Equal("configuration.catalog.invalid_replacement", ConfigurationErrorCodes.CatalogInvalidReplacement.Value);
@@ -191,9 +194,10 @@ public sealed class ConfigurationContractTests
         Assert.Equal("Household", item.RootElement.GetProperty("name").GetString());
         Assert.Equal("#123ABC", item.RootElement.GetProperty("colorValue").GetString());
 
-        using var currency = JsonDocument.Parse(JsonSerializer.Serialize(new CurrencyItemRequest("Euro", "EUR"), Web));
+        using var currency = JsonDocument.Parse(JsonSerializer.Serialize(new CurrencyItemRequest("Euro", "EUR", 1m), Web));
         Assert.Equal("Euro", currency.RootElement.GetProperty("name").GetString());
         Assert.Equal("EUR", currency.RootElement.GetProperty("code").GetString());
+        Assert.Equal(1m, currency.RootElement.GetProperty("exchangeRateToEur").GetDecimal());
 
         using var move = JsonDocument.Parse(JsonSerializer.Serialize(new CatalogMoveRequest("up"), Web));
         Assert.Equal("up", move.RootElement.GetProperty("direction").GetString());

@@ -39,11 +39,14 @@ internal static class ConfigurationCatalog
         new("Other"),
     ];
 
+    // Non-EUR seed rates are explicit development placeholders, not authoritative
+    // economic data. Administrators are expected to maintain the live rates through
+    // Configuration. EUR is fixed at 1.
     public static readonly IReadOnlyList<CurrencySeed> Currencies =
     [
-        new(CurrencyCodes.Euro, "Euro"),
-        new(CurrencyCodes.UsDollar, "US Dollar"),
-        new(CurrencyCodes.PoundSterling, "Pound Sterling"),
+        new(CurrencyCodes.Euro, "Euro", 1m),
+        new(CurrencyCodes.UsDollar, "US Dollar", 0.92m),
+        new(CurrencyCodes.PoundSterling, "Pound Sterling", 1.17m),
     ];
 }
 
@@ -54,7 +57,8 @@ internal static class ConfigurationCatalog
 internal sealed record CatalogSeed(string Name);
 
 /// <summary>
-/// A single frozen currency seed row: its editable display <paramref name="Code"/>
-/// and canonical display <paramref name="Name"/>.
+/// A single frozen currency seed row: its editable display <paramref name="Code"/>,
+/// canonical display <paramref name="Name"/>, and seeded current
+/// <paramref name="ExchangeRateToEur"/> (a development placeholder for non-EUR).
 /// </summary>
-internal sealed record CurrencySeed(string Code, string Name);
+internal sealed record CurrencySeed(string Code, string Name, decimal ExchangeRateToEur);

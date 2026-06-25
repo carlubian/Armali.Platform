@@ -15,8 +15,11 @@ internal sealed record CatalogItemRequest(string? Name, string? ColorValue = nul
 /// (<c>POST /api/configuration/currencies</c> and
 /// <c>PUT /api/configuration/currencies/{id}</c>). The code is a three-letter
 /// upper-case display code, unique case-insensitively within the currency catalog.
+/// <see cref="ExchangeRateToEur"/> is the current rate to EUR
+/// (<c>1 currency = ExchangeRateToEur EUR</c>): required and positive for non-EUR
+/// currencies, and fixed at <c>1</c> for EUR.
 /// </summary>
-internal sealed record CurrencyItemRequest(string? Name, string? Code);
+internal sealed record CurrencyItemRequest(string? Name, string? Code, decimal? ExchangeRateToEur = null);
 
 /// <summary>
 /// Frozen request contract for <c>POST /api/configuration/{catalog}/{id}/move</c>.
