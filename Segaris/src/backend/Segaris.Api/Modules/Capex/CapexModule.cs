@@ -1,5 +1,6 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Capex.Attention;
+using Segaris.Api.Modules.Capex.Contracts;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Capex.Mutations;
 using Segaris.Api.Modules.Capex.Persistence;
@@ -27,6 +28,7 @@ internal sealed class CapexModule : ISegarisModule
         services.AddScoped<CapexSeeder>();
         services.AddScoped<CapexCatalogValidator>();
         services.AddScoped<CapexReadService>();
+        services.AddScoped<ICapexFinancialProjectionProvider, CapexFinancialProjectionProvider>();
         services.AddScoped<CapexEntryWriteService>();
         services.AddScoped<CapexCategoryManagementService>();
         services.AddScoped<ICatalogReferenceHandler>(provider => new CapexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));

@@ -19,6 +19,7 @@ using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Calendar.Contracts;
 using Segaris.Api.Modules.Calendar.Queries;
 using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Capex.Contracts;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Configuration.Persistence;
@@ -28,6 +29,7 @@ using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Mood.Contracts;
 using Segaris.Api.Modules.Mood.Domain;
+using Segaris.Api.Modules.Opex.Contracts;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Projects.Domain;
@@ -414,7 +416,10 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         using var client = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var userId = await database.Set<SegarisUser>()
+            .Where(user => user.UserName == userName)
+            .Select(user => user.Id)
+            .SingleAsync();
         var categoryId = await database.Set<CapexCategory>()
             .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
@@ -435,6 +440,100 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(6.76m, stored.TotalAmount);
         Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
         Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
+    public async Task Postgres_serves_capex_and_opex_financial_projections_with_date_bounds_and_decimals()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-analytics-source";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgAnalyticsSource123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var capexCategoryId = await database.Set<CapexCategory>()
+            .Where(category => category.Name == "Home").Select(category => category.Id).SingleAsync();
+        var opexCategoryId = await database.Set<OpexCategory>()
+            .Where(category => category.Name == "Housing").Select(category => category.Id).SingleAsync();
+        var supplierId = await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var costCenterId = await database.Set<SegarisCostCenter>()
+            .Where(costCenter => costCenter.Name == "Household").Select(costCenter => costCenter.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var actor = new UserId(userId);
+        var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+
+        var capexEntry = CapexEntry.Create(
+            new("Projected Capex", CapexMovementType.Expense, CapexEntryStatus.Completed,
+                new DateOnly(2026, 1, 1), capexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            [new("Rounded", 0.01m, 0.50m), new("Normal", 3m, 2.25m)],
+            actor,
+            now);
+        database.Add(capexEntry);
+        database.Add(CapexEntry.Create(
+            new("Excluded planning", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                new DateOnly(2026, 6, 14), capexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            [new("Nope", 1m, 99m)],
+            actor,
+            now));
+
+        var opexContract = OpexContract.Create(
+            new("Projected Opex", OpexMovementType.Income, OpexContractStatus.Active,
+                null, null, null, OpexExpectedFrequency.Monthly,
+                opexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            actor,
+            now);
+        database.Add(opexContract);
+        await database.SaveChangesAsync();
+        database.Add(OpexOccurrence.Create(
+            opexContract.Id,
+            new(new DateOnly(2026, 12, 31), 123.45m, null, null),
+            actor,
+            now));
+        database.Add(OpexOccurrence.Create(
+            opexContract.Id,
+            new(new DateOnly(2027, 1, 1), 999m, null, null),
+            actor,
+            now));
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var capexProvider = scope.ServiceProvider.GetRequiredService<ICapexFinancialProjectionProvider>();
+        var opexProvider = scope.ServiceProvider.GetRequiredService<IOpexFinancialProjectionProvider>();
+        var capex = await capexProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 12, 31),
+            actor,
+            CancellationToken.None);
+        var opex = await opexProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 12, 31),
+            actor,
+            CancellationToken.None);
+
+        var capexProjection = Assert.Single(capex);
+        Assert.Equal($"capex:{capexEntry.Id}", capexProjection.SourceId);
+        Assert.Equal(new DateOnly(2026, 1, 1), capexProjection.AccountingDate);
+        Assert.Equal(6.76m, capexProjection.Amount);
+        Assert.Equal("Expense", capexProjection.MovementDirection);
+        Assert.Equal(
+            ("EUR", "Home", "Amazon", "Household"),
+            (capexProjection.CurrencyCode, capexProjection.CategoryLabel, capexProjection.SupplierLabel, capexProjection.CostCenterLabel));
+
+        var opexProjection = Assert.Single(opex);
+        Assert.Equal(new DateOnly(2026, 12, 31), opexProjection.AccountingDate);
+        Assert.Equal(123.45m, opexProjection.Amount);
+        Assert.Equal("Income", opexProjection.MovementDirection);
+        Assert.Equal(
+            ("EUR", "Housing", "Amazon", "Household"),
+            (opexProjection.CurrencyCode, opexProjection.CategoryLabel, opexProjection.SupplierLabel, opexProjection.CostCenterLabel));
     }
 
     [Fact]
