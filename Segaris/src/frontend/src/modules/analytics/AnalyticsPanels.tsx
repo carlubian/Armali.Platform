@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  Info,
   type LucideIcon,
   Scale,
   TrendingDown,
@@ -147,11 +148,15 @@ function GroupedChartCard({
   points,
   selectedYear,
   previousYear,
+  sub,
+  className,
 }: {
   chartId: string
   points: AnalyticsComparisonPoint[]
   selectedYear: number
   previousYear: number
+  sub?: string
+  className?: string
 }) {
   const { t } = useTranslation('analytics')
   const { comparison } = useChartNarrative()
@@ -169,6 +174,8 @@ function GroupedChartCard({
   return (
     <AnalyticsChartCard
       title={title}
+      sub={sub}
+      className={className}
       summary={summary}
       table={table}
       isEmpty={points.length === 0}
@@ -256,13 +263,37 @@ export function AnalyticsTravelPanel({ year, onConfigure }: PanelProps) {
   )
 }
 
+function isCostCentreChart(chartId: string): boolean {
+  return chartId.toLowerCase().includes('costcenter')
+}
+
 export function AnalyticsCrossModulePanel({ year, onConfigure }: PanelProps) {
+  const { t } = useTranslation('analytics')
+  const query = useAnalyticsCrossModule(year)
   return (
-    <GroupedTabBody
-      tab="cross-module"
-      query={useAnalyticsCrossModule(year)}
-      onConfigure={onConfigure}
-    />
+    <AnalyticsAsync query={query} onConfigure={onConfigure}>
+      {(data) => (
+        <>
+          <TabHead tab="cross-module" />
+          <div className="an-grid an-grid--2">
+            {data.charts.map((chart) => (
+              <GroupedChartCard
+                key={chart.chartId}
+                chartId={chart.chartId}
+                points={toComparison(chart.points)}
+                selectedYear={data.selectedYear}
+                previousYear={data.previousYear}
+                className={isCostCentreChart(chart.chartId) ? 'an-span-2' : undefined}
+              />
+            ))}
+          </div>
+          <p className="an-card__note">
+            <Info size={13} aria-hidden="true" />
+            {t('tab.cross-module.note')}
+          </p>
+        </>
+      )}
+    </AnalyticsAsync>
   )
 }
 
@@ -487,22 +518,17 @@ function InventoryTopCard({
   previousYear: number
 }) {
   const { t } = useTranslation('analytics')
-  const { comparison } = useChartNarrative()
+  const { ranked } = useChartNarrative()
   const points = toTop(chart.points)
   const title = t(`charts.${chart.chartId}`, { defaultValue: chart.chartId })
-  const { summary, table } = comparison(
-    title,
-    title,
-    points,
-    selectedYear,
-    previousYear,
-  )
+  const { summary, table } = ranked(title, title, points, selectedYear, previousYear)
   return (
     <AnalyticsChartCard
       title={title}
       height="lg"
       summary={summary}
       table={table}
+      note={t('tab.inventory.topNote')}
       isEmpty={points.length === 0}
       legend={
         <AnalyticsLegend
@@ -523,6 +549,7 @@ function InventoryTopCard({
 }
 
 export function AnalyticsInventoryPanel({ year, onConfigure }: PanelProps) {
+  const { t } = useTranslation('analytics')
   const query: UseQueryResult<AnalyticsInventoryResponse> = useAnalyticsInventory(year)
   return (
     <AnalyticsAsync query={query} onConfigure={onConfigure}>
@@ -558,6 +585,7 @@ export function AnalyticsInventoryPanel({ year, onConfigure }: PanelProps) {
                 points={toAverage(chart.points)}
                 selectedYear={data.selectedYear}
                 previousYear={data.previousYear}
+                sub={t('tab.inventory.averageSub')}
               />
             ))}
           </div>

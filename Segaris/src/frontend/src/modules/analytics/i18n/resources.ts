@@ -51,6 +51,8 @@ export const analytics = {
       description:
         'Received order spending by item category and supplier, average order value, and the year’s top items and suppliers.',
       scope: 'Planning & cancelled excluded',
+      averageSub: 'Mean EUR per received order',
+      topNote: 'Bars labelled with EUR and share of total Inventory expense.',
     },
     travel: {
       eyebrow: 'Travel',
@@ -65,6 +67,7 @@ export const analytics = {
       description:
         'Total expenses pooled across Capex, Opex, Inventory and Travel — grouped by supplier, category and cost-centre label.',
       scope: 'Capex · Opex · Inventory · Travel',
+      note: 'Categories are matched across modules by normalized display label — this does not create shared category ownership.',
     },
   },
   overview: {
@@ -97,10 +100,13 @@ export const analytics = {
     summaryMonthly:
       '{{title}}. Monthly values for {{year}} and {{previousYear}}. {{year}} totals {{total}}.',
     summaryMore: ', and more',
+    rankCaption:
+      '{{dimension}} — top {{count}} for {{year}}, with share of total and {{previousYear}} comparison.',
     table: {
       caption: '{{dimension}} — {{year}} versus {{previousYear}}, EUR.',
       yoy: 'YoY',
       month: 'Month',
+      shareOfTotal: '% of total',
     },
   },
   charts: {

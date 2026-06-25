@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 
 import type { AnalyticsDataTableModel } from './charts'
-import type { AnalyticsComparisonPoint } from './charts'
-import { formatDelta, formatEur, yearOverYear } from './format'
+import type { AnalyticsComparisonPoint, AnalyticsTopPoint } from './charts'
+import { formatDelta, formatEur, formatPercent, yearOverYear } from './format'
 
 export interface ChartNarrative {
   summary: string
@@ -56,18 +56,14 @@ export function useChartNarrative() {
     }
   }
 
-  function comparison(
+  function summaryText(
     title: string,
-    dimension: string,
     points: AnalyticsComparisonPoint[],
     selectedYear: number,
     previousYear: number,
-  ): ChartNarrative {
+  ): string {
     if (points.length === 0) {
-      return {
-        summary: t('chart.summaryEmpty', { title, year: selectedYear }),
-        table: buildTable(dimension, points, selectedYear, previousYear),
-      }
+      return t('chart.summaryEmpty', { title, year: selectedYear })
     }
     const highlights = points
       .slice(0, 3)
@@ -75,18 +71,65 @@ export function useChartNarrative() {
       .join(', ')
     const currentTotal = total(points, 'current')
     const previousTotal = total(points, 'previous')
+    return t('chart.summary', {
+      title,
+      year: selectedYear,
+      highlights:
+        points.length > 3 ? `${highlights}${t('chart.summaryMore')}` : highlights,
+      current: formatEur(currentTotal),
+      previous: formatEur(previousTotal),
+      previousYear,
+      delta: deltaText(currentTotal, previousTotal),
+    })
+  }
+
+  function comparison(
+    title: string,
+    dimension: string,
+    points: AnalyticsComparisonPoint[],
+    selectedYear: number,
+    previousYear: number,
+  ): ChartNarrative {
     return {
-      summary: t('chart.summary', {
-        title,
-        year: selectedYear,
-        highlights:
-          points.length > 3 ? `${highlights}${t('chart.summaryMore')}` : highlights,
-        current: formatEur(currentTotal),
-        previous: formatEur(previousTotal),
-        previousYear,
-        delta: deltaText(currentTotal, previousTotal),
-      }),
+      summary: summaryText(title, points, selectedYear, previousYear),
       table: buildTable(dimension, points, selectedYear, previousYear),
+    }
+  }
+
+  /**
+   * Top-N ranked narrative. Shares the comparison summary but its table adds a
+   * "% of total" column, so each item's share of the relevant total is readable
+   * without relying on the in-bar SVG label or a tooltip.
+   */
+  function ranked(
+    title: string,
+    dimension: string,
+    points: AnalyticsTopPoint[],
+    selectedYear: number,
+    previousYear: number,
+  ): ChartNarrative {
+    return {
+      summary: summaryText(title, points, selectedYear, previousYear),
+      table: {
+        caption: t('chart.rankCaption', {
+          dimension,
+          count: points.length,
+          year: selectedYear,
+          previousYear,
+        }),
+        columns: [
+          dimension,
+          String(selectedYear),
+          t('chart.table.shareOfTotal'),
+          String(previousYear),
+        ],
+        rows: points.map((point) => [
+          point.label,
+          formatEur(point.current),
+          formatPercent(point.currentPercent),
+          formatEur(point.previous),
+        ]),
+      },
     }
   }
 
@@ -108,5 +151,5 @@ export function useChartNarrative() {
     }
   }
 
-  return { comparison, monthly }
+  return { comparison, monthly, ranked }
 }

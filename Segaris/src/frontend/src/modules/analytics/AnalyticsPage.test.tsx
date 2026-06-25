@@ -61,33 +61,117 @@ function overviewFixture(year: number, missing: string[] = []) {
   }
 }
 
+function groupedPoints() {
+  return [
+    { label: 'Property', selectedYearAmountEur: 14200, previousYearAmountEur: 11600 },
+    { label: 'Vehicles', selectedYearAmountEur: 8600, previousYearAmountEur: 9300 },
+  ]
+}
+
+function groupedChart(chartId: string, points = groupedPoints()) {
+  return { chartId, points }
+}
+
 function groupedFixture(year: number, chartId: string) {
   return {
     selectedYear: year,
     previousYear: year - 1,
+    charts: [groupedChart(chartId)],
+    missingExchangeRateCurrencyCodes: [],
+  }
+}
+
+function travelFixture(year: number, missing: string[] = []) {
+  return {
+    selectedYear: year,
+    previousYear: year - 1,
     charts: [
+      groupedChart('travel.expenseByCategory'),
+      groupedChart('travel.expenseBySupplier'),
+      groupedChart('travel.expenseByCostCenter'),
+      groupedChart('travel.expenseByDestination'),
+    ],
+    missingExchangeRateCurrencyCodes: missing,
+  }
+}
+
+function crossModuleFixture(year: number, missing: string[] = []) {
+  return {
+    selectedYear: year,
+    previousYear: year - 1,
+    charts: [
+      groupedChart('crossModule.expenseBySupplier'),
+      groupedChart('crossModule.expenseByCategory'),
+      groupedChart('crossModule.expenseByCostCenter'),
+    ],
+    missingExchangeRateCurrencyCodes: missing,
+  }
+}
+
+function inventoryFixture(year: number, missing: string[] = []) {
+  return {
+    selectedYear: year,
+    previousYear: year - 1,
+    groupedCharts: [
+      groupedChart('inventory.expenseByItemCategory'),
+      groupedChart('inventory.expenseBySupplier'),
+    ],
+    averageCharts: [
       {
-        chartId,
+        chartId: 'inventory.averageOrderBySupplier',
         points: [
           {
-            label: 'Property',
-            selectedYearAmountEur: 14200,
-            previousYearAmountEur: 11600,
-          },
-          {
-            label: 'Vehicles',
-            selectedYearAmountEur: 8600,
-            previousYearAmountEur: 9300,
+            label: 'Acme',
+            selectedYearAverageEur: 320,
+            previousYearAverageEur: 280,
+            selectedYearCount: 12,
+            previousYearCount: 10,
           },
         ],
       },
     ],
-    missingExchangeRateCurrencyCodes: [],
+    topCharts: [
+      {
+        chartId: 'inventory.topItems',
+        points: [
+          {
+            label: 'Laptop',
+            selectedYearAmountEur: 4200,
+            previousYearAmountEur: 3000,
+            selectedYearPercent: 35,
+            previousYearPercent: 28,
+          },
+          {
+            label: 'Monitor',
+            selectedYearAmountEur: 1800,
+            previousYearAmountEur: 1500,
+            selectedYearPercent: 15,
+            previousYearPercent: 14,
+          },
+        ],
+      },
+      {
+        chartId: 'inventory.topSuppliers',
+        points: [
+          {
+            label: 'Acme',
+            selectedYearAmountEur: 5200,
+            previousYearAmountEur: 4100,
+            selectedYearPercent: 43,
+            previousYearPercent: 38,
+          },
+        ],
+      },
+    ],
+    missingExchangeRateCurrencyCodes: missing,
   }
 }
 
 interface MockOptions {
   overview?: (year: number) => Response
+  inventory?: (year: number) => Response
+  travel?: (year: number) => Response
+  crossModule?: (year: number) => Response
 }
 
 function mockBackend(options: MockOptions = {}) {
@@ -120,31 +204,17 @@ function mockBackend(options: MockOptions = {}) {
           return json(groupedFixture(year, 'opex.expenseByCategory'))
         }
         if (url.includes('/analytics/travel')) {
-          return json(groupedFixture(year, 'travel.expenseByCategory'))
+          return options.travel ? options.travel(year) : json(travelFixture(year))
         }
         if (url.includes('/analytics/cross-module')) {
-          return json(groupedFixture(year, 'crossModule.expenseBySupplier'))
+          return options.crossModule
+            ? options.crossModule(year)
+            : json(crossModuleFixture(year))
         }
         if (url.includes('/analytics/inventory')) {
-          return json({
-            selectedYear: year,
-            previousYear: year - 1,
-            groupedCharts: [
-              {
-                chartId: 'inventory.expenseByItemCategory',
-                points: [
-                  {
-                    label: 'Groceries',
-                    selectedYearAmountEur: 9200,
-                    previousYearAmountEur: 8600,
-                  },
-                ],
-              },
-            ],
-            averageCharts: [],
-            topCharts: [],
-            missingExchangeRateCurrencyCodes: [],
-          })
+          return options.inventory
+            ? options.inventory(year)
+            : json(inventoryFixture(year))
         }
       }
       throw new Error(`Unexpected request: ${method} ${url}`)
@@ -306,5 +376,121 @@ describe('Analytics shell', () => {
     const tablist = screen.getByRole('tablist', { name: 'Analytics sections' })
     const tabs = within(tablist).getAllByRole('tab')
     expect(tabs).toHaveLength(6)
+  })
+})
+
+describe('Analytics Inventory, Travel and Cross-module tabs', () => {
+  // Land straight on the tab via its URL-backed state, so only that tab's data
+  // is fetched and the heavy Overview Recharts pass never mounts.
+  function openTab(tab: string) {
+    window.history.replaceState({}, '', `/analytics?tab=${tab}&year=2026`)
+    const user = userEvent.setup()
+    render(<App />)
+    return user
+  }
+
+  it('renders every Inventory chart with the average subtitle and top-5 note', async () => {
+    mockBackend()
+    openTab('inventory')
+
+    expect(
+      await screen.findByRole('img', { name: /Expenses by item category/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Expenses by supplier/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Top 5 items by spend/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Top 5 suppliers by spend/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Average order amount by supplier/ }),
+    ).toBeInTheDocument()
+
+    // Design-faithful guidance copy for the dense top-list and the average card.
+    expect(screen.getByText('Mean EUR per received order')).toBeInTheDocument()
+    expect(
+      screen.getAllByText(/share of total Inventory expense/).length,
+    ).toBeGreaterThan(0)
+  }, 20000)
+
+  it('exposes top-5 share of total in the accessible data table, not only the bar label', async () => {
+    mockBackend()
+    const user = openTab('inventory')
+    const topImg = await screen.findByRole('img', { name: /Top 5 items by spend/ })
+    const card = topImg.closest('.an-card') as HTMLElement
+
+    await user.click(within(card).getByRole('button', { name: 'Show data table' }))
+
+    expect(
+      within(card).getByRole('columnheader', { name: '% of total' }),
+    ).toBeInTheDocument()
+    // 4,200 of the 35% share — surfaced without the SVG bar label or a tooltip.
+    expect(within(card).getByText('35%')).toBeInTheDocument()
+    expect(within(card).getByText('15%')).toBeInTheDocument()
+  }, 20000)
+
+  it('renders all four Travel charts including linked destination', async () => {
+    mockBackend()
+    openTab('travel')
+
+    expect(
+      await screen.findByRole('img', { name: /Expenses by category/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Expenses by supplier/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Expenses by cost centre/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Expenses by destination/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('renders the three Cross-module charts with the normalization note', async () => {
+    mockBackend()
+    openTab('cross-module')
+
+    expect(
+      await screen.findByRole('img', { name: /Total expenses by supplier/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Total expenses by category/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /Total expenses by cost centre/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/matched across modules by normalized display label/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an empty chart placeholder when a Cross-module chart has no data', async () => {
+    mockBackend({
+      crossModule: (year) =>
+        json({
+          selectedYear: year,
+          previousYear: year - 1,
+          charts: [groupedChart('crossModule.expenseBySupplier', [])],
+          missingExchangeRateCurrencyCodes: [],
+        }),
+    })
+    openTab('cross-module')
+
+    expect(await screen.findByText('No data for this period')).toBeInTheDocument()
+  })
+
+  it('surfaces the configuration-incomplete state on the Inventory tab', async () => {
+    mockBackend({ inventory: (year) => json(inventoryFixture(year, ['GBP'])) })
+    openTab('inventory')
+
+    expect(await screen.findByText('Exchange rates are incomplete')).toBeInTheDocument()
+    expect(screen.getByText('GBP')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: /Top 5 items by spend/ }),
+    ).not.toBeInTheDocument()
   })
 })
