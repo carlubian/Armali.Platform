@@ -28,6 +28,21 @@ internal sealed record AnalyticsChartResponse<TPoint>(
     string ChartId,
     IReadOnlyList<TPoint> Points);
 
+internal sealed record AnalyticsOverviewTotals(
+    decimal SelectedYearExpenseAmountEur,
+    decimal PreviousYearExpenseAmountEur,
+    decimal SelectedYearIncomeAmountEur,
+    decimal PreviousYearIncomeAmountEur,
+    decimal SelectedYearNetBalanceEur,
+    decimal PreviousYearNetBalanceEur);
+
+internal sealed record AnalyticsOverviewResponse(
+    int SelectedYear,
+    int PreviousYear,
+    AnalyticsOverviewTotals Totals,
+    IReadOnlyList<AnalyticsChartResponse<AnalyticsMoneySeriesPoint>> Charts,
+    IReadOnlyList<string> MissingExchangeRateCurrencyCodes);
+
 internal sealed record AnalyticsViewResponse<TChart>(
     int SelectedYear,
     int PreviousYear,

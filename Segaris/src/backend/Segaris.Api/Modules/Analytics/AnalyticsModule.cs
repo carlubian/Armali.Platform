@@ -1,4 +1,6 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Analytics.Projection;
+using Segaris.Api.Modules.Analytics.Queries;
 
 namespace Segaris.Api.Modules.Analytics;
 
@@ -13,9 +15,15 @@ internal sealed class AnalyticsModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddScoped<AnalyticsOverviewService>();
+        services.AddScoped<IAnalyticsFinancialProjectionProvider, CapexAnalyticsFinancialProjectionAdapter>();
+        services.AddScoped<IAnalyticsFinancialProjectionProvider, OpexAnalyticsFinancialProjectionAdapter>();
+        services.AddScoped<IAnalyticsFinancialProjectionProvider, InventoryAnalyticsFinancialProjectionAdapter>();
+        services.AddScoped<IAnalyticsFinancialProjectionProvider, TravelAnalyticsFinancialProjectionAdapter>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapAnalyticsEndpoints();
     }
 }
