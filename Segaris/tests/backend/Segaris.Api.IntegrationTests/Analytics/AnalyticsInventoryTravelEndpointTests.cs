@@ -22,9 +22,11 @@ public sealed class AnalyticsInventoryTravelEndpointTests
 
         using var inventory = await client.GetAsync("/api/analytics/inventory?year=2026", CancellationToken.None);
         using var travel = await client.GetAsync("/api/analytics/travel?year=2026", CancellationToken.None);
+        using var crossModule = await client.GetAsync("/api/analytics/cross-module?year=2026", CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.Unauthorized, inventory.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, travel.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, crossModule.StatusCode);
     }
 
     [Fact]
@@ -99,6 +101,43 @@ public sealed class AnalyticsInventoryTravelEndpointTests
         Assert.Equal(37.5m, Grouped(response, AnalyticsChartIds.TravelExpenseBySupplier).Points.Single(point => point.Label == "Airline").SelectedYearAmountEur);
         Assert.Equal(20m, Grouped(response, AnalyticsChartIds.TravelExpenseBySupplier).Points.Single(point => point.Label == AnalyticsLabels.Unassigned).SelectedYearAmountEur);
         Assert.Single(Grouped(response, AnalyticsChartIds.TravelExpenseByDestination).Points);
+    }
+
+    [Fact]
+    public async Task Cross_module_returns_grouped_expense_charts()
+    {
+        using var server = new CapexTestServer(configureServices: services =>
+        {
+            services.RemoveAll<IAnalyticsFinancialProjectionProvider>();
+            services.RemoveAll<ICurrencyExchangeRateProvider>();
+            services.AddSingleton<IAnalyticsFinancialProjectionProvider>(
+                new FakeProjectionProvider(
+                [
+                    Projection("capex:1", "capex", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Expense, 100m, "EUR", "Home", "IKEA", "House"),
+                    Projection("opex:1", "opex", new DateOnly(2025, 1, 1), AnalyticsMovementDirections.Expense, 40m, "EUR", " home ", "IKEA", "House"),
+                    Inventory("inventory:1:1", new DateOnly(2026, 1, 1), 50m, "USD", "IKEA", "HOME", "Chair"),
+                    Travel("travel:1", new DateOnly(2026, 1, 1), 30m, "EUR", "Flights", "Airline", "Vacation", "Madrid"),
+                ]));
+            services.AddSingleton<ICurrencyExchangeRateProvider>(
+                new FakeExchangeRateProvider([new("EUR", 1m), new("USD", 0.5m)]));
+        });
+        using var client = await server.CreateAuthenticatedClientAsync();
+
+        var response = await client.GetFromJsonAsync<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>(
+            "/api/analytics/cross-module?year=2026",
+            CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(
+            [
+                AnalyticsChartIds.CrossModuleExpenseBySupplier,
+                AnalyticsChartIds.CrossModuleExpenseByCategory,
+                AnalyticsChartIds.CrossModuleExpenseByCostCenter,
+            ],
+            response!.Charts.Select(chart => chart.ChartId));
+        Assert.Equal(125m, Grouped(response, AnalyticsChartIds.CrossModuleExpenseBySupplier).Points.Single(point => point.Label == "IKEA").SelectedYearAmountEur);
+        Assert.Equal(40m, Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCategory).Points.Single(point => point.Label.Equals("Home", StringComparison.OrdinalIgnoreCase)).PreviousYearAmountEur);
+        Assert.Equal(30m, Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCostCenter).Points.Single(point => point.Label == "Vacation").SelectedYearAmountEur);
     }
 
     [Fact]
@@ -177,6 +216,18 @@ public sealed class AnalyticsInventoryTravelEndpointTests
         string? costCenter,
         string? destination) =>
         new(id, "travel", "expense", date, AnalyticsMovementDirections.Expense, amount, currencyCode, category, supplier, costCenter, null, null, destination);
+
+    private static AnalyticsFinancialProjection Projection(
+        string id,
+        string sourceModule,
+        DateOnly date,
+        string direction,
+        decimal amount,
+        string currencyCode,
+        string? category,
+        string? supplier,
+        string? costCenter) =>
+        new(id, sourceModule, "test", date, direction, amount, currencyCode, category, supplier, costCenter, null, null, null);
 
     private sealed class FakeProjectionProvider(IReadOnlyList<AnalyticsFinancialProjection> projections)
         : IAnalyticsFinancialProjectionProvider

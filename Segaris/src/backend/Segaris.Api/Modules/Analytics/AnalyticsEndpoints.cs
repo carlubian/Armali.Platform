@@ -44,6 +44,12 @@ internal static class AnalyticsEndpoints
             .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        group.MapGet(AnalyticsApiRoutes.CrossModule, GetCrossModuleAsync)
+            .WithName("GetAnalyticsCrossModule")
+            .WithSummary("Returns yearly cross-module Analytics expense charts grouped by supplier, category, and cost centre")
+            .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         return endpoints;
     }
 
@@ -125,6 +131,22 @@ internal static class AnalyticsEndpoints
 
         var query = ParseYear(request, clock);
         return TypedResults.Ok(await grouping.GetTravelAsync(query, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> GetCrossModuleAsync(
+        HttpRequest request,
+        AnalyticsModuleGroupingService grouping,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await grouping.GetCrossModuleAsync(query, userId, cancellationToken));
     }
 
     private static AnalyticsYearQuery ParseYear(HttpRequest request, IClock clock)

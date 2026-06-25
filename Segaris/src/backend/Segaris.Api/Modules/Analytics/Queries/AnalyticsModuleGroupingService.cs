@@ -67,6 +67,39 @@ internal sealed class AnalyticsModuleGroupingService(
         CancellationToken cancellationToken) =>
         GetGroupedViewAsync(query, viewer, AnalyticsSourceModules.Travel, TravelCharts, cancellationToken);
 
+    public async Task<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>> GetCrossModuleAsync(
+        AnalyticsYearQuery query,
+        UserId viewer,
+        CancellationToken cancellationToken)
+    {
+        var context = await LoadAllModulesContextAsync(query, viewer, cancellationToken);
+        var expenseProjections = context.Projections
+            .Where(projection => string.Equals(projection.MovementDirection, AnalyticsMovementDirections.Expense, StringComparison.Ordinal))
+            .ToArray();
+        var missingRates = AnalyticsExchangeRates.MissingCurrencyCodes(expenseProjections, context.RateLookup);
+
+        if (missingRates.Count > 0)
+        {
+            return new AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>(
+                query.SelectedYear,
+                query.PreviousYear,
+                CrossModuleCharts
+                    .Select(spec => new AnalyticsChartResponse<AnalyticsGroupedAmountPoint>(spec.ChartId, []))
+                    .ToArray(),
+                missingRates);
+        }
+
+        var charts = CrossModuleCharts
+            .Select(spec => BuildGroupedChart(spec, context.Projections, context.RateLookup, query))
+            .ToArray();
+
+        return new AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>(
+            query.SelectedYear,
+            query.PreviousYear,
+            charts,
+            []);
+    }
+
     private async Task<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>> GetGroupedViewAsync(
         AnalyticsYearQuery query,
         UserId viewer,
@@ -104,17 +137,29 @@ internal sealed class AnalyticsModuleGroupingService(
         string sourceModule,
         CancellationToken cancellationToken)
     {
+        var context = await LoadAllModulesContextAsync(query, viewer, cancellationToken);
+        var projections = context.Projections
+            .Where(projection => string.Equals(projection.SourceModule, sourceModule, StringComparison.Ordinal))
+            .ToArray();
+        var missingRates = AnalyticsExchangeRates.MissingCurrencyCodes(projections, context.RateLookup);
+
+        return new ModuleAggregationContext(projections, context.RateLookup, missingRates);
+    }
+
+    private async Task<ModuleAggregationContext> LoadAllModulesContextAsync(
+        AnalyticsYearQuery query,
+        UserId viewer,
+        CancellationToken cancellationToken)
+    {
         var previousRange = query.PreviousYearRange();
         var selectedRange = query.SelectedYearRange();
 
-        var projections = (await AnalyticsProjectionStream.LoadOrderedAsync(
+        var projections = await AnalyticsProjectionStream.LoadOrderedAsync(
                 providers,
                 previousRange.From,
                 selectedRange.To,
                 viewer,
-                cancellationToken))
-            .Where(projection => string.Equals(projection.SourceModule, sourceModule, StringComparison.Ordinal))
-            .ToArray();
+                cancellationToken);
 
         var rates = await exchangeRates.ListCurrentExchangeRatesAsync(cancellationToken);
         var rateLookup = AnalyticsExchangeRates.BuildLookup(rates);
@@ -129,8 +174,8 @@ internal sealed class AnalyticsModuleGroupingService(
         IReadOnlyDictionary<string, decimal?> rateLookup,
         AnalyticsYearQuery query)
     {
-        var selected = new Dictionary<string, decimal>(StringComparer.Ordinal);
-        var previous = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        var selected = new Dictionary<string, decimal>(spec.LabelComparer);
+        var previous = new Dictionary<string, decimal>(spec.LabelComparer);
 
         foreach (var projection in projections)
         {
@@ -155,13 +200,13 @@ internal sealed class AnalyticsModuleGroupingService(
                 continue;
             }
 
-            var label = Label(rawLabel);
+            var label = spec.Label(rawLabel);
             var amount = AnalyticsExchangeRates.ToEur(projection, rateLookup);
             bucket[label] = bucket.GetValueOrDefault(label) + amount;
         }
 
         var points = selected.Keys
-            .Union(previous.Keys, StringComparer.Ordinal)
+            .Union(previous.Keys, spec.LabelComparer)
             .Select(label => new AnalyticsGroupedAmountPoint(
                 label,
                 AnalyticsAmounts.RoundEur(selected.GetValueOrDefault(label)),
@@ -292,6 +337,22 @@ internal sealed class AnalyticsModuleGroupingService(
     private static string Label(string? value) =>
         string.IsNullOrWhiteSpace(value) ? AnalyticsLabels.Unassigned : value;
 
+    private static string RequiredLabel(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private static string NormalizedCategoryLabel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var parts = value
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return string.Join(' ', parts);
+    }
+
     private sealed record ModuleAggregationContext(
         IReadOnlyList<AnalyticsFinancialProjection> Projections,
         IReadOnlyDictionary<string, decimal?> RateLookup,
@@ -305,7 +366,14 @@ internal sealed class AnalyticsModuleGroupingService(
         string ChartId,
         string Direction,
         Func<AnalyticsFinancialProjection, string?> Dimension,
-        bool ExcludeMissing = false);
+        bool ExcludeMissing = false,
+        Func<string?, string>? LabelFactory = null,
+        StringComparer? Comparer = null)
+    {
+        public string Label(string? value) => LabelFactory?.Invoke(value) ?? AnalyticsModuleGroupingService.Label(value);
+
+        public StringComparer LabelComparer { get; } = Comparer ?? StringComparer.Ordinal;
+    }
 
     private sealed record TopChartSpec(
         string ChartId,
@@ -349,5 +417,25 @@ internal sealed class AnalyticsModuleGroupingService(
         new(AnalyticsChartIds.TravelExpenseBySupplier, AnalyticsMovementDirections.Expense, projection => projection.SupplierLabel),
         new(AnalyticsChartIds.TravelExpenseByCostCenter, AnalyticsMovementDirections.Expense, projection => projection.CostCenterLabel),
         new(AnalyticsChartIds.TravelExpenseByDestination, AnalyticsMovementDirections.Expense, projection => projection.DestinationLabel, ExcludeMissing: true),
+    ];
+
+    private static readonly IReadOnlyList<GroupedChartSpec> CrossModuleCharts =
+    [
+        new(AnalyticsChartIds.CrossModuleExpenseBySupplier, AnalyticsMovementDirections.Expense, projection => projection.SupplierLabel),
+        new(
+            AnalyticsChartIds.CrossModuleExpenseByCategory,
+            AnalyticsMovementDirections.Expense,
+            projection => string.Equals(projection.SourceModule, AnalyticsSourceModules.Inventory, StringComparison.Ordinal)
+                ? projection.ItemCategoryLabel
+                : projection.CategoryLabel,
+            ExcludeMissing: true,
+            LabelFactory: NormalizedCategoryLabel,
+            Comparer: StringComparer.OrdinalIgnoreCase),
+        new(
+            AnalyticsChartIds.CrossModuleExpenseByCostCenter,
+            AnalyticsMovementDirections.Expense,
+            projection => projection.CostCenterLabel,
+            ExcludeMissing: true,
+            LabelFactory: RequiredLabel),
     ];
 }

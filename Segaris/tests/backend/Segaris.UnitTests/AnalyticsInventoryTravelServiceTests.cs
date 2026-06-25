@@ -137,6 +137,87 @@ public sealed class AnalyticsInventoryTravelServiceTests
         Assert.All(response.Charts, chart => Assert.Empty(chart.Points));
     }
 
+    [Fact]
+    public async Task Cross_module_groups_expenses_by_supplier_category_and_cost_centre()
+    {
+        var service = CreateService(
+            [
+                Capex("capex:1", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Expense, 100m, "EUR", "Home", "IKEA", "House"),
+                Capex("capex:2", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Income, 999m, "EUR", "Salary", "Employer", "House"),
+                Opex("opex:1", new DateOnly(2025, 1, 1), AnalyticsMovementDirections.Expense, 50m, "EUR", "Home", "IKEA", "House"),
+                Inventory("inventory:1:1", new DateOnly(2026, 1, 1), 40m, "USD", "IKEA", "Home", "Chair"),
+                Travel("travel:1", new DateOnly(2026, 1, 1), 30m, "EUR", "Flights", "Airline", "Vacation", "Madrid"),
+            ],
+            [new("EUR", 1m), new("USD", 0.5m)]);
+
+        var response = await service.GetCrossModuleAsync(AnalyticsYearQuery.Create(2026), Owner, CancellationToken.None);
+
+        Assert.Empty(response.MissingExchangeRateCurrencyCodes);
+        Assert.Equal(
+            [
+                AnalyticsChartIds.CrossModuleExpenseBySupplier,
+                AnalyticsChartIds.CrossModuleExpenseByCategory,
+                AnalyticsChartIds.CrossModuleExpenseByCostCenter,
+            ],
+            response.Charts.Select(chart => chart.ChartId));
+
+        Assert.Equal((120m, 50m), Amounts(Point(Grouped(response, AnalyticsChartIds.CrossModuleExpenseBySupplier), "IKEA")));
+        Assert.Equal((120m, 50m), Amounts(Point(Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCategory), "Home")));
+        Assert.Equal((100m, 50m), Amounts(Point(Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCostCenter), "House")));
+        Assert.DoesNotContain(Grouped(response, AnalyticsChartIds.CrossModuleExpenseBySupplier).Points, point => point.Label == "Employer");
+    }
+
+    [Fact]
+    public async Task Cross_module_normalizes_category_labels_and_excludes_missing_dimensions()
+    {
+        var service = CreateService(
+            [
+                Capex("capex:1", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Expense, 10m, "EUR", " Home  Supplies ", null, null),
+                Opex("opex:1", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Expense, 20m, "EUR", "home supplies", "Vendor", "Operations"),
+                Inventory("inventory:1:1", new DateOnly(2026, 1, 1), 30m, "EUR", null, "HOME SUPPLIES", "Box"),
+                Travel("travel:1", new DateOnly(2026, 1, 1), 40m, "EUR", null, "Airline", null, "Madrid"),
+            ],
+            [new("EUR", 1m)]);
+
+        var response = await service.GetCrossModuleAsync(AnalyticsYearQuery.Create(2026), Owner, CancellationToken.None);
+
+        var category = Assert.Single(Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCategory).Points);
+        Assert.Equal("Home Supplies", category.Label, ignoreCase: true);
+        Assert.Equal(60m, category.SelectedYearAmountEur);
+
+        Assert.Equal(40m, Point(Grouped(response, AnalyticsChartIds.CrossModuleExpenseBySupplier), AnalyticsLabels.Unassigned).SelectedYearAmountEur);
+        Assert.Equal("Operations", Assert.Single(Grouped(response, AnalyticsChartIds.CrossModuleExpenseByCostCenter).Points).Label);
+    }
+
+    [Fact]
+    public async Task Cross_module_reports_configuration_incomplete_for_missing_rates()
+    {
+        var service = CreateService(
+            [Inventory("inventory:1:1", new DateOnly(2026, 1, 1), 100m, "USD", "Supplier A", "Category", "Item")],
+            [new("EUR", 1m)]);
+
+        var response = await service.GetCrossModuleAsync(AnalyticsYearQuery.Create(2026), Owner, CancellationToken.None);
+
+        Assert.Equal(["USD"], response.MissingExchangeRateCurrencyCodes);
+        Assert.All(response.Charts, chart => Assert.Empty(chart.Points));
+    }
+
+    [Fact]
+    public async Task Cross_module_missing_income_rate_does_not_block_expense_charts()
+    {
+        var service = CreateService(
+            [
+                Capex("capex:expense", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Expense, 100m, "EUR", "Home", "IKEA", "House"),
+                Capex("capex:income", new DateOnly(2026, 1, 1), AnalyticsMovementDirections.Income, 999m, "USD", "Salary", "Employer", "House"),
+            ],
+            [new("EUR", 1m)]);
+
+        var response = await service.GetCrossModuleAsync(AnalyticsYearQuery.Create(2026), Owner, CancellationToken.None);
+
+        Assert.Empty(response.MissingExchangeRateCurrencyCodes);
+        Assert.Equal(100m, Point(Grouped(response, AnalyticsChartIds.CrossModuleExpenseBySupplier), "IKEA").SelectedYearAmountEur);
+    }
+
     private static AnalyticsModuleGroupingService CreateService(
         IReadOnlyList<AnalyticsFinancialProjection> projections,
         IReadOnlyList<CurrencyExchangeRateSnapshot> rates) =>
@@ -152,6 +233,28 @@ public sealed class AnalyticsInventoryTravelServiceTests
         string? item) =>
         new(id, "inventory", "orderLine", date, AnalyticsMovementDirections.Expense, amount, currencyCode, null, supplier, null, itemCategory, item, null);
 
+    private static AnalyticsFinancialProjection Capex(
+        string id,
+        DateOnly date,
+        string direction,
+        decimal amount,
+        string currencyCode,
+        string? category,
+        string? supplier,
+        string? costCenter) =>
+        Projection(id, "capex", date, direction, amount, currencyCode, category, supplier, costCenter);
+
+    private static AnalyticsFinancialProjection Opex(
+        string id,
+        DateOnly date,
+        string direction,
+        decimal amount,
+        string currencyCode,
+        string? category,
+        string? supplier,
+        string? costCenter) =>
+        Projection(id, "opex", date, direction, amount, currencyCode, category, supplier, costCenter);
+
     private static AnalyticsFinancialProjection Travel(
         string id,
         DateOnly date,
@@ -162,6 +265,18 @@ public sealed class AnalyticsInventoryTravelServiceTests
         string? costCenter,
         string? destination) =>
         new(id, "travel", "expense", date, AnalyticsMovementDirections.Expense, amount, currencyCode, category, supplier, costCenter, null, null, destination);
+
+    private static AnalyticsFinancialProjection Projection(
+        string id,
+        string sourceModule,
+        DateOnly date,
+        string direction,
+        decimal amount,
+        string currencyCode,
+        string? category,
+        string? supplier,
+        string? costCenter) =>
+        new(id, sourceModule, "test", date, direction, amount, currencyCode, category, supplier, costCenter, null, null, null);
 
     private static AnalyticsChartResponse<AnalyticsGroupedAmountPoint> Grouped(
         AnalyticsInventoryResponse response,
