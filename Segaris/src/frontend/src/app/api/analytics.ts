@@ -108,6 +108,15 @@ export interface AnalyticsViewResponse<TChart> {
   missingExchangeRateCurrencyCodes: string[]
 }
 
+export interface AnalyticsInventoryResponse {
+  selectedYear: number
+  previousYear: number
+  groupedCharts: AnalyticsChartResponse<AnalyticsGroupedAmountPoint>[]
+  averageCharts: AnalyticsChartResponse<AnalyticsAverageAmountPoint>[]
+  topCharts: AnalyticsChartResponse<AnalyticsTopAmountPoint>[]
+  missingExchangeRateCurrencyCodes: string[]
+}
+
 export interface AnalyticsYearQuery {
   year: number
 }
@@ -130,7 +139,7 @@ export const analyticsApi = {
       AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>
     >(`/api/analytics/opex${buildYearQuery(query)}`, { signal }),
   inventory: (query: AnalyticsYearQuery, signal?: AbortSignal) =>
-    apiRequest<AnalyticsViewResponse<AnalyticsChartResponse<unknown>>>(
+    apiRequest<AnalyticsInventoryResponse>(
       `/api/analytics/inventory${buildYearQuery(query)}`,
       { signal },
     ),

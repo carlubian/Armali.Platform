@@ -32,6 +32,18 @@ internal static class AnalyticsEndpoints
             .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        group.MapGet(AnalyticsApiRoutes.Inventory, GetInventoryAsync)
+            .WithName("GetAnalyticsInventory")
+            .WithSummary("Returns yearly Inventory Analytics charts grouped by item category, supplier, average order, and top spend")
+            .Produces<AnalyticsInventoryResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapGet(AnalyticsApiRoutes.Travel, GetTravelAsync)
+            .WithName("GetAnalyticsTravel")
+            .WithSummary("Returns yearly Travel Analytics charts grouped by category, supplier, cost centre, and destination")
+            .Produces<AnalyticsViewResponse<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         return endpoints;
     }
 
@@ -81,6 +93,38 @@ internal static class AnalyticsEndpoints
 
         var query = ParseYear(request, clock);
         return TypedResults.Ok(await grouping.GetOpexAsync(query, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> GetInventoryAsync(
+        HttpRequest request,
+        AnalyticsModuleGroupingService grouping,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await grouping.GetInventoryAsync(query, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> GetTravelAsync(
+        HttpRequest request,
+        AnalyticsModuleGroupingService grouping,
+        ICurrentUser currentUser,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var query = ParseYear(request, clock);
+        return TypedResults.Ok(await grouping.GetTravelAsync(query, userId, cancellationToken));
     }
 
     private static AnalyticsYearQuery ParseYear(HttpRequest request, IClock clock)

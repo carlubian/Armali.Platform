@@ -9,14 +9,14 @@ type AnalyticsTabQuery = (
   signal?: AbortSignal,
 ) => Promise<unknown>
 
-const analyticsTabQueries = {
+const analyticsTabQueries: Record<AnalyticsTab, AnalyticsTabQuery> = {
   overview: analyticsApi.overview,
   capex: analyticsApi.capex,
   opex: analyticsApi.opex,
   inventory: analyticsApi.inventory,
   travel: analyticsApi.travel,
   'cross-module': analyticsApi.crossModule,
-} satisfies Record<AnalyticsTab, AnalyticsTabQuery>
+}
 
 export function useAnalyticsTab(year: number, tab: AnalyticsTab, enabled = true) {
   return useQuery({

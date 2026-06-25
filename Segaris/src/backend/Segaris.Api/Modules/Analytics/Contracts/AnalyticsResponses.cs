@@ -43,6 +43,14 @@ internal sealed record AnalyticsOverviewResponse(
     IReadOnlyList<AnalyticsChartResponse<AnalyticsMoneySeriesPoint>> Charts,
     IReadOnlyList<string> MissingExchangeRateCurrencyCodes);
 
+internal sealed record AnalyticsInventoryResponse(
+    int SelectedYear,
+    int PreviousYear,
+    IReadOnlyList<AnalyticsChartResponse<AnalyticsGroupedAmountPoint>> GroupedCharts,
+    IReadOnlyList<AnalyticsChartResponse<AnalyticsAverageAmountPoint>> AverageCharts,
+    IReadOnlyList<AnalyticsChartResponse<AnalyticsTopAmountPoint>> TopCharts,
+    IReadOnlyList<string> MissingExchangeRateCurrencyCodes);
+
 internal sealed record AnalyticsViewResponse<TChart>(
     int SelectedYear,
     int PreviousYear,
