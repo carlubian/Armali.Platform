@@ -30,6 +30,7 @@ internal sealed class TravelModule : ISegarisModule
         services.AddScoped<TravelSeeder>();
         services.AddScoped<TravelReadService>();
         services.AddScoped<Contracts.ITravelCalendarProjectionProvider, TravelCalendarProjectionProvider>();
+        services.AddScoped<Contracts.ITravelFinancialProjectionProvider, TravelFinancialProjectionProvider>();
         services.AddScoped<TravelTripWriteService>();
         services.AddScoped<TravelExpenseWriteService>();
         services.AddScoped<TravelTripTypeManagementService>();
