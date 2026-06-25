@@ -11,11 +11,10 @@ update rather than an incidental scaffold default.
 
 - Node.js `24.16.0` is the repository frontend runtime. Node 24 is the current
   LTS line and the exact version is pinned in `.node-version` and `.nvmrc`.
-- pnpm `11.7.0` is the package manager. The exact version is pinned through the
-  root `package.json` `packageManager` and `engines` fields.
+- pnpm `11.x` is the package manager. The repository accepts pnpm 11 patch and
+  minor releases instead of pinning one exact package-manager build.
 - Corepack is the preferred package-manager launcher. Contributors may install
-  the pinned pnpm release by another method, but committed lockfiles and CI use
-  pnpm only.
+  pnpm by another method, but committed lockfiles and CI use pnpm only.
 - `pnpm-lock.yaml` is committed once Wave 2 introduces frontend dependencies.
   Dependency installation in CI and container builds uses
   `pnpm install --frozen-lockfile`.
@@ -177,9 +176,11 @@ open roadmap item was discovered during Wave 0.
 ## Rationale
 
 The selected foundation follows the established SPA, same-origin cookie, and
-independent frontend-build decisions. Exact runtime and package-manager pins make
-the scaffold reproducible, while deferring application dependency versions to
-Wave 2 avoids creating a partial frontend package before the scaffold exists.
+independent frontend-build decisions. The lockfile and exact dependency pins make
+the scaffold reproducible, while the package-manager version remains flexible
+within pnpm 11 so Corepack patch/minor updates do not break builds. Deferring
+application dependency versions to Wave 2 avoids creating a partial frontend
+package before the scaffold exists.
 
 ## Wave 2 Implementation Notes
 
@@ -187,11 +188,11 @@ Wave 2 applied these conventions while scaffolding `src/frontend` and resolved
 the following points that were left open or proved inexact above:
 
 - pnpm 10+ reads project-wide settings from `pnpm-workspace.yaml`, not from
-  `.npmrc` (which it now treats as registry/auth configuration). The
-  exact-pinning and pinned-engine policies are therefore enforced in
-  `src/frontend/pnpm-workspace.yaml` via `saveExact: true` and
-  `engineStrict: true`. The repository-root `.npmrc` is not read for a project
-  rooted at `src/frontend`.
+  `.npmrc` (which it now treats as registry/auth configuration). Exact
+  dependency saving is therefore enforced in `src/frontend/pnpm-workspace.yaml`
+  via `saveExact: true`, while `engineStrict: false` keeps package-manager
+  engine mismatches as warnings. The repository-root `.npmrc` is not read for a
+  project rooted at `src/frontend`.
 - ESLint is pinned to the `9.x` line rather than `10.x`. `eslint-plugin-react`
   does not yet support ESLint 10's rule context API; ESLint 9 is the current
   line the React, hooks, accessibility, and `typescript-eslint` plugins target,
