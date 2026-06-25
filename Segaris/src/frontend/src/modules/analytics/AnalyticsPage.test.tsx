@@ -255,6 +255,49 @@ describe('Analytics shell', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows Overview year totals with directional deltas and EUR values', async () => {
+    mockBackend({
+      overview: (year) =>
+        json({
+          ...overviewFixture(year),
+          totals: {
+            selectedYearExpenseAmountEur: 12000,
+            previousYearExpenseAmountEur: 10000,
+            selectedYearIncomeAmountEur: 15000,
+            previousYearIncomeAmountEur: 10000,
+            selectedYearNetBalanceEur: 3000,
+            previousYearNetBalanceEur: 0,
+          },
+        }),
+    })
+    render(<App />)
+
+    const totals = await screen.findByRole('group', { name: 'Year totals' })
+    const stats = within(totals)
+
+    expect(stats.getByText('Total expenses')).toBeInTheDocument()
+    expect(stats.getByText('€12,000')).toBeInTheDocument()
+    // Spending more than last year is unfavourable, so the delta reads "down".
+    expect(stats.getByText('+20%')).toHaveClass('an-delta', 'is-down')
+
+    expect(stats.getByText('Total income')).toBeInTheDocument()
+    expect(stats.getByText('€15,000')).toBeInTheDocument()
+    expect(stats.getByText('+50%')).toHaveClass('an-delta', 'is-up')
+
+    // No previous-year baseline collapses the delta to a neutral em dash.
+    expect(stats.getByText('Net balance')).toBeInTheDocument()
+    expect(stats.getByText('€3,000')).toBeInTheDocument()
+    expect(stats.getByText('—')).toHaveClass('an-delta', 'is-flat')
+  })
+
+  it('hides Overview totals behind the configuration-incomplete state', async () => {
+    mockBackend({ overview: (year) => json(overviewFixture(year, ['USD'])) })
+    render(<App />)
+
+    await screen.findByText('Exchange rates are incomplete')
+    expect(screen.queryByRole('group', { name: 'Year totals' })).not.toBeInTheDocument()
+  })
+
   it('renders a tablist with every analytics section', async () => {
     mockBackend()
     render(<App />)

@@ -28,7 +28,7 @@ export const analytics = {
       eyebrow: 'Overview',
       title: 'Year {{year}} at a glance',
       description:
-        'A high-level read of the year across every participating module — monthly trend and net balance, each compared with the previous year.',
+        'A high-level read of the year across every participating module — totals, monthly trend and net balance, each compared with the previous year.',
       scope: 'All participating modules',
     },
     capex: {
@@ -65,6 +65,15 @@ export const analytics = {
       description:
         'Total expenses pooled across Capex, Opex, Inventory and Travel — grouped by supplier, category and cost-centre label.',
       scope: 'Capex · Opex · Inventory · Travel',
+    },
+  },
+  overview: {
+    totals: {
+      label: 'Year totals',
+      expenses: 'Total expenses',
+      income: 'Total income',
+      netBalance: 'Net balance',
+      comparison: 'vs {{year}}',
     },
   },
   states: {

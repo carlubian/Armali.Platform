@@ -236,6 +236,94 @@
   color: var(--text-secondary);
 }
 
+/* ---- Year summary stat cards (Overview) ---------------------- */
+.an-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+.an-stat {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  background: var(--surface-card);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glow-card);
+}
+.an-stat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--stat, var(--accent));
+}
+.an-stat__top {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+.an-stat__icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--stat-soft, var(--accent-soft));
+  color: var(--stat, var(--accent));
+}
+.an-stat__label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.an-stat__val {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-4xl);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.an-stat__foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.an-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.an-delta.is-up {
+  color: var(--sea-600);
+}
+.an-delta.is-down {
+  color: var(--terracotta-600);
+}
+.an-delta.is-flat {
+  color: var(--text-muted);
+}
+
 /* ---- Chart grid ---------------------------------------------- */
 .an-grid {
   display: grid;
@@ -576,5 +664,8 @@
   }
   .an-span-2 {
     grid-column: span 1;
+  }
+  .an-stats {
+    grid-template-columns: 1fr;
   }
 }

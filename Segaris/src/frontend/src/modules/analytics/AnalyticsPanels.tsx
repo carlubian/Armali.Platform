@@ -1,5 +1,13 @@
 import type { UseQueryResult } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  type LucideIcon,
+  Scale,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type {
@@ -9,6 +17,7 @@ import type {
   AnalyticsInventoryResponse,
   AnalyticsMoneySeriesPoint,
   AnalyticsOverviewResponse,
+  AnalyticsOverviewTotals,
   AnalyticsTab,
   AnalyticsTopAmountPoint,
   AnalyticsViewResponse,
@@ -29,7 +38,13 @@ import {
   type AnalyticsComparisonPoint,
   type AnalyticsTopPoint,
 } from './charts'
-import { analyticsPalette, monthShortLabel } from './format'
+import {
+  analyticsPalette,
+  formatDelta,
+  formatEur,
+  monthShortLabel,
+  yearOverYear,
+} from './format'
 import { useChartNarrative } from './narrative'
 import {
   useAnalyticsCapex,
@@ -251,6 +266,128 @@ export function AnalyticsCrossModulePanel({ year, onConfigure }: PanelProps) {
   )
 }
 
+interface StatTone {
+  color: string
+  soft: string
+}
+
+// Project Armali palette pairs: azure for expenses, sea green for income and a
+// positive net, terracotta for a negative net balance.
+const statTones = {
+  expense: { color: 'var(--azure-500)', soft: 'var(--azure-100)' },
+  income: { color: 'var(--sea-500)', soft: 'var(--sea-100)' },
+  netPositive: { color: 'var(--sea-500)', soft: 'var(--sea-100)' },
+  netNegative: { color: 'var(--terracotta-500)', soft: 'var(--danger-soft)' },
+} as const satisfies Record<string, StatTone>
+
+/**
+ * A single year-total summary card: a big EUR value with a year-over-year delta
+ * whose tone reflects whether the movement is favourable. `goodWhenUp` lets
+ * expenses read a rise as unfavourable while income and net balance read it as
+ * favourable. A missing previous-year baseline shows a neutral em dash.
+ */
+function Stat({
+  label,
+  icon: Icon,
+  tone,
+  value,
+  ratio,
+  goodWhenUp,
+  previousYear,
+}: {
+  label: string
+  icon: LucideIcon
+  tone: StatTone
+  value: string
+  ratio: number | null
+  goodWhenUp: boolean
+  previousYear: number
+}) {
+  const { t } = useTranslation('analytics')
+  const flat = ratio == null || Math.abs(ratio) < 0.005
+  const up = (ratio ?? 0) > 0
+  const trendClass = flat ? 'is-flat' : up === goodWhenUp ? 'is-up' : 'is-down'
+  const TrendIcon = up ? TrendingUp : TrendingDown
+  return (
+    <div
+      className="an-stat"
+      style={{ '--stat': tone.color, '--stat-soft': tone.soft } as CSSProperties}
+    >
+      <div className="an-stat__top">
+        <span className="an-stat__icon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <span className="an-stat__label">{label}</span>
+      </div>
+      <div className="an-stat__val">{value}</div>
+      <div className="an-stat__foot">
+        <span className={`an-delta ${trendClass}`}>
+          {!flat && <TrendIcon size={14} aria-hidden="true" />}
+          {ratio == null ? '—' : formatDelta(ratio)}
+        </span>
+        <span>{t('overview.totals.comparison', { year: previousYear })}</span>
+      </div>
+    </div>
+  )
+}
+
+/** The three year-total cards shown above the Overview monthly charts. */
+function OverviewTotals({
+  totals,
+  previousYear,
+  language,
+}: {
+  totals: AnalyticsOverviewTotals
+  previousYear: number
+  language: string
+}) {
+  const { t } = useTranslation('analytics')
+  const netTone =
+    totals.selectedYearNetBalanceEur >= 0
+      ? statTones.netPositive
+      : statTones.netNegative
+  return (
+    <div className="an-stats" role="group" aria-label={t('overview.totals.label')}>
+      <Stat
+        label={t('overview.totals.expenses')}
+        icon={ArrowDownCircle}
+        tone={statTones.expense}
+        value={formatEur(totals.selectedYearExpenseAmountEur, language)}
+        ratio={yearOverYear(
+          totals.selectedYearExpenseAmountEur,
+          totals.previousYearExpenseAmountEur,
+        )}
+        goodWhenUp={false}
+        previousYear={previousYear}
+      />
+      <Stat
+        label={t('overview.totals.income')}
+        icon={ArrowUpCircle}
+        tone={statTones.income}
+        value={formatEur(totals.selectedYearIncomeAmountEur, language)}
+        ratio={yearOverYear(
+          totals.selectedYearIncomeAmountEur,
+          totals.previousYearIncomeAmountEur,
+        )}
+        goodWhenUp
+        previousYear={previousYear}
+      />
+      <Stat
+        label={t('overview.totals.netBalance')}
+        icon={Scale}
+        tone={netTone}
+        value={formatEur(totals.selectedYearNetBalanceEur, language)}
+        ratio={yearOverYear(
+          totals.selectedYearNetBalanceEur,
+          totals.previousYearNetBalanceEur,
+        )}
+        goodWhenUp
+        previousYear={previousYear}
+      />
+    </div>
+  )
+}
+
 function OverviewChartCard({
   chart,
   selectedYear,
@@ -318,6 +455,11 @@ export function AnalyticsOverviewPanel({ year, onConfigure }: PanelProps) {
       {(data) => (
         <>
           <TabHead tab="overview" />
+          <OverviewTotals
+            totals={data.totals}
+            previousYear={data.previousYear}
+            language={i18n.language}
+          />
           <div className="an-grid an-grid--1">
             {data.charts.map((chart) => (
               <OverviewChartCard
