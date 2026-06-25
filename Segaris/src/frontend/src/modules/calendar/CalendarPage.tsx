@@ -98,9 +98,33 @@ function entriesByDay(entries: CalendarEntry[], days: CalendarGridDay[]): EntryB
   )
 }
 
-function orderedFamilies(entries: CalendarEntry[]) {
-  const present = new Set(entries.map((entry) => entry.visualFamily))
-  return calendarIndicatorPriority.filter((family) => present.has(family))
+/**
+ * Final presentation order for a day's entries: visual-family priority, then
+ * start date, source module, and title. This drives both the cell preview chips
+ * and which entries fall into the overflow count.
+ */
+function orderDayEntries(entries: CalendarEntry[]): CalendarEntry[] {
+  return [...entries].sort(
+    (a, b) =>
+      calendarIndicatorPriority.indexOf(a.visualFamily) -
+        calendarIndicatorPriority.indexOf(b.visualFamily) ||
+      a.startDate.localeCompare(b.startDate) ||
+      a.sourceModule.localeCompare(b.sourceModule) ||
+      a.title.localeCompare(b.title),
+  )
+}
+
+/**
+ * Where `day` sits within a trip span, so a continuous travel bar can round only
+ * its real extremities and surface its label at the trip start or each new week.
+ */
+function tripSegment(entry: CalendarEntry, day: string) {
+  const mondayFirstDow = (parseCivilDate(day).getDay() + 6) % 7
+  return {
+    isStart: day === entry.startDate,
+    isEnd: day === (entry.endDate ?? entry.startDate),
+    weekStart: mondayFirstDow === 0,
+  }
 }
 
 interface DayDetailGroup {
@@ -598,11 +622,18 @@ interface DayCellProps {
   onSelect: () => void
 }
 
+const maxCellEvents = 3
+
 function DayCell({ day, entries, selected, today, label, onSelect }: DayCellProps) {
   const { t } = useTranslation('calendar')
-  const families = orderedFamilies(entries)
-  const shownFamilies = families.slice(0, 3)
-  const hiddenCount = Math.max(0, families.length - shownFamilies.length)
+  const ordered = orderDayEntries(entries)
+  // Trips render as continuous bars and always show; the remaining preview slots
+  // fill with the highest-priority non-travel entries, the rest spilling into a
+  // "+N" badge that nudges the user to open the day for full detail.
+  const trips = ordered.filter((entry) => entry.visualFamily === 'Travel')
+  const rest = ordered.filter((entry) => entry.visualFamily !== 'Travel')
+  const shownRest = rest.slice(0, Math.max(0, maxCellEvents - trips.length))
+  const hiddenCount = ordered.length - trips.length - shownRest.length
   const dateNumber = parseCivilDate(day.date).getDate()
 
   return (
@@ -623,34 +654,74 @@ function DayCell({ day, entries, selected, today, label, onSelect }: DayCellProp
     >
       <span className="seg-cal-cell__head">
         <span className="seg-cal-cell__num">{dateNumber}</span>
-        {entries.length > 0 ? (
-          <span className="seg-cal-cell__count">{entries.length}</span>
-        ) : null}
-      </span>
-      <span className="seg-cal-cell__indicators">
-        {shownFamilies.map((family) => {
-          const entry = entries.find((item) => item.visualFamily === family)
-          return (
-            <span
-              key={family}
-              className={['seg-cal-dot', familyClasses[family]].join(' ')}
-              aria-label={t('indicators.family', {
-                family: t(`families.${family}`),
-                title: entry?.title ?? t(`families.${family}`),
-              })}
-            />
-          )
-        })}
         {hiddenCount > 0 ? (
           <span
-            className="seg-cal-dot seg-cal-dot--more"
+            className="seg-cal-cell__more"
             aria-label={t('indicators.more', { count: hiddenCount })}
           >
             {t('grid.more', { count: hiddenCount })}
           </span>
         ) : null}
       </span>
+      <span className="seg-cal-cell__events">
+        {trips.map((entry) => (
+          <TravelBar key={entry.id} entry={entry} day={day.date} />
+        ))}
+        {shownRest.map((entry) => (
+          <span
+            key={entry.id}
+            className={['seg-cal-chip', familyClasses[entry.visualFamily]].join(' ')}
+            aria-label={t('indicators.family', {
+              family: t(`families.${entry.visualFamily}`),
+              title: entry.title,
+            })}
+          >
+            <span className="seg-cal-chip__dot" aria-hidden="true" />
+            <span className="seg-cal-chip__txt">{entry.title}</span>
+          </span>
+        ))}
+      </span>
     </button>
+  )
+}
+
+interface TravelBarProps {
+  entry: CalendarEntry
+  day: string
+}
+
+function TravelBar({ entry, day }: TravelBarProps) {
+  const { t } = useTranslation('calendar')
+  const segment = tripSegment(entry, day)
+  // The label repeats at the trip start and at the start of each week so a span
+  // that wraps across rows stays readable; mid-span days keep the text as a
+  // hidden placeholder to preserve the bar height.
+  const showLabel = segment.isStart || segment.weekStart
+  return (
+    <span
+      className={[
+        'seg-cal-bar',
+        familyClasses.Travel,
+        segment.isStart ? 'is-start' : '',
+        segment.isEnd ? 'is-end' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label={t('indicators.family', {
+        family: t('families.Travel'),
+        title: entry.title,
+      })}
+    >
+      {segment.isStart ? <Plane size={12} aria-hidden="true" /> : null}
+      <span
+        className={['seg-cal-bar__txt', showLabel ? '' : 'is-ghost']
+          .filter(Boolean)
+          .join(' ')}
+        aria-hidden={showLabel ? undefined : true}
+      >
+        {entry.title}
+      </span>
+    </span>
   )
 }
 

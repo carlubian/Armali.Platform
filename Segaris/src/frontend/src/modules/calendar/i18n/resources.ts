@@ -48,7 +48,7 @@ export const calendar = {
   },
   indicators: {
     family: '{{family}} entry: {{title}}',
-    more: '{{count}} more entry families',
+    more: '{{count}} more entries',
   },
   detail: {
     label: 'Detail for {{day}}',

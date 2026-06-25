@@ -121,7 +121,9 @@ describe('CalendarPage', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    expect(await screen.findByText('Girona & the Costa Brava')).toBeInTheDocument()
+    expect(
+      (await screen.findAllByText('Girona & the Costa Brava')).length,
+    ).toBeGreaterThan(0)
     await waitFor(() =>
       expect(
         requests.some(
@@ -134,17 +136,20 @@ describe('CalendarPage', () => {
     )
   })
 
-  it('renders current and selected day states with priority-plus-more indicators', async () => {
+  it('previews a day with travel bars, family chips, and an overflow badge', async () => {
     mockBackend()
     render(<App />)
 
     const day = await screen.findByRole('button', {
       name: /Wednesday, 24 June 2026, 4 entries/,
     })
-    expect(day).toHaveAttribute('aria-current', 'date')
     expect(day).toHaveAttribute('aria-pressed', 'true')
+    // Travel bar + the two highest-priority non-travel chips fit; the fourth
+    // entry spills into the overflow badge.
     expect(within(day).getByLabelText(/Travel entry: Girona/)).toBeInTheDocument()
-    expect(within(day).getByLabelText('1 more entry families')).toBeInTheDocument()
+    expect(within(day).getByLabelText(/Birthday entry: Abuela Carmen/)).toBeInTheDocument()
+    expect(within(day).getByLabelText(/Note entry: Call the plumber/)).toBeInTheDocument()
+    expect(within(day).getByLabelText('1 more entries')).toBeInTheDocument()
   })
 
   it('navigates months without a page reload and refreshes the queried range', async () => {
@@ -174,7 +179,7 @@ describe('CalendarPage', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Girona & the Costa Brava')
+    await screen.findAllByText('Girona & the Costa Brava')
     await user.click(screen.getByRole('button', { name: 'Toggle Birthday family' }))
     await user.click(screen.getByRole('button', { name: 'Toggle Calendar source' }))
 
@@ -232,7 +237,7 @@ describe('CalendarPage', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Abuela Carmen')
+    await screen.findAllByText('Abuela Carmen')
     expect(screen.queryByRole('button', { name: /Open Abuela Carmen/ })).toBeNull()
     expect(screen.getAllByLabelText('Informational only').length).toBeGreaterThan(0)
   })
