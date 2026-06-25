@@ -53,12 +53,7 @@ describe('calendar contracts', () => {
       'processStepDue',
     ])
     expect(calendarVisualFamilies).toEqual(['Birthday', 'Travel', 'Note', 'Other'])
-    expect(calendarIndicatorPriority).toEqual([
-      'Travel',
-      'Birthday',
-      'Note',
-      'Other',
-    ])
+    expect(calendarIndicatorPriority).toEqual(['Travel', 'Birthday', 'Note', 'Other'])
   })
 
   it('freezes query keys for entries, ranges, and note detail', () => {
@@ -73,9 +68,11 @@ describe('calendar contracts', () => {
       'entries',
       { from: '2026-06-01', to: '2026-06-30', sourceModule: ['travel'] },
     ])
-    expect(calendarKeys.notesRange({ from: '2026-06-01', to: '2026-06-30' })).toEqual(
-      ['calendar', 'notes', { from: '2026-06-01', to: '2026-06-30' }],
-    )
+    expect(calendarKeys.notesRange({ from: '2026-06-01', to: '2026-06-30' })).toEqual([
+      'calendar',
+      'notes',
+      { from: '2026-06-01', to: '2026-06-30' },
+    ])
     expect(calendarKeys.note(12)).toEqual(['calendar', 'notes', 12])
   })
 

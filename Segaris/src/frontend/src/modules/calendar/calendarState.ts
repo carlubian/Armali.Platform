@@ -98,10 +98,7 @@ export function getVisibleCalendarGrid(month: string): CalendarGridDay[] {
   })
 }
 
-function allowedValues<T extends string>(
-  values: string[],
-  allowed: readonly T[],
-): T[] {
+function allowedValues<T extends string>(values: string[], allowed: readonly T[]): T[] {
   const unique = new Set<T>()
   for (const value of values) {
     if ((allowed as readonly string[]).includes(value)) unique.add(value as T)
@@ -126,15 +123,19 @@ export function parseCalendarState(params: URLSearchParams): CalendarRouteState 
     month: month != null && monthPattern.test(month) ? month : defaultCalendarMonth,
     day: day != null && datePattern.test(day) ? day : null,
     filters: {
-      sourceModules: allowedValues(params.getAll('sourceModule'), calendarSourceModules),
-      visualFamilies: allowedValues(params.getAll('visualFamily'), calendarVisualFamilies),
+      sourceModules: allowedValues(
+        params.getAll('sourceModule'),
+        calendarSourceModules,
+      ),
+      visualFamilies: allowedValues(
+        params.getAll('visualFamily'),
+        calendarVisualFamilies,
+      ),
     },
   }
 }
 
-export function parseCalendarDialogState(
-  params: URLSearchParams,
-): CalendarDialogState {
+export function parseCalendarDialogState(params: URLSearchParams): CalendarDialogState {
   if (params.get('newNote') === 'true') return { mode: 'createNote' }
   const noteId = intOrNull(params.get('noteId'))
   return noteId == null ? { mode: 'closed' } : { mode: 'editNote', noteId }
@@ -162,10 +163,7 @@ export function toCalendarEntriesQuery(
 export function useCalendarState() {
   const [searchParams, setSearchParams] = useSearchParams()
   const state = useMemo(() => parseCalendarState(searchParams), [searchParams])
-  const dialog = useMemo(
-    () => parseCalendarDialogState(searchParams),
-    [searchParams],
-  )
+  const dialog = useMemo(() => parseCalendarDialogState(searchParams), [searchParams])
 
   const patchParams = useCallback(
     (patch: Record<string, string | readonly string[] | null>) => {

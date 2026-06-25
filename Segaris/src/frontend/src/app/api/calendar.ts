@@ -111,7 +111,13 @@ export interface CalendarDailyNoteRequest {
   visibility: CalendarVisibility
 }
 
-type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined
+type QueryValue =
+  | string
+  | number
+  | boolean
+  | readonly (string | number | boolean)[]
+  | null
+  | undefined
 
 function appendQueryValue(parameters: URLSearchParams, key: string, value: QueryValue) {
   if (value == null) return

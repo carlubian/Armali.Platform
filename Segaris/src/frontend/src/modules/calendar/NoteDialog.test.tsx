@@ -146,7 +146,7 @@ async function openCreateDialog() {
   mockBackendSpy = mockBackend()
   const user = userEvent.setup()
   render(<App />)
-  await screen.findByText('Call the plumber')
+  await screen.findByRole('button', { name: 'Edit note Call the plumber' })
   await user.click(screen.getByRole('button', { name: 'New note' }))
   return user
 }

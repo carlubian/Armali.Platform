@@ -147,8 +147,12 @@ describe('CalendarPage', () => {
     // Travel bar + the two highest-priority non-travel chips fit; the fourth
     // entry spills into the overflow badge.
     expect(within(day).getByLabelText(/Travel entry: Girona/)).toBeInTheDocument()
-    expect(within(day).getByLabelText(/Birthday entry: Abuela Carmen/)).toBeInTheDocument()
-    expect(within(day).getByLabelText(/Note entry: Call the plumber/)).toBeInTheDocument()
+    expect(
+      within(day).getByLabelText(/Birthday entry: Abuela Carmen/),
+    ).toBeInTheDocument()
+    expect(
+      within(day).getByLabelText(/Note entry: Call the plumber/),
+    ).toBeInTheDocument()
     expect(within(day).getByLabelText('1 more entries')).toBeInTheDocument()
   })
 
