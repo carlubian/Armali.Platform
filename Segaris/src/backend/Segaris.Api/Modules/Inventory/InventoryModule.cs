@@ -33,6 +33,7 @@ internal sealed class InventoryModule : ISegarisModule
         services.AddScoped<InventorySeeder>();
         services.AddScoped<InventoryReadService>();
         services.AddScoped<IInventoryCalendarProjectionProvider, InventoryCalendarProjectionProvider>();
+        services.AddScoped<IInventoryFinancialProjectionProvider, InventoryFinancialProjectionProvider>();
         services.AddScoped<IInventoryItemReferenceReader, InventoryItemReferenceReader>();
         services.AddScoped<InventoryItemWriteService>();
         services.AddScoped<InventoryOrderWriteService>();

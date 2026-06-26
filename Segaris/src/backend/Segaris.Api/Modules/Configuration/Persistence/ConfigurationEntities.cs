@@ -63,6 +63,17 @@ internal sealed class SegarisCurrency : IConfigurationCatalogEntity
     public string Name { get; set; } = string.Empty;
     public string NormalizedName { get; set; } = string.Empty;
     public int SortOrder { get; set; }
+
+    /// <summary>
+    /// Current administrator-managed exchange rate to EUR, meaning
+    /// <c>1 currency = ExchangeRateToEur EUR</c>. EUR is fixed at <c>1</c>; other
+    /// currencies require a positive rate (at most eight decimal places) on write.
+    /// The column stays nullable so currencies migrated from before Analytics that
+    /// were never given a rate read as a missing rate Analytics can surface, rather
+    /// than as a silently wrong value.
+    /// </summary>
+    public decimal? ExchangeRateToEur { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public int? CreatedBy { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

@@ -11,6 +11,12 @@ import { LoginPage } from '@/modules/auth/LoginPage'
 import { LauncherPage } from '@/modules/launcher/LauncherPage'
 import { ProfilePage } from '@/modules/profile/ProfilePage'
 
+const AnalyticsPage = lazy(() =>
+  import('@/modules/analytics/AnalyticsPage').then((module) => ({
+    default: module.AnalyticsPage,
+  })),
+)
+
 // The Capex module is the first business module and is loaded lazily so its
 // table, filters, and editor do not weigh down the initial platform bundle.
 const CapexPage = lazy(() =>
@@ -331,6 +337,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <CalendarPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="analytics"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <AnalyticsPage />
               </Suspense>
             </ModuleBoundary>
           }

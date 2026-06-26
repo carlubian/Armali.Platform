@@ -19,20 +19,25 @@ using Segaris.Api.Modules.Assets.Mutations;
 using Segaris.Api.Modules.Calendar.Contracts;
 using Segaris.Api.Modules.Calendar.Queries;
 using Segaris.Api.Modules.Capex;
+using Segaris.Api.Modules.Capex.Contracts;
 using Segaris.Api.Modules.Capex.Domain;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Configuration.Persistence;
 using Segaris.Api.Modules.Identity;
+using Segaris.Api.Modules.Inventory.Contracts;
 using Segaris.Api.Modules.Inventory.Domain;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Maintenance.Domain;
 using Segaris.Api.Modules.Mood.Contracts;
 using Segaris.Api.Modules.Mood.Domain;
+using Segaris.Api.Modules.Opex.Contracts;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Modules.Processes.Domain;
 using Segaris.Api.Modules.Projects.Domain;
 using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Modules.Recipes.Domain;
+using Segaris.Api.Modules.Travel.Contracts;
+using Segaris.Api.Modules.Travel.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
@@ -414,7 +419,10 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         using var client = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
-        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var userId = await database.Set<SegarisUser>()
+            .Where(user => user.UserName == userName)
+            .Select(user => user.Id)
+            .SingleAsync();
         var categoryId = await database.Set<CapexCategory>()
             .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
@@ -435,6 +443,209 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(6.76m, stored.TotalAmount);
         Assert.Equal([0, 1], stored.Items.OrderBy(item => item.Position).Select(item => item.Position));
         Assert.Equal([0.01m, 6.75m], stored.Items.OrderBy(item => item.Position).Select(item => item.LineAmount));
+    }
+
+    [Fact]
+    public async Task Postgres_serves_capex_and_opex_financial_projections_with_date_bounds_and_decimals()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-analytics-source";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgAnalyticsSource123!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var capexCategoryId = await database.Set<CapexCategory>()
+            .Where(category => category.Name == "Home").Select(category => category.Id).SingleAsync();
+        var opexCategoryId = await database.Set<OpexCategory>()
+            .Where(category => category.Name == "Housing").Select(category => category.Id).SingleAsync();
+        var supplierId = await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var costCenterId = await database.Set<SegarisCostCenter>()
+            .Where(costCenter => costCenter.Name == "Household").Select(costCenter => costCenter.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var actor = new UserId(userId);
+        var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+
+        var capexEntry = CapexEntry.Create(
+            new("Projected Capex", CapexMovementType.Expense, CapexEntryStatus.Completed,
+                new DateOnly(2026, 1, 1), capexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            [new("Rounded", 0.01m, 0.50m), new("Normal", 3m, 2.25m)],
+            actor,
+            now);
+        database.Add(capexEntry);
+        database.Add(CapexEntry.Create(
+            new("Excluded planning", CapexMovementType.Expense, CapexEntryStatus.Planning,
+                new DateOnly(2026, 6, 14), capexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            [new("Nope", 1m, 99m)],
+            actor,
+            now));
+
+        var opexContract = OpexContract.Create(
+            new("Projected Opex", OpexMovementType.Income, OpexContractStatus.Active,
+                null, null, null, OpexExpectedFrequency.Monthly,
+                opexCategoryId, supplierId, costCenterId, currencyId, null, RecordVisibility.Public),
+            actor,
+            now);
+        database.Add(opexContract);
+        await database.SaveChangesAsync();
+        database.Add(OpexOccurrence.Create(
+            opexContract.Id,
+            new(new DateOnly(2026, 12, 31), 123.45m, null, null),
+            actor,
+            now));
+        database.Add(OpexOccurrence.Create(
+            opexContract.Id,
+            new(new DateOnly(2027, 1, 1), 999m, null, null),
+            actor,
+            now));
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var capexProvider = scope.ServiceProvider.GetRequiredService<ICapexFinancialProjectionProvider>();
+        var opexProvider = scope.ServiceProvider.GetRequiredService<IOpexFinancialProjectionProvider>();
+        var capex = await capexProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 12, 31),
+            actor,
+            CancellationToken.None);
+        var opex = await opexProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 12, 31),
+            actor,
+            CancellationToken.None);
+
+        var capexProjection = Assert.Single(capex);
+        Assert.Equal($"capex:{capexEntry.Id}", capexProjection.SourceId);
+        Assert.Equal(new DateOnly(2026, 1, 1), capexProjection.AccountingDate);
+        Assert.Equal(6.76m, capexProjection.Amount);
+        Assert.Equal("Expense", capexProjection.MovementDirection);
+        Assert.Equal(
+            ("EUR", "Home", "Amazon", "Household"),
+            (capexProjection.CurrencyCode, capexProjection.CategoryLabel, capexProjection.SupplierLabel, capexProjection.CostCenterLabel));
+
+        var opexProjection = Assert.Single(opex);
+        Assert.Equal(new DateOnly(2026, 12, 31), opexProjection.AccountingDate);
+        Assert.Equal(123.45m, opexProjection.Amount);
+        Assert.Equal("Income", opexProjection.MovementDirection);
+        Assert.Equal(
+            ("EUR", "Housing", "Amazon", "Household"),
+            (opexProjection.CurrencyCode, opexProjection.CategoryLabel, opexProjection.SupplierLabel, opexProjection.CostCenterLabel));
+    }
+
+    [Fact]
+    public async Task Postgres_serves_inventory_and_travel_financial_projections_with_status_and_date_bounds()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        const string userName = "pg-analytics-source-2";
+        await using var factory = CreateFactory(
+            new("Segaris:Identity:Bootstrap:UserName", userName),
+            new("Segaris:Identity:Bootstrap:Password", "PgAnalyticsSource223!"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
+        var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
+        var categoryId = await database.Set<InventoryCategory>()
+            .Where(category => category.Name == "Other").Select(category => category.Id).SingleAsync();
+        var locationId = await database.Set<InventoryLocation>()
+            .Where(location => location.Name == "Other").Select(location => location.Id).SingleAsync();
+        var tripTypeId = await database.Set<TravelTripType>().OrderBy(type => type.Id).Select(type => type.Id).FirstAsync();
+        var expenseCategory = await database.Set<TravelExpenseCategory>()
+            .OrderBy(category => category.Id).Select(category => new { category.Id, category.Name }).FirstAsync();
+        var supplierId = await database.Set<SegarisSupplier>()
+            .Where(supplier => supplier.Name == "Amazon").Select(supplier => supplier.Id).SingleAsync();
+        var costCenterId = await database.Set<SegarisCostCenter>()
+            .Where(costCenter => costCenter.Name == "Household").Select(costCenter => costCenter.Id).SingleAsync();
+        var currencyId = await database.Set<SegarisCurrency>()
+            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default).Select(currency => currency.Id).SingleAsync();
+        var actor = new UserId(userId);
+        var now = new DateTimeOffset(2026, 6, 14, 10, 0, 0, TimeSpan.Zero);
+
+        var item = InventoryItem.Create(
+            new("PG analytics item", InventoryItemStatus.Active, null, categoryId, locationId, 0m, 0m, [supplierId], RecordVisibility.Public),
+            actor,
+            now);
+        database.Add(item);
+        await database.SaveChangesAsync();
+
+        // The active order accounts on its expected receipt date; the received order has
+        // no expected receipt date, so the COALESCE fallback to the order date is the
+        // provider-sensitive path verified on PostgreSQL. Planning is excluded.
+        var activeOrder = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Active, currencyId, null, new DateOnly(2026, 1, 1), null, RecordVisibility.Public,
+                [new InventoryOrderLineValues(item.Id, 1m, 10.50m)]),
+            actor,
+            now);
+        var receivedOrder = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Received, currencyId, new DateOnly(2026, 12, 31), null, null, RecordVisibility.Public,
+                [new InventoryOrderLineValues(item.Id, 1m, 25.00m)]),
+            actor,
+            now);
+        var planningOrder = InventoryOrder.Create(
+            new(supplierId, InventoryOrderStatus.Planning, currencyId, null, new DateOnly(2026, 6, 1), null, RecordVisibility.Public,
+                [new InventoryOrderLineValues(item.Id, 1m, 99m)]),
+            actor,
+            now);
+        database.AddRange(activeOrder, receivedOrder, planningOrder);
+
+        var trip = TravelTrip.Create(
+            new("PG analytics trip", tripTypeId, null, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5), TravelTripStatus.Completed, null, RecordVisibility.Public, []),
+            actor,
+            now);
+        var cancelledTrip = TravelTrip.Create(
+            new("PG cancelled trip", tripTypeId, null, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5), TravelTripStatus.Cancelled, null, RecordVisibility.Public, []),
+            actor,
+            now);
+        database.AddRange(trip, cancelledTrip);
+        await database.SaveChangesAsync();
+
+        database.AddRange(
+            TravelExpense.Create(trip.Id, new(expenseCategory.Id, "In range", new DateOnly(2026, 6, 10), 33.33m, currencyId, supplierId, costCenterId, null), actor, now),
+            TravelExpense.Create(trip.Id, new(expenseCategory.Id, "After range", new DateOnly(2027, 1, 1), 99m, currencyId, null, null, null), actor, now),
+            TravelExpense.Create(cancelledTrip.Id, new(expenseCategory.Id, "Cancelled", new DateOnly(2026, 6, 10), 99m, currencyId, null, null, null), actor, now));
+        await database.SaveChangesAsync();
+        database.ChangeTracker.Clear();
+
+        var inventoryProvider = scope.ServiceProvider.GetRequiredService<IInventoryFinancialProjectionProvider>();
+        var travelProvider = scope.ServiceProvider.GetRequiredService<ITravelFinancialProjectionProvider>();
+        var inventory = await inventoryProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), actor, CancellationToken.None);
+        var travel = await travelProvider.ListFinancialProjectionsAsync(
+            new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), actor, CancellationToken.None);
+
+        Assert.Equal(2, inventory.Count);
+        Assert.Equal(new DateOnly(2026, 1, 1), inventory[0].AccountingDate);
+        Assert.Equal(10.50m, inventory[0].Amount);
+        Assert.Equal(new DateOnly(2026, 12, 31), inventory[1].AccountingDate);
+        Assert.Equal(25.00m, inventory[1].Amount);
+        Assert.All(inventory, projection =>
+        {
+            Assert.StartsWith("inventory:", projection.SourceId);
+            Assert.Equal("orderLine", projection.SourceType);
+            Assert.Equal("Expense", projection.MovementDirection);
+            Assert.Equal(("EUR", "Other", "Amazon"), (projection.CurrencyCode, projection.ItemCategoryLabel, projection.SupplierLabel));
+            Assert.Equal("PG analytics item", projection.ItemLabel);
+        });
+
+        var travelProjection = Assert.Single(travel);
+        Assert.StartsWith("travel:", travelProjection.SourceId);
+        Assert.Equal("expense", travelProjection.SourceType);
+        Assert.Equal(new DateOnly(2026, 6, 10), travelProjection.AccountingDate);
+        Assert.Equal(33.33m, travelProjection.Amount);
+        Assert.Equal("Expense", travelProjection.MovementDirection);
+        Assert.Equal(
+            ("EUR", expenseCategory.Name, "Amazon", "Household"),
+            (travelProjection.CurrencyCode, travelProjection.CategoryLabel, travelProjection.SupplierLabel, travelProjection.CostCenterLabel));
+        Assert.Null(travelProjection.DestinationLabel);
     }
 
     [Fact]

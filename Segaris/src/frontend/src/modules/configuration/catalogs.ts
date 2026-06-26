@@ -105,6 +105,9 @@ export interface CatalogRow {
   sortOrder: number
   code?: string
   colorValue?: string
+  /** Current exchange rate to EUR; only currencies carry it. `null` means a rate
+   * has not been configured yet. */
+  exchangeRateToEur?: number | null
 }
 
 /** Create/update body shape covering every catalog. */
@@ -112,6 +115,7 @@ export interface CatalogWriteBody {
   name: string
   code?: string
   colorValue?: string
+  exchangeRateToEur?: number
 }
 
 export interface CatalogDescriptor {

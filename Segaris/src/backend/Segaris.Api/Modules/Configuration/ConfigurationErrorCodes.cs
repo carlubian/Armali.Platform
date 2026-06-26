@@ -26,6 +26,15 @@ internal static class ConfigurationErrorCodes
     /// <summary>The currency code is not exactly three letters.</summary>
     public static readonly ErrorCode CurrencyInvalidCode = new("configuration.currency.invalid_code");
 
+    /// <summary>A non-EUR currency was created or updated without an exchange rate to EUR.</summary>
+    public static readonly ErrorCode CurrencyExchangeRateRequired = new("configuration.currency.exchange_rate_required");
+
+    /// <summary>The supplied exchange rate to EUR is not positive or exceeds eight decimal places.</summary>
+    public static readonly ErrorCode CurrencyExchangeRateInvalid = new("configuration.currency.exchange_rate_invalid");
+
+    /// <summary>The EUR currency was given an exchange rate other than the fixed value <c>1</c>.</summary>
+    public static readonly ErrorCode CurrencyExchangeRateNotOne = new("configuration.currency.exchange_rate_not_one");
+
     /// <summary>The last row of a required catalog cannot be removed.</summary>
     public static readonly ErrorCode CatalogRequiredNotEmpty = new("configuration.catalog.required_not_empty");
 

@@ -1,5 +1,6 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
+using Segaris.Api.Modules.Opex.Contracts;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Modules.Opex.Mutations;
 using Segaris.Api.Modules.Opex.Persistence;
@@ -30,6 +31,7 @@ internal sealed class OpexModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, OpexModelContributor>();
         services.AddScoped<OpexSeeder>();
         services.AddScoped<OpexReadService>();
+        services.AddScoped<IOpexFinancialProjectionProvider, OpexFinancialProjectionProvider>();
         services.AddScoped<OpexCategoryManagementService>();
         services.AddScoped<OpexCatalogValidator>();
         services.AddScoped<OpexContractWriteService>();

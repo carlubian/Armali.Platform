@@ -69,7 +69,7 @@ remaining business modules are still in functional definition.
 | Resolved | Navigation model | Segaris uses a central dashboard as a module launcher. Modules are immersive, self-contained experiences with their own internal navigation; switching modules requires returning to the launcher rather than using persistent global navigation. The launcher contains no summaries or aggregated domain data, although each module may expose a simple current-user attention indicator on its card. See `docs/architecture/user-experience.md`. |
 | Resolved | Design system | Segaris adopts the Project Armali design system (tokens, fonts, and shared components) and the `segaris/` prototype screens under `docs/ui-design/` as the frontend's visual foundation and shared shell, with Login variant A (centered card) and User management variant B (cards), and the supplied raster logo replacing the prototype's inline brand mark. See `docs/architecture/design-system.md`. |
 | Resolved | Attention and feedback model | Segaris uses three distinct mechanisms: module-owned attention indicators on launcher cards, transient toast feedback for actions and background processes, and persistent events or due dates shown through a calendar view. There is no initial unified notification inbox, email, or push delivery. Calendar ownership and detailed event rules remain Phase 2 functional decisions. See `docs/architecture/user-experience.md`. |
-| Open | Reporting model | Dashboards, charts, exports, household summaries. |
+| Resolved | Reporting model | Initial financial Analytics is implemented and accepted for Capex, Opex, Inventory, and Travel yearly charts. Exports, budgets, forecasts, and broader household summaries remain deferred. See `docs/requirements/ANALYTICS_REQUIREMENTS.md` and the Analytics module section below. |
 
 ### Development And Operations
 
@@ -347,8 +347,15 @@ Module purpose: Module to see aggregated trends of the financial modules.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Open | Entities and properties | Targeted modules, charts and statistics, date filtering. |
-| Open | User workflow | How to interact with the module, entry point, layout. |
+| Resolved | Entities and properties | Analytics consumes current-user financial projections from Capex, Opex, Inventory, and Travel, normalizes values to EUR with current Configuration exchange rates, and includes the accepted yearly module and cross-module charts. See `docs/requirements/ANALYTICS_REQUIREMENTS.md`. |
+| Resolved | User workflow | Analytics opens on a yearly reporting surface with previous/next/current year controls and lazy-loaded tabs for Overview, Capex, Opex, Inventory, Travel, and Cross-module. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-11 in `docs/planning/ANALYTICS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Inventory accounting date (Wave 3) | The Inventory model persists no distinct actual receipt date, so the Inventory financial projection provider uses the order expected receipt date and falls back to the order date (`ExpectedReceiptDate ?? OrderDate`); orders carrying neither inside the queried range are excluded. As the requirements permit, the best existing authoritative date is reused with no data-model extension; a durable received-date field remains a future option if actual-receipt accuracy is later required. |
+| Resolved | Inventory line-level projection grain (Wave 3) | Inventory projections are emitted one per order line (amount = line total, with item and item-category labels) under a stable `inventory:{orderId}:{lineId}` identifier. This is the only grain that supports both the item-category/top-item charts and the supplier/average-order charts (which regroup lines by order); the order supplier is carried on every line and order spending equals the sum of its line totals. |
+| Deferred | Analytics source projection date-range indexes (Wave 3) | Waves 2-3 wire the four source providers and reuse each source module's existing indexes for the new accounting-date-range projection queries; no projection-specific indexes were added at current household volumes. Dedicated date-range indexes wait on representative data volumes, alongside the projection caching/materialization deferral. |
+| Resolved | Implementation and acceptance | The Analytics implementation plan is delivered through Wave 11. All fifteen requirement acceptance criteria are mapped to covering code and tests in `docs/planning/ANALYTICS_ACCEPTANCE.md`. |
+| Deferred | Second-user Analytics privacy E2E journey | Source-module privacy filtering (public collaboration, private isolation, no cross-user private leakage) is covered by `FinancialProjectionProviderTests` for all four providers and by the Analytics API integration suite. Browser-level multi-account coverage waits on shared multi-account Playwright infrastructure, matching earlier modules. |
+| Deferred | Missing-exchange-rate live browser journey | The configuration-incomplete state is covered by `AnalyticsPage.test.tsx` and by `AnalyticsCapexOpexEndpointTests`/`AnalyticsInventoryTravelEndpointTests`. It is not forced in the live Playwright journey because Configuration validation prevents creating an un-rated currency through the UI, so the state cannot be triggered deterministically from the browser. |
 
 ### Calendar
 

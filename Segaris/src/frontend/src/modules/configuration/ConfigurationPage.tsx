@@ -25,16 +25,16 @@ const sections: CatalogSectionId[] = [
   'capex',
   'opex',
   'inventory',
+  'clothes',
   'travel',
   'destinations',
-  'clothes',
   'assets',
   'maintenance',
-  'firebird',
-  'processes',
   'recipes',
+  'firebird',
   'health',
   'projects',
+  'processes',
 ]
 
 interface ToastState {

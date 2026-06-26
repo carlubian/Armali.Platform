@@ -32,7 +32,7 @@ internal sealed class ConfigurationCatalogService(SegarisDbContext database)
             .AsNoTracking()
             .OrderBy(entity => entity.SortOrder)
             .ThenBy(entity => entity.Id)
-            .Select(entity => new CurrencyItem(entity.Id, entity.Code, entity.Name, entity.SortOrder))
+            .Select(entity => new CurrencyItem(entity.Id, entity.Code, entity.Name, entity.SortOrder, entity.ExchangeRateToEur))
             .ToArrayAsync(cancellationToken);
 
     public Task<bool> SupplierExistsAsync(int supplierId, CancellationToken cancellationToken) =>

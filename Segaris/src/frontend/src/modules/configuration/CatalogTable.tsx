@@ -75,6 +75,11 @@ export function CatalogTable({
                 {t('table.columns.code')}
               </th>
             )}
+            {descriptor.isCurrency && (
+              <th scope="col" className="seg-catalog__col-rate">
+                {t('table.columns.rate')}
+              </th>
+            )}
             {descriptor.hasColorValue && (
               <th scope="col" className="seg-catalog__col-color">
                 {t('table.columns.color')}
@@ -122,6 +127,13 @@ export function CatalogTable({
                 <td className="seg-catalog__name">{row.name}</td>
                 {descriptor.hasCode && (
                   <td className="seg-catalog__code">{row.code}</td>
+                )}
+                {descriptor.isCurrency && (
+                  <td className="seg-catalog__rate">
+                    {row.exchangeRateToEur != null
+                      ? row.exchangeRateToEur
+                      : t('table.rateUnset')}
+                  </td>
                 )}
                 {descriptor.hasColorValue && (
                   <td className="seg-catalog__color">

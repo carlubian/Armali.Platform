@@ -802,6 +802,10 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal?>("ExchangeRateToEur")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

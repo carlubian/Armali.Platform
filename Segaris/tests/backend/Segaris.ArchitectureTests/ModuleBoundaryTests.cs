@@ -13,10 +13,14 @@ namespace Segaris.ArchitectureTests;
 public sealed class ModuleBoundaryTests
 {
     private const string ConfigurationNamespace = "Segaris.Api.Modules.Configuration";
+    private const string ConfigurationContractsNamespace = "Segaris.Api.Modules.Configuration.Contracts";
+    private const string AnalyticsNamespace = "Segaris.Api.Modules.Analytics";
     private const string CapexNamespace = "Segaris.Api.Modules.Capex";
+    private const string CapexContractsNamespace = "Segaris.Api.Modules.Capex.Contracts";
     private const string CalendarNamespace = "Segaris.Api.Modules.Calendar";
     private const string LauncherNamespace = "Segaris.Api.Modules.Launcher";
     private const string OpexNamespace = "Segaris.Api.Modules.Opex";
+    private const string OpexContractsNamespace = "Segaris.Api.Modules.Opex.Contracts";
     private const string InventoryNamespace = "Segaris.Api.Modules.Inventory";
     private const string InventoryContractsNamespace = "Segaris.Api.Modules.Inventory.Contracts";
     private const string TravelNamespace = "Segaris.Api.Modules.Travel";
@@ -46,6 +50,7 @@ public sealed class ModuleBoundaryTests
         // Guards the boundary tests below from silently passing if a namespace
         // is renamed or emptied.
         Assert.NotEmpty(TypesIn(ConfigurationNamespace));
+        Assert.NotEmpty(TypesIn(AnalyticsNamespace));
         Assert.NotEmpty(TypesIn(CapexNamespace));
         Assert.NotEmpty(TypesIn(CalendarNamespace));
         Assert.NotEmpty(TypesIn(LauncherNamespace));
@@ -313,6 +318,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, DestinationsNamespace);
         AssertNoDependency(LauncherNamespace, HealthNamespace);
         AssertNoDependency(LauncherNamespace, CalendarNamespace);
+        AssertNoDependency(LauncherNamespace, AnalyticsNamespace);
     }
 
     [Fact]
@@ -944,6 +950,57 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, CalendarNamespace);
     }
 
+    [Fact]
+    public void Analytics_consumes_only_initial_source_projection_contracts()
+    {
+        AssertAnalyticsReferencesContract(CapexContractsNamespace);
+        AssertAnalyticsReferencesContract(OpexContractsNamespace);
+        AssertAnalyticsReferencesContract(InventoryContractsNamespace);
+        AssertAnalyticsReferencesContract(TravelContractsNamespace);
+        AssertAnalyticsReferencesContract(ConfigurationContractsNamespace);
+
+        AssertMayOnlyReferenceNamespaceThroughContracts(AnalyticsNamespace, CapexNamespace, CapexContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(AnalyticsNamespace, OpexNamespace, OpexContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(AnalyticsNamespace, InventoryNamespace, InventoryContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(AnalyticsNamespace, TravelNamespace, TravelContractsNamespace);
+        AssertMayOnlyReferenceNamespaceThroughContracts(AnalyticsNamespace, ConfigurationNamespace, ConfigurationContractsNamespace);
+
+        AssertNoDependency(AnalyticsNamespace, CalendarNamespace);
+        AssertNoDependency(AnalyticsNamespace, ClothesNamespace);
+        AssertNoDependency(AnalyticsNamespace, AssetsNamespace);
+        AssertNoDependency(AnalyticsNamespace, MoodNamespace);
+        AssertNoDependency(AnalyticsNamespace, MaintenanceNamespace);
+        AssertNoDependency(AnalyticsNamespace, ProjectsNamespace);
+        AssertNoDependency(AnalyticsNamespace, ProcessesNamespace);
+        AssertNoDependency(AnalyticsNamespace, FirebirdNamespace);
+        AssertNoDependency(AnalyticsNamespace, RecipesNamespace);
+        AssertNoDependency(AnalyticsNamespace, DestinationsNamespace);
+        AssertNoDependency(AnalyticsNamespace, HealthNamespace);
+        AssertNoDependency(AnalyticsNamespace, LauncherNamespace);
+    }
+
+    [Fact]
+    public void Source_modules_do_not_depend_on_analytics()
+    {
+        AssertNoDependency(ConfigurationNamespace, AnalyticsNamespace);
+        AssertNoDependency(CapexNamespace, AnalyticsNamespace);
+        AssertNoDependency(OpexNamespace, AnalyticsNamespace);
+        AssertNoDependency(InventoryNamespace, AnalyticsNamespace);
+        AssertNoDependency(TravelNamespace, AnalyticsNamespace);
+        AssertNoDependency(CalendarNamespace, AnalyticsNamespace);
+        AssertNoDependency(ClothesNamespace, AnalyticsNamespace);
+        AssertNoDependency(AssetsNamespace, AnalyticsNamespace);
+        AssertNoDependency(MoodNamespace, AnalyticsNamespace);
+        AssertNoDependency(MaintenanceNamespace, AnalyticsNamespace);
+        AssertNoDependency(ProjectsNamespace, AnalyticsNamespace);
+        AssertNoDependency(ProcessesNamespace, AnalyticsNamespace);
+        AssertNoDependency(FirebirdNamespace, AnalyticsNamespace);
+        AssertNoDependency(RecipesNamespace, AnalyticsNamespace);
+        AssertNoDependency(DestinationsNamespace, AnalyticsNamespace);
+        AssertNoDependency(HealthNamespace, AnalyticsNamespace);
+        AssertNoDependency(LauncherNamespace, AnalyticsNamespace);
+    }
+
     private static void AssertNoDependency(string sourceNamespace, string forbiddenNamespace)
     {
         var violations = TypesIn(sourceNamespace)
@@ -989,6 +1046,17 @@ public sealed class ModuleBoundaryTests
         Assert.True(
             referencesContract,
             $"Calendar must consume a published projection contract from '{contractsNamespace}'.");
+    }
+
+    private static void AssertAnalyticsReferencesContract(string contractsNamespace)
+    {
+        var referencesContract = TypesIn(AnalyticsNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, contractsNamespace));
+
+        Assert.True(
+            referencesContract,
+            $"Analytics must consume a published contract from '{contractsNamespace}'.");
     }
 
     private static List<Type> TypesIn(string @namespace) =>

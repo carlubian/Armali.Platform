@@ -16,12 +16,15 @@ export interface CostCenter {
 }
 
 /** Frozen catalog row from `GET /api/configuration/currencies`. `code` is the
- * editable three-letter display code. */
+ * editable three-letter display code. `exchangeRateToEur` is the current rate to
+ * EUR (`1 currency = exchangeRateToEur EUR`); it is `null` only for currencies that
+ * predate Analytics and never received a rate. */
 export interface Currency {
   id: number
   code: string
   name: string
   sortOrder: number
+  exchangeRateToEur: number | null
 }
 
 /** Create/update body for suppliers and cost centres. */
@@ -30,10 +33,13 @@ export interface CatalogItemRequest {
   colorValue?: string
 }
 
-/** Create/update body for currencies; `code` is a three-letter display code. */
+/** Create/update body for currencies; `code` is a three-letter display code and
+ * `exchangeRateToEur` is the current rate to EUR (fixed at `1` for EUR, required
+ * and positive for other currencies). */
 export interface CurrencyItemRequest {
   name: string
   code: string
+  exchangeRateToEur: number
 }
 
 export const configurationApi = {

@@ -39,6 +39,8 @@ internal sealed class ConfigurationModelContributor : ISegarisModelContributor
             .HasMaxLength(CatalogNormalization.CurrencyCodeLength)
             .IsFixedLength()
             .IsRequired();
+        builder.Property(entity => entity.ExchangeRateToEur)
+            .HasPrecision(18, CatalogNormalization.ExchangeRateDecimalPlaces);
         builder.HasIndex(entity => entity.NormalizedCode).IsUnique();
     }
 

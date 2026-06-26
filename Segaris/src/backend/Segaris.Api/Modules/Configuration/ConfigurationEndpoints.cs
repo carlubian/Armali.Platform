@@ -110,7 +110,7 @@ internal static class ConfigurationEndpoints
     {
         var values = await catalog.ListCurrenciesAsync(cancellationToken);
         return TypedResults.Ok(values
-            .Select(value => new CurrencyResponse(value.Id, value.Code, value.Name, value.SortOrder))
+            .Select(value => new CurrencyResponse(value.Id, value.Code, value.Name, value.SortOrder, value.ExchangeRateToEur))
             .ToArray());
     }
 }

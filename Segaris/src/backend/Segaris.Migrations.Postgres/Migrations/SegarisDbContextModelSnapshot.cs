@@ -835,6 +835,10 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer");
 
+                    b.Property<decimal?>("ExchangeRateToEur")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

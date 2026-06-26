@@ -23,6 +23,7 @@ internal sealed class ConfigurationCatalogManagementService(
     {
         var name = ValidateName(request.Name);
         var code = ValidateCurrencyCode(request.Code);
+        var exchangeRate = ResolveCurrencyExchangeRate(code, request.ExchangeRateToEur);
         await EnsureUniqueCurrencyAsync(null, name.Normalized, code, cancellationToken);
         var now = clock.UtcNow;
         var entity = new SegarisCurrency
@@ -31,6 +32,7 @@ internal sealed class ConfigurationCatalogManagementService(
             NormalizedName = name.Normalized,
             Code = code,
             NormalizedCode = code,
+            ExchangeRateToEur = exchangeRate,
             SortOrder = await NextSortOrderAsync<SegarisCurrency>(cancellationToken),
             CreatedAt = now,
             CreatedBy = actor.Value,
@@ -39,7 +41,7 @@ internal sealed class ConfigurationCatalogManagementService(
         };
         database.Add(entity);
         await SaveAsync(cancellationToken);
-        return new(entity.Id, entity.Code, entity.Name, entity.SortOrder);
+        return new(entity.Id, entity.Code, entity.Name, entity.SortOrder, entity.ExchangeRateToEur);
     }
 
     public Task<SupplierResponse> UpdateSupplierAsync(int id, CatalogItemRequest request, UserId actor, CancellationToken cancellationToken) =>
@@ -54,15 +56,17 @@ internal sealed class ConfigurationCatalogManagementService(
             ?? throw ConfigurationProblem.NotFound();
         var name = ValidateName(request.Name);
         var code = ValidateCurrencyCode(request.Code);
+        var exchangeRate = ResolveCurrencyExchangeRate(code, request.ExchangeRateToEur);
         await EnsureUniqueCurrencyAsync(id, name.Normalized, code, cancellationToken);
         entity.Name = name.Display;
         entity.NormalizedName = name.Normalized;
         entity.Code = code;
         entity.NormalizedCode = code;
+        entity.ExchangeRateToEur = exchangeRate;
         entity.UpdatedAt = clock.UtcNow;
         entity.UpdatedBy = actor.Value;
         await SaveAsync(cancellationToken);
-        return new(entity.Id, entity.Code, entity.Name, entity.SortOrder);
+        return new(entity.Id, entity.Code, entity.Name, entity.SortOrder, entity.ExchangeRateToEur);
     }
 
     public Task MoveSupplierAsync(int id, CatalogMoveDirection direction, CancellationToken cancellationToken) => MoveAsync<SegarisSupplier>(id, direction, cancellationToken);
@@ -363,6 +367,38 @@ internal sealed class ConfigurationCatalogManagementService(
         var code = value?.Trim().ToUpperInvariant();
         if (code is null || code.Length != 3 || code.Any(character => character is < 'A' or > 'Z')) throw ConfigurationProblem.InvalidCode();
         return code;
+    }
+
+    /// <summary>
+    /// Resolves the exchange rate to persist for a currency create or update. EUR is
+    /// fixed at <c>1</c> (a missing value defaults to it; any other supplied value is
+    /// rejected). Every other currency requires a positive rate with at most eight
+    /// decimal places. <paramref name="code"/> is the already validated upper-case
+    /// three-letter code.
+    /// </summary>
+    internal static decimal ResolveCurrencyExchangeRate(string code, decimal? exchangeRateToEur)
+    {
+        if (code == ConfigurationCatalog.CurrencyCodes.Euro)
+        {
+            if (exchangeRateToEur is { } euroRate && euroRate != 1m)
+            {
+                throw ConfigurationProblem.CurrencyExchangeRateNotOne();
+            }
+
+            return 1m;
+        }
+
+        if (exchangeRateToEur is not { } rate)
+        {
+            throw ConfigurationProblem.CurrencyExchangeRateRequired();
+        }
+
+        if (rate <= 0 || decimal.Round(rate, CatalogNormalization.ExchangeRateDecimalPlaces) != rate)
+        {
+            throw ConfigurationProblem.CurrencyExchangeRateInvalid();
+        }
+
+        return rate;
     }
 
     private async Task SaveAsync(CancellationToken cancellationToken)

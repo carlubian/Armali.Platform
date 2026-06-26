@@ -20,6 +20,7 @@ internal sealed class ConfigurationModule : ISegarisModule
         services.AddScoped<CatalogInitializer>();
         services.AddScoped<ConfigurationSeeder>();
         services.AddScoped<IConfigurationCatalog, ConfigurationCatalogService>();
+        services.AddScoped<ICurrencyExchangeRateProvider, CurrencyExchangeRateProvider>();
         services.AddScoped<ConfigurationCatalogManagementService>();
     }
 
