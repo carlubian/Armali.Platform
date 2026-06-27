@@ -37,12 +37,6 @@ MapAdminRoutes(api.MapGroup("/admin"));
 
 app.Run();
 
-static IResult NotImplemented(string routeName) =>
-    Results.Problem(
-        title: "Not implemented",
-        detail: $"{routeName} is part of the Wave 0 frozen API surface and will be implemented in a later wave.",
-        statusCode: StatusCodes.Status501NotImplemented);
-
 static void MapEraRoutes(RouteGroupBuilder eras)
 {
     eras.MapGet("/", ListErasAsync).WithName("ListEras");
@@ -70,9 +64,9 @@ static void MapProgressionRoutes(RouteGroupBuilder progression)
 
 static void MapWorldRoutes(RouteGroupBuilder world)
 {
-    world.MapGet("/", () => NotImplemented("Get active world state")).WithName("GetWorldState");
-    world.MapGet("/templates", () => NotImplemented("List world templates")).WithName("ListWorldTemplates");
-    world.MapGet("/eras/{eraId:guid}", (Guid eraId) => NotImplemented("Get era world state")).WithName("GetEraWorldState");
+    world.MapGet("/", GetActiveWorldStateAsync).WithName("GetWorldState");
+    world.MapGet("/templates", ListWorldTemplatesAsync).WithName("ListWorldTemplates");
+    world.MapGet("/eras/{eraId:guid}", GetEraWorldStateAsync).WithName("GetEraWorldState");
 }
 
 static void MapAdminRoutes(RouteGroupBuilder admin)
@@ -904,8 +898,8 @@ static async Task<IResult> UncompleteWeeklyQuestAsync(
 
 /// <summary>
 /// Applies an XP delta to an area (clamped to [0, level-50 cap]), recomputes its level,
-/// persists, and returns the completion outcome. This is the seam the world evolution
-/// engine (Wave 4) will hook to advance districts on <c>LevelChanged</c>.
+/// syncs the area's district evolution when the level changes, persists, and returns
+/// the completion outcome.
 /// </summary>
 static async Task<IResult> ApplyCompletionAsync(
     Area area,
@@ -929,6 +923,15 @@ static async Task<IResult> ApplyCompletionAsync(
     progress.Xp = Math.Clamp(progress.Xp + xpDelta, 0, Leveling.XpCap(xpPerLevel));
     progress.Level = Leveling.LevelForXp(progress.Xp, xpPerLevel);
 
+    if (progress.Level != previousLevel)
+    {
+        var evolutionProblem = await SynchronizeDistrictEvolutionAsync(area, progress.Level, database, cancellationToken);
+        if (evolutionProblem is not null)
+        {
+            return evolutionProblem;
+        }
+    }
+
     await database.SaveChangesAsync(cancellationToken);
 
     return Results.Ok(new QuestCompletionResponse(
@@ -940,6 +943,181 @@ static async Task<IResult> ApplyCompletionAsync(
         progress.Level,
         previousLevel,
         progress.Level != previousLevel));
+}
+
+static async Task<IResult?> SynchronizeDistrictEvolutionAsync(
+    Area area,
+    int targetLevel,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    if (area.DistrictId is null)
+    {
+        return Results.Problem(
+            title: "Missing district",
+            detail: "The area is not bound to a world district.",
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+
+    var district = await database.Districts
+        .Include(item => item.Plots)
+        .Include(item => item.EvolutionStages)
+        .FirstOrDefaultAsync(item => item.Id == area.DistrictId, cancellationToken);
+    if (district is null)
+    {
+        return Results.Problem(
+            title: "Missing district",
+            detail: "The area's world district no longer exists.",
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+
+    var targetStages = district.EvolutionStages
+        .Where(stage => stage.Order <= targetLevel)
+        .OrderBy(stage => stage.Order)
+        .ToList();
+
+    var targetBuildingCount = targetStages.Count(stage => stage.Kind == EvolutionStageKind.Building);
+    var existingBuiltPlots = await database.BuiltPlots
+        .Include(item => item.Plot)
+        .Where(item => item.EraId == area.EraId && item.DistrictId == district.Id)
+        .OrderBy(item => item.Plot!.PositionY)
+        .ThenBy(item => item.Plot!.PositionX)
+        .ToListAsync(cancellationToken);
+
+    while (existingBuiltPlots.Count < targetBuildingCount)
+    {
+        var plot = PickNextOrganicPlot(district.Plots, existingBuiltPlots);
+        if (plot is null)
+        {
+            return Results.Problem(
+                title: "World template exhausted",
+                detail: "The district has no free plot available for the requested evolution stage.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var variant = await PickRandomVariantAsync(district.WorldTemplateId, plot.Category, database, cancellationToken);
+        if (variant is null)
+        {
+            return Results.Problem(
+                title: "Missing variant",
+                detail: $"World template has no variant for plot category '{plot.Category}'.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var builtPlot = new BuiltPlot
+        {
+            Id = Guid.NewGuid(),
+            EraId = area.EraId,
+            DistrictId = district.Id,
+            PlotId = plot.Id,
+            VariantId = variant.Id,
+            Plot = plot,
+            Variant = variant,
+        };
+
+        database.BuiltPlots.Add(builtPlot);
+        existingBuiltPlots.Add(builtPlot);
+    }
+
+    if (existingBuiltPlots.Count > targetBuildingCount)
+    {
+        var surplusBuiltPlots = existingBuiltPlots
+            .OrderByDescending(item => item.Plot!.PositionY)
+            .ThenByDescending(item => item.Plot!.PositionX)
+            .Take(existingBuiltPlots.Count - targetBuildingCount)
+            .ToList();
+        database.BuiltPlots.RemoveRange(surplusBuiltPlots);
+    }
+
+    var targetDenizenCounts = targetStages
+        .Where(stage => stage.Kind == EvolutionStageKind.Denizen && !string.IsNullOrWhiteSpace(stage.DenizenType))
+        .GroupBy(stage => stage.DenizenType!)
+        .ToDictionary(group => group.Key, group => group.Count());
+
+    var existingDenizens = await database.DenizenCounts
+        .Where(item => item.EraId == area.EraId && item.DistrictId == district.Id)
+        .ToListAsync(cancellationToken);
+
+    foreach (var denizen in existingDenizens)
+    {
+        if (targetDenizenCounts.TryGetValue(denizen.DenizenType, out var count))
+        {
+            denizen.Count = count;
+            targetDenizenCounts.Remove(denizen.DenizenType);
+        }
+        else
+        {
+            database.DenizenCounts.Remove(denizen);
+        }
+    }
+
+    foreach (var (denizenType, count) in targetDenizenCounts)
+    {
+        database.DenizenCounts.Add(new DenizenCount
+        {
+            Id = Guid.NewGuid(),
+            EraId = area.EraId,
+            DistrictId = district.Id,
+            DenizenType = denizenType,
+            Count = count,
+        });
+    }
+
+    return null;
+}
+
+static Plot? PickNextOrganicPlot(IEnumerable<Plot> plots, IReadOnlyCollection<BuiltPlot> builtPlots)
+{
+    var builtPlotIds = builtPlots.Select(item => item.PlotId).ToHashSet();
+    var freePlots = plots
+        .Where(plot => !builtPlotIds.Contains(plot.Id))
+        .OrderBy(plot => plot.PositionY)
+        .ThenBy(plot => plot.PositionX)
+        .ToList();
+    if (freePlots.Count == 0)
+    {
+        return null;
+    }
+
+    if (builtPlots.Count == 0)
+    {
+        var centerX = freePlots.Average(plot => plot.PositionX);
+        var centerY = freePlots.Average(plot => plot.PositionY);
+        var centeredPlots = freePlots
+            .OrderBy(plot => Math.Abs(plot.PositionX - centerX) + Math.Abs(plot.PositionY - centerY))
+            .ThenBy(plot => plot.PositionY)
+            .ThenBy(plot => plot.PositionX)
+            .ToList();
+
+        return centeredPlots[Random.Shared.Next(centeredPlots.Count)];
+    }
+
+    var builtPositions = builtPlots
+        .Where(item => item.Plot is not null)
+        .Select(item => (item.Plot!.PositionX, item.Plot.PositionY))
+        .ToHashSet();
+
+    var adjacentPlots = freePlots
+        .Where(plot => builtPositions.Any(position =>
+            Math.Abs(position.PositionX - plot.PositionX) + Math.Abs(position.PositionY - plot.PositionY) == 1))
+        .ToList();
+
+    var candidates = adjacentPlots.Count == 0 ? freePlots : adjacentPlots;
+    return candidates[Random.Shared.Next(candidates.Count)];
+}
+
+static async Task<Variant?> PickRandomVariantAsync(
+    string worldTemplateId,
+    string category,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var variants = await database.Variants
+        .Where(item => item.WorldTemplateId == worldTemplateId && item.Category == category)
+        .OrderBy(item => item.SpriteKey)
+        .ToListAsync(cancellationToken);
+
+    return variants.Count == 0 ? null : variants[Random.Shared.Next(variants.Count)];
 }
 
 static async Task<IResult> GetProgressionSummaryAsync(BelfalasDbContext database, CancellationToken cancellationToken)
@@ -986,6 +1164,76 @@ static async Task<IResult> GetAreaProgressionAsync(Guid areaId, BelfalasDbContex
     return Results.Ok(ToAreaProgressResponse(area, progress, area.Era?.XpPerLevel ?? 100));
 }
 
+static async Task<IResult> ListWorldTemplatesAsync(BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var templates = await database.WorldTemplates
+        .AsNoTracking()
+        .Include(template => template.Districts)
+        .ThenInclude(district => district.Plots)
+        .Include(template => template.Districts)
+        .ThenInclude(district => district.EvolutionStages)
+        .Include(template => template.Variants)
+        .AsSplitQuery()
+        .OrderBy(template => template.Name)
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(templates.Select(ToWorldTemplateResponse));
+}
+
+static async Task<IResult> GetActiveWorldStateAsync(BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var activeEra = await database.Eras
+        .AsNoTracking()
+        .FirstOrDefaultAsync(era => era.Status == EraStatus.Active, cancellationToken);
+
+    return activeEra is null
+        ? Results.NotFound()
+        : await GetEraWorldStateAsync(activeEra.Id, database, cancellationToken);
+}
+
+static async Task<IResult> GetEraWorldStateAsync(Guid eraId, BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var era = await database.Eras
+        .AsNoTracking()
+        .Include(item => item.Areas)
+        .Include(item => item.WorldTemplate)
+        .ThenInclude(template => template!.Districts)
+        .ThenInclude(district => district.Plots)
+        .Include(item => item.WorldTemplate)
+        .ThenInclude(template => template!.Districts)
+        .ThenInclude(district => district.EvolutionStages)
+        .AsSplitQuery()
+        .FirstOrDefaultAsync(item => item.Id == eraId, cancellationToken);
+    if (era is null)
+    {
+        return Results.NotFound();
+    }
+
+    var progressByArea = await database.AreaProgresses
+        .AsNoTracking()
+        .Where(progress => progress.EraId == era.Id)
+        .ToDictionaryAsync(progress => progress.AreaId, cancellationToken);
+
+    var builtPlots = await database.BuiltPlots
+        .AsNoTracking()
+        .Include(plot => plot.Plot)
+        .Include(plot => plot.Variant)
+        .Where(plot => plot.EraId == era.Id)
+        .OrderBy(plot => plot.DistrictId)
+        .ThenBy(plot => plot.Plot!.PositionY)
+        .ThenBy(plot => plot.Plot!.PositionX)
+        .ToListAsync(cancellationToken);
+
+    var denizens = await database.DenizenCounts
+        .AsNoTracking()
+        .Where(denizen => denizen.EraId == era.Id)
+        .OrderBy(denizen => denizen.DistrictId)
+        .ThenBy(denizen => denizen.DenizenType)
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(ToWorldStateResponse(era, progressByArea, builtPlots, denizens));
+}
+
 static AreaProgressResponse ToAreaProgressResponse(Area area, AreaProgress? progress, int xpPerLevel)
 {
     var xp = progress?.Xp ?? 0;
@@ -1002,6 +1250,103 @@ static AreaProgressResponse ToAreaProgressResponse(Area area, AreaProgress? prog
         Leveling.XpForNextLevel(xp, xpPerLevel),
         Leveling.MaxLevel,
         level >= Leveling.MaxLevel);
+}
+
+static WorldTemplateResponse ToWorldTemplateResponse(WorldTemplate template) =>
+    new(
+        template.Id,
+        template.Theme,
+        template.Name,
+        template.Districts
+            .OrderBy(district => district.Slot)
+            .Select(district => new WorldTemplateDistrictResponse(
+                district.Id,
+                district.Name,
+                district.Slot,
+                district.Plots
+                    .OrderBy(plot => plot.PositionY)
+                    .ThenBy(plot => plot.PositionX)
+                    .Select(plot => new WorldTemplatePlotResponse(
+                        plot.Id,
+                        plot.Category,
+                        plot.PositionX,
+                        plot.PositionY))
+                    .ToList(),
+                district.EvolutionStages
+                    .OrderBy(stage => stage.Order)
+                    .Select(stage => new WorldTemplateEvolutionStageResponse(
+                        stage.Id,
+                        stage.Order,
+                        stage.Kind.ToString(),
+                        stage.DenizenType))
+                    .ToList()))
+            .ToList(),
+        template.Variants
+            .OrderBy(variant => variant.Category)
+            .ThenBy(variant => variant.SpriteKey)
+            .Select(variant => new WorldTemplateVariantResponse(
+                variant.Id,
+                variant.Category,
+                variant.SpriteKey))
+            .ToList());
+
+static WorldStateResponse ToWorldStateResponse(
+    Era era,
+    IReadOnlyDictionary<Guid, AreaProgress> progressByArea,
+    IReadOnlyList<BuiltPlot> builtPlots,
+    IReadOnlyList<DenizenCount> denizens)
+{
+    var areasByDistrict = era.Areas
+        .Where(area => area.DistrictId is not null)
+        .ToDictionary(area => area.DistrictId!.Value);
+
+    var builtPlotsByDistrict = builtPlots
+        .GroupBy(plot => plot.DistrictId)
+        .ToDictionary(group => group.Key, group => group.ToList());
+
+    var denizensByDistrict = denizens
+        .GroupBy(denizen => denizen.DistrictId)
+        .ToDictionary(group => group.Key, group => group.ToList());
+
+    var districts = era.WorldTemplate?.Districts
+        .OrderBy(district => district.Slot)
+        .Select(district =>
+        {
+            areasByDistrict.TryGetValue(district.Id, out var area);
+            var areaLevel = area is not null && progressByArea.TryGetValue(area.Id, out var progress)
+                ? progress.Level
+                : 0;
+
+            return new WorldDistrictStateResponse(
+                district.Id,
+                district.Name,
+                district.Slot,
+                area?.Id,
+                area?.Name,
+                areaLevel,
+                builtPlotsByDistrict.GetValueOrDefault(district.Id, [])
+                    .Where(plot => plot.Plot is not null && plot.Variant is not null)
+                    .OrderBy(plot => plot.Plot!.PositionY)
+                    .ThenBy(plot => plot.Plot!.PositionX)
+                    .Select(plot => new BuiltPlotResponse(
+                        plot.Id,
+                        plot.PlotId,
+                        plot.Plot!.Category,
+                        plot.Plot.PositionX,
+                        plot.Plot.PositionY,
+                        plot.VariantId,
+                        plot.Variant!.SpriteKey))
+                    .ToList(),
+                denizensByDistrict.GetValueOrDefault(district.Id, [])
+                    .OrderBy(denizen => denizen.DenizenType)
+                    .Select(denizen => new DenizenCountResponse(
+                        denizen.DenizenType,
+                        denizen.Count))
+                    .ToList());
+        })
+        .ToList() ?? [];
+
+    return new WorldStateResponse(era.Id, era.Name, era.WorldTemplateId, districts);
 }
 
 static IQueryable<Era> LoadEraDetailQuery(BelfalasDbContext database) =>

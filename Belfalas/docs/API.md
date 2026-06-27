@@ -1,8 +1,8 @@
 # Belfalas API Surface
 
 > Wave 0 froze this contract surface; later waves implement it. Eras + quest authoring
-> (Waves 1–2) and the progression engine (Wave 3) are live. Routes for the world model
-> (Wave 4) still return `501 Not Implemented`.
+> (Waves 1–2), the progression engine (Wave 3), and the world model/evolution engine
+> (Wave 4) are live.
 
 ## Health
 
@@ -43,9 +43,16 @@ previousLevel, levelChanged }`. Completing/un-completing an archived era returns
 
 ## World
 
-- `GET /api/world`
-- `GET /api/world/templates`
-- `GET /api/world/eras/{eraId}`
+- `GET /api/world` — active era world state: template id, district bindings to areas,
+  built plots with persisted variants, and denizen identity/counts.
+- `GET /api/world/templates` — seeded world template catalogue with districts, plots,
+  variants, and ordered evolution stages.
+- `GET /api/world/eras/{eraId}` — world state for a specific era.
+
+Completing an action that changes an area's level synchronizes its district to the
+resulting level. Building stages pick a free plot adjacent to existing growth when
+possible, choose a random category variant, and persist that choice. Denizen stages
+persist only identity/count; positions remain a frontend/runtime concern.
 
 ## Admin
 
