@@ -9,3 +9,13 @@ public sealed record UpsertDailyHabitRequest(Guid AreaId, string Label, int Xp);
 public sealed record UpsertWeeklyGoalRequest(Guid AreaId, string Label, int Xp);
 
 public sealed record OverrideWeeklySetRequest(IReadOnlyList<Guid> WeeklyGoalIds);
+
+public sealed record DailyHabitResponse(Guid Id, Guid EraId, Guid AreaId, string AreaName, string Label, int Xp);
+
+public sealed record WeeklyGoalResponse(Guid Id, Guid EraId, Guid AreaId, string AreaName, string Label, int Xp);
+
+public sealed record WeeklySetResponse(
+    Guid Id,
+    Guid EraId,
+    int WeekIndex,
+    IReadOnlyList<WeeklyGoalResponse> Goals);
