@@ -1,5 +1,6 @@
 using Belfalas.Api.Contracts;
 using Belfalas.Persistence;
+using Belfalas.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ builder.Services.AddDbContext<BelfalasDbContext>(options =>
 });
 
 var app = builder.Build();
+
+await app.Services.MigrateAndSeedBelfalasAsync();
 
 if (app.Environment.IsDevelopment())
 {
