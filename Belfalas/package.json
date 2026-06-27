@@ -1,0 +1,10 @@
+{
+  "name": "belfalas",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "pnpm --dir src/frontend build",
+    "dev": "pnpm --dir src/frontend dev",
+    "lint": "pnpm --dir src/frontend lint"
+  }
+}

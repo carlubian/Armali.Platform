@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: src/backend/Belfalas.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Belfalas: Data Source=/data/belfalas.db
+    ports:
+      - "5080:8080"
+    volumes:
+      - belfalas-sqlite:/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: src/frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  belfalas-sqlite:

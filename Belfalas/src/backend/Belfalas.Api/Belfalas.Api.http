@@ -1,0 +1,11 @@
+@Belfalas.Api_HostAddress = http://localhost:5080
+
+GET {{Belfalas.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Belfalas.Api_HostAddress}}/api/eras
+Accept: application/json
+
+###

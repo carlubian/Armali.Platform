@@ -1,0 +1,15 @@
+bin/
+obj/
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+.codex/run/
+.env
+.env.*
+!.env.example
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
