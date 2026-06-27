@@ -7,7 +7,8 @@ public sealed record CreateEraRequest(
     string TemplateId,
     IReadOnlyList<CreateAreaRequest> Areas,
     IReadOnlyList<CreateDailyHabitDraftRequest>? DailyHabits = null,
-    IReadOnlyList<CreateWeeklyGoalDraftRequest>? WeeklyGoals = null);
+    IReadOnlyList<CreateWeeklyGoalDraftRequest>? WeeklyGoals = null,
+    int XpPerLevel = 100);
 
 public sealed record CreateAreaRequest(string Name, int Order);
 
@@ -21,7 +22,8 @@ public sealed record EraSummaryResponse(
     DateOnly StartDate,
     int Weeks,
     string Status,
-    string TemplateId);
+    string TemplateId,
+    int XpPerLevel);
 
 public sealed record EraDetailResponse(
     Guid Id,
@@ -30,6 +32,7 @@ public sealed record EraDetailResponse(
     int Weeks,
     string Status,
     string TemplateId,
+    int XpPerLevel,
     IReadOnlyList<AreaResponse> Areas,
     IReadOnlyList<DailyHabitResponse> DailyHabits,
     IReadOnlyList<WeeklyGoalResponse> WeeklyGoals);

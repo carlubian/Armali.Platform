@@ -64,6 +64,7 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
         builder.Property(era => era.Name).IsRequired();
         builder.Property(era => era.WorldTemplateId).HasMaxLength(64).IsRequired();
         builder.Property(era => era.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(era => era.XpPerLevel).HasDefaultValue(100);
 
         builder.HasOne(era => era.WorldTemplate)
             .WithMany()

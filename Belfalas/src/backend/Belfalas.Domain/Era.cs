@@ -21,6 +21,13 @@ public sealed class Era
     public EraStatus Status { get; set; } = EraStatus.Active;
     public required string WorldTemplateId { get; set; }
 
+    /// <summary>
+    /// Flat XP cost of one level, shared by every area of the era (areas are of equal
+    /// importance). The admin calibrates the quest XP mix against this so each area can
+    /// gain ~1 level/week. See <see cref="Leveling"/>.
+    /// </summary>
+    public int XpPerLevel { get; set; } = 100;
+
     public WorldTemplate? WorldTemplate { get; set; }
     public ICollection<Area> Areas { get; set; } = [];
     public ICollection<DailyHabit> DailyHabits { get; set; } = [];

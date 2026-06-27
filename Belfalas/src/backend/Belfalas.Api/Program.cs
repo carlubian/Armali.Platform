@@ -54,16 +54,18 @@ static void MapEraRoutes(RouteGroupBuilder eras)
 
 static void MapQuestRoutes(RouteGroupBuilder quests)
 {
-    quests.MapGet("/daily", ListActiveDailyHabitsAsync).WithName("ListDailyQuests");
+    quests.MapGet("/daily", GetTodaysDailyQuestsAsync).WithName("ListDailyQuests");
     quests.MapGet("/weekly", GetCurrentWeeklySetAsync).WithName("ListWeeklyQuests");
-    quests.MapPost("/daily/{dailyHabitId:guid}/complete", (Guid dailyHabitId, CompleteDailyQuestRequest request) => NotImplemented("Complete daily quest")).WithName("CompleteDailyQuest");
-    quests.MapPost("/weekly/{weeklyGoalId:guid}/complete", (Guid weeklyGoalId, CompleteWeeklyQuestRequest request) => NotImplemented("Complete weekly quest")).WithName("CompleteWeeklyQuest");
+    quests.MapPost("/daily/{dailyHabitId:guid}/complete", CompleteDailyQuestAsync).WithName("CompleteDailyQuest");
+    quests.MapDelete("/daily/{dailyHabitId:guid}/complete", UncompleteDailyQuestAsync).WithName("UncompleteDailyQuest");
+    quests.MapPost("/weekly/{weeklyGoalId:guid}/complete", CompleteWeeklyQuestAsync).WithName("CompleteWeeklyQuest");
+    quests.MapDelete("/weekly/{weeklyGoalId:guid}/complete", UncompleteWeeklyQuestAsync).WithName("UncompleteWeeklyQuest");
 }
 
 static void MapProgressionRoutes(RouteGroupBuilder progression)
 {
-    progression.MapGet("/summary", () => NotImplemented("Get progression summary")).WithName("GetProgressionSummary");
-    progression.MapGet("/areas/{areaId:guid}", (Guid areaId) => NotImplemented("Get area progression")).WithName("GetAreaProgression");
+    progression.MapGet("/summary", GetProgressionSummaryAsync).WithName("GetProgressionSummary");
+    progression.MapGet("/areas/{areaId:guid}", GetAreaProgressionAsync).WithName("GetAreaProgression");
 }
 
 static void MapWorldRoutes(RouteGroupBuilder world)
@@ -158,6 +160,7 @@ static async Task<IResult> CreateEraAsync(CreateEraRequest request, BelfalasDbCo
         Weeks = request.Weeks,
         Status = EraStatus.Active,
         WorldTemplateId = request.TemplateId,
+        XpPerLevel = request.XpPerLevel,
     };
 
     for (var index = 0; index < areaDrafts.Count; index++)
@@ -262,7 +265,7 @@ static async Task<IResult> ArchiveEraAsync(Guid eraId, BelfalasDbContext databas
     return Results.Ok(ToEraDetail(era));
 }
 
-static async Task<IResult> ListActiveDailyHabitsAsync(BelfalasDbContext database, CancellationToken cancellationToken)
+static async Task<IResult> GetTodaysDailyQuestsAsync(BelfalasDbContext database, CancellationToken cancellationToken)
 {
     var activeEra = await database.Eras
         .AsNoTracking()
@@ -272,7 +275,29 @@ static async Task<IResult> ListActiveDailyHabitsAsync(BelfalasDbContext database
         return Results.NotFound();
     }
 
-    return await ListDailyHabitsAsync(activeEra.Id, database, cancellationToken);
+    var today = GetMadridToday();
+    var habits = await database.DailyHabits
+        .AsNoTracking()
+        .Include(habit => habit.Area)
+        .Where(habit => habit.EraId == activeEra.Id)
+        .OrderBy(habit => habit.Area!.Order)
+        .ThenBy(habit => habit.Label)
+        .ToListAsync(cancellationToken);
+
+    var completedToday = await database.DailyCompletions
+        .Where(completion => completion.EraId == activeEra.Id && completion.Date == today)
+        .Select(completion => completion.DailyHabitId)
+        .ToHashSetAsync(cancellationToken);
+
+    var quests = habits.Select(habit => new DailyQuestResponse(
+        habit.Id,
+        habit.AreaId,
+        habit.Area?.Name ?? string.Empty,
+        habit.Label,
+        habit.Xp,
+        completedToday.Contains(habit.Id)));
+
+    return Results.Ok(quests);
 }
 
 static async Task<IResult> GetCurrentWeeklySetAsync(BelfalasDbContext database, CancellationToken cancellationToken)
@@ -604,12 +629,22 @@ static async Task<IResult> GetOrCreateWeeklySetAsync(
     BelfalasDbContext database,
     CancellationToken cancellationToken)
 {
+    var weeklySet = await EnsureWeeklySetAsync(eraId, weekIndex, database, cancellationToken);
+    return await GetWeeklySetResponseAsync(weeklySet.Id, database, cancellationToken);
+}
+
+/// <summary>Returns the week's set, drawing it from the goal pool the first time it is requested.</summary>
+static async Task<WeeklySet> EnsureWeeklySetAsync(
+    Guid eraId,
+    int weekIndex,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
     var weeklySet = await database.WeeklySets
-        .AsNoTracking()
         .FirstOrDefaultAsync(set => set.EraId == eraId && set.WeekIndex == weekIndex, cancellationToken);
     if (weeklySet is not null)
     {
-        return await GetWeeklySetResponseAsync(weeklySet.Id, database, cancellationToken);
+        return weeklySet;
     }
 
     var selectedGoalIds = await DrawWeeklyGoalIdsAsync(eraId, weekIndex, database, cancellationToken);
@@ -631,7 +666,7 @@ static async Task<IResult> GetOrCreateWeeklySetAsync(
 
     database.WeeklySets.Add(weeklySet);
     await database.SaveChangesAsync(cancellationToken);
-    return await GetWeeklySetResponseAsync(weeklySet.Id, database, cancellationToken);
+    return weeklySet;
 }
 
 static async Task<IResult> GetWeeklySetResponseAsync(Guid weeklySetId, BelfalasDbContext database, CancellationToken cancellationToken)
@@ -643,11 +678,22 @@ static async Task<IResult> GetWeeklySetResponseAsync(Guid weeklySetId, BelfalasD
         .ThenInclude(goal => goal!.Area)
         .FirstAsync(set => set.Id == weeklySetId, cancellationToken);
 
+    var completedThisWeek = await database.WeeklyCompletions
+        .Where(completion => completion.EraId == weeklySet.EraId && completion.WeekIndex == weeklySet.WeekIndex)
+        .Select(completion => completion.WeeklyGoalId)
+        .ToHashSetAsync(cancellationToken);
+
     var goals = weeklySet.Items
         .Select(item => item.WeeklyGoal!)
         .OrderBy(goal => goal.Area!.Order)
         .ThenBy(goal => goal.Label)
-        .Select(ToWeeklyGoalResponse)
+        .Select(goal => new WeeklyQuestResponse(
+            goal.Id,
+            goal.AreaId,
+            goal.Area?.Name ?? string.Empty,
+            goal.Label,
+            goal.Xp,
+            completedThisWeek.Contains(goal.Id)))
         .ToList();
 
     return Results.Ok(new WeeklySetResponse(weeklySet.Id, weeklySet.EraId, weeklySet.WeekIndex, goals));
@@ -677,6 +723,287 @@ static async Task<IReadOnlyList<Guid>> DrawWeeklyGoalIdsAsync(
         .ToList();
 }
 
+static async Task<IResult> CompleteDailyQuestAsync(
+    Guid dailyHabitId,
+    CompleteDailyQuestRequest request,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var habit = await database.DailyHabits
+        .Include(item => item.Era)
+        .Include(item => item.Area)
+        .FirstOrDefaultAsync(item => item.Id == dailyHabitId, cancellationToken);
+    if (habit is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (habit.Era?.Status == EraStatus.Archived)
+    {
+        return Conflict("Archived eras are read-only.");
+    }
+
+    var today = GetMadridToday();
+    if (request.CompletedOn != default && request.CompletedOn != today)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["completedOn"] = ["Daily quests can only be completed for the current day."],
+        });
+    }
+
+    var alreadyDone = await database.DailyCompletions
+        .AnyAsync(c => c.EraId == habit.EraId && c.Date == today && c.DailyHabitId == habit.Id, cancellationToken);
+    if (alreadyDone)
+    {
+        return await ApplyCompletionAsync(habit.Area!, 0, completed: true, habit.Era!.XpPerLevel, database, cancellationToken);
+    }
+
+    database.DailyCompletions.Add(new DailyCompletion
+    {
+        Id = Guid.NewGuid(),
+        EraId = habit.EraId,
+        Date = today,
+        DailyHabitId = habit.Id,
+    });
+
+    return await ApplyCompletionAsync(habit.Area!, habit.Xp, completed: true, habit.Era!.XpPerLevel, database, cancellationToken);
+}
+
+static async Task<IResult> UncompleteDailyQuestAsync(
+    Guid dailyHabitId,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var habit = await database.DailyHabits
+        .Include(item => item.Era)
+        .Include(item => item.Area)
+        .FirstOrDefaultAsync(item => item.Id == dailyHabitId, cancellationToken);
+    if (habit is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (habit.Era?.Status == EraStatus.Archived)
+    {
+        return Conflict("Archived eras are read-only.");
+    }
+
+    var today = GetMadridToday();
+    var completion = await database.DailyCompletions
+        .FirstOrDefaultAsync(c => c.EraId == habit.EraId && c.Date == today && c.DailyHabitId == habit.Id, cancellationToken);
+    if (completion is null)
+    {
+        return await ApplyCompletionAsync(habit.Area!, 0, completed: false, habit.Era!.XpPerLevel, database, cancellationToken);
+    }
+
+    database.DailyCompletions.Remove(completion);
+    return await ApplyCompletionAsync(habit.Area!, -habit.Xp, completed: false, habit.Era!.XpPerLevel, database, cancellationToken);
+}
+
+static async Task<IResult> CompleteWeeklyQuestAsync(
+    Guid weeklyGoalId,
+    CompleteWeeklyQuestRequest request,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var goal = await database.WeeklyGoals
+        .Include(item => item.Era)
+        .Include(item => item.Area)
+        .FirstOrDefaultAsync(item => item.Id == weeklyGoalId, cancellationToken);
+    if (goal is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (goal.Era?.Status == EraStatus.Archived)
+    {
+        return Conflict("Archived eras are read-only.");
+    }
+
+    var era = goal.Era!;
+    var weekIndex = GetCurrentWeekIndex(era);
+    if (weekIndex < 0 || weekIndex >= era.Weeks)
+    {
+        return Conflict("The era has no active week right now.");
+    }
+
+    if (request.WeekIndex != weekIndex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["weekIndex"] = [$"Weekly quests can only be completed for the current week ({weekIndex})."],
+        });
+    }
+
+    var weeklySet = await EnsureWeeklySetAsync(era.Id, weekIndex, database, cancellationToken);
+    var inSet = await database.WeeklySetItems
+        .AnyAsync(item => item.WeeklySetId == weeklySet.Id && item.WeeklyGoalId == goal.Id, cancellationToken);
+    if (!inSet)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["weeklyGoalId"] = ["Goal is not part of the current weekly set."],
+        });
+    }
+
+    var alreadyDone = await database.WeeklyCompletions
+        .AnyAsync(c => c.EraId == era.Id && c.WeekIndex == weekIndex && c.WeeklyGoalId == goal.Id, cancellationToken);
+    if (alreadyDone)
+    {
+        return await ApplyCompletionAsync(goal.Area!, 0, completed: true, era.XpPerLevel, database, cancellationToken);
+    }
+
+    database.WeeklyCompletions.Add(new WeeklyCompletion
+    {
+        Id = Guid.NewGuid(),
+        EraId = era.Id,
+        WeekIndex = weekIndex,
+        WeeklyGoalId = goal.Id,
+    });
+
+    return await ApplyCompletionAsync(goal.Area!, goal.Xp, completed: true, era.XpPerLevel, database, cancellationToken);
+}
+
+static async Task<IResult> UncompleteWeeklyQuestAsync(
+    Guid weeklyGoalId,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var goal = await database.WeeklyGoals
+        .Include(item => item.Era)
+        .Include(item => item.Area)
+        .FirstOrDefaultAsync(item => item.Id == weeklyGoalId, cancellationToken);
+    if (goal is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (goal.Era?.Status == EraStatus.Archived)
+    {
+        return Conflict("Archived eras are read-only.");
+    }
+
+    var era = goal.Era!;
+    var weekIndex = GetCurrentWeekIndex(era);
+    if (weekIndex < 0 || weekIndex >= era.Weeks)
+    {
+        return Conflict("The era has no active week right now.");
+    }
+
+    var completion = await database.WeeklyCompletions
+        .FirstOrDefaultAsync(c => c.EraId == era.Id && c.WeekIndex == weekIndex && c.WeeklyGoalId == goal.Id, cancellationToken);
+    if (completion is null)
+    {
+        return await ApplyCompletionAsync(goal.Area!, 0, completed: false, era.XpPerLevel, database, cancellationToken);
+    }
+
+    database.WeeklyCompletions.Remove(completion);
+    return await ApplyCompletionAsync(goal.Area!, -goal.Xp, completed: false, era.XpPerLevel, database, cancellationToken);
+}
+
+/// <summary>
+/// Applies an XP delta to an area (clamped to [0, level-50 cap]), recomputes its level,
+/// persists, and returns the completion outcome. This is the seam the world evolution
+/// engine (Wave 4) will hook to advance districts on <c>LevelChanged</c>.
+/// </summary>
+static async Task<IResult> ApplyCompletionAsync(
+    Area area,
+    int xpDelta,
+    bool completed,
+    int xpPerLevel,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
+{
+    var progress = await database.AreaProgresses
+        .FirstOrDefaultAsync(item => item.AreaId == area.Id, cancellationToken);
+    if (progress is null)
+    {
+        return Results.Problem(
+            title: "Missing area progress",
+            detail: "The area has no progression row; the era may be in an inconsistent state.",
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+
+    var previousLevel = progress.Level;
+    progress.Xp = Math.Clamp(progress.Xp + xpDelta, 0, Leveling.XpCap(xpPerLevel));
+    progress.Level = Leveling.LevelForXp(progress.Xp, xpPerLevel);
+
+    await database.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new QuestCompletionResponse(
+        area.Id,
+        area.Name,
+        completed,
+        xpDelta,
+        progress.Xp,
+        progress.Level,
+        previousLevel,
+        progress.Level != previousLevel));
+}
+
+static async Task<IResult> GetProgressionSummaryAsync(BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var era = await database.Eras
+        .AsNoTracking()
+        .Include(item => item.Areas)
+        .FirstOrDefaultAsync(item => item.Status == EraStatus.Active, cancellationToken);
+    if (era is null)
+    {
+        return Results.NotFound();
+    }
+
+    var progressByArea = await database.AreaProgresses
+        .AsNoTracking()
+        .Where(progress => progress.EraId == era.Id)
+        .ToDictionaryAsync(progress => progress.AreaId, cancellationToken);
+
+    var areas = era.Areas
+        .OrderBy(area => area.Order)
+        .Select(area => ToAreaProgressResponse(area, progressByArea.GetValueOrDefault(area.Id), era.XpPerLevel))
+        .ToList();
+
+    var globalLevel = areas.Count == 0 ? 0d : areas.Average(area => area.Level);
+
+    return Results.Ok(new ProgressionSummaryResponse(era.Id, era.Name, globalLevel, Leveling.MaxLevel, areas));
+}
+
+static async Task<IResult> GetAreaProgressionAsync(Guid areaId, BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var area = await database.Areas
+        .AsNoTracking()
+        .Include(item => item.Era)
+        .FirstOrDefaultAsync(item => item.Id == areaId, cancellationToken);
+    if (area is null)
+    {
+        return Results.NotFound();
+    }
+
+    var progress = await database.AreaProgresses
+        .AsNoTracking()
+        .FirstOrDefaultAsync(item => item.AreaId == areaId, cancellationToken);
+
+    return Results.Ok(ToAreaProgressResponse(area, progress, area.Era?.XpPerLevel ?? 100));
+}
+
+static AreaProgressResponse ToAreaProgressResponse(Area area, AreaProgress? progress, int xpPerLevel)
+{
+    var xp = progress?.Xp ?? 0;
+    var level = progress?.Level ?? Leveling.LevelForXp(xp, xpPerLevel);
+
+    return new AreaProgressResponse(
+        area.Id,
+        area.Name,
+        area.Order,
+        level,
+        xp,
+        xpPerLevel,
+        Leveling.XpIntoLevel(xp, xpPerLevel),
+        Leveling.XpForNextLevel(xp, xpPerLevel),
+        Leveling.MaxLevel,
+        level >= Leveling.MaxLevel);
+}
+
 static IQueryable<Era> LoadEraDetailQuery(BelfalasDbContext database) =>
     database.Eras
         .Include(era => era.Areas)
@@ -698,6 +1025,11 @@ static IResult? ValidateCreateEraRequest(CreateEraRequest request)
     if (request.Weeks <= 0)
     {
         errors["weeks"] = ["Weeks must be positive."];
+    }
+
+    if (request.XpPerLevel <= 0)
+    {
+        errors["xpPerLevel"] = ["XP per level must be positive."];
     }
 
     if (string.IsNullOrWhiteSpace(request.TemplateId))
@@ -798,10 +1130,12 @@ static async Task<IResult?> ValidateEditableAreaAsync(
 
 static int GetCurrentWeekIndex(Era era)
 {
-    var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, GetMadridTimeZone()).Date);
-    var elapsedDays = today.DayNumber - era.StartDate.DayNumber;
+    var elapsedDays = GetMadridToday().DayNumber - era.StartDate.DayNumber;
     return elapsedDays < 0 ? -1 : elapsedDays / 7;
 }
+
+static DateOnly GetMadridToday() =>
+    DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, GetMadridTimeZone()).Date);
 
 static TimeZoneInfo GetMadridTimeZone()
 {
@@ -858,7 +1192,7 @@ static async Task<string> BuildArchiveSnapshotAsync(Era era, BelfalasDbContext d
 }
 
 static EraSummaryResponse ToEraSummary(Era era) =>
-    new(era.Id, era.Name, era.StartDate, era.Weeks, era.Status.ToString(), era.WorldTemplateId);
+    new(era.Id, era.Name, era.StartDate, era.Weeks, era.Status.ToString(), era.WorldTemplateId, era.XpPerLevel);
 
 static EraDetailResponse ToEraDetail(Era era) =>
     new(
@@ -868,6 +1202,7 @@ static EraDetailResponse ToEraDetail(Era era) =>
         era.Weeks,
         era.Status.ToString(),
         era.WorldTemplateId,
+        era.XpPerLevel,
         era.Areas.OrderBy(area => area.Order).Select(ToAreaResponse).ToList(),
         era.DailyHabits.OrderBy(habit => habit.Area?.Order).ThenBy(habit => habit.Label).Select(ToDailyHabitResponse).ToList(),
         era.WeeklyGoals.OrderBy(goal => goal.Area?.Order).ThenBy(goal => goal.Label).Select(ToWeeklyGoalResponse).ToList());
@@ -883,3 +1218,6 @@ static WeeklyGoalResponse ToWeeklyGoalResponse(WeeklyGoal goal) =>
 
 static IResult Conflict(string detail) =>
     Results.Problem(title: "Conflict", detail: detail, statusCode: StatusCodes.Status409Conflict);
+
+/// <summary>Exposed so integration tests can host the API via <c>WebApplicationFactory</c>.</summary>
+public partial class Program;
