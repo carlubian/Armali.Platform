@@ -2,7 +2,7 @@
 
 > Wave-based delivery plan, mirroring the rest of Armali.Platform. Each wave is a
 > shippable, verifiable increment. Decisions backing this plan live in
-> [REQUIREMENTS.md](REQUIREMENTS.md). Last updated: 2026-06-27.
+> [REQUIREMENTS.md](REQUIREMENTS.md). Last updated: 2026-06-28.
 
 ## Guiding constraints
 
@@ -54,8 +54,45 @@ Stand up the skeleton both ends can build against.
 
 ## Wave 6 — World rendering (frontend)
 
-- PixiJS isometric canvas: render built plots + variants + denizens.
-- RTS camera (pan XY, optional zoom). Denizens re-placed randomly per open.
+Turn the authored world-template model into a navigable PixiJS scene. v1 ships one
+complete template (`tropical-v1`) and a repeatable asset/template contract for future
+themes.
+
+### Wave 6.1 — Rendering & template contract
+
+- Specify isometric coordinate conversion, tile size, camera bounds, anchors, z-order
+  rules, and the asset naming/loading contract.
+- Formalise the distinction between **building plots** (persisted once built) and
+  **denizen sockets** (runtime-only placement positions).
+- Define category contracts: expected footprint, anchor point, compatible sprite
+  variants, optional sorting offset, and whether the category supports denizens.
+
+### Wave 6.2 — Tropical template assets
+
+- Replace placeholder `tropical-v1` content with a fixed tile-based base map authored
+  for the template; Belfalas does not expose a user-facing map editor in v1.
+- Author district plot/socket coordinates over the base map, with categories assigned
+  to each plot and denizen socket.
+- Create or integrate the minimal tropical asset set: terrain tiles, building/flora/
+  landmark variants, denizens, shadows, and atlas metadata.
+
+### Wave 6.3 — PixiJS world canvas
+
+- Render the base tile map, district layers, built plots, and persisted sprite variants.
+- Add RTS-style camera panning and optional zoom with sensible bounds.
+- Keep rendering theme-agnostic: no hardcoded tropical assumptions in the renderer.
+
+### Wave 6.4 — Denizen placement
+
+- Place denizens randomly when the world opens, using compatible sockets from the
+  template; persist identity/count only, not position.
+- Ensure denizens layer correctly against terrain and buildings.
+
+### Wave 6.5 — Scalability pass
+
+- Document how to add another world template from authored map data and assets.
+- Validate that fantasy, sci-fi, magic, or other future templates can reuse the same
+  engine contract without backend or renderer redesign.
 
 ## Wave 7 — Admin panel (frontend)
 

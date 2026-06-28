@@ -2,7 +2,7 @@
 
 > **Status:** v1 design complete. All four sections agreed through the design
 > discussion; remaining items are explicit "open/deferred" notes within each section.
-> Delivery plan in [ROADMAP.md](ROADMAP.md). Last updated: 2026-06-27.
+> Delivery plan in [ROADMAP.md](ROADMAP.md). Last updated: 2026-06-28.
 
 ## Summary
 
@@ -97,14 +97,19 @@ Era (≈1 year, 50 weeks)
 
 ### 2.1 Rendering
 
-- **2D isometric, sprite-based.** Tilesets where each plot **category** maps to a set of
-  fitting sprite **variants**. Target libraries: **PixiJS** (WebGL 2D, many sprites +
-  pan/zoom) or Phaser. (Frontend integration decided in the Architecture block.)
+- **2D isometric, sprite-based.** Each world template ships a fixed tile-based base
+  map plus layered sprites for built plots and denizens.
+- Tilesets and sprite atlases are authored per template/theme. Each plot **category**
+  maps to a set of fitting sprite **variants** with compatible footprint, scale, and
+  anchor metadata.
+- Target rendering library: **PixiJS** (WebGL 2D, many sprites + pan/zoom).
 
 ### 2.2 World layout
 
 - A single contiguous isometric map divided into **districts — one district per area of
   focus**, so progress per area is readable at a glance.
+- The base terrain/map is authored once per world template and is deterministic across
+  app opens; Belfalas v1 does **not** expose a user-facing map editor.
 - Each area level (0→50) corresponds to **one evolution stage** in its district; level 50
   = district fully evolved.
 - A district's stage may be a **building**, a **denizen**, or an **upgrade**; the exact
@@ -115,21 +120,34 @@ Era (≈1 year, 50 weeks)
 - A **catalogue of themed templates** (tropical, fantasy, sci-fi, …); **each era
   instances one**, reinforcing the fresh start between eras. v1 may ship with a single
   template, with the catalogue as the extension point.
-- A template defines: the district layout, the plots (with categories) per district, the
-  sprite variants per category, and the ordered evolution sequence per district.
+- A template is authored content, not procedural generation in v1. A repeated template
+  can still produce different era worlds because plot/variant choices are selected
+  semi-randomly and persisted per era.
+- A template defines: the base tile map, the district layout, building plots (with
+  categories) per district, denizen sockets, sprite variants per category, category
+  metadata, and the ordered evolution sequence per district.
+- The template/asset contract must be repeatable so new themes (fantasy, sci-fi,
+  magic, tropical variants, etc.) can be added as content work rather than renderer
+  redesign.
 
 ### 2.4 Buildings & plots
 
+- **Plots are authored sockets on top of the base map.** Each plot has a position,
+  district, category, footprint/size expectation, and sprite anchor/sorting metadata.
 - **Organic semi-random growth:** each building stage picks a free plot **adjacent to an
   already-built one**; the sprite **variant is drawn at random and then persisted** for
   the era. Gives a natural growth feel.
-- Built plots and their chosen variants are persisted for the whole era.
+- Built plots and their chosen variants are persisted for the whole era. Variants in
+  the same category should be visually interchangeable enough to fit the plot.
 
 ### 2.5 Denizens
 
 - **Random socket system:** only **count and identity** are persisted (e.g. 3 blue, 2
   yellow, 5 cats), never position or action — they re-place randomly each time the world
   is opened.
+- Denizen sockets are distinct from building plots. They may be authored at district,
+  terrain, or plot-adjacent positions, and each socket declares which denizen categories
+  can appear there.
 - Simple animation (moving between spots, emotes) is a **future** enhancement, not v1.
 
 ### 2.6 Camera & interaction
@@ -212,7 +230,8 @@ framework.
 - `DailyHabit` (id, eraId, areaId, label, xp)
 - `WeeklyGoal` (id, eraId, areaId, label, xp)  ← pool
 - `WorldTemplate` (id, theme) → `District` (per area slot), `Plot` (category, position/
-  adjacency), `VariantSet` (category → variants), `EvolutionSequence` (per district:
+  adjacency), authored base-map/asset metadata, `DenizenSocket` (runtime placement
+  coordinates), `VariantSet` (category → variants), `EvolutionSequence` (per district:
   ordered stage types building|denizen|upgrade)
 
 **Era runtime state**
