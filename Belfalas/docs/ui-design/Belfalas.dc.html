@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/colors.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/typography.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/effects.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/base.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/styles.css">
+<script src="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/_ds_bundle.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{height:100%;margin:0;background:var(--bone-100);}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:rgba(124,110,86,0.22);border-radius:999px;border:2px solid transparent;background-clip:content-box;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  @keyframes belf-pop{0%{transform:scale(0.6);opacity:0;}60%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;}}
+  @keyframes belf-rise{0%{transform:translateY(14px);opacity:0;}100%{transform:translateY(0);opacity:1;}}
+  @keyframes belf-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  @keyframes belf-marker{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-5px) scale(1.04);}}
+  @keyframes belf-ring-pulse{0%{box-shadow:0 0 0 0 rgba(22,166,166,0.45);}70%{box-shadow:0 0 0 16px rgba(22,166,166,0);}100%{box-shadow:0 0 0 0 rgba(22,166,166,0);}}
+  @keyframes belf-confetti{0%{transform:translateY(0) rotate(0);opacity:1;}100%{transform:translateY(220px) rotate(420deg);opacity:0;}}
+  @keyframes belf-sheen{0%{background-position:-160% 0;}100%{background-position:160% 0;}}
+  @keyframes belf-spark{0%{transform:scale(0);opacity:0;}40%{opacity:1;}100%{transform:scale(2.4);opacity:0;}}
+</style>
+</helmet>
+
+<div style="height:100vh;width:100%;display:flex;font-family:var(--font-body);color:var(--text-primary);background:var(--bone-100);overflow:hidden;">
+
+  <!-- ===== Left rail ===== -->
+  <nav style="width:84px;flex:0 0 84px;background:linear-gradient(180deg,#FCF8F0,#F6EFE1);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:10px;z-index:20;">
+    <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(150deg,var(--aqua-400),var(--aqua-600));display:flex;align-items:center;justify-content:center;box-shadow:var(--glow-aqua);margin-bottom:14px;">
+      <i data-lucide="waves" style="width:24px;height:24px;color:#fff;"></i>
+    </div>
+    <sc-for list="{{ navItems }}" as="nav" hint-placeholder-count="4">
+      <button onClick="{{ nav.go }}" title="{{ nav.label }}" style="{{ nav.btnStyle }}">
+        <i data-lucide="{{ nav.icon }}" style="width:21px;height:21px;"></i>
+        <span style="font-family:var(--font-display);font-size:10px;letter-spacing:0.02em;">{{ nav.label }}</span>
+      </button>
+    </sc-for>
+    <div style="flex:1;"></div>
+    <div title="Lina Marò" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(140deg,var(--gold-300),var(--gold-500));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:600;box-shadow:var(--glow-soft);">LM</div>
+  </nav>
+
+  <!-- ===== Main column ===== -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative;">
+
+    <!-- Top bar -->
+    <header style="height:68px;flex:0 0 68px;display:flex;align-items:center;gap:18px;padding:0 26px;border-bottom:1px solid var(--border-subtle);background:rgba(253,251,246,0.86);backdrop-filter:var(--blur-glass);z-index:10;">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span class="armali-eyebrow" style="font-size:10px;">{{ screenEyebrow }}</span>
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <h1 style="font-size:21px;">{{ screenTitle }}</h1>
+          <span style="font-size:13px;color:var(--text-muted);font-weight:600;">{{ screenSub }}</span>
+        </div>
+      </div>
+      <div style="flex:1;"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:999px;background:var(--bone-200);border:1px solid var(--border-subtle);">
+        <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--text-secondary);"></i>
+        <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Week {{ week }} of {{ weeks }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px;padding:6px 16px 6px 6px;border-radius:999px;background:linear-gradient(120deg,var(--aqua-50),var(--gold-50));border:1px solid var(--border-default);box-shadow:var(--glow-soft);">
+        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(140deg,var(--aqua-400),var(--aqua-600));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:600;font-size:17px;box-shadow:var(--glow-aqua);">{{ globalLevel }}</div>
+        <div style="display:flex;flex-direction:column;line-height:1.1;">
+          <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">Global level</span>
+          <span style="font-size:11px;color:var(--text-muted);">average of 4 districts</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Screen container -->
+    <div style="flex:1;min-height:0;position:relative;">
+
+      <!-- ================= HOME ================= -->
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute;inset:0;display:flex;">
+
+        <!-- World stage -->
+        <section style="flex:1;min-width:0;position:relative;overflow:hidden;background:#BfE0DA;">
+          <div style="position:absolute;inset:0;background-image:url('assets/world-tideturn.png');background-size:cover;background-position:42% 44%;filter:{{ worldFilter }};transition:filter .4s var(--ease-out);"></div>
+          <div style="position:absolute;inset:0;{{ worldOverlay }}"></div>
+
+          <!-- iso grid lines (schematic style) -->
+          <sc-if value="{{ worldGrid }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(115deg,rgba(58,124,165,0.16) 1px,transparent 1px),linear-gradient(65deg,rgba(58,124,165,0.16) 1px,transparent 1px);background-size:54px 54px;mix-blend-mode:multiply;"></div>
+          </sc-if>
+
+          <!-- Floating districts panel -->
+          <div style="position:absolute;top:22px;left:22px;width:298px;padding:18px;border-radius:var(--radius-card);background:var(--surface-card);backdrop-filter:var(--blur-glass);border:1px solid var(--border-glass);box-shadow:var(--glow-card);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <span class="armali-eyebrow" style="font-size:10px;">Districts</span>
+              <span style="font-size:11px;color:var(--text-muted);font-weight:600;">level / 50</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ areas }}" as="a" hint-placeholder-count="4">
+                <button onClick="{{ a.open }}" style="display:flex;align-items:center;gap:12px;padding:9px 10px;border:1px solid transparent;border-radius:14px;background:transparent;cursor:pointer;text-align:left;transition:all .18s var(--ease-out);" style-hover="background:var(--surface-frost);border-color:var(--border-subtle);">
+
+                  <!-- RINGS -->
+                  <sc-if value="{{ a.isRings }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:relative;width:44px;height:44px;flex:0 0 44px;">
+                      <svg width="44" height="44" viewBox="0 0 44 44" style="transform:rotate(-90deg);">
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(124,110,86,0.16)" stroke-width="5"></circle>
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="{{ a.hex }}" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ a.ringC }}" stroke-dashoffset="{{ a.ringOffset }}" style="transition:stroke-dashoffset .5s var(--ease-out);"></circle>
+                      </svg>
+                      <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:14px;color:{{ a.hex }};">{{ a.level }}</span>
+                    </div>
+                  </sc-if>
+                  <!-- BARS / PIPS share a left swatch -->
+                  <sc-if value="{{ a.isBars }}" hint-placeholder-val="{{ false }}">
+                    <div style="width:38px;height:38px;flex:0 0 38px;border-radius:11px;background:{{ a.soft }};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:15px;color:{{ a.hex }};">{{ a.level }}</div>
+                  </sc-if>
+                  <sc-if value="{{ a.isPips }}" hint-placeholder-val="{{ false }}">
+                    <div style="width:38px;height:38px;flex:0 0 38px;border-radius:11px;background:{{ a.soft }};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:15px;color:{{ a.hex }};">{{ a.level }}</div>
+                  </sc-if>
+
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <span style="font-family:var(--font-display);font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.district }}</span>
+                      <span style="font-size:10px;color:var(--text-muted);font-weight:600;white-space:nowrap;">{{ a.area }}</span>
+                    </div>
+                    <!-- BARS line -->
+                    <sc-if value="{{ a.isBars }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:6px;height:6px;border-radius:999px;background:rgba(124,110,86,0.16);overflow:hidden;">
+                        <div style="height:100%;border-radius:999px;background:{{ a.hex }};width:{{ a.barPct }};transition:width .5s var(--ease-out);"></div>
+                      </div>
+                    </sc-if>
+                    <!-- PIPS line -->
+                    <sc-if value="{{ a.isPips }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:7px;display:flex;gap:1.5px;">
+                        <sc-for list="{{ a.pips }}" as="p" hint-placeholder-count="50">
+                          <div style="flex:1;height:9px;border-radius:2px;background:{{ p.fill }};"></div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                    <!-- RINGS caption -->
+                    <sc-if value="{{ a.isRings }}" hint-placeholder-val="{{ true }}">
+                      <div style="margin-top:3px;font-size:11px;color:var(--text-muted);">{{ a.xpInto }} / 100 XP to next</div>
+                    </sc-if>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- world caption bottom-left -->
+          <div style="position:absolute;left:24px;bottom:22px;display:flex;align-items:center;gap:10px;padding:9px 15px;border-radius:999px;background:var(--surface-overlay);backdrop-filter:var(--blur-chip);border:1px solid var(--border-glass);box-shadow:var(--glow-soft);">
+            <span style="width:9px;height:9px;border-radius:50%;background:var(--sea-500);box-shadow:0 0 0 0 rgba(81,155,121,0.5);animation:belf-ring-pulse 2.6s var(--ease-out) infinite;"></span>
+            <span style="font-size:12.5px;font-weight:600;color:var(--text-secondary);">Tideturn — a tropical era, growing as you go</span>
+          </div>
+
+          <!-- zoom controls bottom-right -->
+          <div style="position:absolute;right:22px;bottom:22px;display:flex;flex-direction:column;gap:8px;">
+            <button title="Zoom in" style="width:42px;height:42px;border-radius:13px;border:1px solid var(--border-glass);background:var(--surface-overlay);backdrop-filter:var(--blur-chip);box-shadow:var(--glow-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="box-shadow:var(--glow-aqua);"><i data-lucide="plus" style="width:18px;height:18px;color:var(--text-secondary);"></i></button>
+            <button title="Zoom out" style="width:42px;height:42px;border-radius:13px;border:1px solid var(--border-glass);background:var(--surface-overlay);backdrop-filter:var(--blur-chip);box-shadow:var(--glow-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="box-shadow:var(--glow-aqua);"><i data-lucide="minus" style="width:18px;height:18px;color:var(--text-secondary);"></i></button>
+            <button title="Recenter" style="width:42px;height:42px;border-radius:13px;border:1px solid var(--border-glass);background:var(--surface-overlay);backdrop-filter:var(--blur-chip);box-shadow:var(--glow-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="box-shadow:var(--glow-aqua);"><i data-lucide="locate-fixed" style="width:18px;height:18px;color:var(--text-secondary);"></i></button>
+          </div>
+        </section>
+
+        <!-- Quest rail -->
+        <aside style="width:400px;flex:0 0 400px;background:var(--surface-card-solid);border-left:1px solid var(--border-subtle);display:flex;flex-direction:column;min-height:0;">
+          <div style="padding:22px 22px 14px;border-bottom:1px solid var(--border-subtle);">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <h2 style="font-size:20px;">This week's quests</h2>
+              <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--aqua-100);color:var(--aqua-700);font-family:var(--font-display);font-weight:600;font-size:12px;">{{ doneCount }} / {{ totalCount }} done</span>
+            </div>
+            <p style="margin-top:6px;font-size:13px;color:var(--text-secondary);">A light, mixed list. Finish enough — not everything — for about one level in each district.</p>
+            <div style="margin-top:12px;height:8px;border-radius:999px;background:var(--bone-200);overflow:hidden;">
+              <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,var(--aqua-500),var(--gold-400));width:{{ overallPct }};transition:width .5s var(--ease-out);"></div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-height:0;overflow-y:auto;padding:18px 18px 26px;">
+            <!-- DAILY -->
+            <div style="display:flex;align-items:center;gap:9px;margin:2px 4px 10px;">
+              <i data-lucide="sunrise" style="width:17px;height:17px;color:var(--gold-500);"></i>
+              <span class="armali-eyebrow" style="font-size:10px;">Daily habits</span>
+              <span style="font-size:11px;color:var(--text-muted);">resets tonight · Madrid</span>
+              <div style="flex:1;"></div>
+              <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--gold-600);"><i data-lucide="flame" style="width:14px;height:14px;"></i>{{ streak }}d</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ dailyQuests }}" as="q" hint-placeholder-count="5">
+                <button onClick="{{ q.toggle }}" style="{{ q.rowStyle }}" style-hover="border-color:var(--border-default);box-shadow:var(--glow-soft);">
+                  <span style="{{ q.checkStyle }}"><i data-lucide="check" style="width:15px;height:15px;color:#fff;opacity:{{ q.checkOpacity }};stroke-width:3.5;"></i></span>
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:600;text-align:left;color:{{ q.labelColor }};text-decoration:{{ q.strike }};">{{ q.label }}</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;">
+                    <span style="width:8px;height:8px;border-radius:3px;background:{{ q.hex }};"></span>
+                    <span style="font-family:var(--font-display);font-weight:600;font-size:12px;color:var(--text-secondary);">+{{ q.xp }}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+
+            <!-- WEEKLY -->
+            <div style="display:flex;align-items:center;gap:9px;margin:22px 4px 10px;">
+              <i data-lucide="target" style="width:17px;height:17px;color:var(--azure-500);"></i>
+              <span class="armali-eyebrow" style="font-size:10px;">Weekly goals</span>
+              <span style="font-size:11px;color:var(--text-muted);">larger · once each</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ weeklyQuests }}" as="q" hint-placeholder-count="4">
+                <button onClick="{{ q.toggle }}" style="{{ q.rowStyleW }}" style-hover="border-color:var(--border-default);box-shadow:var(--glow-soft);">
+                  <span style="{{ q.checkStyle }}"><i data-lucide="check" style="width:15px;height:15px;color:#fff;opacity:{{ q.checkOpacity }};stroke-width:3.5;"></i></span>
+                  <span style="flex:1;min-width:0;text-align:left;">
+                    <span style="display:block;font-size:14px;font-weight:600;color:{{ q.labelColor }};text-decoration:{{ q.strike }};">{{ q.label }}</span>
+                    <span style="display:block;margin-top:2px;font-size:11.5px;color:var(--text-muted);">{{ q.areaLabel }}</span>
+                  </span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;padding:4px 9px;border-radius:999px;background:{{ q.soft }};">
+                    <span style="font-family:var(--font-display);font-weight:600;font-size:12px;color:{{ q.hex }};">+{{ q.xp }} XP</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="padding:14px 20px;border-top:1px solid var(--border-subtle);background:var(--bone-50);display:flex;align-items:center;gap:11px;">
+            <i data-lucide="shield-check" style="width:18px;height:18px;color:var(--sea-500);flex:0 0 auto;"></i>
+            <span style="font-size:12.5px;color:var(--text-secondary);">No streak penalties — XP you don't earn is simply not gained. Weekly goals help you catch up.</span>
+          </div>
+        </aside>
+      </div>
+      </sc-if>
+
+      <!-- ================= AREA DETAIL ================= -->
+      <sc-if value="{{ isArea }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;overflow-y:auto;background:linear-gradient(180deg,var(--bone-100),var(--bone-200));">
+        <div style="max-width:1080px;margin:0 auto;padding:22px 30px 64px;">
+
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+            <button onClick="{{ sel.backHome }}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid var(--border-subtle);background:var(--surface-card-solid);cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:13px;color:var(--text-secondary);" style-hover="box-shadow:var(--glow-soft);">
+              <i data-lucide="arrow-left" style="width:15px;height:15px;"></i>World
+            </button>
+            <div style="width:1px;height:22px;background:var(--border-default);"></div>
+            <sc-for list="{{ areaTabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.go }}" style="{{ t.chipStyle }}"><span style="width:8px;height:8px;border-radius:3px;background:{{ t.hex }};"></span>{{ t.district }} · {{ t.level }}</button>
+            </sc-for>
+          </div>
+
+          <!-- hero -->
+          <div style="display:flex;gap:28px;padding:28px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-card);align-items:center;flex-wrap:wrap;">
+            <div style="position:relative;width:132px;height:132px;flex:0 0 132px;">
+              <svg width="132" height="132" viewBox="0 0 132 132" style="transform:rotate(-90deg);">
+                <circle cx="66" cy="66" r="52" fill="none" stroke="rgba(124,110,86,0.16)" stroke-width="9"></circle>
+                <circle cx="66" cy="66" r="52" fill="none" stroke="{{ sel.hex }}" stroke-width="9" stroke-linecap="round" stroke-dasharray="{{ sel.bigRingC }}" stroke-dashoffset="{{ sel.bigRingOffset }}" style="transition:stroke-dashoffset .5s var(--ease-out);"></circle>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <span style="font-family:var(--font-display);font-weight:600;font-size:42px;line-height:1;color:{{ sel.hex }};">{{ sel.level }}</span>
+                <span class="armali-eyebrow" style="font-size:9px;margin-top:2px;">of 50</span>
+              </div>
+            </div>
+            <div style="flex:1;min-width:260px;">
+              <span class="armali-eyebrow" style="font-size:10px;">District · {{ sel.area }}</span>
+              <h1 style="font-size:32px;margin-top:4px;">{{ sel.district }}</h1>
+              <p style="margin-top:6px;font-size:14.5px;color:var(--text-secondary);">{{ sel.tagline }}</p>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:12px;background:{{ sel.soft }};">
+                  <span style="font-size:12px;color:var(--text-muted);">Now</span>
+                  <span style="font-family:var(--font-display);font-weight:600;font-size:14px;color:{{ sel.hex }};">{{ sel.stageNow }}</span>
+                </div>
+                <i data-lucide="arrow-right" style="width:16px;height:16px;color:var(--text-muted);"></i>
+                <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:12px;background:var(--bone-100);border:1px dashed var(--border-default);">
+                  <span style="font-size:12px;color:var(--text-muted);">At Lv {{ sel.nextAt }}</span>
+                  <span style="font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--text-secondary);">{{ sel.stageNext }}</span>
+                </div>
+              </div>
+              <div style="margin-top:16px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:5px;"><span>Progress to level {{ sel.nextAt }}</span><span>{{ sel.xpInto }} / 100 XP</span></div>
+                <div style="height:9px;border-radius:999px;background:var(--bone-200);overflow:hidden;"><div style="height:100%;border-radius:999px;background:{{ sel.hex }};width:{{ sel.barPct }};transition:width .5s var(--ease-out);"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- evolution timeline -->
+          <div style="margin-top:18px;padding:24px 30px 64px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="armali-eyebrow" style="font-size:10px;">Evolution sequence</span>
+              <span style="font-size:12px;color:var(--text-muted);">each level is one stage · 0 → 50</span>
+            </div>
+            <div style="position:relative;height:8px;margin:40px 14px 0;border-radius:999px;background:var(--bone-200);">
+              <div style="position:absolute;left:0;top:0;height:100%;border-radius:999px;background:linear-gradient(90deg,{{ sel.hex }},{{ sel.hex }});width:{{ sel.timelinePct }};transition:width .5s var(--ease-out);"></div>
+              <sc-for list="{{ sel.milestones }}" as="m" hint-placeholder-count="6">
+                <div style="{{ m.dotStyle }}"></div>
+                <div style="{{ m.labelStyle }}">
+                  <i data-lucide="{{ m.icon }}" style="width:14px;height:14px;color:{{ m.labelColor }};"></i>
+                  <div style="font-family:var(--font-display);font-weight:600;font-size:11.5px;line-height:1.2;margin-top:3px;color:{{ m.labelColor }};">{{ m.label }}</div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">Lv {{ m.level }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- bottom grid -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;">
+            <div style="padding:22px 24px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+              <span class="armali-eyebrow" style="font-size:10px;">Who & what is here</span>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px;">
+                <span style="font-family:var(--font-display);font-weight:600;font-size:30px;color:{{ sel.hex }};">{{ sel.builtCount }}</span>
+                <span style="font-size:14px;color:var(--text-secondary);">{{ sel.builtNoun }} built of ~50 plots</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;">
+                <sc-for list="{{ sel.denizens }}" as="d" hint-placeholder-count="3">
+                  <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:{{ d.soft }};">
+                    <i data-lucide="{{ d.icon }}" style="width:14px;height:14px;color:{{ d.hex }};"></i>
+                    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;color:{{ d.hex }};">{{ d.count }}</span>
+                    <span style="font-size:12.5px;color:var(--text-secondary);">{{ d.label }}</span>
+                  </span>
+                </sc-for>
+              </div>
+              <p style="margin-top:16px;font-size:12.5px;color:var(--text-muted);line-height:1.5;">Buildings keep their spot for the whole era. Denizens are counted, not placed — they wander to new spots each time you open the world.</p>
+            </div>
+
+            <div style="padding:22px 24px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+              <span class="armali-eyebrow" style="font-size:10px;">This district's quests</span>
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:12px;">
+                <sc-for list="{{ areaQuests }}" as="q" hint-placeholder-count="3">
+                  <button onClick="{{ q.toggle }}" style="{{ q.rowStyle }}" style-hover="border-color:var(--border-default);box-shadow:var(--glow-soft);">
+                    <span style="{{ q.checkStyle }}"><i data-lucide="check" style="width:15px;height:15px;color:#fff;opacity:{{ q.checkOpacity }};stroke-width:3.5;"></i></span>
+                    <span style="flex:1;min-width:0;text-align:left;font-size:14px;font-weight:600;color:{{ q.labelColor }};text-decoration:{{ q.strike }};">{{ q.label }}</span>
+                    <span style="font-family:var(--font-display);font-weight:600;font-size:12px;color:{{ q.hex }};">+{{ q.xp }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ================= ADMIN ================= -->
+      <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;overflow-y:auto;background:linear-gradient(180deg,var(--bone-100),var(--bone-200));">
+        <div style="max-width:980px;margin:0 auto;padding:24px 30px 64px;">
+
+          <div style="display:flex;gap:10px;margin-bottom:22px;">
+            <sc-for list="{{ adminTabs }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.go }}" style="{{ t.tabStyle }}"><i data-lucide="{{ t.icon }}" style="width:16px;height:16px;"></i>{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <!-- WIZARD -->
+          <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:28px 32px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-card);">
+            <span class="armali-eyebrow" style="font-size:10px;">New era</span>
+            <h2 style="font-size:24px;margin-top:4px;">Create an era</h2>
+            <p style="margin-top:5px;font-size:13.5px;color:var(--text-secondary);">A guided setup — name the era, choose your areas of focus, pick a world, then design the quests.</p>
+
+            <div style="display:flex;align-items:center;gap:6px;margin:26px 0 24px;">
+              <sc-for list="{{ stepVals }}" as="s" hint-placeholder-count="4">
+                <sc-if value="{{ s.idx }}" hint-placeholder-val="{{ true }}"><div style="{{ s.lineStyle }}"></div></sc-if>
+                <button onClick="{{ s.go }}" style="display:flex;align-items:center;gap:9px;flex:0 0 auto;background:none;border:none;cursor:pointer;padding:0;">
+                  <span style="{{ s.dotStyle }}">{{ s.n }}</span>
+                  <span style="font-family:var(--font-display);font-weight:600;font-size:13px;color:{{ s.labelColor }};white-space:nowrap;">{{ s.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="min-height:240px;">
+              <!-- step 0 -->
+              <sc-if value="{{ isStep0 }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:18px;max-width:520px;">
+                  <div><div class="armali-eyebrow" style="font-size:10px;margin-bottom:6px;">Era name</div><div style="padding:12px 15px;border-radius:12px;border:1px solid var(--border-default);background:var(--bone-50);font-size:15px;font-weight:600;">Tideturn</div></div>
+                  <div style="display:flex;gap:14px;">
+                    <div style="flex:1;"><div class="armali-eyebrow" style="font-size:10px;margin-bottom:6px;">Start date</div><div style="padding:12px 15px;border-radius:12px;border:1px solid var(--border-default);background:var(--bone-50);font-size:15px;color:var(--text-secondary);">29 Jun 2026</div></div>
+                    <div style="width:140px;"><div class="armali-eyebrow" style="font-size:10px;margin-bottom:6px;">Length</div><div style="padding:12px 15px;border-radius:12px;border:1px solid var(--border-default);background:var(--bone-50);font-size:15px;color:var(--text-secondary);">50 weeks</div></div>
+                  </div>
+                  <p style="font-size:12.5px;color:var(--text-muted);">An era runs about a working year — holidays excluded. It ends with an explicit archive step.</p>
+                </div>
+              </sc-if>
+              <!-- step 1 -->
+              <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ false }}">
+                <div style="max-width:560px;">
+                  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">Each area becomes one district of the world. Typical range is 2–4 — equal importance.</p>
+                  <div style="display:flex;flex-direction:column;gap:10px;">
+                    <sc-for list="{{ areaTabs }}" as="t" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--border-subtle);background:var(--bone-50);">
+                        <span style="width:26px;height:26px;border-radius:8px;background:{{ t.soft }};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:13px;color:{{ t.hex2 }};">{{ t.order }}</span>
+                        <span style="flex:1;font-size:14.5px;font-weight:600;">{{ t.area }}</span>
+                        <span style="font-size:12.5px;color:var(--text-muted);">{{ t.district }}</span>
+                        <i data-lucide="grip-vertical" style="width:16px;height:16px;color:var(--text-muted);"></i>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <button style="margin-top:12px;display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:12px;border:1px dashed var(--border-default);background:transparent;cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:13px;color:var(--text-secondary);"><i data-lucide="plus" style="width:15px;height:15px;"></i>Add area</button>
+                </div>
+              </sc-if>
+              <!-- step 2 -->
+              <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">Each era instances one themed world. v1 ships the tropical template; more are the extension point.</p>
+                  <div style="display:flex;gap:14px;">
+                    <sc-for list="{{ templates }}" as="tp" hint-placeholder-count="3">
+                      <div style="{{ tp.cardStyle }}">
+                        <div style="height:70px;border-radius:12px;background:linear-gradient(140deg,{{ tp.hue }},var(--bone-100));margin-bottom:12px;"></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                          <span style="font-family:var(--font-display);font-weight:600;font-size:15px;">{{ tp.name }}</span>
+                          <sc-if value="{{ tp.sel }}" hint-placeholder-val="{{ false }}"><i data-lucide="check-circle-2" style="width:18px;height:18px;color:var(--aqua-600);"></i></sc-if>
+                        </div>
+                        <p style="margin-top:4px;font-size:12px;color:var(--text-muted);">{{ tp.desc }}</p>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <!-- step 3 -->
+              <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+                <div style="max-width:560px;">
+                  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Daily habits are a fixed list. Weekly goals are a pool the system draws from each week — with manual override. The XP mix is calibrated so each area can gain about one level a week.</p>
+                  <div style="display:flex;gap:14px;">
+                    <div style="flex:1;padding:18px;border-radius:14px;background:var(--gold-50);border:1px solid var(--border-subtle);">
+                      <i data-lucide="sunrise" style="width:18px;height:18px;color:var(--gold-500);"></i>
+                      <div style="font-family:var(--font-display);font-weight:600;font-size:26px;margin-top:8px;">5</div>
+                      <div style="font-size:13px;color:var(--text-secondary);">daily habits</div>
+                    </div>
+                    <div style="flex:1;padding:18px;border-radius:14px;background:var(--azure-50);border:1px solid var(--border-subtle);">
+                      <i data-lucide="target" style="width:18px;height:18px;color:var(--azure-500);"></i>
+                      <div style="font-family:var(--font-display);font-weight:600;font-size:26px;margin-top:8px;">4</div>
+                      <div style="font-size:13px;color:var(--text-secondary);">weekly goals in the pool</div>
+                    </div>
+                  </div>
+                  <p style="margin-top:14px;font-size:12.5px;color:var(--text-muted);">You can fine-tune every item and its XP in Quest authoring after the era is created.</p>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:20px;border-top:1px solid var(--border-subtle);">
+              <button onClick="{{ wizBack }}" style="padding:11px 18px;border-radius:12px;border:1px solid var(--border-default);background:var(--surface-card-solid);font-family:var(--font-display);font-weight:600;font-size:14px;cursor:pointer;color:var(--text-secondary);">Back</button>
+              <sc-if value="{{ wizIsLast }}" hint-placeholder-val="{{ false }}">
+                <button style="padding:11px 22px;border-radius:12px;border:none;background:linear-gradient(120deg,var(--sea-500),var(--sea-600));color:#fff;font-family:var(--font-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:var(--glow-sea);"><i data-lucide="check" style="width:15px;height:15px;vertical-align:-2px;margin-right:5px;"></i>Create era</button>
+              </sc-if>
+              <sc-if value="{{ wizNotLast }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ wizNext }}" style="padding:11px 22px;border-radius:12px;border:none;background:linear-gradient(120deg,var(--aqua-500),var(--aqua-600));color:#fff;font-family:var(--font-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:var(--glow-aqua);">Continue</button>
+              </sc-if>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- AUTHORING -->
+          <sc-if value="{{ isAuthoring }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+              <div style="padding:22px 24px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><i data-lucide="sunrise" style="width:17px;height:17px;color:var(--gold-500);"></i><span class="armali-eyebrow" style="font-size:10px;">Daily habits · fixed list</span></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ dailyRows }}" as="q" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:var(--bone-50);border:1px solid var(--border-subtle);">
+                      <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ q.label }}</span>
+                      <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{ q.soft }};"><span style="width:7px;height:7px;border-radius:2px;background:{{ q.hex }};"></span><span style="font-size:11px;font-weight:600;color:{{ q.hex }};">{{ q.area }}</span></span>
+                      <span style="font-family:var(--font-display);font-weight:600;font-size:12.5px;color:var(--text-secondary);width:42px;text-align:right;">{{ q.xp }} XP</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="padding:22px 24px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><i data-lucide="target" style="width:17px;height:17px;color:var(--azure-500);"></i><span class="armali-eyebrow" style="font-size:10px;">Weekly goals · pool</span></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ weeklyRows }}" as="q" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;background:var(--bone-50);border:1px solid var(--border-subtle);">
+                      <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ q.label }}</span>
+                      <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{ q.soft }};"><span style="width:7px;height:7px;border-radius:2px;background:{{ q.hex }};"></span><span style="font-size:11px;font-weight:600;color:{{ q.hex }};">{{ q.area }}</span></span>
+                      <span style="font-family:var(--font-display);font-weight:600;font-size:12.5px;color:var(--text-secondary);width:42px;text-align:right;">{{ q.xp }} XP</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="padding:24px 26px;border-radius:var(--radius-card);background:var(--surface-card-solid);border:1px solid var(--border-subtle);box-shadow:var(--glow-soft);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span class="armali-eyebrow" style="font-size:10px;">Per-area calibration</span>
+                <span style="font-size:12px;color:var(--text-muted);">obtainable XP per week vs. ~100 (one level)</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:16px;margin-top:14px;">
+                <sc-for list="{{ calibration }}" as="c" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:16px;">
+                    <div style="width:150px;flex:0 0 150px;">
+                      <div style="font-family:var(--font-display);font-weight:600;font-size:14px;">{{ c.area }}</div>
+                      <div style="font-size:11.5px;color:var(--text-muted);">{{ c.dailyXp }}/day · {{ c.weeklyXp }} weekly</div>
+                    </div>
+                    <div style="flex:1;position:relative;height:12px;border-radius:999px;background:var(--bone-200);">
+                      <div style="{{ c.barStyle }}"></div>
+                      <div style="position:absolute;top:-5px;bottom:-5px;left:62.5%;width:2px;background:var(--ink-400);border-radius:2px;"></div>
+                    </div>
+                    <div style="width:140px;flex:0 0 140px;display:flex;align-items:center;justify-content:flex-end;gap:8px;">
+                      <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">{{ c.obtainable }} XP</span>
+                      <span style="font-size:11px;font-weight:600;color:{{ c.statusHex }};">{{ c.status }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <p style="margin-top:16px;font-size:12.5px;color:var(--text-muted);line-height:1.5;">The dashed marker sits at ~100 XP — one level. Every area can clear it by finishing a subset of the week, so no one can outrun about one level per week, and a slow week is recoverable with weekly goals.</p>
+            </div>
+          </div>
+          </sc-if>
+
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <!-- ================= CELEBRATION ================= -->
+  <sc-if value="{{ celebration }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ celebBackdropStyle }}" onClick="{{ closeCeleb }}">
+      <div onClick="{{ stop }}" style="{{ celebCardStyle }}">
+        <sc-if value="{{ celebConfetti }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;">
+            <sc-for list="{{ confetti }}" as="c" hint-placeholder-count="14">
+              <span style="{{ c.style }}"></span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="position:relative;width:96px;height:96px;margin:0 auto 4px;">
+          <span style="position:absolute;inset:-8px;border-radius:50%;background:{{ celebSoft }};animation:belf-spark 1.6s var(--ease-out) infinite;"></span>
+          <div style="position:relative;width:96px;height:96px;border-radius:50%;background:linear-gradient(140deg,{{ celebHex }},{{ celebHex2 }});display:flex;align-items:center;justify-content:center;box-shadow:{{ celebGlow }};">
+            <span style="font-family:var(--font-display);font-weight:600;font-size:40px;color:#fff;">{{ celebLevel }}</span>
+          </div>
+        </div>
+        <div class="armali-eyebrow" style="text-align:center;color:{{ celebHex }};">Level up</div>
+        <h2 style="text-align:center;font-size:27px;margin-top:6px;">{{ celebDistrict }} grew</h2>
+        <p style="text-align:center;margin-top:8px;font-size:14.5px;color:var(--text-secondary);max-width:340px;margin-left:auto;margin-right:auto;">{{ celebMessage }}</p>
+        <div style="margin-top:18px;display:flex;justify-content:center;gap:10px;">
+          <button onClick="{{ celebVisit }}" style="padding:11px 20px;border-radius:12px;border:1px solid var(--border-default);background:var(--surface-card-solid);font-family:var(--font-display);font-weight:600;font-size:14px;cursor:pointer;color:var(--text-primary);" style-hover="box-shadow:var(--glow-soft);">Visit district</button>
+          <button onClick="{{ closeCeleb }}" style="padding:11px 22px;border-radius:12px;border:none;background:linear-gradient(120deg,{{ celebHex }},{{ celebHex2 }});color:#fff;font-family:var(--font-display);font-weight:600;font-size:14px;cursor:pointer;box-shadow:{{ celebGlow }};" style-hover="filter:brightness(1.05);">Keep going</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;xpStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;rings&quot;,&quot;bars&quot;,&quot;pips&quot;],&quot;default&quot;:&quot;rings&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Belfalas&quot;,&quot;label&quot;:&quot;XP &amp; level style&quot;},&quot;worldStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;painterly&quot;,&quot;map&quot;,&quot;grid&quot;],&quot;default&quot;:&quot;painterly&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Belfalas&quot;,&quot;label&quot;:&quot;World placeholder style&quot;},&quot;celebration&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;gentle&quot;,&quot;banner&quot;,&quot;burst&quot;],&quot;default&quot;:&quot;burst&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Belfalas&quot;,&quot;label&quot;:&quot;Level-up moment&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const XPL = 100;
+    // base xp = level*100 + intoStart (BEFORE this week's completions)
+    const areaDefs = [
+      { id:'harbour', area:'Work',      district:'The Harbour',      hex:'#3A7CA5', hex2:'#2D6588', soft:'#DCEAF2', glow:'var(--glow-azure)', level:14, into:34, stage:'Counting house', next:'Lighthouse' },
+      { id:'springs', area:'Wellbeing', district:'Tidewell Springs', hex:'#519B79', hex2:'#3F7A62', soft:'#DEEFE4', glow:'var(--glow-sea)',   level:11, into:50, stage:'Bathhouse',      next:'Garden terrace' },
+      { id:'plaza',   area:'Social',    district:'Sunmarket Plaza',  hex:'#DBA63E', hex2:'#C58E2C', soft:'#F8ECCD', glow:'var(--glow-gold)',  level:9,  into:18, stage:'Market stalls',  next:'Fountain square' },
+      { id:'cove',    area:'Craft',     district:"Maker's Cove",     hex:'#16A6A6', hex2:'#0E8E92', soft:'#D8F0EC', glow:'var(--glow-aqua)',  level:16, into:68, stage:'Workshop row',   next:'Glassblower' },
+    ];
+    const baseXp = {};
+    areaDefs.forEach(a => baseXp[a.id] = a.level*XPL + a.into);
+    this.areaDefs = areaDefs;
+    this.baseXp = baseXp;
+    this.XPL = XPL;
+
+    this.areaExtra = {
+      harbour: {
+        builtNoun:'quays', tagline:'Trade, focus and the work that ships.',
+        milestones:[ {level:5,label:'Fishing pier',kind:'building'},{level:12,label:'Counting house',kind:'building'},{level:18,label:'Lighthouse',kind:'upgrade'},{level:28,label:'Customs hall',kind:'building'},{level:38,label:'Harbourmaster',kind:'denizen'},{level:50,label:'Grand harbour',kind:'upgrade'} ],
+        denizens:[ {count:4,label:'dockhands',icon:'user-round'},{count:2,label:'harbour cats',icon:'cat'},{count:3,label:'gulls',icon:'bird'} ],
+      },
+      springs: {
+        builtNoun:'terraces', tagline:'Rest, movement and looking after yourself.',
+        milestones:[ {level:5,label:'Spring well',kind:'building'},{level:11,label:'Bathhouse',kind:'building'},{level:20,label:'Garden terrace',kind:'upgrade'},{level:30,label:'Herbalist',kind:'denizen'},{level:40,label:'Quiet grove',kind:'upgrade'},{level:50,label:'Healing gardens',kind:'upgrade'} ],
+        denizens:[ {count:5,label:'bathers',icon:'user-round'},{count:3,label:'herons',icon:'bird'},{count:2,label:'deer',icon:'rabbit'} ],
+      },
+      plaza: {
+        builtNoun:'squares', tagline:'Friends, gatherings and the people around you.',
+        milestones:[ {level:4,label:'Market stalls',kind:'building'},{level:10,label:'Fountain square',kind:'upgrade'},{level:18,label:'Tavern',kind:'building'},{level:28,label:'Bandstand',kind:'building'},{level:38,label:'Festival ground',kind:'upgrade'},{level:50,label:'Grand plaza',kind:'upgrade'} ],
+        denizens:[ {count:8,label:'townsfolk',icon:'user-round'},{count:4,label:'musicians',icon:'music'},{count:2,label:'dogs',icon:'dog'} ],
+      },
+      cove: {
+        builtNoun:'workshops', tagline:'Side projects, making and learning by hand.',
+        milestones:[ {level:5,label:'Workbench',kind:'building'},{level:12,label:'Workshop row',kind:'building'},{level:20,label:'Glassblower',kind:'building'},{level:30,label:'Forge',kind:'building'},{level:40,label:"Inventor's loft",kind:'upgrade'},{level:50,label:"Maker's guild",kind:'upgrade'} ],
+        denizens:[ {count:3,label:'makers',icon:'user-round'},{count:2,label:'apprentices',icon:'user-round'},{count:4,label:'cats',icon:'cat'} ],
+      },
+    };
+
+    const daily = [
+      { id:'d1', label:'Clear your inbox to zero',     areaId:'harbour', xp:8,  done:true  },
+      { id:'d2', label:'Take a 20-minute walk',        areaId:'springs', xp:10, done:true  },
+      { id:'d3', label:'Reach out to a friend',        areaId:'plaza',   xp:8,  done:false },
+      { id:'d4', label:'30 minutes on a side project', areaId:'cove',    xp:12, done:false },
+      { id:'d5', label:'Plan tomorrow in three lines', areaId:'harbour', xp:6,  done:false },
+    ];
+    const weekly = [
+      { id:'w1', label:'Ship the Q3 planning doc',  areaId:'harbour', xp:60, done:false },
+      { id:'w2', label:'Cook three real meals',     areaId:'springs', xp:45, done:false },
+      { id:'w3', label:'Host a catch-up dinner',    areaId:'plaza',   xp:50, done:false },
+      { id:'w4', label:'Publish a devlog post',     areaId:'cove',    xp:55, done:false },
+    ];
+    this.state = {
+      screen:'home',
+      selectedArea:'harbour',
+      adminTab:'wizard',
+      wizardStep:0,
+      daily, weekly,
+      celebration:null,
+    };
+  }
+
+  areaById(id){ return this.areaDefs.find(a=>a.id===id); }
+
+  // total current xp for an area = base + completed actions in that area
+  curXp(areaId){
+    let xp = this.baseXp[areaId];
+    [...this.state.daily, ...this.state.weekly].forEach(q=>{ if(q.areaId===areaId && q.done) xp += q.xp; });
+    return xp;
+  }
+  levelOf(areaId){ return Math.floor(this.curXp(areaId)/this.XPL); }
+  intoOf(areaId){ return this.curXp(areaId)%this.XPL; }
+
+  toggle(list, id){
+    const before = {};
+    this.areaDefs.forEach(a=>before[a.id]=this.levelOf(a.id));
+    const arr = this.state[list].map(q=> q.id===id ? {...q, done:!q.done} : q);
+    this.setState({ [list]: arr }, ()=>{
+      // detect level up
+      for(const a of this.areaDefs){
+        const after = this.levelOf(a.id);
+        if(after > before[a.id]){
+          this.fireCeleb(a.id, after);
+          break;
+        }
+      }
+      this.refreshIcons();
+    });
+  }
+
+  fireCeleb(areaId, level){
+    const a = this.areaById(areaId);
+    this.setState({ celebration: { areaId, level, district:a.district, stage:a.next } });
+  }
+
+  setScreen(s, area){
+    this.setState({ screen:s, selectedArea: area || this.state.selectedArea }, ()=>this.refreshIcons());
+  }
+
+  refreshIcons(){
+    if(window.lucide) setTimeout(()=>{ try{ window.lucide.createIcons(); }catch(e){} }, 30);
+  }
+  componentDidMount(){ this.refreshIcons(); }
+
+  renderVals(){
+    const st = this.state;
+    const xpStyle = this.props.xpStyle || 'rings';
+    const worldStyle = this.props.worldStyle || 'painterly';
+    const celebStyle = this.props.celebration || 'burst';
+    const C = 2*Math.PI*18;
+
+    const areas = this.areaDefs.map(a=>{
+      const level = this.levelOf(a.id);
+      const into = this.intoOf(a.id);
+      const pct = into/100;
+      const pips = Array.from({length:50}, (_,i)=>({ fill: i<level ? a.hex : 'rgba(124,110,86,0.16)' }));
+      return {
+        ...a, level, xpInto:into,
+        ringC: C.toFixed(1),
+        ringOffset: (C*(1-pct)).toFixed(1),
+        barPct: Math.round(pct*100)+'%',
+        pips,
+        isRings: xpStyle==='rings', isBars: xpStyle==='bars', isPips: xpStyle==='pips',
+        open: ()=>this.setScreen('area', a.id),
+      };
+    });
+
+    const globalLevel = Math.round(areas.reduce((s,a)=>s+a.level,0)/areas.length);
+
+    const mkQuest = (q, list) => {
+      const a = this.areaById(q.areaId);
+      const checkStyle = `display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:26px;height:26px;border-radius:9px;transition:all .2s var(--ease-spring);border:2px solid ${q.done?a.hex:'var(--border-strong)'};background:${q.done?a.hex:'transparent'};`;
+      const baseRow = `display:flex;align-items:center;gap:12px;width:100%;padding:12px 13px;border-radius:15px;border:1px solid var(--border-subtle);background:${q.done?a.soft:'var(--bone-50)'};cursor:pointer;transition:all .18s var(--ease-out);`;
+      return {
+        ...q, hex:a.hex, soft:a.soft, areaLabel:`${a.district} · ${a.area}`,
+        toggle: ()=>this.toggle(list, q.id),
+        checkStyle, checkOpacity: q.done?1:0,
+        labelColor: q.done?'var(--text-muted)':'var(--text-primary)',
+        strike: q.done?'line-through':'none',
+        rowStyle: baseRow, rowStyleW: baseRow,
+      };
+    };
+    const dailyQuests = st.daily.map(q=>mkQuest(q,'daily'));
+    const weeklyQuests = st.weekly.map(q=>mkQuest(q,'weekly'));
+    const all = [...st.daily, ...st.weekly];
+    const doneCount = all.filter(q=>q.done).length;
+    const totalCount = all.length;
+
+    // world style treatments
+    let worldFilter='none', worldOverlay='', worldGrid=false;
+    if(worldStyle==='painterly'){ worldOverlay='background:radial-gradient(120% 90% at 50% 30%,transparent 55%,rgba(74,99,94,0.18) 100%);'; }
+    if(worldStyle==='map'){ worldFilter='saturate(0.8) brightness(1.04)'; worldOverlay='background:linear-gradient(180deg,rgba(250,245,236,0.30),rgba(220,234,242,0.42));backdrop-filter:saturate(1.05);'; }
+    if(worldStyle==='grid'){ worldFilter='saturate(0.55) brightness(1.06) contrast(0.96)'; worldOverlay='background:linear-gradient(180deg,rgba(236,243,248,0.46),rgba(220,234,242,0.5));'; worldGrid=true; }
+
+    // celebration presentation
+    let celeb=null, celebBackdropStyle='', celebCardStyle='', confetti=[], celebConfetti=false;
+    if(st.celebration){
+      const a=this.areaById(st.celebration.areaId);
+      const base='position:fixed;inset:0;z-index:60;display:flex;';
+      if(celebStyle==='gentle'){
+        celebBackdropStyle=base+'align-items:flex-end;justify-content:flex-end;padding:26px;background:transparent;pointer-events:none;';
+        celebCardStyle='pointer-events:auto;position:relative;width:380px;padding:24px;border-radius:var(--radius-xl);background:var(--surface-card-solid);border:1px solid var(--border-glass);box-shadow:var(--glow-card);';
+      } else if(celebStyle==='banner'){
+        celebBackdropStyle=base+'align-items:flex-start;justify-content:center;padding-top:84px;background:rgba(44,40,35,0.18);';
+        celebCardStyle='position:relative;width:min(620px,86%);padding:26px 30px;border-radius:var(--radius-xl);background:var(--surface-card-solid);border:1px solid var(--border-glass);box-shadow:var(--glow-card),'+'0 18px 60px -22px '+a.hex+'66;';
+      } else {
+        celebBackdropStyle=base+'align-items:center;justify-content:center;background:rgba(44,40,35,0.34);backdrop-filter:blur(3px);';
+        celebCardStyle='position:relative;width:min(440px,90%);padding:32px 30px;border-radius:var(--radius-2xl);background:var(--surface-card-solid);border:1px solid var(--border-glass);box-shadow:var(--glow-card);overflow:hidden;';
+        celebConfetti=true;
+        const cols=[a.hex,a.hex2,'#DBA63E','#16A6A6','#E9A98F'];
+        confetti=Array.from({length:16},(_,i)=>({ style:`position:absolute;top:-12px;left:${6+i*6}%;width:8px;height:12px;border-radius:2px;background:${cols[i%cols.length]};animation:belf-confetti ${1.4+ (i%5)*0.22}s var(--ease-out) ${ (i%4)*0.1 }s forwards;` }));
+      }
+      celeb={ ...st.celebration };
+    }
+
+    // ----- selected area detail -----
+    const selBase = this.areaById(st.selectedArea);
+    const selA = areas.find(a=>a.id===st.selectedArea);
+    const ex = this.areaExtra[st.selectedArea];
+    const kindIcon = { building:'home', denizen:'users-round', upgrade:'sparkles' };
+    const milestones = ex.milestones.map(m=>({
+      ...m,
+      reached: selA.level >= m.level,
+      current: selA.level >= m.level && selA.level < (ex.milestones.find(x=>x.level>m.level)||{level:51}).level,
+      icon: kindIcon[m.kind],
+      leftPct: (m.level/50*100)+'%',
+      dotStyle: `position:absolute;top:50%;left:${m.level/50*100}%;transform:translate(-50%,-50%);width:${selA.level>=m.level?'18px':'14px'};height:${selA.level>=m.level?'18px':'14px'};border-radius:50%;border:3px solid var(--surface-card-solid);background:${selA.level>=m.level?selBase.hex:'rgba(124,110,86,0.30)'};box-shadow:${selA.level>=m.level?selBase.glow:'none'};z-index:2;`,
+      labelStyle: `position:absolute;top:26px;left:${m.level/50*100}%;transform:translateX(-50%);width:96px;text-align:center;`,
+      labelColor: selA.level>=m.level ? 'var(--text-primary)' : 'var(--text-muted)',
+    }));
+    const allQ = [...dailyQuests, ...weeklyQuests];
+    const areaQuests = allQ.filter(q=>q.areaId===st.selectedArea);
+    const sel = {
+      ...selA, ...ex,
+      tagline: ex.tagline,
+      builtCount: selA.level,
+      milestones,
+      denizens: ex.denizens.map(d=>({...d, hex:selBase.hex, soft:selBase.soft})),
+      timelinePct: (selA.level/50*100)+'%',
+      stageNow: (ex.milestones.filter(m=>m.level<=selA.level).slice(-1)[0]||{label:'Founding plot'}).label,
+      stageNext: (ex.milestones.find(m=>m.level>selA.level)||{label:'Flourishing'}).label,
+      nextAt: (ex.milestones.find(m=>m.level>selA.level)||{level:50}).level,
+      bigRingC: (2*Math.PI*52).toFixed(1),
+      bigRingOffset: (2*Math.PI*52*(1-selA.xpInto/100)).toFixed(1),
+      backHome: ()=>this.setScreen('home'),
+    };
+    const areaTabs = this.areaDefs.map((a,i)=>({
+      ...a, order:i+1, level:this.levelOf(a.id), active:a.id===st.selectedArea,
+      go:()=>this.setScreen('area', a.id),
+      chipStyle:`display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:13px;border:1px solid ${a.id===st.selectedArea?'transparent':'var(--border-subtle)'};background:${a.id===st.selectedArea?a.soft:'var(--bone-50)'};color:${a.id===st.selectedArea?a.hex2:'var(--text-secondary)'};`,
+    }));
+
+    // ----- admin -----
+    const admin = this.adminVals();
+
+    return {
+      // chrome
+      navItems: this.navItemsVals(),
+      week:24, weeks:50, globalLevel,
+      screenEyebrow: st.screen==='home'?'Your world':(st.screen==='area'?'District':'Admin'),
+      screenTitle: st.screen==='home'?'Tideturn · Year I':(st.screen==='area'? (selA?selA.district:'') :'Era studio'),
+      screenSub: st.screen==='home'?'Belfalas':(st.screen==='area'? (selA?selA.area:'') :'configure & calibrate'),
+      isHome: st.screen==='home',
+      isArea: st.screen==='area',
+      isAdmin: st.screen==='admin',
+      // home
+      areas, dailyQuests, weeklyQuests, doneCount, totalCount,
+      overallPct: Math.round(doneCount/totalCount*100)+'%',
+      streak:6,
+      worldFilter, worldOverlay, worldGrid,
+      // area detail
+      sel, areaTabs, areaQuests,
+      // admin
+      ...admin,
+      // celebration
+      celebration: celeb,
+      celebBackdropStyle, celebCardStyle, confetti, celebConfetti,
+      celebLevel: celeb?celeb.level:'',
+      celebDistrict: celeb?celeb.district:'',
+      celebHex: celeb?this.areaById(celeb.areaId).hex:'#16A6A6',
+      celebHex2: celeb?this.areaById(celeb.areaId).hex2:'#0E8E92',
+      celebSoft: celeb?this.areaById(celeb.areaId).soft:'#D8F0EC',
+      celebGlow: celeb?this.areaById(celeb.areaId).glow:'var(--glow-aqua)',
+      celebMessage: celeb?`A new ${celeb.stage} rose in the district. You're now level ${celeb.level} here — about one level's worth of progress this week.`:'',
+      closeCeleb: ()=>this.setState({celebration:null}),
+      celebVisit: ()=>{ const id=this.state.celebration.areaId; this.setState({celebration:null}); this.setScreen('area', id); },
+      stop: (e)=>{ e.stopPropagation(); },
+    };
+  }
+
+  adminVals(){
+    const st = this.state;
+    const tabs = [ {id:'wizard',label:'Era wizard',icon:'wand-2'},{id:'quests',label:'Quest authoring',icon:'list-checks'} ];
+    const adminTabs = tabs.map(t=>({ ...t, active:st.adminTab===t.id, go:()=>this.setState({adminTab:t.id},()=>this.refreshIcons()),
+      tabStyle:`display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:12px;cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:14px;border:1px solid ${st.adminTab===t.id?'transparent':'var(--border-subtle)'};background:${st.adminTab===t.id?'var(--aqua-100)':'transparent'};color:${st.adminTab===t.id?'var(--aqua-700)':'var(--text-secondary)'};` }));
+
+    const steps = [ {label:'Name & dates',icon:'calendar'},{label:'Areas of focus',icon:'layout-grid'},{label:'World template',icon:'map'},{label:'Quests',icon:'list-checks'} ];
+    const stepVals = steps.map((s,i)=>({ ...s, idx:i, n:i+1, done:i<st.wizardStep, current:i===st.wizardStep,
+      go:()=>this.setState({wizardStep:i},()=>this.refreshIcons()),
+      dotStyle:`display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;font-family:var(--font-display);font-weight:600;font-size:14px;flex:0 0 auto;${i<st.wizardStep?'background:var(--sea-500);color:#fff;':(i===st.wizardStep?'background:var(--aqua-500);color:#fff;box-shadow:var(--glow-aqua);':'background:var(--bone-200);color:var(--text-muted);')}`,
+      labelColor: i<=st.wizardStep ? 'var(--text-primary)':'var(--text-muted)',
+      lineStyle:`flex:1;height:2px;border-radius:2px;background:${i<st.wizardStep?'var(--sea-400)':'var(--sand-300)'};` }));
+
+    const templates = [
+      {id:'tropical',name:'Tropical coast',desc:'Harbours, palms and reef towns',hue:'var(--aqua-400)',sel:true},
+      {id:'fantasy',name:'Fantasy vale',desc:'Keeps, glades and old stone',hue:'var(--sea-400)',sel:false},
+      {id:'sci',name:'Sci-fi reef',desc:'Domes, rails and solar farms',hue:'var(--azure-400)',sel:false},
+    ].map(t=>({ ...t, cardStyle:`flex:1;padding:16px;border-radius:var(--radius-lg);cursor:pointer;border:2px solid ${t.sel?'var(--aqua-500)':'var(--border-subtle)'};background:${t.sel?'var(--aqua-50)':'var(--bone-50)'};` }));
+
+    const setStep = (n)=>this.setState({wizardStep:Math.max(0,Math.min(3,n))},()=>this.refreshIcons());
+
+    // quest authoring + calibration
+    const mk = (q,kind)=>{ const a=this.areaById(q.areaId); return {...q,kind,area:a.area,district:a.district,hex:a.hex,soft:a.soft}; };
+    const dailyRows = st.daily.map(q=>mk(q,'daily'));
+    const weeklyRows = st.weekly.map(q=>mk(q,'weekly'));
+    const calibration = this.areaDefs.map(a=>{
+      const dailyXp = st.daily.filter(q=>q.areaId===a.id).reduce((s,q)=>s+q.xp,0);
+      const weeklyXp = st.weekly.filter(q=>q.areaId===a.id).reduce((s,q)=>s+q.xp,0);
+      const obtainable = dailyXp*7 + weeklyXp;
+      const pct = Math.min(100, Math.round(obtainable/100*100));
+      return { ...a, dailyXp, weeklyXp, obtainable, ok:obtainable>=100,
+        barStyle:`height:100%;border-radius:999px;background:${a.hex};width:${Math.min(160, obtainable)/160*100}%;`,
+        statusHex: obtainable>=100 ? 'var(--sea-600)':'var(--gold-600)',
+        status: obtainable>=100 ? 'Calibrated' : 'Under target' };
+    });
+
+    return {
+      adminTabs, isWizard:st.adminTab==='wizard', isAuthoring:st.adminTab==='quests',
+      stepVals, wizardStep:st.wizardStep,
+      isStep0:st.wizardStep===0, isStep1:st.wizardStep===1, isStep2:st.wizardStep===2, isStep3:st.wizardStep===3,
+      templates,
+      wizBack:()=>setStep(st.wizardStep-1),
+      wizNext:()=>setStep(st.wizardStep+1),
+      wizCanBack:st.wizardStep>0, wizIsLast:st.wizardStep===3, wizNotLast:st.wizardStep<3,
+      dailyRows, weeklyRows, calibration,
+    };
+  }
+
+  navItemsVals(){
+    const items=[
+      {id:'home', label:'World', icon:'globe-2'},
+      {id:'area', label:'Areas', icon:'layout-grid'},
+      {id:'history', label:'History', icon:'history'},
+      {id:'admin', label:'Admin', icon:'sliders-horizontal'},
+    ];
+    return items.map(it=>{
+      const active = (this.state.screen===it.id) || (it.id==='area' && this.state.screen==='area') || (it.id==='admin' && this.state.screen==='admin');
+      return { ...it,
+        go: ()=> this.setScreen(it.id==='area'?'area':(it.id==='history'?'home':it.id)),
+        btnStyle:`display:flex;flex-direction:column;align-items:center;gap:5px;width:64px;padding:9px 0;border-radius:14px;border:none;cursor:pointer;transition:all .18s var(--ease-out);${active?'background:var(--aqua-100);color:var(--aqua-700);':'background:transparent;color:var(--text-secondary);'}`,
+      };
+    });
+  }
+}
+</script>
+</body>
+</html>
