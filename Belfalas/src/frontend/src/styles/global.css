@@ -1,0 +1,200 @@
+/* ============================================================
+   Belfalas — app-level styles. The design-system tokens supply
+   every colour/typography/effect variable; this file holds the
+   app shell reset, scrollbars, motion keyframes from the mockup,
+   and the interactive states (hover/focus) that inline styles
+   cannot express.
+   ============================================================ */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bone-100);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+#root {
+  display: flex;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 110, 86, 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---- Motion keyframes (from the Belfalas mockup) ----------------------- */
+@keyframes belf-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes belf-rise {
+  0% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes belf-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 166, 166, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgba(22, 166, 166, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 166, 166, 0);
+  }
+}
+@keyframes belf-confetti {
+  0% {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(220px) rotate(420deg);
+    opacity: 0;
+  }
+}
+@keyframes belf-spark {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* ---- Interactive states ------------------------------------------------ */
+.belf-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 64px;
+  padding: 9px 0;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.18s var(--ease-out);
+}
+.belf-nav-btn:hover {
+  background: var(--surface-frost);
+  color: var(--text-primary);
+}
+.belf-nav-btn[data-active="true"] {
+  background: var(--aqua-100);
+  color: var(--aqua-700);
+}
+.belf-nav-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.belf-quest-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 13px;
+  border-radius: 15px;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s var(--ease-out);
+}
+.belf-quest-row:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--glow-soft);
+}
+.belf-quest-row:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.belf-card-btn {
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out);
+}
+.belf-card-btn:hover {
+  transform: translateY(-3px);
+}
+
+.belf-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out);
+}
+.belf-icon-btn:hover {
+  box-shadow: var(--glow-aqua);
+}
+
+.belf-pill-btn {
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out);
+}
+.belf-pill-btn:hover {
+  box-shadow: var(--glow-soft);
+}
+
+.belf-district-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.18s var(--ease-out);
+}
+.belf-district-row:hover {
+  background: var(--surface-frost);
+  border-color: var(--border-subtle);
+}
+
+.belf-rise {
+  animation: belf-rise 0.42s var(--ease-out) both;
+}
