@@ -1168,8 +1168,11 @@ static async Task<IResult> ListWorldTemplatesAsync(BelfalasDbContext database, C
 {
     var templates = await database.WorldTemplates
         .AsNoTracking()
+        .Include(template => template.CategoryContracts)
         .Include(template => template.Districts)
         .ThenInclude(district => district.Plots)
+        .Include(template => template.Districts)
+        .ThenInclude(district => district.DenizenSockets)
         .Include(template => template.Districts)
         .ThenInclude(district => district.EvolutionStages)
         .Include(template => template.Variants)
@@ -1257,6 +1260,20 @@ static WorldTemplateResponse ToWorldTemplateResponse(WorldTemplate template) =>
         template.Id,
         template.Theme,
         template.Name,
+        new WorldTemplateRenderContractResponse(
+            template.TileWidth,
+            template.TileHeight,
+            template.MapWidth,
+            template.MapHeight,
+            template.OriginX,
+            template.OriginY,
+            new WorldTemplateCameraBoundsResponse(
+                template.CameraMinX,
+                template.CameraMinY,
+                template.CameraMaxX,
+                template.CameraMaxY),
+            template.AssetBasePath,
+            template.AtlasKey),
         template.Districts
             .OrderBy(district => district.Slot)
             .Select(district => new WorldTemplateDistrictResponse(
@@ -1272,6 +1289,21 @@ static WorldTemplateResponse ToWorldTemplateResponse(WorldTemplate template) =>
                         plot.PositionX,
                         plot.PositionY))
                     .ToList(),
+                district.DenizenSockets
+                    .OrderBy(socket => socket.PositionY)
+                    .ThenBy(socket => socket.PositionX)
+                    .Select(socket => new WorldTemplateDenizenSocketResponse(
+                        socket.Id,
+                        socket.PositionX,
+                        socket.PositionY,
+                        socket.AnchorX,
+                        socket.AnchorY,
+                        socket.SortOffsetY,
+                        socket.CompatibleDenizenTypes
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .OrderBy(denizenType => denizenType)
+                            .ToList()))
+                    .ToList(),
                 district.EvolutionStages
                     .OrderBy(stage => stage.Order)
                     .Select(stage => new WorldTemplateEvolutionStageResponse(
@@ -1280,6 +1312,18 @@ static WorldTemplateResponse ToWorldTemplateResponse(WorldTemplate template) =>
                         stage.Kind.ToString(),
                         stage.DenizenType))
                     .ToList()))
+            .ToList(),
+        template.CategoryContracts
+            .OrderBy(contract => contract.Category)
+            .Select(contract => new WorldTemplateCategoryContractResponse(
+                contract.Id,
+                contract.Category,
+                contract.FootprintWidth,
+                contract.FootprintHeight,
+                contract.AnchorX,
+                contract.AnchorY,
+                contract.SortOffsetY,
+                contract.SupportsDenizens))
             .ToList(),
         template.Variants
             .OrderBy(variant => variant.Category)

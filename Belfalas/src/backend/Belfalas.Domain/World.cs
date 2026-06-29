@@ -21,7 +21,37 @@ public sealed class WorldTemplate
     public required string Theme { get; set; }
     public required string Name { get; set; }
 
+    /// <summary>Width in pixels of one authored isometric grid tile.</summary>
+    public int TileWidth { get; set; }
+
+    /// <summary>Height in pixels of one authored isometric grid tile.</summary>
+    public int TileHeight { get; set; }
+
+    /// <summary>Authored map width in isometric grid units.</summary>
+    public int MapWidth { get; set; }
+
+    /// <summary>Authored map height in isometric grid units.</summary>
+    public int MapHeight { get; set; }
+
+    /// <summary>Screen-space X origin for grid coordinate (0, 0).</summary>
+    public int OriginX { get; set; }
+
+    /// <summary>Screen-space Y origin for grid coordinate (0, 0).</summary>
+    public int OriginY { get; set; }
+
+    public int CameraMinX { get; set; }
+    public int CameraMinY { get; set; }
+    public int CameraMaxX { get; set; }
+    public int CameraMaxY { get; set; }
+
+    /// <summary>Frontend public asset directory for this template, without a trailing slash.</summary>
+    public required string AssetBasePath { get; set; }
+
+    /// <summary>Pixi atlas metadata key loaded from the asset base path.</summary>
+    public required string AtlasKey { get; set; }
+
     public ICollection<District> Districts { get; set; } = [];
+    public ICollection<CategoryContract> CategoryContracts { get; set; } = [];
     public ICollection<Variant> Variants { get; set; } = [];
 }
 
@@ -37,7 +67,28 @@ public sealed class District
 
     public WorldTemplate? WorldTemplate { get; set; }
     public ICollection<Plot> Plots { get; set; } = [];
+    public ICollection<DenizenSocket> DenizenSockets { get; set; } = [];
     public ICollection<EvolutionStage> EvolutionStages { get; set; } = [];
+}
+
+/// <summary>
+/// Rendering contract for a category of buildable plots. Variants in this category
+/// are expected to be interchangeable for footprint, anchor, and sorting purposes.
+/// </summary>
+public sealed class CategoryContract
+{
+    public Guid Id { get; set; }
+    public required string WorldTemplateId { get; set; }
+    public required string Category { get; set; }
+
+    public int FootprintWidth { get; set; }
+    public int FootprintHeight { get; set; }
+    public double AnchorX { get; set; }
+    public double AnchorY { get; set; }
+    public int SortOffsetY { get; set; }
+    public bool SupportsDenizens { get; set; }
+
+    public WorldTemplate? WorldTemplate { get; set; }
 }
 
 /// <summary>
@@ -52,6 +103,24 @@ public sealed class Plot
     public required string Category { get; set; }
     public int PositionX { get; set; }
     public int PositionY { get; set; }
+
+    public District? District { get; set; }
+}
+
+/// <summary>
+/// A runtime-only denizen placement position authored in the template. Denizen
+/// identity/count is persisted per era, but a concrete socket choice is not.
+/// </summary>
+public sealed class DenizenSocket
+{
+    public Guid Id { get; set; }
+    public Guid DistrictId { get; set; }
+    public int PositionX { get; set; }
+    public int PositionY { get; set; }
+    public double AnchorX { get; set; }
+    public double AnchorY { get; set; }
+    public int SortOffsetY { get; set; }
+    public required string CompatibleDenizenTypes { get; set; }
 
     public District? District { get; set; }
 }

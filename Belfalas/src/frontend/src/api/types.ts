@@ -142,6 +142,27 @@ export interface WorldTemplatePlot {
   positionY: number;
 }
 
+export interface WorldTemplateDenizenSocket {
+  denizenSocketId: string;
+  positionX: number;
+  positionY: number;
+  anchorX: number;
+  anchorY: number;
+  sortOffsetY: number;
+  compatibleDenizenTypes: string[];
+}
+
+export interface WorldTemplateCategoryContract {
+  categoryContractId: string;
+  category: string;
+  footprintWidth: number;
+  footprintHeight: number;
+  anchorX: number;
+  anchorY: number;
+  sortOffsetY: number;
+  supportsDenizens: boolean;
+}
+
 export interface WorldTemplateVariant {
   variantId: string;
   category: string;
@@ -160,13 +181,33 @@ export interface WorldTemplateDistrict {
   name: string;
   slot: number;
   plots: WorldTemplatePlot[];
+  denizenSockets: WorldTemplateDenizenSocket[];
   evolutionStages: WorldTemplateEvolutionStage[];
+}
+
+export interface WorldTemplateRenderContract {
+  tileWidth: number;
+  tileHeight: number;
+  mapWidth: number;
+  mapHeight: number;
+  originX: number;
+  originY: number;
+  cameraBounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
+  assetBasePath: string;
+  atlasKey: string;
 }
 
 export interface WorldTemplate {
   id: string;
   theme: string;
   name: string;
+  render: WorldTemplateRenderContract;
   districts: WorldTemplateDistrict[];
+  categories: WorldTemplateCategoryContract[];
   variants: WorldTemplateVariant[];
 }

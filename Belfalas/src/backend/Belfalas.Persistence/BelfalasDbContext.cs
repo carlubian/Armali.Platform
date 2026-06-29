@@ -15,7 +15,9 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
     // World template (reference data)
     public DbSet<WorldTemplate> WorldTemplates => Set<WorldTemplate>();
     public DbSet<District> Districts => Set<District>();
+    public DbSet<CategoryContract> CategoryContracts => Set<CategoryContract>();
     public DbSet<Plot> Plots => Set<Plot>();
+    public DbSet<DenizenSocket> DenizenSockets => Set<DenizenSocket>();
     public DbSet<Variant> Variants => Set<Variant>();
     public DbSet<EvolutionStage> EvolutionStages => Set<EvolutionStage>();
 
@@ -43,7 +45,9 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
 
         ConfigureWorldTemplate(modelBuilder.Entity<WorldTemplate>());
         ConfigureDistrict(modelBuilder.Entity<District>());
+        ConfigureCategoryContract(modelBuilder.Entity<CategoryContract>());
         ConfigurePlot(modelBuilder.Entity<Plot>());
+        ConfigureDenizenSocket(modelBuilder.Entity<DenizenSocket>());
         ConfigureVariant(modelBuilder.Entity<Variant>());
         ConfigureEvolutionStage(modelBuilder.Entity<EvolutionStage>());
 
@@ -136,6 +140,8 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
         builder.Property(template => template.Id).HasMaxLength(64);
         builder.Property(template => template.Theme).IsRequired();
         builder.Property(template => template.Name).IsRequired();
+        builder.Property(template => template.AssetBasePath).HasMaxLength(128).IsRequired();
+        builder.Property(template => template.AtlasKey).HasMaxLength(128).IsRequired();
     }
 
     private static void ConfigureDistrict(EntityTypeBuilder<District> builder)
@@ -153,6 +159,21 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
         builder.HasIndex(district => new { district.WorldTemplateId, district.Slot }).IsUnique();
     }
 
+    private static void ConfigureCategoryContract(EntityTypeBuilder<CategoryContract> builder)
+    {
+        builder.ToTable("category_contracts");
+        builder.HasKey(contract => contract.Id);
+        builder.Property(contract => contract.WorldTemplateId).HasMaxLength(64).IsRequired();
+        builder.Property(contract => contract.Category).HasMaxLength(64).IsRequired();
+
+        builder.HasOne(contract => contract.WorldTemplate)
+            .WithMany(template => template.CategoryContracts)
+            .HasForeignKey(contract => contract.WorldTemplateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(contract => new { contract.WorldTemplateId, contract.Category }).IsUnique();
+    }
+
     private static void ConfigurePlot(EntityTypeBuilder<Plot> builder)
     {
         builder.ToTable("plots");
@@ -165,6 +186,20 @@ public sealed class BelfalasDbContext(DbContextOptions<BelfalasDbContext> option
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(plot => new { plot.DistrictId, plot.PositionX, plot.PositionY }).IsUnique();
+    }
+
+    private static void ConfigureDenizenSocket(EntityTypeBuilder<DenizenSocket> builder)
+    {
+        builder.ToTable("denizen_sockets");
+        builder.HasKey(socket => socket.Id);
+        builder.Property(socket => socket.CompatibleDenizenTypes).HasMaxLength(200).IsRequired();
+
+        builder.HasOne(socket => socket.District)
+            .WithMany(district => district.DenizenSockets)
+            .HasForeignKey(socket => socket.DistrictId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(socket => new { socket.DistrictId, socket.PositionX, socket.PositionY });
     }
 
     private static void ConfigureVariant(EntityTypeBuilder<Variant> builder)

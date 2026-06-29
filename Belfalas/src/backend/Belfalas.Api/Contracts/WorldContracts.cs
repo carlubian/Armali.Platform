@@ -4,14 +4,34 @@ public sealed record WorldTemplateResponse(
     string Id,
     string Theme,
     string Name,
+    WorldTemplateRenderContractResponse Render,
     IReadOnlyList<WorldTemplateDistrictResponse> Districts,
+    IReadOnlyList<WorldTemplateCategoryContractResponse> Categories,
     IReadOnlyList<WorldTemplateVariantResponse> Variants);
+
+public sealed record WorldTemplateRenderContractResponse(
+    int TileWidth,
+    int TileHeight,
+    int MapWidth,
+    int MapHeight,
+    int OriginX,
+    int OriginY,
+    WorldTemplateCameraBoundsResponse CameraBounds,
+    string AssetBasePath,
+    string AtlasKey);
+
+public sealed record WorldTemplateCameraBoundsResponse(
+    int MinX,
+    int MinY,
+    int MaxX,
+    int MaxY);
 
 public sealed record WorldTemplateDistrictResponse(
     Guid DistrictId,
     string Name,
     int Slot,
     IReadOnlyList<WorldTemplatePlotResponse> Plots,
+    IReadOnlyList<WorldTemplateDenizenSocketResponse> DenizenSockets,
     IReadOnlyList<WorldTemplateEvolutionStageResponse> EvolutionStages);
 
 public sealed record WorldTemplatePlotResponse(
@@ -19,6 +39,25 @@ public sealed record WorldTemplatePlotResponse(
     string Category,
     int PositionX,
     int PositionY);
+
+public sealed record WorldTemplateDenizenSocketResponse(
+    Guid DenizenSocketId,
+    int PositionX,
+    int PositionY,
+    double AnchorX,
+    double AnchorY,
+    int SortOffsetY,
+    IReadOnlyList<string> CompatibleDenizenTypes);
+
+public sealed record WorldTemplateCategoryContractResponse(
+    Guid CategoryContractId,
+    string Category,
+    int FootprintWidth,
+    int FootprintHeight,
+    double AnchorX,
+    double AnchorY,
+    int SortOffsetY,
+    bool SupportsDenizens);
 
 public sealed record WorldTemplateVariantResponse(
     Guid VariantId,
