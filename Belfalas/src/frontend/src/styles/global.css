@@ -198,3 +198,102 @@ button {
 .belf-rise {
   animation: belf-rise 0.42s var(--ease-out) both;
 }
+
+/* ---- Admin form fields ------------------------------------------------- */
+.belf-input,
+.belf-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--border-default);
+  background: var(--bone-50);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out);
+}
+.belf-input::placeholder {
+  color: var(--text-disabled);
+}
+.belf-input:focus,
+.belf-select:focus {
+  outline: none;
+  border-color: var(--ring-focus);
+  box-shadow: 0 0 0 3px rgba(69, 188, 184, 0.22);
+}
+.belf-input:disabled,
+.belf-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.belf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: all 0.16s var(--ease-out);
+}
+.belf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.belf-btn-primary {
+  background: linear-gradient(140deg, var(--aqua-400), var(--aqua-600));
+  color: var(--text-on-accent);
+  box-shadow: var(--glow-soft);
+}
+.belf-btn-primary:not(:disabled):hover {
+  box-shadow: var(--glow-aqua);
+  transform: translateY(-1px);
+}
+.belf-btn-ghost {
+  background: var(--surface-card-solid);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+.belf-btn-ghost:not(:disabled):hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.belf-btn-danger {
+  background: var(--danger-soft);
+  border-color: transparent;
+  color: var(--danger-hover);
+}
+.belf-btn-danger:not(:disabled):hover {
+  background: var(--terracotta-500);
+  color: var(--text-on-accent);
+}
+
+.belf-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bone-50);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.16s var(--ease-out);
+}
+.belf-icon-action:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.belf-icon-action.is-danger:hover {
+  color: var(--danger-hover);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}

@@ -1,13 +1,20 @@
-import { SlidersHorizontal } from "lucide-react";
-import { EmptyState } from "../components/EmptyState";
+import { EraStudio } from "../components/admin/EraStudio";
+import { EraWizard } from "../components/admin/EraWizard";
+import { useEraData } from "../state/EraDataContext";
 
 export function AdminScreen() {
+  const { hasActiveEra } = useEraData();
+
   return (
-    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,var(--bone-100),var(--bone-200))" }}>
-      <EmptyState icon={SlidersHorizontal} title="The era studio is on its way">
-        Creating eras, authoring daily habits and weekly goals, and calibrating per-area XP arrive in a later wave.
-        For now you can manage content through the API.
-      </EmptyState>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflowY: "auto",
+        background: "linear-gradient(180deg,var(--bone-100),var(--bone-200))",
+      }}
+    >
+      {hasActiveEra ? <EraStudio /> : <EraWizard />}
     </div>
   );
 }

@@ -41,6 +41,62 @@ export interface EraDetail {
   weeklyGoals: WeeklyGoalResponse[];
 }
 
+export interface EraSummary {
+  id: string;
+  name: string;
+  startDate: string; // ISO date (yyyy-MM-dd)
+  weeks: number;
+  status: EraStatus;
+  templateId: string;
+  xpPerLevel: number;
+}
+
+// ---- Admin request payloads (mirror Belfalas.Api/Contracts/*.cs) ---------
+
+export interface CreateAreaDraft {
+  name: string;
+  order: number;
+}
+
+export interface CreateDailyHabitDraft {
+  areaOrder: number;
+  label: string;
+  xp: number;
+}
+
+export interface CreateWeeklyGoalDraft {
+  areaOrder: number;
+  label: string;
+  xp: number;
+}
+
+export interface CreateEraRequest {
+  name: string;
+  startDate: string; // yyyy-MM-dd
+  weeks: number;
+  templateId: string;
+  areas: CreateAreaDraft[];
+  dailyHabits?: CreateDailyHabitDraft[];
+  weeklyGoals?: CreateWeeklyGoalDraft[];
+  xpPerLevel: number;
+}
+
+export interface UpsertDailyHabit {
+  areaId: string;
+  label: string;
+  xp: number;
+}
+
+export interface UpsertWeeklyGoal {
+  areaId: string;
+  label: string;
+  xp: number;
+}
+
+export interface OverrideWeeklySet {
+  weeklyGoalIds: string[];
+}
+
 export interface DailyQuest {
   dailyHabitId: string;
   areaId: string;

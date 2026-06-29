@@ -61,6 +61,8 @@ interface EraData {
   world: WorldState | null;
   /** The world template instanced by the active era, joined from the catalogue. */
   template: WorldTemplate | null;
+  /** The full world-template catalogue (used by the admin era wizard). */
+  templates: WorldTemplate[];
   areas: AreaView[];
   weekNumber: number; // 1-based for display
   weekCount: number;
@@ -262,6 +264,7 @@ export function EraDataProvider({ children }: { children: ReactNode }) {
       weekly,
       world,
       template,
+      templates,
       areas,
       weekNumber: (weekly?.weekIndex ?? 0) + 1,
       weekCount: era?.weeks ?? 0,
@@ -281,6 +284,7 @@ export function EraDataProvider({ children }: { children: ReactNode }) {
       weekly,
       world,
       template,
+      templates,
       areas,
       celebration,
       refresh,
