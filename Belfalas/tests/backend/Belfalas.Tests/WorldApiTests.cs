@@ -21,21 +21,31 @@ public sealed class WorldApiTests
         Assert.Equal(TemplateId, template.Id);
         Assert.Equal(128, template.Render.TileWidth);
         Assert.Equal(64, template.Render.TileHeight);
+        Assert.Equal(24, template.Render.MapWidth);
+        Assert.Equal(20, template.Render.MapHeight);
         Assert.Equal("/assets/worlds/tropical-v1", template.Render.AssetBasePath);
         Assert.Contains(template.Categories, category =>
             category.Category == "dwelling" &&
             category.FootprintWidth == 1 &&
             category.SupportsDenizens);
         Assert.Equal(4, template.Districts.Count);
+        Assert.Equal(
+            ["Lagoon Market", "Canopy Ward", "Harbor Steps", "Sunspire Grove"],
+            template.Districts.Select(district => district.Name).ToArray());
         Assert.All(template.Districts, district =>
         {
-            Assert.NotEmpty(district.Plots);
-            Assert.NotEmpty(district.DenizenSockets);
+            Assert.Equal(24, district.Plots.Count);
+            Assert.Equal(8, district.DenizenSockets.Count);
             Assert.All(district.DenizenSockets, socket =>
                 Assert.Contains("islander", socket.CompatibleDenizenTypes));
-            Assert.NotEmpty(district.EvolutionStages);
+            Assert.Equal(50, district.EvolutionStages.Count);
+            Assert.Equal("Building", district.EvolutionStages.Single(stage => stage.Order == 1).Kind);
+            Assert.Equal("islander", district.EvolutionStages.Single(stage => stage.Order == 10).DenizenType);
         });
-        Assert.Contains(template.Variants, variant => variant.Category == "dwelling");
+        Assert.Contains(template.Variants, variant =>
+            variant.Category == "dwelling" && variant.SpriteKey == "buildings/hut-coral");
+        Assert.Contains(template.Variants, variant =>
+            variant.Category == "landmark" && variant.SpriteKey == "landmarks/sun-obelisk");
     }
 
     [Fact]

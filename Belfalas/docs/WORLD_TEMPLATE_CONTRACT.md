@@ -38,6 +38,7 @@ positionY = localY / tileHeight - localX / tileWidth
 - `assetBasePath` points to the template's public asset folder, without a trailing slash.
 - `atlasKey` names the Pixi atlas metadata file and atlas namespace.
 - The default loading contract is:
+  - base tile map: `{assetBasePath}/map.json`
   - atlas metadata: `{assetBasePath}/{atlasKey}.json`
   - sprite frames: `spriteKey` values from the template's variant list
 - `spriteKey` must be stable content identity. Persisted `BuiltPlot` rows store the
@@ -95,3 +96,16 @@ Each category defines:
 
 Variants within a category should be visually interchangeable enough that the backend
 can choose one at random without asking the renderer for layout-specific exceptions.
+
+## Base Tile Maps
+
+The v1 base map is authored as static template content, not user data. Belfalas does
+not expose a map editor in v1.
+
+`map.json` contains:
+
+- `width`, `height`, `tileWidth`, `tileHeight`, and `origin`, matching the API render
+  contract for the same template id.
+- `terrainLegend`, mapping compact row tokens to atlas sprite keys.
+- `rows`, a fixed rectangular matrix of terrain tokens. Each token expands to one
+  isometric terrain tile at its row/column grid coordinate.
