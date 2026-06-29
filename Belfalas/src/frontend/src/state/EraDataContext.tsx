@@ -59,6 +59,8 @@ interface EraData {
   daily: DailyQuest[];
   weekly: WeeklySet | null;
   world: WorldState | null;
+  /** The world template instanced by the active era, joined from the catalogue. */
+  template: WorldTemplate | null;
   areas: AreaView[];
   weekNumber: number; // 1-based for display
   weekCount: number;
@@ -244,6 +246,11 @@ export function EraDataProvider({ children }: { children: ReactNode }) {
     [progression, world, templates],
   );
 
+  const template = useMemo(
+    () => templates.find((candidate) => candidate.id === world?.templateId) ?? null,
+    [templates, world],
+  );
+
   const value: EraData = useMemo(
     () => ({
       loading,
@@ -254,6 +261,7 @@ export function EraDataProvider({ children }: { children: ReactNode }) {
       daily,
       weekly,
       world,
+      template,
       areas,
       weekNumber: (weekly?.weekIndex ?? 0) + 1,
       weekCount: era?.weeks ?? 0,
@@ -272,6 +280,7 @@ export function EraDataProvider({ children }: { children: ReactNode }) {
       daily,
       weekly,
       world,
+      template,
       areas,
       celebration,
       refresh,

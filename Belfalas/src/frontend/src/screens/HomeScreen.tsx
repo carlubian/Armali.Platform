@@ -1,11 +1,11 @@
-import { Sparkles } from "lucide-react";
 import { DistrictsPanel } from "../components/DistrictsPanel";
 import { EmptyState } from "../components/EmptyState";
 import { QuestRail } from "../components/QuestRail";
+import { WorldCanvas } from "../components/WorldCanvas";
 import { useEraData } from "../state/EraDataContext";
 
 export function HomeScreen() {
-  const { hasActiveEra, era } = useEraData();
+  const { hasActiveEra, era, world, template, areas } = useEraData();
 
   if (!hasActiveEra) {
     return (
@@ -20,33 +20,13 @@ export function HomeScreen() {
 
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex" }}>
-      {/* World stage — a calm placeholder until the PixiJS canvas lands in Wave 6. */}
+      {/* World stage — the live PixiJS isometric scene, with floating overlays on top. */}
       <section className="armali-aurora" style={{ flex: 1, minWidth: 0, position: "relative", overflow: "hidden" }}>
-        <DistrictsPanel />
+        {world && template ? (
+          <WorldCanvas template={template} world={world} areas={areas} />
+        ) : null}
 
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            textAlign: "center",
-            padding: 24,
-            pointerEvents: "none",
-          }}
-        >
-          <Sparkles size={30} color="var(--aqua-600)" aria-hidden />
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 16, color: "var(--text-secondary)" }}>
-            Your world takes shape here
-          </span>
-          <span style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 320 }}>
-            The living isometric map arrives in a later wave. For now, watch your districts level up from the panel and
-            your quests.
-          </span>
-        </div>
+        <DistrictsPanel />
 
         <div
           style={{
@@ -63,6 +43,7 @@ export function HomeScreen() {
             WebkitBackdropFilter: "var(--blur-chip)",
             border: "1px solid var(--border-glass)",
             boxShadow: "var(--glow-soft)",
+            pointerEvents: "none",
           }}
         >
           <span
@@ -75,7 +56,7 @@ export function HomeScreen() {
             }}
           />
           <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>
-            {era?.name} — growing as you go
+            {era?.name} — drag to explore, scroll to zoom
           </span>
         </div>
       </section>
