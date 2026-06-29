@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { WorldState, WorldTemplate } from "../api/types";
+import type { WorldState, WorldTemplate, WorldTemplateDenizenSocket } from "../api/types";
 import type { AreaView } from "../state/EraDataContext";
 import { WorldRenderer, type WorldScene } from "../world/worldRenderer";
 
@@ -67,5 +67,85 @@ function buildScene(template: WorldTemplate, world: WorldState, areas: AreaView[
     })),
   );
 
-  return { districts, builtPlots };
+  const denizens = buildDenizenPlacements(template, world);
+
+  return { districts, builtPlots, denizens };
+}
+
+function buildDenizenPlacements(template: WorldTemplate, world: WorldState): WorldScene["denizens"] {
+  const templateDistricts = new Map(template.districts.map((district) => [district.districtId, district]));
+  const denizenSpriteKeys = buildDenizenSpriteKeyMap(template);
+
+  return world.districts.flatMap((district) => {
+    const templateDistrict = templateDistricts.get(district.districtId);
+    if (!templateDistrict) {
+      return [];
+    }
+
+    const availableSockets = shuffle(templateDistrict.denizenSockets);
+    const placements: WorldScene["denizens"] = [];
+
+    for (const denizen of district.denizens) {
+      const spriteKeys = denizenSpriteKeys.get(denizen.denizenType) ?? [];
+      if (spriteKeys.length === 0 || denizen.count <= 0) {
+        continue;
+      }
+
+      let placed = 0;
+      for (let index = 0; index < availableSockets.length && placed < denizen.count; index++) {
+        const socket = availableSockets[index];
+        if (!socket || !isCompatibleSocket(socket, denizen.denizenType)) {
+          continue;
+        }
+
+        placements.push({
+          positionX: socket.positionX,
+          positionY: socket.positionY,
+          anchorX: socket.anchorX,
+          anchorY: socket.anchorY,
+          sortOffsetY: socket.sortOffsetY,
+          spriteKey: pickRandom(spriteKeys),
+        });
+        availableSockets.splice(index, 1);
+        index--;
+        placed++;
+      }
+    }
+
+    return placements;
+  });
+}
+
+function buildDenizenSpriteKeyMap(template: WorldTemplate): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  for (const variant of template.variants) {
+    const denizenType = variant.category.startsWith("denizen:")
+      ? variant.category.slice("denizen:".length)
+      : null;
+    if (!denizenType) {
+      continue;
+    }
+
+    const spriteKeys = result.get(denizenType) ?? [];
+    spriteKeys.push(variant.spriteKey);
+    result.set(denizenType, spriteKeys);
+  }
+  return result;
+}
+
+function isCompatibleSocket(socket: WorldTemplateDenizenSocket, denizenType: string): boolean {
+  return socket.compatibleDenizenTypes.includes(denizenType);
+}
+
+function shuffle<T>(items: readonly T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
 }

@@ -46,6 +46,8 @@ public sealed class WorldApiTests
             variant.Category == "dwelling" && variant.SpriteKey == "buildings/hut-coral");
         Assert.Contains(template.Variants, variant =>
             variant.Category == "landmark" && variant.SpriteKey == "landmarks/sun-obelisk");
+        Assert.Contains(template.Variants, variant =>
+            variant.Category == "denizen:islander" && variant.SpriteKey == "denizens/islander-a");
     }
 
     [Fact]

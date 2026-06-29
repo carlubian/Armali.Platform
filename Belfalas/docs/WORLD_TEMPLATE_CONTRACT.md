@@ -44,6 +44,9 @@ positionY = localY / tileHeight - localX / tileWidth
 - `spriteKey` must be stable content identity. Persisted `BuiltPlot` rows store the
   selected variant id, so renaming keys after an era has been played should be treated
   as a content migration.
+- Denizen display variants are content rows too. Use variant categories in the form
+  `denizen:{identity}` (for example `denizen:islander`) so the frontend can choose a
+  compatible sprite while the backend persists only the denizen identity/count.
 
 ## Z-Order
 
@@ -81,6 +84,8 @@ sortKey = (positionX + positionY) * tileHeight + sortOffsetY
 - Denizen sockets are runtime-only placement positions.
 - The backend persists only `DenizenCount`: district, denizen identity, and count.
 - The frontend places denizens when the world opens by drawing from compatible sockets.
+- The frontend resolves a denizen's sprites from template variants whose category is
+  `denizen:{identity}` and may choose a different compatible sprite each placement.
 - Denizen positions should not be sent back to the API or written to persistence in v1.
 
 ## Category Contracts

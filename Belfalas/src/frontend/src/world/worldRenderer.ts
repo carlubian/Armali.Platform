@@ -15,6 +15,16 @@ export interface SceneBuiltPlot {
   spriteKey: string;
 }
 
+/** A denizen placed at a runtime-only socket with a chosen display variant. */
+export interface SceneDenizen {
+  positionX: number;
+  positionY: number;
+  anchorX: number;
+  anchorY: number;
+  sortOffsetY: number;
+  spriteKey: string;
+}
+
 /** A district footprint used to tint the ground so areas read at a glance. */
 export interface SceneDistrict {
   /** CSS hex colour for the district's owning area. */
@@ -25,6 +35,7 @@ export interface SceneDistrict {
 export interface WorldScene {
   districts: SceneDistrict[];
   builtPlots: SceneBuiltPlot[];
+  denizens: SceneDenizen[];
 }
 
 interface RendererInput {
@@ -39,7 +50,7 @@ const DISTRICT_TINT_ALPHA = 0.22;
  * theme-agnostic: it draws whatever the render contract, base map and scene data
  * describe, with no assumptions about the tropical (or any) template.
  *
- * Layering, back to front: terrain → district tints → built plots (depth-sorted).
+ * Layering, back to front: terrain → district tints → built plots/denizens (depth-sorted).
  */
 export class WorldRenderer {
   private readonly host: HTMLElement;
@@ -139,6 +150,9 @@ export class WorldRenderer {
     for (const plot of this.pendingScene.builtPlots) {
       this.drawBuiltPlot(plot);
     }
+    for (const denizen of this.pendingScene.denizens) {
+      this.drawDenizen(denizen);
+    }
   }
 
   destroy(): void {
@@ -216,6 +230,26 @@ export class WorldRenderer {
     const screen = this.toScreen(point);
     sprite.position.set(screen.x, screen.y + this.render.tileHeight / 2);
     sprite.zIndex = worldSortKey(point, this.render, sortOffsetY);
+
+    this.objectLayer.addChild(sprite);
+  }
+
+  private drawDenizen(denizen: SceneDenizen): void {
+    if (!this.assets || !this.render) {
+      return;
+    }
+    const texture = this.assets.sheet.textures[denizen.spriteKey];
+    if (!texture) {
+      return;
+    }
+
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(denizen.anchorX, denizen.anchorY);
+
+    const point = { x: denizen.positionX, y: denizen.positionY };
+    const screen = this.toScreen(point);
+    sprite.position.set(screen.x, screen.y + this.render.tileHeight / 2);
+    sprite.zIndex = worldSortKey(point, this.render, denizen.sortOffsetY);
 
     this.objectLayer.addChild(sprite);
   }

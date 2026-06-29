@@ -34,6 +34,15 @@ public static class WorldTemplateSeed
             "landmarks/shell-shrine",
             "landmarks/sun-obelisk",
         ],
+        ["denizen:islander"] =
+        [
+            "denizens/islander-a",
+            "denizens/islander-b",
+        ],
+        ["denizen:parrot"] =
+        [
+            "denizens/parrot-a",
+        ],
     };
 
     private static readonly AuthoredDistrict[] AuthoredDistricts =
