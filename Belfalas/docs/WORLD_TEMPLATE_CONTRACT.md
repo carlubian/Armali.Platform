@@ -4,6 +4,9 @@ This document freezes the Wave 6.1 rendering/template contract. It is intentiona
 theme-agnostic: `tropical-v1` is the first authored template, but future fantasy,
 sci-fi, magic, or other themes should use the same shape.
 
+For the content-authoring workflow and scalability checklist, see
+[WORLD_TEMPLATE_AUTHORING.md](WORLD_TEMPLATE_AUTHORING.md).
+
 ## Coordinate System
 
 - World authoring uses integer isometric grid coordinates: `positionX`, `positionY`.

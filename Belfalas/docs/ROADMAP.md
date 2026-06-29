@@ -2,7 +2,7 @@
 
 > Wave-based delivery plan, mirroring the rest of Armali.Platform. Each wave is a
 > shippable, verifiable increment. Decisions backing this plan live in
-> [REQUIREMENTS.md](REQUIREMENTS.md). Last updated: 2026-06-28.
+> [REQUIREMENTS.md](REQUIREMENTS.md). Last updated: 2026-06-29.
 
 ## Guiding constraints
 
@@ -93,6 +93,10 @@ themes.
 - Document how to add another world template from authored map data and assets.
 - Validate that fantasy, sci-fi, magic, or other future templates can reuse the same
   engine contract without backend or renderer redesign.
+
+Wave 6.5 deliverables live in
+[WORLD_TEMPLATE_AUTHORING.md](WORLD_TEMPLATE_AUTHORING.md), with contract validation
+covered by the backend world-template tests.
 
 ## Wave 7 — Admin panel (frontend)
 

@@ -48,7 +48,8 @@ previousLevel, levelChanged }`. Completing/un-completing an archived era returns
 - `GET /api/world/templates` — seeded world template catalogue with districts, plots,
   render metadata, category contracts, denizen sockets, variants, and ordered evolution
   stages. The renderer/template rules are frozen in
-  [WORLD_TEMPLATE_CONTRACT.md](WORLD_TEMPLATE_CONTRACT.md).
+  [WORLD_TEMPLATE_CONTRACT.md](WORLD_TEMPLATE_CONTRACT.md); the repeatable authoring
+  workflow is documented in [WORLD_TEMPLATE_AUTHORING.md](WORLD_TEMPLATE_AUTHORING.md).
 - `GET /api/world/eras/{eraId}` — world state for a specific era.
 
 Completing an action that changes an area's level synchronizes its district to the
