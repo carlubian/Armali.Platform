@@ -25,6 +25,22 @@ public sealed record EraSummaryResponse(
     string TemplateId,
     int XpPerLevel);
 
+public sealed record ArchivedEraSummaryResponse(
+    Guid EraId,
+    string Name,
+    DateOnly StartDate,
+    int Weeks,
+    string TemplateId,
+    int XpPerLevel,
+    DateTimeOffset ArchivedAt);
+
+public sealed record ArchivedEraResponse(
+    Guid EraId,
+    DateTimeOffset ArchivedAt,
+    EraDetailResponse Era,
+    ProgressionSummaryResponse Progression,
+    WorldStateResponse World);
+
 public sealed record EraDetailResponse(
     Guid Id,
     string Name,

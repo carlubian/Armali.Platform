@@ -41,7 +41,9 @@ static void MapEraRoutes(RouteGroupBuilder eras)
 {
     eras.MapGet("/", ListErasAsync).WithName("ListEras");
     eras.MapGet("/active", GetActiveEraAsync).WithName("GetActiveEra");
+    eras.MapGet("/archived", ListArchivedErasAsync).WithName("ListArchivedEras");
     eras.MapGet("/{eraId:guid}", GetEraAsync).WithName("GetEra");
+    eras.MapGet("/{eraId:guid}/archive", GetArchivedEraAsync).WithName("GetArchivedEra");
     eras.MapPost("/", CreateEraAsync).WithName("CreateEra");
     eras.MapPost("/{eraId:guid}/archive", ArchiveEraAsync).WithName("ArchiveEra");
 }
@@ -108,6 +110,48 @@ static async Task<IResult> GetEraAsync(Guid eraId, BelfalasDbContext database, C
         .FirstOrDefaultAsync(era => era.Id == eraId, cancellationToken);
 
     return era is null ? Results.NotFound() : Results.Ok(ToEraDetail(era));
+}
+
+static async Task<IResult> ListArchivedErasAsync(BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var archives = await database.ArchivedEras
+        .AsNoTracking()
+        .Include(archive => archive.Era)
+        .Where(archive => archive.Era != null)
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(archives.OrderByDescending(archive => archive.ArchivedAt).Select(archive => new ArchivedEraSummaryResponse(
+        archive.EraId,
+        archive.Era!.Name,
+        archive.Era.StartDate,
+        archive.Era.Weeks,
+        archive.Era.WorldTemplateId,
+        archive.Era.XpPerLevel,
+        archive.ArchivedAt)));
+}
+
+static async Task<IResult> GetArchivedEraAsync(Guid eraId, BelfalasDbContext database, CancellationToken cancellationToken)
+{
+    var archive = await database.ArchivedEras
+        .AsNoTracking()
+        .FirstOrDefaultAsync(item => item.EraId == eraId, cancellationToken);
+    if (archive is null)
+    {
+        return Results.NotFound();
+    }
+
+    var snapshot = JsonSerializer.Deserialize<ArchivedEraResponse>(
+        archive.Snapshot,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    if (snapshot is null)
+    {
+        return Results.Problem(
+            title: "Invalid archive snapshot",
+            detail: "The archived era snapshot could not be read.",
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+
+    return Results.Ok(snapshot with { ArchivedAt = archive.ArchivedAt });
 }
 
 static async Task<IResult> CreateEraAsync(CreateEraRequest request, BelfalasDbContext database, CancellationToken cancellationToken)
@@ -246,13 +290,14 @@ static async Task<IResult> ArchiveEraAsync(Guid eraId, BelfalasDbContext databas
         return Conflict("Era is already archived.");
     }
 
-    var snapshot = await BuildArchiveSnapshotAsync(era, database, cancellationToken);
     era.Status = EraStatus.Archived;
+    var archivedAt = DateTimeOffset.UtcNow;
+    var snapshot = await BuildArchiveResponseAsync(era, archivedAt, database, cancellationToken);
     database.ArchivedEras.Add(new ArchivedEra
     {
         EraId = era.Id,
-        ArchivedAt = DateTimeOffset.UtcNow,
-        Snapshot = snapshot,
+        ArchivedAt = archivedAt,
+        Snapshot = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = false }),
     });
 
     await database.SaveChangesAsync(cancellationToken);
@@ -1396,6 +1441,8 @@ static WorldStateResponse ToWorldStateResponse(
 static IQueryable<Era> LoadEraDetailQuery(BelfalasDbContext database) =>
     database.Eras
         .Include(era => era.Areas)
+        .Include(era => era.WorldTemplate)
+        .ThenInclude(template => template!.Districts)
         .Include(era => era.DailyHabits)
         .ThenInclude(habit => habit.Area)
         .Include(era => era.WeeklyGoals)
@@ -1538,24 +1585,24 @@ static TimeZoneInfo GetMadridTimeZone()
     }
 }
 
-static async Task<string> BuildArchiveSnapshotAsync(Era era, BelfalasDbContext database, CancellationToken cancellationToken)
+static async Task<ArchivedEraResponse> BuildArchiveResponseAsync(
+    Era era,
+    DateTimeOffset archivedAt,
+    BelfalasDbContext database,
+    CancellationToken cancellationToken)
 {
     var areaProgress = await database.AreaProgresses
         .AsNoTracking()
         .Where(progress => progress.EraId == era.Id)
-        .OrderBy(progress => progress.AreaId)
-        .ToListAsync(cancellationToken);
-    var weeklySets = await database.WeeklySets
-        .AsNoTracking()
-        .Include(set => set.Items)
-        .Where(set => set.EraId == era.Id)
-        .OrderBy(set => set.WeekIndex)
-        .ToListAsync(cancellationToken);
+        .ToDictionaryAsync(progress => progress.AreaId, cancellationToken);
     var builtPlots = await database.BuiltPlots
         .AsNoTracking()
+        .Include(plot => plot.Plot)
+        .Include(plot => plot.Variant)
         .Where(plot => plot.EraId == era.Id)
         .OrderBy(plot => plot.DistrictId)
-        .ThenBy(plot => plot.PlotId)
+        .ThenBy(plot => plot.Plot!.PositionY)
+        .ThenBy(plot => plot.Plot!.PositionX)
         .ToListAsync(cancellationToken);
     var denizens = await database.DenizenCounts
         .AsNoTracking()
@@ -1564,20 +1611,18 @@ static async Task<string> BuildArchiveSnapshotAsync(Era era, BelfalasDbContext d
         .ThenBy(denizen => denizen.DenizenType)
         .ToListAsync(cancellationToken);
 
-    var snapshot = new
-    {
-        Era = ToEraDetail(era),
-        AreaProgress = areaProgress.Select(progress => new { progress.AreaId, progress.Xp, progress.Level }),
-        WeeklySets = weeklySets.Select(set => new
-        {
-            set.WeekIndex,
-            WeeklyGoalIds = set.Items.Select(item => item.WeeklyGoalId).OrderBy(id => id),
-        }),
-        BuiltPlots = builtPlots.Select(plot => new { plot.DistrictId, plot.PlotId, plot.VariantId }),
-        Denizens = denizens.Select(denizen => new { denizen.DistrictId, denizen.DenizenType, denizen.Count }),
-    };
+    var progressAreas = era.Areas
+        .OrderBy(area => area.Order)
+        .Select(area => ToAreaProgressResponse(area, areaProgress.GetValueOrDefault(area.Id), era.XpPerLevel))
+        .ToList();
+    var globalLevel = progressAreas.Count == 0 ? 0d : progressAreas.Average(area => area.Level);
 
-    return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = false });
+    return new ArchivedEraResponse(
+        era.Id,
+        archivedAt,
+        ToEraDetail(era),
+        new ProgressionSummaryResponse(era.Id, era.Name, globalLevel, Leveling.MaxLevel, progressAreas),
+        ToWorldStateResponse(era, areaProgress, builtPlots, denizens));
 }
 
 static EraSummaryResponse ToEraSummary(Era era) =>

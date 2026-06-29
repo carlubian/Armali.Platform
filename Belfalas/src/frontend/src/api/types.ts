@@ -51,6 +51,24 @@ export interface EraSummary {
   xpPerLevel: number;
 }
 
+export interface ArchivedEraSummary {
+  eraId: string;
+  name: string;
+  startDate: string; // ISO date (yyyy-MM-dd)
+  weeks: number;
+  templateId: string;
+  xpPerLevel: number;
+  archivedAt: string; // ISO timestamp
+}
+
+export interface ArchivedEra {
+  eraId: string;
+  archivedAt: string; // ISO timestamp
+  era: EraDetail;
+  progression: ProgressionSummary;
+  world: WorldState;
+}
+
 // ---- Admin request payloads (mirror Belfalas.Api/Contracts/*.cs) ---------
 
 export interface CreateAreaDraft {

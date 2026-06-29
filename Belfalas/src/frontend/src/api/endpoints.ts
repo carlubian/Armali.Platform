@@ -1,5 +1,7 @@
 import { del, get, getOrNull, post, put } from "./client";
 import type {
+  ArchivedEra,
+  ArchivedEraSummary,
   CreateEraRequest,
   DailyHabitResponse,
   DailyQuest,
@@ -40,6 +42,10 @@ export const uncompleteWeekly = (weeklyGoalId: string) =>
 // ---- Admin (era authoring) ------------------------------------------------
 
 export const listEras = () => get<EraSummary[]>("/eras");
+
+export const listArchivedEras = () => get<ArchivedEraSummary[]>("/eras/archived");
+
+export const getArchivedEra = (eraId: string) => get<ArchivedEra>(`/eras/${eraId}/archive`);
 
 export const createEra = (request: CreateEraRequest) => post<EraDetail>("/eras", request);
 

@@ -155,6 +155,61 @@ public sealed class WorldApiTests
         Assert.Empty(district.Denizens);
     }
 
+    [Fact]
+    public async Task Archiving_an_era_exposes_a_read_only_progress_and_world_snapshot()
+    {
+        using var factory = new BelfalasApiFactory();
+        var client = factory.CreateClient();
+
+        var era = await CreateEraAsync(
+            client,
+            xpPerLevel: 10,
+            areas: [new CreateAreaRequest("Work", 1)],
+            dailyHabits: [new CreateDailyHabitDraftRequest(1, "Ship something", 105)]);
+        var habit = era.DailyHabits.Single();
+
+        await CompleteDailyAsync(client, habit.Id);
+
+        var archiveResponse = await client.PostAsJsonAsync($"/api/eras/{era.Id}/archive", new { });
+        Assert.Equal(HttpStatusCode.OK, archiveResponse.StatusCode);
+
+        var archivedErasResponse = await client.GetAsync("/api/eras/archived");
+        var archivedErasBody = await archivedErasResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            archivedErasResponse.IsSuccessStatusCode,
+            $"Archived eras failed with {(int)archivedErasResponse.StatusCode}: {archivedErasBody}");
+        var archivedEras = JsonSerializer.Deserialize<List<ArchivedEraSummaryResponse>>(
+            archivedErasBody,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(archivedEras);
+        var archivedSummary = Assert.Single(archivedEras);
+        Assert.Equal(era.Id, archivedSummary.EraId);
+        Assert.Equal("Test Era", archivedSummary.Name);
+
+        var archiveSnapshotResponse = await client.GetAsync($"/api/eras/{era.Id}/archive");
+        var archiveSnapshotBody = await archiveSnapshotResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            archiveSnapshotResponse.IsSuccessStatusCode,
+            $"Archive snapshot failed with {(int)archiveSnapshotResponse.StatusCode}: {archiveSnapshotBody}");
+        var archive = JsonSerializer.Deserialize<ArchivedEraResponse>(
+            archiveSnapshotBody,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(archive);
+        Assert.Equal(era.Id, archive.EraId);
+        Assert.Equal("Archived", archive.Era.Status);
+        Assert.Equal(10, archive.Progression.Areas.Single().Level);
+
+        var district = Assert.Single(archive.World.Districts, item => item.AreaName == "Work");
+        Assert.Equal(10, district.AreaLevel);
+        Assert.Equal(9, district.BuiltPlots.Count);
+        Assert.Equal(1, Assert.Single(district.Denizens).Count);
+
+        var completionAfterArchive = await client.PostAsJsonAsync(
+            $"/api/quests/daily/{habit.Id}/complete",
+            new CompleteDailyQuestRequest(default));
+        Assert.Equal(HttpStatusCode.Conflict, completionAfterArchive.StatusCode);
+    }
+
     private static async Task<EraDetailResponse> CreateEraAsync(
         HttpClient client,
         int xpPerLevel,

@@ -12,12 +12,18 @@
 
 - `GET /api/eras`
 - `GET /api/eras/active`
+- `GET /api/eras/archived`
 - `GET /api/eras/{eraId}`
+- `GET /api/eras/{eraId}/archive`
 - `POST /api/eras`
 - `POST /api/eras/{eraId}/archive`
 
 Era creation/detail/summary carry `xpPerLevel` (flat XP cost of one level, shared by every
 area; defaults to `100`). Areas progress `0..50`.
+
+Archiving stores a read-only snapshot of the era detail, progression summary, and
+world state. `GET /api/eras/archived` lists archived chapters with `archivedAt`;
+`GET /api/eras/{eraId}/archive` returns the stored snapshot for history browsing.
 
 ## Quests
 

@@ -75,7 +75,7 @@ interface EraData {
 
 const EraDataContext = createContext<EraData | null>(null);
 
-function buildAreaViews(
+export function buildAreaViews(
   progression: ProgressionSummary | null,
   world: WorldState | null,
   templates: WorldTemplate[],
