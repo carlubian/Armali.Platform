@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segaris — Games</title>
+
+<!-- Project Armali design-system tokens + base -->
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/colors.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/typography.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/effects.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/base.css">
+<link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/styles.css">
+
+<!-- Segaris layout styles -->
+<link rel="stylesheet" href="segaris/segaris.css">
+<link rel="stylesheet" href="segaris/games.css">
+
+<!-- React + Babel (pinned) -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Design-system component bundle + icons -->
+<script src="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/_ds_bundle.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+<style>
+  html, body { height: 100%; margin: 0; }
+  #root { height: 100vh; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Canvas + tweaks scaffolding -->
+  <script type="text/babel" data-presets="react" src="design-canvas.jsx"></script>
+  <script type="text/babel" data-presets="react" src="tweaks-panel.jsx"></script>
+
+  <!-- Shared Segaris helpers (icon, modules, shell top bar) -->
+  <script type="text/babel" data-presets="react" src="segaris/data.jsx"></script>
+  <script type="text/babel" data-presets="react" src="segaris/screens-launcher.jsx"></script>
+
+  <!-- Games module -->
+  <script type="text/babel" data-presets="react" src="segaris/games-data.jsx"></script>
+  <script type="text/babel" data-presets="react" src="segaris/screens-games-popups.jsx"></script>
+  <script type="text/babel" data-presets="react" src="segaris/screens-games-selectors.jsx"></script>
+  <script type="text/babel" data-presets="react" src="segaris/screens-games-collection.jsx"></script>
+  <script type="text/babel" data-presets="react" src="segaris/games-app.jsx"></script>
+</body>
+</html>
