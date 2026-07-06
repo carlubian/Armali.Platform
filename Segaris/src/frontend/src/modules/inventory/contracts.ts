@@ -17,6 +17,8 @@ export const inventoryKeys = {
   itemList: (query: InventoryItemListQuery) =>
     [...inventoryKeys.items(), 'list', query] as const,
   item: (itemId: number) => [...inventoryKeys.items(), itemId] as const,
+  itemPriceHistory: (itemId: number) =>
+    [...inventoryKeys.item(itemId), 'price-history'] as const,
   itemAttachments: (itemId: number) =>
     [...inventoryKeys.item(itemId), 'attachments'] as const,
   orders: () => [...inventoryKeys.all, 'orders'] as const,

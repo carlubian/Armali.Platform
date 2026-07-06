@@ -185,7 +185,8 @@ internal static class InventoryTestData
         DateOnly? orderDate = null,
         DateOnly? expectedReceiptDate = null,
         decimal quantity = 1m,
-        decimal lineTotal = 10m)
+        decimal lineTotal = 10m,
+        string currencyCode = ConfigurationCatalog.CurrencyCodes.Default)
     {
         await using var scope = services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<SegarisDbContext>();
@@ -195,7 +196,7 @@ internal static class InventoryTestData
             .Select(supplier => supplier.Id)
             .SingleAsync();
         var currencyId = await database.Set<SegarisCurrency>()
-            .Where(currency => currency.Code == ConfigurationCatalog.CurrencyCodes.Default)
+            .Where(currency => currency.Code == currencyCode)
             .Select(currency => currency.Id)
             .SingleAsync();
 

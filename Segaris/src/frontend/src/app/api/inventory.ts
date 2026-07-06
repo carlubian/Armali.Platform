@@ -103,6 +103,27 @@ export interface InventoryItemDeletionImpact {
   referenceCount: number
 }
 
+export interface InventoryItemPriceHistoryEntry {
+  orderId: number
+  lineId: number
+  supplierName: string
+  status: InventoryOrderStatus
+  orderDate: string
+  currencyCode: string
+  quantity: number
+  lineTotal: number
+  unitPrice: number
+}
+
+export interface InventoryItemPriceHistory {
+  itemId: number
+  itemName: string
+  cutoffDate: string
+  minimumRecentOrderCount: number
+  returnedOrderCount: number
+  entries: InventoryItemPriceHistoryEntry[]
+}
+
 export interface InventoryOrderLine {
   id: number
   itemId: number
@@ -264,6 +285,11 @@ export const inventoryApi = {
   itemDeletionImpact: (itemId: number, signal?: AbortSignal) =>
     apiRequest<InventoryItemDeletionImpact>(
       `/api/inventory/items/${itemId}/deletion-impact`,
+      { signal },
+    ),
+  itemPriceHistory: (itemId: number, signal?: AbortSignal) =>
+    apiRequest<InventoryItemPriceHistory>(
+      `/api/inventory/items/${itemId}/price-history`,
       { signal },
     ),
   adjustStock: (

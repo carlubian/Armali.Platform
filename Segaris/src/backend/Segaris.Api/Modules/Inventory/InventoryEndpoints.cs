@@ -58,6 +58,12 @@ internal static class InventoryEndpoints
             .Produces<InventoryItemDeletionImpactResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        items.MapGet(InventoryApiRoutes.ItemPriceHistory, GetItemPriceHistoryAsync)
+            .WithName("GetInventoryItemPriceHistory")
+            .WithSummary("Returns the recent unit price history for an accessible Inventory item")
+            .Produces<InventoryItemPriceHistoryResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         items.MapPost("", CreateItemAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateInventoryItem")
@@ -340,6 +346,26 @@ internal static class InventoryEndpoints
         }
 
         return TypedResults.Ok(impact);
+    }
+
+    private static async Task<IResult> GetItemPriceHistoryAsync(
+        int itemId,
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var history = await read.GetItemPriceHistoryAsync(itemId, userId, cancellationToken);
+        if (history is null)
+        {
+            throw InventoryItemProblem.NotFound();
+        }
+
+        return TypedResults.Ok(history);
     }
 
     private static async Task<IResult> DeleteItemAsync(

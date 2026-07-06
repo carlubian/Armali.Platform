@@ -8,6 +8,7 @@ internal static class InventoryApiRoutes
     public const string Items = "inventory/items";
     public const string ItemById = "/{itemId:int}";
     public const string ItemDeletionImpact = "/{itemId:int}/deletion-impact";
+    public const string ItemPriceHistory = "/{itemId:int}/price-history";
     public const string ItemStockAdjustments = "/{itemId:int}/stock-adjustments";
     public const string ItemAttachments = "/{itemId:int}/attachments";
     public const string ItemAttachmentById = "/{itemId:int}/attachments/{attachmentId}";

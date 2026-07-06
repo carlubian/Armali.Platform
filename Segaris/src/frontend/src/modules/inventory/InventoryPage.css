@@ -230,10 +230,19 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
-.seg-inv__adjust {
+.seg-inv__row-actions {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.seg-inv__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 1px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 4px var(--space-2);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -244,7 +253,7 @@
     border-color var(--dur-fast) var(--ease-soft),
     color var(--dur-fast) var(--ease-soft);
 }
-.seg-inv__adjust:hover {
+.seg-inv__action:hover {
   border-color: var(--terracotta-400);
   color: var(--text-primary);
 }
@@ -302,6 +311,84 @@
   z-index: 110;
   right: var(--space-6);
   bottom: var(--space-6);
+}
+
+/* ---- Price history --------------------------------------------- */
+.seg-inv__history {
+  display: grid;
+  gap: var(--space-4);
+}
+.seg-inv__history-loading {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+.seg-inv__history-chart {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-sunken);
+  overflow-x: auto;
+}
+.seg-inv__history-chart svg {
+  display: block;
+  min-width: 620px;
+  width: 100%;
+  height: auto;
+}
+.seg-inv__history-chart text {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-body);
+}
+.seg-inv__history-axis {
+  stroke: var(--border-default);
+  stroke-width: 1;
+}
+.seg-inv__history-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seg-inv__history-point {
+  fill: var(--surface-card-solid);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.seg-inv__history-meta {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+.seg-inv__history-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+.seg-inv__history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.seg-inv__history-table th,
+.seg-inv__history-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  white-space: nowrap;
+}
+.seg-inv__history-table th {
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.seg-inv__history-table tr:last-child td {
+  border-bottom: none;
 }
 
 @media (max-width: 780px) {

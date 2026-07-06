@@ -108,6 +108,26 @@ export const inventory = {
         generic: 'The stock could not be adjusted. Please try again.',
       },
     },
+    priceHistory: {
+      open: 'View price history for {{name}}',
+      title: 'Price history: {{name}}',
+      description:
+        'Shows all orders in the last {{months}} months or the latest {{count}} orders, whichever returns more data.',
+      close: 'Close',
+      chartLabel: 'Unit price history chart',
+      loadError: 'The price history could not be loaded. Please try again.',
+      empty: 'No previous orders include this item yet.',
+      summary:
+        '{{count}} orders included. Date window starts on {{cutoff}} and is expanded when the latest orders provide more history.',
+      columns: {
+        date: 'Order date',
+        supplier: 'Supplier',
+        status: 'Status',
+        quantity: 'Quantity',
+        lineTotal: 'Line total',
+        unitPrice: 'Unit price',
+      },
+    },
   },
   orders: {
     newOrder: 'New order',
