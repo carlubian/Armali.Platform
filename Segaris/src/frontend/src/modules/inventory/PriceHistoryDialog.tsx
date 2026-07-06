@@ -27,7 +27,8 @@ export function PriceHistoryDialog({
   const history = historyQuery.data
   const entries = history?.entries ?? []
   const chartEntries = useMemo(
-    () => [...entries].sort((left, right) => left.orderDate.localeCompare(right.orderDate)),
+    () =>
+      [...entries].sort((left, right) => left.orderDate.localeCompare(right.orderDate)),
     [entries],
   )
 
@@ -139,7 +140,9 @@ function PriceHistoryChart({
   const points = entries.map((entry, index) => {
     const x =
       padding.left +
-      (entries.length === 1 ? plotWidth / 2 : (index / (entries.length - 1)) * plotWidth)
+      (entries.length === 1
+        ? plotWidth / 2
+        : (index / (entries.length - 1)) * plotWidth)
     const y = padding.top + plotHeight - ((entry.unitPrice - min) / span) * plotHeight
     return { ...entry, x, y }
   })

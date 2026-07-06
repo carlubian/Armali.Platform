@@ -111,8 +111,9 @@ function ItemsPanel({ onToast }: PanelProps) {
     useItemsState(currentUserId)
   const { dialog, openCreate, openItem, close } = useItemDialog()
   const [adjusting, setAdjusting] = useState<InventoryItemSummary | null>(null)
-  const [priceHistoryItem, setPriceHistoryItem] =
-    useState<InventoryItemSummary | null>(null)
+  const [priceHistoryItem, setPriceHistoryItem] = useState<InventoryItemSummary | null>(
+    null,
+  )
 
   const invalidateItems = (itemId?: number) => {
     void queryClient.invalidateQueries({ queryKey: inventoryKeys.items() })

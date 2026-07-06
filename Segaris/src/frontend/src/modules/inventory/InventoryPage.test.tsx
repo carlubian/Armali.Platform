@@ -282,12 +282,14 @@ describe('Inventory items view', () => {
     expect(
       await screen.findByRole('dialog', { name: 'Price history: Item 01' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Unit price history chart' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Unit price history chart' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Unit price' })).toBeInTheDocument()
     expect(screen.getByText('€4.99')).toBeInTheDocument()
-    expect(
-      requests.some((r) => r.url === '/api/inventory/items/1/price-history'),
-    ).toBe(true)
+    expect(requests.some((r) => r.url === '/api/inventory/items/1/price-history')).toBe(
+      true,
+    )
   })
 
   it('opens the new item editor', async () => {
