@@ -23,6 +23,7 @@ import { ItemsTable } from './ItemsTable'
 import { OrderDialog } from './OrderDialog'
 import { OrdersFilters } from './OrdersFilters'
 import { OrdersTable } from './OrdersTable'
+import { PriceHistoryDialog } from './PriceHistoryDialog'
 import { StockAdjustmentDialog } from './StockAdjustmentDialog'
 import { activeItemFilterCount, useItemsState } from './itemsState'
 import { activeOrderFilterCount, useOrdersState } from './ordersState'
@@ -110,6 +111,9 @@ function ItemsPanel({ onToast }: PanelProps) {
     useItemsState(currentUserId)
   const { dialog, openCreate, openItem, close } = useItemDialog()
   const [adjusting, setAdjusting] = useState<InventoryItemSummary | null>(null)
+  const [priceHistoryItem, setPriceHistoryItem] = useState<InventoryItemSummary | null>(
+    null,
+  )
 
   const invalidateItems = (itemId?: number) => {
     void queryClient.invalidateQueries({ queryKey: inventoryKeys.items() })
@@ -197,6 +201,7 @@ function ItemsPanel({ onToast }: PanelProps) {
           onSort={setSort}
           onOpen={openItem}
           onAdjust={setAdjusting}
+          onPriceHistory={setPriceHistoryItem}
           busy={isRefetching}
         />
       )}
@@ -227,6 +232,14 @@ function ItemsPanel({ onToast }: PanelProps) {
           item={adjusting}
           onClose={() => setAdjusting(null)}
           onAdjusted={handleAdjusted}
+        />
+      )}
+
+      {priceHistoryItem != null && (
+        <PriceHistoryDialog
+          item={priceHistoryItem}
+          language={i18n.language}
+          onClose={() => setPriceHistoryItem(null)}
         />
       )}
     </>

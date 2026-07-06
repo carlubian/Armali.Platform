@@ -39,6 +39,7 @@ public sealed class InventoryContractTests
     {
         Assert.Equal("inventory/items", InventoryApiRoutes.Items);
         Assert.Equal("/{itemId:int}", InventoryApiRoutes.ItemById);
+        Assert.Equal("/{itemId:int}/price-history", InventoryApiRoutes.ItemPriceHistory);
         Assert.Equal("/{itemId:int}/stock-adjustments", InventoryApiRoutes.ItemStockAdjustments);
         Assert.Equal("/{itemId:int}/attachments", InventoryApiRoutes.ItemAttachments);
         Assert.Equal("/{itemId:int}/attachments/{attachmentId}", InventoryApiRoutes.ItemAttachmentById);
@@ -162,6 +163,33 @@ public sealed class InventoryContractTests
 
         Assert.Equal("Deprecated", line.ItemStatus);
         Assert.Equal(12.34m, line.LineTotal);
+    }
+
+    [Fact]
+    public void Item_price_history_response_carries_derived_unit_price()
+    {
+        var response = new InventoryItemPriceHistoryResponse(
+            7,
+            "Olive oil",
+            new DateOnly(2025, 7, 6),
+            24,
+            1,
+            [
+                new InventoryItemPriceHistoryEntryResponse(
+                    11,
+                    13,
+                    "Supplier",
+                    "Received",
+                    new DateOnly(2026, 1, 1),
+                    "EUR",
+                    2m,
+                    9.98m,
+                    4.99m),
+            ]);
+
+        var entry = Assert.Single(response.Entries);
+        Assert.Equal(4.99m, entry.UnitPrice);
+        Assert.Equal("EUR", entry.CurrencyCode);
     }
 
     [Fact]

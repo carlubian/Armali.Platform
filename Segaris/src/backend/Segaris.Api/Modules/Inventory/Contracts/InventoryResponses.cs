@@ -45,6 +45,25 @@ internal sealed record InventoryItemResponse(
     string? UpdatedByName,
     DateTimeOffset UpdatedAt);
 
+internal sealed record InventoryItemPriceHistoryResponse(
+    int ItemId,
+    string ItemName,
+    DateOnly CutoffDate,
+    int MinimumRecentOrderCount,
+    int ReturnedOrderCount,
+    IReadOnlyList<InventoryItemPriceHistoryEntryResponse> Entries);
+
+internal sealed record InventoryItemPriceHistoryEntryResponse(
+    int OrderId,
+    int LineId,
+    string SupplierName,
+    string Status,
+    DateOnly OrderDate,
+    string CurrencyCode,
+    decimal Quantity,
+    decimal LineTotal,
+    decimal UnitPrice);
+
 internal sealed record InventoryOrderSummaryResponse(
     int Id,
     int SupplierId,

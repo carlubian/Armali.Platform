@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App, appQueryClient } from '@/app/App'
 import type {
   InventoryItem,
+  InventoryItemPriceHistory,
   InventoryItemSummary,
   InventoryOrderSummary,
 } from '@/app/api/inventory'
@@ -98,6 +99,40 @@ function makeOrder(
   }
 }
 
+function makePriceHistory(item: InventoryItemSummary): InventoryItemPriceHistory {
+  return {
+    itemId: item.id,
+    itemName: item.name,
+    cutoffDate: '2025-07-06',
+    minimumRecentOrderCount: 24,
+    returnedOrderCount: 2,
+    entries: [
+      {
+        orderId: 2,
+        lineId: 22,
+        supplierName: 'Endesa',
+        status: 'Received',
+        orderDate: '2026-06-01',
+        currencyCode: 'EUR',
+        quantity: 2,
+        lineTotal: 9.98,
+        unitPrice: 4.99,
+      },
+      {
+        orderId: 1,
+        lineId: 11,
+        supplierName: 'Endesa',
+        status: 'Active',
+        orderDate: '2026-05-01',
+        currencyCode: 'EUR',
+        quantity: 1,
+        lineTotal: 6.5,
+        unitPrice: 6.5,
+      },
+    ],
+  }
+}
+
 interface BackendOptions {
   items?: InventoryItemSummary[]
   orders?: InventoryOrderSummary[]
@@ -135,6 +170,13 @@ function mockBackend(options: BackendOptions = {}) {
     }
     if (url.startsWith('/api/configuration/currencies')) {
       return json([{ id: 1, code: 'EUR', name: 'Euro', sortOrder: 1 }])
+    }
+
+    const historyMatch = url.match(/\/api\/inventory\/items\/(\d+)\/price-history/)
+    if (historyMatch != null && method === 'GET') {
+      requests.push({ method, url })
+      const item = items.find((candidate) => candidate.id === Number(historyMatch[1]))
+      return json(makePriceHistory(item ?? makeItem(Number(historyMatch[1]))))
     }
 
     const stockMatch = url.match(/\/api\/inventory\/items\/(\d+)\/stock-adjustments/)
@@ -225,6 +267,29 @@ describe('Inventory items view', () => {
       ).toBe(true),
     )
     expect(await screen.findByText('Stock updated')).toBeInTheDocument()
+  })
+
+  it('opens the price history popup from the row action', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Item 01')
+    await user.click(
+      screen.getByRole('button', { name: 'View price history for Item 01' }),
+    )
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Price history: Item 01' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Unit price history chart' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Unit price' })).toBeInTheDocument()
+    expect(screen.getByText('€4.99')).toBeInTheDocument()
+    expect(requests.some((r) => r.url === '/api/inventory/items/1/price-history')).toBe(
+      true,
+    )
   })
 
   it('opens the new item editor', async () => {

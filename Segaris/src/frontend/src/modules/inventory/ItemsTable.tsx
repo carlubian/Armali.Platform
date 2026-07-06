@@ -1,4 +1,11 @@
-import { ArrowDown, ArrowUp, ChevronsUpDown, Plus, Minus } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  LineChart,
+  Minus,
+  Plus,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import type {
@@ -61,6 +68,7 @@ interface ItemsTableProps {
   onSort: (field: InventoryItemSortField) => void
   onOpen: (itemId: number) => void
   onAdjust: (item: InventoryItemSummary) => void
+  onPriceHistory: (item: InventoryItemSummary) => void
   busy: boolean
 }
 
@@ -71,6 +79,7 @@ export function ItemsTable({
   onSort,
   onOpen,
   onAdjust,
+  onPriceHistory,
   busy,
 }: ItemsTableProps) {
   const { t } = useTranslation('inventory')
@@ -163,18 +172,33 @@ export function ItemsTable({
                   </Badge>
                 </td>
                 <td className="seg-inv__actions-col">
-                  <button
-                    type="button"
-                    className="seg-inv__adjust"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      onAdjust(item)
-                    }}
-                    aria-label={t('items.adjust.open', { name: item.name })}
-                  >
-                    <Plus size={13} aria-hidden="true" />
-                    <Minus size={13} aria-hidden="true" />
-                  </button>
+                  <div className="seg-inv__row-actions">
+                    <button
+                      type="button"
+                      className="seg-inv__action"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onPriceHistory(item)
+                      }}
+                      aria-label={t('items.priceHistory.open', { name: item.name })}
+                      title={t('items.priceHistory.open', { name: item.name })}
+                    >
+                      <LineChart size={16} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="seg-inv__action seg-inv__adjust"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onAdjust(item)
+                      }}
+                      aria-label={t('items.adjust.open', { name: item.name })}
+                      title={t('items.adjust.open', { name: item.name })}
+                    >
+                      <Plus size={13} aria-hidden="true" />
+                      <Minus size={13} aria-hidden="true" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             )

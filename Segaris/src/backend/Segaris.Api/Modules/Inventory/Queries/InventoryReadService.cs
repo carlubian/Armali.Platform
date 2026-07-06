@@ -9,6 +9,7 @@ using Segaris.Shared.Api;
 using Segaris.Shared.Attachments;
 using Segaris.Shared.Authorization;
 using Segaris.Shared.Identity;
+using Segaris.Shared.Time;
 
 namespace Segaris.Api.Modules.Inventory.Queries;
 
@@ -20,8 +21,13 @@ namespace Segaris.Api.Modules.Inventory.Queries;
 /// projection, pagination, or detail lookup. Related catalog and audit display
 /// names are resolved through correlated sub-queries.
 /// </summary>
-internal sealed class InventoryReadService(SegarisDbContext database, IAttachmentService attachments)
+internal sealed class InventoryReadService(
+    SegarisDbContext database,
+    IAttachmentService attachments,
+    IClock clock)
 {
+    private const int PriceHistoryMinimumRecentOrderCount = 24;
+
     public async Task<IReadOnlyList<InventoryCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
         return await database.Set<InventoryCategory>()
@@ -218,6 +224,89 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
             row.UpdatedById,
             row.UpdatedByName,
             row.UpdatedAt);
+    }
+
+    public async Task<InventoryItemPriceHistoryResponse?> GetItemPriceHistoryAsync(
+        int itemId,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var item = await database.Set<InventoryItem>()
+            .AsNoTracking()
+            .Where(InventoryItemPolicies.AccessibleTo(userId))
+            .Where(candidate => candidate.Id == itemId)
+            .Select(candidate => new { candidate.Id, candidate.Name })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (item is null)
+        {
+            return null;
+        }
+
+        var cutoffDate = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime).AddMonths(-12);
+        var history = database.Set<InventoryOrderLine>()
+            .AsNoTracking()
+            .Where(line => line.ItemId == itemId)
+            .Join(
+                database.Set<InventoryOrder>().AsNoTracking().Where(InventoryOrderPolicies.AccessibleTo(userId)),
+                line => line.OrderId,
+                order => order.Id,
+                (line, order) => new { line, order })
+            .Where(row => row.order.OrderDate != null)
+            .Select(row => new
+            {
+                OrderId = row.order.Id,
+                LineId = row.line.Id,
+                SupplierName = database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == row.order.SupplierId)
+                    .Select(supplier => supplier.Name)
+                    .First(),
+                row.order.Status,
+                OrderDate = row.order.OrderDate!.Value,
+                CurrencyCode = database.Set<SegarisCurrency>()
+                    .Where(currency => currency.Id == row.order.CurrencyId)
+                    .Select(currency => currency.Code)
+                    .First(),
+                row.line.Quantity,
+                row.line.LineTotal,
+            });
+
+        var recentRows = await history
+            .Where(row => row.OrderDate >= cutoffDate)
+            .ToArrayAsync(cancellationToken);
+
+        var latestRows = await history
+            .OrderByDescending(row => row.OrderDate)
+            .ThenByDescending(row => row.OrderId)
+            .ThenByDescending(row => row.LineId)
+            .Take(PriceHistoryMinimumRecentOrderCount)
+            .ToArrayAsync(cancellationToken);
+
+        var entries = recentRows
+            .Concat(latestRows)
+            .DistinctBy(row => row.LineId)
+            .OrderByDescending(row => row.OrderDate)
+            .ThenByDescending(row => row.OrderId)
+            .ThenByDescending(row => row.LineId)
+            .Select(row => new InventoryItemPriceHistoryEntryResponse(
+                row.OrderId,
+                row.LineId,
+                row.SupplierName,
+                row.Status.ToString(),
+                row.OrderDate,
+                row.CurrencyCode,
+                row.Quantity,
+                row.LineTotal,
+                decimal.Round(row.LineTotal / row.Quantity, 4, MidpointRounding.AwayFromZero)))
+            .ToArray();
+
+        return new InventoryItemPriceHistoryResponse(
+            item.Id,
+            item.Name,
+            cutoffDate,
+            PriceHistoryMinimumRecentOrderCount,
+            entries.Select(entry => entry.OrderId).Distinct().Count(),
+            entries);
     }
 
     public async Task<InventoryOrderResponse?> GetOrderAsync(
@@ -512,4 +601,5 @@ internal sealed class InventoryReadService(SegarisDbContext database, IAttachmen
         int UpdatedById,
         string UpdatedByName,
         DateTimeOffset UpdatedAt);
+
 }

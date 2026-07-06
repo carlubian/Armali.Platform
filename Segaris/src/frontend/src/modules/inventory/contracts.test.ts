@@ -13,6 +13,12 @@ describe('Inventory Wave 0 contracts', () => {
     expect(inventoryRoutePath).toBe('/inventory')
     expect(inventoryPageSizes).toEqual([10, 25, 50, 100])
     expect(inventoryKeys.item(7)).toEqual(['inventory', 'items', 7])
+    expect(inventoryKeys.itemPriceHistory(7)).toEqual([
+      'inventory',
+      'items',
+      7,
+      'price-history',
+    ])
     expect(inventoryKeys.order(9)).toEqual(['inventory', 'orders', 9])
     expect(inventoryKeys.itemAttachments(7)).toEqual([
       'inventory',
