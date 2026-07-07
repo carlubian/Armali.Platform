@@ -130,12 +130,22 @@ function makeDestination(id: number, name = 'Porto'): DestinationSummary {
 interface BackendOptions {
   trips?: TravelTripSummary[]
   destinations?: DestinationSummary[]
+  // When true, trip detail GETs never resolve once a trip has been updated,
+  // simulating the user reopening the editor before the post-save refetch has
+  // repopulated the cache. This forces the editor to rely on the cached trip.
+  stallDetailAfterUpdate?: boolean
 }
 
 function mockBackend(options: BackendOptions = {}) {
   const trips = options.trips ?? [makeTrip(1)]
   const destinations = options.destinations ?? [makeDestination(10)]
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
+  // Persist trip details so that refetches after an edit reflect the saved
+  // state, mirroring the real backend.
+  const tripDetails = new Map<number, TravelTrip>()
+  const tripDetail = (id: number): TravelTrip =>
+    tripDetails.get(id) ?? makeTripDetail(id)
+  let tripUpdated = false
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     await Promise.resolve()
@@ -226,7 +236,10 @@ function mockBackend(options: BackendOptions = {}) {
     const tripDetailMatch = url.match(/\/api\/travel\/trips\/(\d+)(\?|$)/)
     if (tripDetailMatch != null && method === 'GET') {
       requests.push({ method, url })
-      return json(makeTripDetail(Number(tripDetailMatch[1])))
+      if (options.stallDetailAfterUpdate && tripUpdated) {
+        return new Promise<Response>(() => {})
+      }
+      return json(tripDetail(Number(tripDetailMatch[1])))
     }
 
     if (url.startsWith('/api/travel/trips') && method === 'GET') {
@@ -251,7 +264,10 @@ function mockBackend(options: BackendOptions = {}) {
     if (url.match(/^\/api\/travel\/trips\/\d+$/) && method === 'PUT') {
       const id = Number(url.match(/\/api\/travel\/trips\/(\d+)/)?.[1] ?? '1')
       requests.push({ method, url, body })
-      return json({ ...makeTripDetail(id), ...(body as object) })
+      const updated = { ...tripDetail(id), ...(body as object), id } as TravelTrip
+      tripDetails.set(id, updated)
+      tripUpdated = true
+      return json(updated)
     }
 
     throw new Error(`Unexpected request: ${method} ${url}`)
@@ -356,6 +372,32 @@ describe('Travel trips view', () => {
         ),
       ).toBe(true),
     )
+  })
+
+  it('shows the edited itinerary after saving and reopening the trip', async () => {
+    const user = userEvent.setup()
+    mockBackend({ stallDetailAfterUpdate: true })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Open Trip 01' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Edit trip' })
+
+    const titleField = within(dialog).getByDisplayValue('Flight to Porto')
+    await user.clear(titleField)
+    await user.type(titleField, 'Train to Lisbon')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Edit trip' })).not.toBeInTheDocument(),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Open Trip 01' }))
+    dialog = await screen.findByRole('dialog', { name: 'Edit trip' })
+
+    expect(within(dialog).getByDisplayValue('Train to Lisbon')).toBeInTheDocument()
+    expect(
+      within(dialog).queryByDisplayValue('Flight to Porto'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows a neutral placeholder for an unresolved destination', async () => {
