@@ -6,6 +6,7 @@ using Segaris.Api.Modules.Clothes;
 using Segaris.Api.Modules.Configuration;
 using Segaris.Api.Modules.Destinations;
 using Segaris.Api.Modules.Firebird;
+using Segaris.Api.Modules.Games;
 using Segaris.Api.Modules.Health;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Inventory;
@@ -44,6 +45,7 @@ internal static class SegarisModules
         new HealthModule(),
         new CalendarModule(),
         new AnalyticsModule(),
+        new GamesModule(),
         new LauncherModule(),
     ];
 
