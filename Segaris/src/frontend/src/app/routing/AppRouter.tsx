@@ -117,6 +117,20 @@ const MoodDashboardPage = lazy(() =>
   })),
 )
 
+// The Games module is lazily loaded so its playthrough card collection, editor,
+// and progress page stay out of the initial platform bundle.
+const GamesPage = lazy(() =>
+  import('@/modules/games/GamesPage').then((module) => ({
+    default: module.GamesPage,
+  })),
+)
+
+const GamesProgressPage = lazy(() =>
+  import('@/modules/games/ProgressPage').then((module) => ({
+    default: module.ProgressPage,
+  })),
+)
+
 // The Health module is lazily loaded so its two-tab surface, disease table, and
 // editor stay out of the initial platform bundle.
 const HealthPage = lazy(() =>
@@ -321,6 +335,26 @@ export function AppRouter() {
             }
           />
         ))}
+        <Route
+          path="games"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <GamesPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="games/playthroughs/:playthroughId"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <GamesProgressPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
         <Route
           path="health"
           element={

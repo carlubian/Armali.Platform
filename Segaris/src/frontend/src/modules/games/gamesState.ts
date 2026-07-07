@@ -141,6 +141,73 @@ export function toPlaythroughListQuery(
   }
 }
 
+/** Filter fields that reset pagination back to the first page when they change. */
+export type PlaythroughFilterPatch = Partial<
+  Omit<PlaythroughListState, 'page' | 'sort' | 'sortDirection' | 'pageSize'>
+>
+
+/** Count of filters currently narrowing the collection. */
+export function activePlaythroughFilterCount(state: PlaythroughListState): number {
+  return [
+    state.search.trim() !== '',
+    state.game != null,
+    state.platform !== '',
+    state.status !== '',
+    state.tag.trim() !== '',
+    state.visibility !== '',
+    state.mine,
+  ].filter(Boolean).length
+}
+
+/** Search parameters owned by the collection list; everything else is preserved. */
+const LIST_PARAMS = new Set([
+  'search',
+  'game',
+  'platform',
+  'status',
+  'tag',
+  'visibility',
+  'creator',
+  'sort',
+  'sortDirection',
+  'page',
+  'pageSize',
+])
+
+function writeCollectionState(
+  state: PlaythroughListState,
+  currentUserId: number | null,
+): URLSearchParams {
+  const params = new URLSearchParams()
+  const set = (key: string, value: string | number | null | undefined) => {
+    if (value == null) return
+    const text = String(value)
+    if (text.length > 0) params.set(key, text)
+  }
+
+  set('search', state.search.trim() === '' ? null : state.search.trim())
+  set('game', state.game)
+  set('platform', state.platform === '' ? null : state.platform)
+  set('status', state.status === '' ? null : state.status)
+  set('tag', state.tag.trim() === '' ? null : state.tag.trim())
+  set('visibility', state.visibility === '' ? null : state.visibility)
+  set('creator', state.mine && currentUserId != null ? currentUserId : null)
+  // Persist sort/page only when they diverge from the defaults to keep links clean.
+  if (state.sort !== defaultPlaythroughSort) set('sort', state.sort)
+  if (state.sortDirection !== defaultSortDirection)
+    set('sortDirection', state.sortDirection)
+  if (state.page !== 1) set('page', state.page)
+  if (state.pageSize !== defaultPageSize) set('pageSize', state.pageSize)
+
+  return params
+}
+
+/**
+ * Reads and writes the playthrough collection query and editor-dialog mode through
+ * the URL so the card list is linkable and survives the dialog opening and closing.
+ * Filter changes reset to the first page; dialog parameters are preserved across
+ * list changes and vice versa.
+ */
 export function useGamesCollectionState(currentUserId: number | null) {
   const [searchParams, setSearchParams] = useSearchParams()
   const state = useMemo(
@@ -154,6 +221,23 @@ export function useGamesCollectionState(currentUserId: number | null) {
   const listQuery = useMemo(
     () => toPlaythroughListQuery(state, currentUserId),
     [state, currentUserId],
+  )
+
+  const commit = useCallback(
+    (next: PlaythroughListState, options?: { replace?: boolean }) => {
+      setSearchParams(
+        (current) => {
+          const merged = writeCollectionState(next, currentUserId)
+          // Preserve non-list params such as the editor dialog's newPlaythrough/id.
+          for (const [key, value] of current.entries()) {
+            if (!LIST_PARAMS.has(key)) merged.set(key, value)
+          }
+          return merged
+        },
+        { replace: options?.replace ?? false },
+      )
+    },
+    [setSearchParams, currentUserId],
   )
 
   const patchParams = useCallback(
@@ -170,10 +254,72 @@ export function useGamesCollectionState(currentUserId: number | null) {
     [setSearchParams],
   )
 
+  const setFilters = useCallback(
+    (patch: PlaythroughFilterPatch) => {
+      // Any filter change returns to the first page; searching replaces history so
+      // rapid typing does not flood the back button.
+      const replace = 'search' in patch && Object.keys(patch).length === 1
+      commit({ ...state, ...patch, page: 1 }, { replace })
+    },
+    [commit, state],
+  )
+
+  const setSort = useCallback(
+    (sort: PlaythroughSortField) => {
+      const sortDirection =
+        state.sort === sort && state.sortDirection === 'asc' ? 'desc' : 'asc'
+      commit({ ...state, sort, sortDirection, page: 1 })
+    },
+    [commit, state],
+  )
+
+  const setSortField = useCallback(
+    (sort: PlaythroughSortField) => commit({ ...state, sort, page: 1 }),
+    [commit, state],
+  )
+
+  const toggleSortDirection = useCallback(() => {
+    const sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc'
+    commit({ ...state, sortDirection, page: 1 })
+  }, [commit, state])
+
+  const setPage = useCallback(
+    (page: number) => commit({ ...state, page }),
+    [commit, state],
+  )
+
+  const setPageSize = useCallback(
+    (pageSize: GamesPageSize) => commit({ ...state, pageSize, page: 1 }),
+    [commit, state],
+  )
+
+  const clearFilters = useCallback(
+    () =>
+      commit({
+        ...state,
+        search: '',
+        game: null,
+        platform: '',
+        status: '',
+        tag: '',
+        visibility: '',
+        mine: false,
+        page: 1,
+      }),
+    [commit, state],
+  )
+
   return {
     state,
     dialog,
     listQuery,
+    setFilters,
+    setSort,
+    setSortField,
+    toggleSortDirection,
+    setPage,
+    setPageSize,
+    clearFilters,
     openCreatePlaythrough: () =>
       patchParams({ newPlaythrough: 'true', playthroughId: null }),
     openEditPlaythrough: (playthroughId: number) =>
