@@ -85,55 +85,70 @@ internal static class GamesEndpoints
     private static void MapSectionEndpoints(RouteGroupBuilder group)
     {
         var playthroughs = group.MapGroup("/playthroughs");
-        playthroughs.MapGet(GamesApiRoutes.Sections, Placeholder)
+        playthroughs.MapGet(GamesApiRoutes.Sections, ListSectionsAsync)
             .WithName("ListPlaythroughSections")
             .Produces<IReadOnlyList<SectionResponse>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        playthroughs.MapPost(GamesApiRoutes.Sections, Placeholder)
+        playthroughs.MapPost(GamesApiRoutes.Sections, CreateSectionAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreatePlaythroughSection")
-            .Produces<SectionResponse>(StatusCodes.Status201Created);
-        playthroughs.MapPut(GamesApiRoutes.SectionsOrder, Placeholder)
+            .Produces<SectionResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        playthroughs.MapPut(GamesApiRoutes.SectionsOrder, ReorderSectionsAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("ReorderPlaythroughSections")
-            .Produces(StatusCodes.Status204NoContent);
-        playthroughs.MapGet(GamesApiRoutes.SectionById, Placeholder)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        playthroughs.MapGet(GamesApiRoutes.SectionById, GetSectionAsync)
             .WithName("GetPlaythroughSection")
             .Produces<SectionResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        playthroughs.MapPut(GamesApiRoutes.SectionById, Placeholder)
+        playthroughs.MapPut(GamesApiRoutes.SectionById, UpdateSectionAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdatePlaythroughSection")
-            .Produces<SectionResponse>();
-        playthroughs.MapDelete(GamesApiRoutes.SectionById, Placeholder)
+            .Produces<SectionResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        playthroughs.MapDelete(GamesApiRoutes.SectionById, DeleteSectionAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeletePlaythroughSection")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapGoalEndpoints(RouteGroupBuilder group)
     {
         var playthroughs = group.MapGroup("/playthroughs");
-        playthroughs.MapGet(GamesApiRoutes.Goals, Placeholder)
+        playthroughs.MapGet(GamesApiRoutes.Goals, ListGoalsAsync)
             .WithName("ListSectionGoals")
             .Produces<IReadOnlyList<GoalResponse>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        playthroughs.MapPost(GamesApiRoutes.Goals, Placeholder)
+        playthroughs.MapPost(GamesApiRoutes.Goals, CreateGoalAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateSectionGoal")
-            .Produces<GoalResponse>(StatusCodes.Status201Created);
-        playthroughs.MapPut(GamesApiRoutes.GoalById, Placeholder)
+            .Produces<GoalResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        playthroughs.MapPut(GamesApiRoutes.GoalById, UpdateGoalAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdateSectionGoal")
-            .Produces<GoalResponse>();
-        playthroughs.MapPut(GamesApiRoutes.GoalCompletion, Placeholder)
+            .Produces<GoalResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        playthroughs.MapPut(GamesApiRoutes.GoalCompletion, SetGoalCompletionAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("SetSectionGoalCompletion")
-            .Produces<GoalResponse>();
-        playthroughs.MapDelete(GamesApiRoutes.GoalById, Placeholder)
+            .Produces<GoalResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        playthroughs.MapDelete(GamesApiRoutes.GoalById, DeleteGoalAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteSectionGoal")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> ListGamesAsync(GameReadService read, CancellationToken cancellationToken) =>
@@ -305,6 +320,276 @@ internal static class GamesEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<IResult> ListSectionsAsync(
+        int playthroughId,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var sections = await read.ListSectionsAsync(playthroughId, userId, cancellationToken);
+        return sections is null ? throw SectionGoalProblem.SectionNotFound() : TypedResults.Ok(sections);
+    }
+
+    private static async Task<IResult> GetSectionAsync(
+        int playthroughId,
+        int sectionId,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var section = await read.GetSectionAsync(playthroughId, sectionId, userId, cancellationToken);
+        return section is null ? throw SectionGoalProblem.SectionNotFound() : TypedResults.Ok(section);
+    }
+
+    private static async Task<IResult> CreateSectionAsync(
+        int playthroughId,
+        CreateSectionRequest request,
+        SectionGoalWriteService write,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int? sectionId;
+        try
+        {
+            sectionId = await write.CreateSectionAsync(playthroughId, request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw SectionGoalProblem.SectionValidation(exception);
+        }
+
+        if (sectionId is null)
+        {
+            throw SectionGoalProblem.SectionNotFound();
+        }
+
+        var section = await read.GetSectionAsync(playthroughId, sectionId.Value, userId, cancellationToken);
+        return TypedResults.Created($"/api/games/playthroughs/{playthroughId}/sections/{sectionId.Value}", section);
+    }
+
+    private static async Task<IResult> UpdateSectionAsync(
+        int playthroughId,
+        int sectionId,
+        UpdateSectionRequest request,
+        SectionGoalWriteService write,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateSectionAsync(playthroughId, sectionId, request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw SectionGoalProblem.SectionValidation(exception);
+        }
+
+        if (!updated)
+        {
+            throw SectionGoalProblem.SectionNotFound();
+        }
+
+        var section = await read.GetSectionAsync(playthroughId, sectionId, userId, cancellationToken);
+        return TypedResults.Ok(section);
+    }
+
+    private static async Task<IResult> DeleteSectionAsync(
+        int playthroughId,
+        int sectionId,
+        SectionGoalWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteSectionAsync(playthroughId, sectionId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw SectionGoalProblem.SectionNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReorderSectionsAsync(
+        int playthroughId,
+        SectionOrderRequest request,
+        SectionGoalWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var reordered = await write.ReorderSectionsAsync(playthroughId, request, userId, cancellationToken);
+        if (!reordered)
+        {
+            throw SectionGoalProblem.SectionNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListGoalsAsync(
+        int playthroughId,
+        int sectionId,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var goals = await read.ListGoalsAsync(playthroughId, sectionId, userId, cancellationToken);
+        return goals is null ? throw SectionGoalProblem.SectionNotFound() : TypedResults.Ok(goals);
+    }
+
+    private static async Task<IResult> CreateGoalAsync(
+        int playthroughId,
+        int sectionId,
+        CreateGoalRequest request,
+        SectionGoalWriteService write,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int? goalId;
+        try
+        {
+            goalId = await write.CreateGoalAsync(playthroughId, sectionId, request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw SectionGoalProblem.GoalValidation(exception);
+        }
+
+        if (goalId is null)
+        {
+            throw SectionGoalProblem.SectionNotFound();
+        }
+
+        var goal = await read.GetGoalAsync(playthroughId, sectionId, goalId.Value, userId, cancellationToken);
+        return TypedResults.Created(
+            $"/api/games/playthroughs/{playthroughId}/sections/{sectionId}/goals/{goalId.Value}",
+            goal);
+    }
+
+    private static async Task<IResult> UpdateGoalAsync(
+        int playthroughId,
+        int sectionId,
+        int goalId,
+        UpdateGoalRequest request,
+        SectionGoalWriteService write,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateGoalAsync(playthroughId, sectionId, goalId, request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw SectionGoalProblem.GoalValidation(exception);
+        }
+
+        if (!updated)
+        {
+            throw SectionGoalProblem.GoalNotFound();
+        }
+
+        var goal = await read.GetGoalAsync(playthroughId, sectionId, goalId, userId, cancellationToken);
+        return TypedResults.Ok(goal);
+    }
+
+    private static async Task<IResult> SetGoalCompletionAsync(
+        int playthroughId,
+        int sectionId,
+        int goalId,
+        GoalCompletionRequest request,
+        SectionGoalWriteService write,
+        SectionGoalReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var updated = await write.SetGoalCompletionAsync(playthroughId, sectionId, goalId, request, userId, cancellationToken);
+        if (!updated)
+        {
+            throw SectionGoalProblem.GoalNotFound();
+        }
+
+        var goal = await read.GetGoalAsync(playthroughId, sectionId, goalId, userId, cancellationToken);
+        return TypedResults.Ok(goal);
+    }
+
+    private static async Task<IResult> DeleteGoalAsync(
+        int playthroughId,
+        int sectionId,
+        int goalId,
+        SectionGoalWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteGoalAsync(playthroughId, sectionId, goalId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw SectionGoalProblem.GoalNotFound();
+        }
+
+        return TypedResults.NoContent();
+    }
+
     private static UserId CatalogActor(ICurrentUser currentUser) =>
         currentUser.UserId ?? throw GameProblem.NotFound();
 
@@ -313,5 +598,4 @@ internal static class GamesEndpoints
             ? direction
             : throw GameProblem.Validation("direction", "Direction must be 'up' or 'down'.");
 
-    private static IResult Placeholder() => TypedResults.StatusCode(StatusCodes.Status501NotImplemented);
 }
