@@ -1,4 +1,10 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Games.Attention;
+using Segaris.Api.Modules.Games.Mutations;
+using Segaris.Api.Modules.Games.Persistence;
+using Segaris.Api.Modules.Games.Queries;
+using Segaris.Api.Modules.Launcher.Contracts;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Games;
 
@@ -19,6 +25,10 @@ internal sealed class GamesModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ISegarisModelContributor, GamesModelContributor>();
+        services.AddScoped<GameReadService>();
+        services.AddScoped<GameManagementService>();
+        services.AddScoped<ILauncherAttentionContributor, GamesAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

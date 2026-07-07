@@ -1,8 +1,12 @@
+using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Games.Contracts;
+using Segaris.Api.Modules.Games.Mutations;
+using Segaris.Api.Modules.Games.Queries;
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Platform.Api;
 using Segaris.Shared.Api;
+using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Games;
 
@@ -29,17 +33,17 @@ internal static class GamesEndpoints
 
     private static void MapGameCatalogueEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/games", Placeholder)
+        group.MapGet("/games", ListGamesAsync)
             .WithName("ListGames")
             .Produces<IReadOnlyList<GameResponse>>();
 
         var games = group.MapGroup("/games").RequireAuthorization(IdentityPolicies.Admin);
-        games.MapPost("", Placeholder).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateGame");
-        games.MapPut(GamesApiRoutes.GameById, Placeholder).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("UpdateGame");
-        games.MapPost(GamesApiRoutes.GameMove, Placeholder).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveGame");
-        games.MapGet(GamesApiRoutes.GameDeletionImpact, Placeholder).WithName("GetGameDeletionImpact");
-        games.MapDelete(GamesApiRoutes.GameById, Placeholder).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteGame");
-        games.MapPost(GamesApiRoutes.GameReplaceAndDelete, Placeholder).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteGame");
+        games.MapPost("", CreateGameAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("CreateGame").Produces<GameResponse>(StatusCodes.Status201Created).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict);
+        games.MapPut(GamesApiRoutes.GameById, UpdateGameAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("UpdateGame").Produces<GameResponse>().ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        games.MapPost(GamesApiRoutes.GameMove, MoveGameAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("MoveGame").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound);
+        games.MapGet(GamesApiRoutes.GameDeletionImpact, GameImpactAsync).WithName("GetGameDeletionImpact").Produces<CatalogDeletionImpactResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        games.MapDelete(GamesApiRoutes.GameById, DeleteGameAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("DeleteGame").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        games.MapPost(GamesApiRoutes.GameReplaceAndDelete, ReplaceAndDeleteGameAsync).AddEndpointFilter<AntiforgeryEndpointFilter>().WithName("ReplaceAndDeleteGame").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static void MapPlaythroughEndpoints(RouteGroupBuilder group)
@@ -119,6 +123,71 @@ internal static class GamesEndpoints
             .WithName("DeleteSectionGoal")
             .Produces(StatusCodes.Status204NoContent);
     }
+
+    private static async Task<IResult> ListGamesAsync(GameReadService read, CancellationToken cancellationToken) =>
+        TypedResults.Ok(await read.ListAsync(cancellationToken));
+
+    private static async Task<IResult> CreateGameAsync(
+        CreateGameRequest request,
+        GameManagementService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        var value = await service.CreateAsync(request, CatalogActor(currentUser), cancellationToken);
+        return TypedResults.Created($"/api/games/games/{value.Id}", value);
+    }
+
+    private static async Task<IResult> UpdateGameAsync(
+        int gameId,
+        UpdateGameRequest request,
+        GameManagementService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await service.UpdateAsync(gameId, request, CatalogActor(currentUser), cancellationToken));
+
+    private static async Task<IResult> MoveGameAsync(
+        int gameId,
+        CatalogMoveRequest request,
+        GameManagementService service,
+        CancellationToken cancellationToken)
+    {
+        await service.MoveAsync(gameId, GameDirection(request), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> GameImpactAsync(
+        int gameId,
+        GameManagementService service,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await service.ImpactAsync(gameId, cancellationToken));
+
+    private static async Task<IResult> DeleteGameAsync(
+        int gameId,
+        GameManagementService service,
+        CancellationToken cancellationToken)
+    {
+        await service.DeleteAsync(gameId, cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ReplaceAndDeleteGameAsync(
+        int gameId,
+        CatalogReplacementRequest request,
+        GameManagementService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        await service.ReplaceAndDeleteAsync(gameId, request, CatalogActor(currentUser), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static UserId CatalogActor(ICurrentUser currentUser) =>
+        currentUser.UserId ?? throw GameProblem.NotFound();
+
+    private static CatalogMoveDirection GameDirection(CatalogMoveRequest request) =>
+        CatalogMoveDirections.TryParse(request.Direction, out var direction)
+            ? direction
+            : throw GameProblem.Validation("direction", "Direction must be 'up' or 'down'.");
 
     private static IResult Placeholder() => TypedResults.StatusCode(StatusCodes.Status501NotImplemented);
 }
