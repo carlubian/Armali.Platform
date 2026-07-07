@@ -35,6 +35,7 @@ export const configuration = {
     recipes: 'Recipes',
     health: 'Health',
     projects: 'Projects',
+    games: 'Games',
   },
   catalogs: {
     label: 'Global catalogs',
@@ -311,6 +312,21 @@ export const configuration = {
       empty: 'No username platforms yet. Add the first one so usernames can use it.',
       itemName: 'username platform',
     },
+    games: {
+      tab: 'Games',
+      title: 'Games',
+      description:
+        'The game catalogue every playthrough links to. Each game has a name and a platform.',
+      addAction: 'New game',
+      createTitle: 'New game',
+      editTitle: 'Edit game',
+      nameLabel: 'Name',
+      namePlaceholder: 'Game name',
+      platformLabel: 'Platform',
+      empty:
+        'No games yet. Add the first one so playthroughs can link to it. The catalogue ships empty on purpose.',
+      itemName: 'game',
+    },
   },
   projectsStructure: {
     tabsLabel: 'Projects structure catalogs',
@@ -397,6 +413,7 @@ export const configuration = {
       code: 'Code',
       color: 'Colour',
       rate: 'Rate to EUR',
+      platform: 'Platform',
       actions: 'Actions',
     },
     rateUnset: 'Not set',

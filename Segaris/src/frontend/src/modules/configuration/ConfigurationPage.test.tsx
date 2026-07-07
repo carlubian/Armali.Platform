@@ -12,6 +12,7 @@ interface Row {
   code?: string
   colorValue?: string
   exchangeRateToEur?: number | null
+  platform?: string
   sortOrder: number
   programId?: number
 }
@@ -72,6 +73,7 @@ interface BackendOptions {
   processCategories?: Row[]
   personCategories?: Row[]
   usernamePlatforms?: Row[]
+  games?: Row[]
   programs?: Row[]
   axes?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
@@ -102,6 +104,7 @@ const catalogPaths: Record<string, string> = {
   'processes/categories': 'processCategories',
   'people/categories': 'personCategories',
   'people/platforms': 'usernamePlatforms',
+  'games/games': 'games',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -162,6 +165,10 @@ function mockBackend(options: BackendOptions = {}) {
     usernamePlatforms: options.usernamePlatforms ?? [
       { id: 1, name: 'Email', sortOrder: 1 },
       { id: 2, name: 'Discord', sortOrder: 2 },
+    ],
+    games: options.games ?? [
+      { id: 1, name: 'Hollow Knight', platform: 'PC', sortOrder: 1 },
+      { id: 2, name: 'Catan', platform: 'BoardGame', sortOrder: 2 },
     ],
     programs: options.programs ?? [
       { id: 1, code: 'HOME', name: 'Household', sortOrder: 1 },
@@ -247,7 +254,7 @@ function mockBackend(options: BackendOptions = {}) {
       }
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|destinations\/(?:categories|place-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms))(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|destinations\/(?:categories|place-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms)|games\/games)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -264,6 +271,7 @@ function mockBackend(options: BackendOptions = {}) {
             code?: string
             colorValue?: string
             exchangeRateToEur?: number
+            platform?: string
           }
           const created: Row = {
             id: nextId++,
@@ -271,6 +279,7 @@ function mockBackend(options: BackendOptions = {}) {
             code: input.code,
             colorValue: input.colorValue,
             exchangeRateToEur: input.exchangeRateToEur,
+            platform: input.platform,
             sortOrder: rows.length + 1,
           }
           rows.push(created)
@@ -297,6 +306,7 @@ function mockBackend(options: BackendOptions = {}) {
             code?: string
             colorValue?: string
             exchangeRateToEur?: number
+            platform?: string
           }
           const target = rows.find((row) => row.id === id)
           if (target != null) {
@@ -305,6 +315,7 @@ function mockBackend(options: BackendOptions = {}) {
             if (input.colorValue != null) target.colorValue = input.colorValue
             if (input.exchangeRateToEur != null)
               target.exchangeRateToEur = input.exchangeRateToEur
+            if (input.platform != null) target.platform = input.platform
           }
           return json(target ?? {})
         }
@@ -1416,6 +1427,156 @@ describe('Configuration deletion', () => {
       ),
     ).toBeInTheDocument()
     expect(calls.some((call) => call.url.includes('replace-and-delete'))).toBe(false)
+  })
+})
+
+describe('Configuration Games catalogue', () => {
+  it('shows the Games section with the platform column', async () => {
+    mockBackend()
+    renderAt('/configuration/games')
+
+    expect(await screen.findByRole('heading', { name: 'Games' })).toBeInTheDocument()
+    expect(await screen.findByText('Hollow Knight')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Platform' })).toBeInTheDocument()
+    expect(screen.getByText('PC')).toBeInTheDocument()
+    expect(screen.getByText('Board game')).toBeInTheDocument()
+  })
+
+  it('renders the empty catalogue state when no games exist', async () => {
+    mockBackend({ games: [] })
+    renderAt('/configuration/games')
+
+    expect(
+      await screen.findByText(
+        'No games yet. Add the first one so playthroughs can link to it. The catalogue ships empty on purpose.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('creates a game with a name and platform', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New game' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Chrono Trigger')
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'Console')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    expect(
+      calls.find((call) => call.method === 'POST' && call.url === '/api/games/games')
+        ?.body,
+    ).toEqual({ name: 'Chrono Trigger', platform: 'Console' })
+  })
+
+  it('maps a duplicate-name server error onto the game name field', async () => {
+    mockBackend({
+      createResponse: () => json({ code: 'games.game.duplicate_name' }, 409),
+    })
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New game' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Hollow Knight')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(
+      await within(dialog).findByText('Another entry already uses this name.'),
+    ).toBeInTheDocument()
+  })
+
+  it('edits a game and updates its platform', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Hollow Knight' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit game' })
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'Mobile')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.method === 'PUT' && call.url === '/api/games/games/1')
+          ?.body,
+      ).toEqual({ name: 'Hollow Knight', platform: 'Mobile' }),
+    )
+  })
+
+  it('requires replacement for a referenced game and offers no clear option', async () => {
+    const { calls } = mockBackend({
+      impacts: {
+        'games:1': {
+          isReferenced: true,
+          canDeleteDirectly: false,
+          canClearReferences: false,
+          hasReplacementCandidates: true,
+        },
+      },
+    })
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Hollow Knight' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Hollow Knight' })
+
+    expect(
+      within(dialog).queryByRole('radio', { name: /Leave the value empty/ }),
+    ).not.toBeInTheDocument()
+    // The replacement candidate is labelled with its platform.
+    expect(
+      within(dialog).getByRole('option', { name: 'Catan (Board game)' }),
+    ).toBeInTheDocument()
+
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), '2')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.url === '/api/games/games/1/replace-and-delete')
+          ?.body,
+      ).toEqual({ replacementId: 2, clearReferences: false, exchangeRate: null }),
+    )
+  })
+
+  it('reorders games through the Games section', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Move Hollow Knight down' }),
+    )
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) => call.method === 'POST' && call.url === '/api/games/games/1/move',
+        )?.body,
+      ).toEqual({ direction: 'down' }),
+    )
+  })
+
+  it('refetches the game catalogue after a create', async () => {
+    const { fetchMock } = mockBackend()
+    renderAt('/configuration/games')
+    await screen.findByText('Hollow Knight')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New game' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Celeste')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([input]) => urlOf(input) === '/api/games/games')
+          .length,
+      ).toBeGreaterThan(1),
+    )
   })
 })
 

@@ -394,7 +394,9 @@ export function DeleteCatalogDialog({
                   value: String(candidate.id),
                   label: descriptor.hasCode
                     ? `${candidate.name} (${candidate.code})`
-                    : candidate.name,
+                    : descriptor.hasPlatform && candidate.platform != null
+                      ? `${candidate.name} (${t(`games:platform.${candidate.platform}`)})`
+                      : candidate.name,
                 })),
               ]}
             />

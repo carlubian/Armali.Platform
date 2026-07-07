@@ -85,6 +85,11 @@ export function CatalogTable({
                 {t('table.columns.color')}
               </th>
             )}
+            {descriptor.hasPlatform && (
+              <th scope="col" className="seg-catalog__col-platform">
+                {t('table.columns.platform')}
+              </th>
+            )}
             <th scope="col" className="seg-catalog__col-actions">
               {t('table.columns.actions')}
             </th>
@@ -147,6 +152,11 @@ export function CatalogTable({
                         {row.colorValue}
                       </span>
                     </span>
+                  </td>
+                )}
+                {descriptor.hasPlatform && (
+                  <td className="seg-catalog__platform">
+                    {row.platform != null ? t(`games:platform.${row.platform}`) : ''}
                   </td>
                 )}
                 <td className="seg-catalog__col-actions">

@@ -16,6 +16,7 @@ import {
   personCategoriesManagementApi,
   usernamePlatformsManagementApi,
 } from '@/app/api/firebird'
+import { gamesApi, gamesManagementApi, type GamePlatform } from '@/app/api/games'
 import {
   healthApi,
   diseaseCategoriesManagementApi,
@@ -45,6 +46,7 @@ import { capexKeys, configurationKeys } from '@/modules/capex/queries'
 import { clothesKeys } from '@/modules/clothes/contracts'
 import { destinationsKeys } from '@/modules/destinations/contracts'
 import { firebirdKeys } from '@/modules/firebird/contracts'
+import { gamesKeys } from '@/modules/games/contracts'
 import { inventoryKeys } from '@/modules/inventory/queries'
 import { maintenanceApi, maintenanceTypesManagementApi } from '@/app/api/maintenance'
 import { maintenanceKeys } from '@/modules/maintenance/contracts'
@@ -77,6 +79,7 @@ export type CatalogKey =
   | 'medicineCategories'
   | 'personCategories'
   | 'usernamePlatforms'
+  | 'games'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -94,6 +97,7 @@ export type CatalogSectionId =
   | 'processes'
   | 'recipes'
   | 'health'
+  | 'games'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -108,6 +112,8 @@ export interface CatalogRow {
   /** Current exchange rate to EUR; only currencies carry it. `null` means a rate
    * has not been configured yet. */
   exchangeRateToEur?: number | null
+  /** Fixed platform; only games carry it. */
+  platform?: GamePlatform
 }
 
 /** Create/update body shape covering every catalog. */
@@ -116,6 +122,7 @@ export interface CatalogWriteBody {
   code?: string
   colorValue?: string
   exchangeRateToEur?: number
+  platform?: GamePlatform
 }
 
 export interface CatalogDescriptor {
@@ -130,6 +137,8 @@ export interface CatalogDescriptor {
   hasCode: boolean
   /** Clothing colours carry an editable hex colour value. */
   hasColorValue?: boolean
+  /** Games carry a fixed platform enum, edited as a select and shown as a column. */
+  hasPlatform?: boolean
   /** Optional references may be cleared to null (suppliers and cost centres). */
   canClear: boolean
   /** Currency carries the exchange-rate conversion deletion path. */
@@ -441,6 +450,22 @@ export const usernamePlatformsDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(usernamePlatformsManagementApi),
 }
 
+export const gamesDescriptor: CatalogDescriptor = {
+  key: 'games',
+  section: 'games',
+  hasCode: false,
+  hasPlatform: true,
+  // Every playthrough requires a game, so a referenced game can only be replaced,
+  // never cleared.
+  canClear: false,
+  isCurrency: false,
+  queryKey: gamesKeys.games(),
+  // A rename or replacement changes the game name and platform playthroughs show.
+  dependentKeys: [gamesKeys.playthroughs()],
+  read: (signal) => gamesApi.games(signal),
+  management: asDescriptorClient(gamesManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -499,6 +524,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   diseaseCategoriesDescriptor,
   medicineCategoriesDescriptor,
   ...firebirdCatalogs,
+  gamesDescriptor,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -548,6 +574,8 @@ export function sectionCatalogs(
       return [categoriesDescriptor]
     case 'opex':
       return [opexCategoriesDescriptor]
+    case 'games':
+      return [gamesDescriptor]
   }
 }
 
