@@ -5,6 +5,7 @@ import {
   Boxes,
   CalendarDays,
   Contact,
+  Gamepad2,
   Hammer,
   HeartPulse,
   ListChecks,
@@ -170,6 +171,15 @@ export function LauncherPage() {
         href: '/health',
         icon: HeartPulse,
         tone: 'rose',
+      },
+      {
+        key: 'games',
+        title: t('games:launcher.title'),
+        description: t('games:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/games',
+        icon: Gamepad2,
+        tone: 'aqua',
       },
       {
         key: 'projects',

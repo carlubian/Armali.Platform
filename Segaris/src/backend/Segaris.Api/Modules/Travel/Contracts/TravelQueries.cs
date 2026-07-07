@@ -67,5 +67,5 @@ internal static class TravelExpenseQuery
 
     public static readonly IReadOnlyList<int> PageSizeOptions = [10, 25, 50, 100];
 
-    public const string DefaultSortDirection = "asc";
+    public const string DefaultSortDirection = "desc";
 }

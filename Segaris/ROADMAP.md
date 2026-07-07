@@ -341,6 +341,18 @@ many-to-many relationship between them.
 | Deferred | PostgreSQL representative-volume query-plan benchmark | The recommended indexes exist in both providers and the queries run at the database level. A large-dataset `EXPLAIN ANALYZE` benchmark waits on a representative seeding/benchmark harness. |
 | Deferred | Future Health scope | Disease and medicine occurrences (dated episodes, symptom logs, recovery tracking), intake schedules/reminders/treatment courses and any launcher attention, attributes on the disease-to-medicine association (promoting the pure link to a join entity), disease attachments, a standard medical coding system (ICD, ATC) or curated drug catalogue, relating diseases or medicines to people (household members or Firebird), and Analytics/Calendar integration remain future versions. See `docs/requirements/HEALTH_REQUIREMENTS.md`. |
 
+### Games
+
+Module purpose: Track progress through video games, board games, tabletop campaigns, and similar entertainment.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| Resolved | Entities and properties | Games owns an administrator-managed `Game` catalogue with a required name, fixed platform enum, ordering, and replace-only deletion when referenced. A `Playthrough` carries a required game, required name, required start month/year stored as integers, manual `Planning`/`Active`/`Completed` status, free-text tags, Public/Private visibility, and audit metadata. Each playthrough owns ordered `Section`s with a unique name and fixed palette color, and each section owns creation-ordered `Goal`s with free text and a completion flag. See `docs/requirements/GAMES_REQUIREMENTS.md`. |
+| Resolved | Progress model | Goals are the source of truth for progress. Section and playthrough completed/total counts and percentages are computed on demand from current goals and are never persisted. |
+| Resolved | User workflow | Games opens on a server-paginated playthrough card collection with search, filters for game/platform/status/tags/creator/visibility, sorting by name, game, start date, status, and derived progress, and URL-aware playthrough dialogs. Each playthrough exposes a dedicated progress page with a one-level section list on the left and selected-section goals on the right. The launcher card never requests attention. See `docs/requirements/GAMES_REQUIREMENTS.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/GAMES_IMPLEMENTATION_PLAN.md`. |
+| Deferred | Future Games scope | End dates, completion dates, time played, play sessions, progress history, richer game metadata, cover images, external imports, configurable platforms, attachments, screenshots, ratings, goal reordering, due dates, sub-goals, Analytics/Calendar integration, and launcher attention remain future versions. See `docs/requirements/GAMES_REQUIREMENTS.md`. |
+
 ### Analytics
 
 Module purpose: Module to see aggregated trends of the financial modules.

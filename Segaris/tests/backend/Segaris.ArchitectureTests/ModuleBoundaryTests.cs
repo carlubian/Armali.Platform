@@ -41,6 +41,8 @@ public sealed class ModuleBoundaryTests
     private const string DestinationsContractsNamespace = "Segaris.Api.Modules.Destinations.Contracts";
     private const string HealthNamespace = "Segaris.Api.Modules.Health";
     private const string HealthContractsNamespace = "Segaris.Api.Modules.Health.Contracts";
+    private const string GamesNamespace = "Segaris.Api.Modules.Games";
+    private const string GamesContractsNamespace = "Segaris.Api.Modules.Games.Contracts";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -67,6 +69,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(RecipesNamespace));
         Assert.NotEmpty(TypesIn(DestinationsNamespace));
         Assert.NotEmpty(TypesIn(HealthNamespace));
+        Assert.NotEmpty(TypesIn(GamesNamespace));
     }
 
     [Fact]
@@ -319,6 +322,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, HealthNamespace);
         AssertNoDependency(LauncherNamespace, CalendarNamespace);
         AssertNoDependency(LauncherNamespace, AnalyticsNamespace);
+        AssertNoDependency(LauncherNamespace, GamesNamespace);
     }
 
     [Fact]
@@ -903,6 +907,78 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(FirebirdNamespace, HealthNamespace);
         AssertNoDependency(RecipesNamespace, HealthNamespace);
         AssertNoDependency(DestinationsNamespace, HealthNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_games()
+    {
+        AssertNoDependency(ConfigurationNamespace, GamesNamespace);
+    }
+
+    [Fact]
+    public void Games_depends_on_configuration_contracts()
+    {
+        // Games owns the Game catalogue surfaced through the Configuration
+        // presentation boundary, so it consumes Configuration's published contracts.
+        // Its absence would mean the catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(GamesNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Games must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Games_does_not_depend_on_forbidden_business_modules()
+    {
+        // Games is an independent business module: it may consume Configuration,
+        // Launcher, Identity, and platform contracts (its launcher card reports a
+        // constant non-attention state from Wave 1 on), but it must remain
+        // independent from every other business module.
+        AssertNoDependency(GamesNamespace, CapexNamespace);
+        AssertNoDependency(GamesNamespace, OpexNamespace);
+        AssertNoDependency(GamesNamespace, InventoryNamespace);
+        AssertNoDependency(GamesNamespace, TravelNamespace);
+        AssertNoDependency(GamesNamespace, ClothesNamespace);
+        AssertNoDependency(GamesNamespace, AssetsNamespace);
+        AssertNoDependency(GamesNamespace, MoodNamespace);
+        AssertNoDependency(GamesNamespace, MaintenanceNamespace);
+        AssertNoDependency(GamesNamespace, ProjectsNamespace);
+        AssertNoDependency(GamesNamespace, ProcessesNamespace);
+        AssertNoDependency(GamesNamespace, FirebirdNamespace);
+        AssertNoDependency(GamesNamespace, RecipesNamespace);
+        AssertNoDependency(GamesNamespace, DestinationsNamespace);
+        AssertNoDependency(GamesNamespace, HealthNamespace);
+        AssertNoDependency(GamesNamespace, CalendarNamespace);
+        AssertNoDependency(GamesNamespace, AnalyticsNamespace);
+    }
+
+    [Fact]
+    public void No_module_depends_on_games()
+    {
+        // Games publishes no cross-module business contracts: no other module,
+        // including Configuration and Launcher, may reference the Games namespace.
+        Assert.NotEmpty(TypesIn(GamesContractsNamespace));
+        AssertNoDependency(ConfigurationNamespace, GamesNamespace);
+        AssertNoDependency(LauncherNamespace, GamesNamespace);
+        AssertNoDependency(CapexNamespace, GamesNamespace);
+        AssertNoDependency(OpexNamespace, GamesNamespace);
+        AssertNoDependency(InventoryNamespace, GamesNamespace);
+        AssertNoDependency(TravelNamespace, GamesNamespace);
+        AssertNoDependency(ClothesNamespace, GamesNamespace);
+        AssertNoDependency(AssetsNamespace, GamesNamespace);
+        AssertNoDependency(MoodNamespace, GamesNamespace);
+        AssertNoDependency(MaintenanceNamespace, GamesNamespace);
+        AssertNoDependency(ProjectsNamespace, GamesNamespace);
+        AssertNoDependency(ProcessesNamespace, GamesNamespace);
+        AssertNoDependency(FirebirdNamespace, GamesNamespace);
+        AssertNoDependency(RecipesNamespace, GamesNamespace);
+        AssertNoDependency(DestinationsNamespace, GamesNamespace);
+        AssertNoDependency(HealthNamespace, GamesNamespace);
+        AssertNoDependency(CalendarNamespace, GamesNamespace);
+        AssertNoDependency(AnalyticsNamespace, GamesNamespace);
     }
 
     [Fact]

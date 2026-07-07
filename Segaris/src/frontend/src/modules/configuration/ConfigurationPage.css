@@ -149,6 +149,15 @@
   width: 1%;
   white-space: nowrap;
 }
+.seg-catalog__col-platform {
+  width: 1%;
+  white-space: nowrap;
+}
+.seg-catalog__platform {
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
 .seg-catalog__swatch {
   display: inline-flex;
   align-items: center;

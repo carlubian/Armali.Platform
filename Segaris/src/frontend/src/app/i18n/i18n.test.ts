@@ -8,6 +8,7 @@ import { clothes } from '@/modules/clothes/i18n/resources'
 import { configuration } from '@/modules/configuration/i18n/resources'
 import { destinations } from '@/modules/destinations/i18n/resources'
 import { firebird } from '@/modules/firebird/i18n/resources'
+import { games } from '@/modules/games/i18n/resources'
 import { health } from '@/modules/health/i18n/resources'
 import { inventory } from '@/modules/inventory/i18n/resources'
 import { maintenance } from '@/modules/maintenance/i18n/resources'
@@ -33,6 +34,7 @@ const namespaces = [
   'configuration',
   'destinations',
   'firebird',
+  'games',
   'health',
   'inventory',
   'maintenance',
@@ -103,6 +105,12 @@ describe('platform translations', () => {
   it('registers every firebird resource key', () => {
     for (const key of leafKeys(firebird)) {
       expect(i18n.exists(key, { ns: 'firebird', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every games resource key', () => {
+    for (const key of leafKeys(games)) {
+      expect(i18n.exists(key, { ns: 'games', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

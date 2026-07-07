@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { isApiError } from '@/app/api/errors'
-import { Button, Dialog, Input } from '@/components/ui'
+import { gamePlatforms, type GamePlatform } from '@/app/api/games'
+import { Button, Dialog, Input, Select } from '@/components/ui'
 
 import type { CatalogDescriptor, CatalogRow, CatalogWriteBody } from './catalogs'
 
@@ -63,6 +64,12 @@ function buildSchema(t: TFunc, descriptor: CatalogDescriptor) {
       colorValue: z.string().trim().regex(hexColor, t('form.colorInvalid')),
     })
   }
+  if (descriptor.hasPlatform) {
+    return z.object({
+      name,
+      platform: z.enum(gamePlatforms as [GamePlatform, ...GamePlatform[]]),
+    })
+  }
   return z.object({ name })
 }
 
@@ -71,6 +78,7 @@ type FormValues = {
   code?: string
   colorValue?: string
   exchangeRateToEur?: string
+  platform?: GamePlatform
 }
 
 /**
@@ -98,6 +106,7 @@ export function CatalogFormDialog({
       colorValue: row?.colorValue ?? '#000000',
       exchangeRateToEur:
         row?.exchangeRateToEur != null ? String(row.exchangeRateToEur) : '',
+      platform: row?.platform ?? gamePlatforms[0],
     },
   })
   const { register, handleSubmit, formState, setError, control } = form
@@ -117,7 +126,9 @@ export function CatalogFormDialog({
           }
         : descriptor.hasColorValue
           ? { name: values.name.trim(), colorValue: (values.colorValue ?? '').trim() }
-          : { name: values.name.trim() }
+          : descriptor.hasPlatform
+            ? { name: values.name.trim(), platform: values.platform }
+            : { name: values.name.trim() }
       return mode === 'create'
         ? descriptor.management.create(body)
         : descriptor.management.update(row!.id, body)
@@ -259,6 +270,9 @@ export function CatalogFormDialog({
               error={formState.errors.colorValue?.message}
             />
           )}
+          {descriptor.hasPlatform && (
+            <PlatformField control={control} label={t(`${labels}.platformLabel`)} />
+          )}
         </form>
       </Dialog>
 
@@ -377,6 +391,40 @@ function ColorField({ control, label, pickerLabel, error }: ColorFieldProps) {
         onChange={(event) => field.onChange(event.target.value)}
         onBlur={field.onBlur}
       />
+    </div>
+  )
+}
+
+interface PlatformFieldProps {
+  control: Control<FormValues>
+  label: string
+}
+
+/**
+ * Fixed-platform selector for `Game`. Every game has exactly one platform from the
+ * frozen vocabulary, so this is a plain required select. Platform labels are the
+ * canonical Games ones, reused across the `games` namespace to avoid divergence. It
+ * owns its own controlled subscription so selecting a platform re-renders only this
+ * component, leaving the Dialog's `onClose` identity stable.
+ */
+function PlatformField({ control, label }: PlatformFieldProps) {
+  const { t } = useTranslation('games')
+  const { field } = useController({ name: 'platform', control })
+  const value = typeof field.value === 'string' ? field.value : gamePlatforms[0]
+  return (
+    <div className="seg-catalog__field">
+      <label className="seg-catalog__field-control">
+        <span className="seg-catalog__field-label">{label}</span>
+        <Select
+          value={value}
+          onChange={(event) => field.onChange(event.target.value)}
+          onBlur={field.onBlur}
+          options={gamePlatforms.map((platform) => ({
+            value: platform,
+            label: t(`platform.${platform}`),
+          }))}
+        />
+      </label>
     </div>
   )
 }

@@ -77,6 +77,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_CalendarDailyNotes"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_GamesDomainPersistence"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -129,6 +132,9 @@ public sealed class MigrationTests
                 Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'calendar_%'";
                 Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+                // Games, playthroughs, playthrough tags, sections, and goals.
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'games_%'";
+                Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
             }
         }
         finally
@@ -173,13 +179,14 @@ public sealed class MigrationTests
         Assert.Contains("MedicinePrimaryAttachment", sqliteNames);
         Assert.Contains("CalendarDailyNotes", sqliteNames);
         Assert.Contains("CurrencyExchangeRateToEur", sqliteNames);
+        Assert.Contains("GamesDomainPersistence", sqliteNames);
     }
 
     [Fact]
-    public void Currency_exchange_rate_is_the_current_tail()
+    public void Games_domain_persistence_is_the_current_tail()
     {
-        // Analytics Wave 1 adds the administrator-managed exchange rate to EUR on
-        // currencies after the accepted Calendar migration.
+        // Games Wave 1 adds the module-owned catalogue and playthrough model after
+        // the accepted Analytics currency-rate migration.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -191,8 +198,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("CurrencyExchangeRateToEur", migrations[^1]);
-            Assert.Equal("CalendarDailyNotes", migrations[^2]);
+            Assert.Equal("GamesDomainPersistence", migrations[^1]);
+            Assert.Equal("CurrencyExchangeRateToEur", migrations[^2]);
         }
     }
 
@@ -348,6 +355,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_DestinationsDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_TravelDestinationReference"));
             Assert.Contains(applied, migration => migration.EndsWith("_HealthDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_GamesDomainPersistence"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
@@ -374,6 +382,8 @@ public sealed class MigrationTests
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'processes_%'";
             Assert.Equal(3L, (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'firebird_%'";
+            Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'games_%'";
             Assert.Equal(5L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally

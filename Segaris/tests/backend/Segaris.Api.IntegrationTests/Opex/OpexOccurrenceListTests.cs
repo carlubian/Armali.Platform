@@ -31,7 +31,8 @@ public sealed class OpexOccurrenceListTests
         var contractId = await OpexContractMutationTests.CreateContractAsync(server, client, csrf, builder => builder);
 
         // Seeded out of chronological order; two share a date to exercise the
-        // identifier tie-breaker.
+        // identifier tie-breaker. Most recent effective date is listed first,
+        // and among ties the most recently created occurrence comes first.
         var march = await OpexOccurrenceMutationTests.CreateOccurrenceAsync(
             client, csrf, contractId, b => b.WithEffectiveDate(new DateOnly(2026, 3, 1)));
         var januaryFirst = await OpexOccurrenceMutationTests.CreateOccurrenceAsync(
@@ -42,7 +43,7 @@ public sealed class OpexOccurrenceListTests
         var page = await GetPageAsync(client, $"/api/opex/contracts/{contractId}/occurrences");
 
         Assert.Equal(
-            new[] { januaryFirst, januarySecond, march },
+            new[] { march, januarySecond, januaryFirst },
             page.Items.Select(item => item.Id).ToArray());
     }
 
