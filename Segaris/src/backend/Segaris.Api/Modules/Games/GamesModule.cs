@@ -28,6 +28,8 @@ internal sealed class GamesModule : ISegarisModule
         services.AddSingleton<ISegarisModelContributor, GamesModelContributor>();
         services.AddScoped<GameReadService>();
         services.AddScoped<GameManagementService>();
+        services.AddScoped<PlaythroughReadService>();
+        services.AddScoped<PlaythroughWriteService>();
         services.AddScoped<ILauncherAttentionContributor, GamesAttentionContributor>();
     }
 

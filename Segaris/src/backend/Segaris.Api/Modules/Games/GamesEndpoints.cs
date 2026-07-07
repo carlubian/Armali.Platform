@@ -1,5 +1,6 @@
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Games.Contracts;
+using Segaris.Api.Modules.Games.Domain;
 using Segaris.Api.Modules.Games.Mutations;
 using Segaris.Api.Modules.Games.Queries;
 using Segaris.Api.Modules.Identity;
@@ -49,25 +50,36 @@ internal static class GamesEndpoints
     private static void MapPlaythroughEndpoints(RouteGroupBuilder group)
     {
         var playthroughs = group.MapGroup("/playthroughs");
-        playthroughs.MapGet("", Placeholder)
+        playthroughs.MapGet("", ListPlaythroughsAsync)
             .WithName("ListPlaythroughs")
-            .Produces<PaginatedResponse<PlaythroughSummaryResponse>>();
-        playthroughs.MapPost("", Placeholder)
+            .WithSummary("Returns a paginated, filtered, and sorted playthrough card collection")
+            .Produces<PaginatedResponse<PlaythroughSummaryResponse>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        playthroughs.MapPost("", CreatePlaythroughAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreatePlaythrough")
-            .Produces<PlaythroughResponse>(StatusCodes.Status201Created);
-        playthroughs.MapGet(GamesApiRoutes.PlaythroughById, Placeholder)
+            .WithSummary("Creates a playthrough")
+            .Produces<PlaythroughResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+        playthroughs.MapGet(GamesApiRoutes.PlaythroughById, GetPlaythroughAsync)
             .WithName("GetPlaythrough")
+            .WithSummary("Returns the detail of an accessible playthrough")
             .Produces<PlaythroughResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
-        playthroughs.MapPut(GamesApiRoutes.PlaythroughById, Placeholder)
+        playthroughs.MapPut(GamesApiRoutes.PlaythroughById, UpdatePlaythroughAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("UpdatePlaythrough")
-            .Produces<PlaythroughResponse>();
-        playthroughs.MapDelete(GamesApiRoutes.PlaythroughById, Placeholder)
+            .WithSummary("Updates an accessible playthrough")
+            .Produces<PlaythroughResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        playthroughs.MapDelete(GamesApiRoutes.PlaythroughById, DeletePlaythroughAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeletePlaythrough")
-            .Produces(StatusCodes.Status204NoContent);
+            .WithSummary("Deletes an accessible playthrough and its sections and goals")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapSectionEndpoints(RouteGroupBuilder group)
@@ -178,6 +190,118 @@ internal static class GamesEndpoints
         CancellationToken cancellationToken)
     {
         await service.ReplaceAndDeleteAsync(gameId, request, CatalogActor(currentUser), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<IResult> ListPlaythroughsAsync(
+        [AsParameters] PlaythroughListQuery query,
+        PlaythroughReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await read.ListPlaythroughsAsync(
+            query.ToFilter(),
+            query.ToPagination(),
+            query.ToSort(),
+            userId,
+            cancellationToken));
+    }
+
+    private static async Task<IResult> GetPlaythroughAsync(
+        int playthroughId,
+        PlaythroughReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var playthrough = await read.GetPlaythroughAsync(playthroughId, userId, cancellationToken);
+        return playthrough is null ? throw PlaythroughProblem.NotFound() : TypedResults.Ok(playthrough);
+    }
+
+    private static async Task<IResult> CreatePlaythroughAsync(
+        CreatePlaythroughRequest request,
+        PlaythroughWriteService write,
+        PlaythroughReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        int playthroughId;
+        try
+        {
+            playthroughId = await write.CreateAsync(request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw PlaythroughProblem.From(exception);
+        }
+
+        var playthrough = await read.GetPlaythroughAsync(playthroughId, userId, cancellationToken);
+        return TypedResults.Created($"/api/games/playthroughs/{playthroughId}", playthrough);
+    }
+
+    private static async Task<IResult> UpdatePlaythroughAsync(
+        int playthroughId,
+        UpdatePlaythroughRequest request,
+        PlaythroughWriteService write,
+        PlaythroughReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        bool updated;
+        try
+        {
+            updated = await write.UpdateAsync(playthroughId, request, userId, cancellationToken);
+        }
+        catch (GamesValidationException exception)
+        {
+            throw PlaythroughProblem.From(exception);
+        }
+
+        if (!updated)
+        {
+            throw PlaythroughProblem.NotFound();
+        }
+
+        var playthrough = await read.GetPlaythroughAsync(playthroughId, userId, cancellationToken);
+        return TypedResults.Ok(playthrough);
+    }
+
+    private static async Task<IResult> DeletePlaythroughAsync(
+        int playthroughId,
+        PlaythroughWriteService write,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var deleted = await write.DeleteAsync(playthroughId, userId, cancellationToken);
+        if (!deleted)
+        {
+            throw PlaythroughProblem.NotFound();
+        }
+
         return TypedResults.NoContent();
     }
 
