@@ -196,7 +196,8 @@ internal sealed class OpexReadService(SegarisDbContext database, IAttachmentServ
 
     /// <summary>
     /// Lists the occurrences of a contract in their fixed chronological order
-    /// (effective date ascending, identifier ascending as the stable tie-breaker).
+    /// (effective date descending, identifier descending as the stable tie-breaker),
+    /// so the most recent movement is shown first.
     /// The query is scoped to the supplied contract; callers resolve parent-contract
     /// accessibility through <see cref="ContractAccessibleAsync"/> beforehand so a
     /// private contract's movements are never exposed.
@@ -213,8 +214,8 @@ internal sealed class OpexReadService(SegarisDbContext database, IAttachmentServ
         var totalCount = await occurrences.CountAsync(cancellationToken);
 
         var page = await occurrences
-            .OrderBy(occurrence => occurrence.EffectiveDate)
-            .ThenBy(occurrence => occurrence.Id)
+            .OrderByDescending(occurrence => occurrence.EffectiveDate)
+            .ThenByDescending(occurrence => occurrence.Id)
             .Skip(pagination.Offset)
             .Take(pagination.PageSize)
             .Select(occurrence => new OpexOccurrenceSummaryResponse(

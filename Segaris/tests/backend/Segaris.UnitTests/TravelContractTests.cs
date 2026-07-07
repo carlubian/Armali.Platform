@@ -70,7 +70,7 @@ public sealed class TravelContractTests
             TravelExpenseQuery.AllowedSortFields);
         Assert.Equal("date", TravelExpenseQuery.SortFields.Default);
         Assert.Equal("id", TravelExpenseQuery.SortFields.TieBreaker);
-        Assert.Equal("asc", TravelExpenseQuery.DefaultSortDirection);
+        Assert.Equal("desc", TravelExpenseQuery.DefaultSortDirection);
         Assert.Equal([10, 25, 50, 100], TravelExpenseQuery.PageSizeOptions);
     }
 
