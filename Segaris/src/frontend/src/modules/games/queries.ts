@@ -30,4 +30,25 @@ export function usePlaythrough(playthroughId: number, enabled = true) {
   })
 }
 
+export function useSections(playthroughId: number, enabled = true) {
+  return useQuery({
+    queryKey: gamesKeys.sections(playthroughId),
+    queryFn: ({ signal }) => gamesApi.listSections(playthroughId, signal),
+    enabled: enabled && Number.isFinite(playthroughId) && playthroughId > 0,
+  })
+}
+
+export function useGoals(playthroughId: number, sectionId: number, enabled = true) {
+  return useQuery({
+    queryKey: gamesKeys.goals(playthroughId, sectionId),
+    queryFn: ({ signal }) => gamesApi.listGoals(playthroughId, sectionId, signal),
+    enabled:
+      enabled &&
+      Number.isFinite(playthroughId) &&
+      playthroughId > 0 &&
+      Number.isFinite(sectionId) &&
+      sectionId > 0,
+  })
+}
+
 export { gamesKeys }

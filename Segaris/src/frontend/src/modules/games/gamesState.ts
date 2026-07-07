@@ -354,12 +354,27 @@ export function useProgressPageState() {
     [setSearchParams],
   )
 
+  const selectSection = useCallback(
+    (sectionId: number | null) =>
+      patchParams({ sectionId: sectionId == null ? null : String(sectionId) }),
+    [patchParams],
+  )
+
+  const openManageSections = useCallback(
+    () => patchParams({ manageSections: 'true' }),
+    [patchParams],
+  )
+
+  const closeManageSections = useCallback(
+    () => patchParams({ manageSections: null }),
+    [patchParams],
+  )
+
   return {
     selectedSectionId,
     manageSections,
-    selectSection: (sectionId: number | null) =>
-      patchParams({ sectionId: sectionId == null ? null : String(sectionId) }),
-    openManageSections: () => patchParams({ manageSections: 'true' }),
-    closeManageSections: () => patchParams({ manageSections: null }),
+    selectSection,
+    openManageSections,
+    closeManageSections,
   }
 }

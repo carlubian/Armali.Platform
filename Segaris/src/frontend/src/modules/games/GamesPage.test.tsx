@@ -4,7 +4,13 @@ import axe from 'axe-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
-import type { Game, Playthrough, PlaythroughSummary } from '@/app/api/games'
+import type {
+  Game,
+  Goal,
+  Playthrough,
+  PlaythroughSummary,
+  Section,
+} from '@/app/api/games'
 
 const session = {
   userId: 7,
@@ -68,15 +74,67 @@ function makeDetail(id: number, overrides: Partial<Playthrough> = {}): Playthrou
   }
 }
 
+function makeSection(id: number, overrides: Partial<Section> = {}): Section {
+  return {
+    id,
+    name: id === 1 ? 'Main bosses' : 'Exploration',
+    color: id === 1 ? 'Red' : 'Teal',
+    sortOrder: id,
+    progress: { completedGoals: 0, totalGoals: 0 },
+    ...overrides,
+  }
+}
+
+function makeGoal(id: number, overrides: Partial<Goal> = {}): Goal {
+  return {
+    id,
+    text: id === 1 ? 'Margit, the Fell Omen' : 'Godrick the Grafted',
+    completed: id === 1,
+    position: id,
+    ...overrides,
+  }
+}
+
 interface BackendOptions {
   summaries?: PlaythroughSummary[]
+  sections?: Record<number, Section[]>
+  goals?: Record<number, Goal[]>
 }
 
 function mockBackend(options: BackendOptions = {}) {
   const summaries =
     options.summaries ?? Array.from({ length: 3 }, (_, i) => makeSummary(i + 1))
+  const sectionsByPlaythrough: Record<number, Section[]> = {
+    1: [makeSection(1), makeSection(2)],
+    ...(options.sections ?? {}),
+  }
+  const goalsBySection: Record<number, Goal[]> = {
+    1: [makeGoal(1), makeGoal(2)],
+    2: [],
+    ...(options.goals ?? {}),
+  }
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
   let created: Playthrough | null = null
+
+  const sectionWithProgress = (section: Section): Section => {
+    const goals = goalsBySection[section.id] ?? []
+    return {
+      ...section,
+      progress: {
+        completedGoals: goals.filter((goal) => goal.completed).length,
+        totalGoals: goals.length,
+      },
+    }
+  }
+
+  const playthroughProgress = (playthroughId: number) => {
+    const sectionIds = (sectionsByPlaythrough[playthroughId] ?? []).map((s) => s.id)
+    const allGoals = sectionIds.flatMap((sectionId) => goalsBySection[sectionId] ?? [])
+    return {
+      completedGoals: allGoals.filter((goal) => goal.completed).length,
+      totalGoals: allGoals.length,
+    }
+  }
 
   const fetchMock = vi
     .spyOn(globalThis, 'fetch')
@@ -106,7 +164,7 @@ function mockBackend(options: BackendOptions = {}) {
         const summary = summaries.find((s) => s.id === id)
         return summary == null
           ? json({ code: 'games.playthrough.not_found' }, 404)
-          : json(makeDetail(id, summary))
+          : json(makeDetail(id, { ...summary, progress: playthroughProgress(id) }))
       }
       if (detailMatch && method === 'PUT') {
         requests.push({ method, url, body })
@@ -114,6 +172,141 @@ function mockBackend(options: BackendOptions = {}) {
       }
       if (detailMatch && method === 'DELETE') {
         requests.push({ method, url })
+        return new Response(null, { status: 204 })
+      }
+
+      const sectionsMatch = url.match(/^\/api\/games\/playthroughs\/(\d+)\/sections$/)
+      if (sectionsMatch && method === 'GET') {
+        const playthroughId = Number(sectionsMatch[1])
+        return json(
+          (sectionsByPlaythrough[playthroughId] ?? []).map(sectionWithProgress),
+        )
+      }
+      if (sectionsMatch && method === 'POST') {
+        requests.push({ method, url, body })
+        const playthroughId = Number(sectionsMatch[1])
+        const nextId =
+          Math.max(
+            0,
+            ...Object.values(sectionsByPlaythrough)
+              .flat()
+              .map((s) => s.id),
+          ) + 1
+        const section = makeSection(nextId, {
+          ...(body as Partial<Section>),
+          sortOrder: (sectionsByPlaythrough[playthroughId] ?? []).length + 1,
+        })
+        sectionsByPlaythrough[playthroughId] = [
+          ...(sectionsByPlaythrough[playthroughId] ?? []),
+          section,
+        ]
+        goalsBySection[section.id] = []
+        return json(sectionWithProgress(section), 201)
+      }
+
+      const orderMatch = url.match(
+        /^\/api\/games\/playthroughs\/(\d+)\/sections\/order$/,
+      )
+      if (orderMatch && method === 'PUT') {
+        requests.push({ method, url, body })
+        const playthroughId = Number(orderMatch[1])
+        const ids = (body as { sectionIds: number[] }).sectionIds
+        sectionsByPlaythrough[playthroughId] = ids.map((id, index) => ({
+          ...(sectionsByPlaythrough[playthroughId] ?? []).find((s) => s.id === id)!,
+          sortOrder: index + 1,
+        }))
+        return new Response(null, { status: 204 })
+      }
+
+      const sectionMatch = url.match(
+        /^\/api\/games\/playthroughs\/(\d+)\/sections\/(\d+)$/,
+      )
+      if (sectionMatch && method === 'PUT') {
+        requests.push({ method, url, body })
+        const playthroughId = Number(sectionMatch[1])
+        const sectionId = Number(sectionMatch[2])
+        const next = (sectionsByPlaythrough[playthroughId] ?? []).map((section) =>
+          section.id === sectionId
+            ? { ...section, ...(body as Partial<Section>) }
+            : section,
+        )
+        sectionsByPlaythrough[playthroughId] = next
+        return json(sectionWithProgress(next.find((s) => s.id === sectionId)!))
+      }
+      if (sectionMatch && method === 'DELETE') {
+        requests.push({ method, url })
+        const playthroughId = Number(sectionMatch[1])
+        const sectionId = Number(sectionMatch[2])
+        sectionsByPlaythrough[playthroughId] = (
+          sectionsByPlaythrough[playthroughId] ?? []
+        ).filter((section) => section.id !== sectionId)
+        delete goalsBySection[sectionId]
+        return new Response(null, { status: 204 })
+      }
+
+      const goalsMatch = url.match(
+        /^\/api\/games\/playthroughs\/(\d+)\/sections\/(\d+)\/goals$/,
+      )
+      if (goalsMatch && method === 'GET') {
+        return json(goalsBySection[Number(goalsMatch[2])] ?? [])
+      }
+      if (goalsMatch && method === 'POST') {
+        requests.push({ method, url, body })
+        const sectionId = Number(goalsMatch[2])
+        const nextId =
+          Math.max(
+            0,
+            ...Object.values(goalsBySection)
+              .flat()
+              .map((g) => g.id),
+          ) + 1
+        const goal = makeGoal(nextId, {
+          text: (body as { text: string }).text,
+          completed: false,
+          position: (goalsBySection[sectionId] ?? []).length + 1,
+        })
+        goalsBySection[sectionId] = [...(goalsBySection[sectionId] ?? []), goal]
+        return json(goal, 201)
+      }
+
+      const goalCompletionMatch = url.match(
+        /^\/api\/games\/playthroughs\/(\d+)\/sections\/(\d+)\/goals\/(\d+)\/completion$/,
+      )
+      if (goalCompletionMatch && method === 'PUT') {
+        requests.push({ method, url, body })
+        const sectionId = Number(goalCompletionMatch[2])
+        const goalId = Number(goalCompletionMatch[3])
+        const next = (goalsBySection[sectionId] ?? []).map((goal) =>
+          goal.id === goalId
+            ? { ...goal, completed: (body as { completed: boolean }).completed }
+            : goal,
+        )
+        goalsBySection[sectionId] = next
+        return json(next.find((goal) => goal.id === goalId))
+      }
+
+      const goalMatch = url.match(
+        /^\/api\/games\/playthroughs\/(\d+)\/sections\/(\d+)\/goals\/(\d+)$/,
+      )
+      if (goalMatch && method === 'PUT') {
+        requests.push({ method, url, body })
+        const sectionId = Number(goalMatch[2])
+        const goalId = Number(goalMatch[3])
+        const next = (goalsBySection[sectionId] ?? []).map((goal) =>
+          goal.id === goalId
+            ? { ...goal, text: (body as { text: string }).text }
+            : goal,
+        )
+        goalsBySection[sectionId] = next
+        return json(next.find((goal) => goal.id === goalId))
+      }
+      if (goalMatch && method === 'DELETE') {
+        requests.push({ method, url })
+        const sectionId = Number(goalMatch[2])
+        const goalId = Number(goalMatch[3])
+        goalsBySection[sectionId] = (goalsBySection[sectionId] ?? []).filter(
+          (goal) => goal.id !== goalId,
+        )
         return new Response(null, { status: 204 })
       }
 
@@ -349,6 +542,120 @@ describe('Games playthrough editor', () => {
   })
 })
 
+describe('Games progress page', () => {
+  it('preserves selected-section route state and renders that section goals', async () => {
+    mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+      goals: { 2: [] },
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=2')
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Exploration' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('No goals in this section yet.')).toBeInTheDocument()
+    expect(window.location.search).toContain('sectionId=2')
+  })
+
+  it('handles an empty playthrough without defaulting a section', async () => {
+    mockBackend({
+      summaries: [
+        makeSummary(1, {
+          name: 'Empty run',
+          progress: { completedGoals: 0, totalGoals: 0 },
+        }),
+      ],
+      sections: { 1: [] },
+      goals: {},
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=99')
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'No sections yet' }),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(window.location.search).not.toContain('sectionId=99'))
+  })
+
+  it('adds a goal to the selected section and keeps creation order', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+      goals: { 2: [] },
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=2')
+    render(<App />)
+
+    const input = await screen.findByRole('textbox', { name: 'Add goal' })
+    await user.type(input, 'Reach Altus Plateau')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.url.endsWith('/sections/2/goals') &&
+            (request.body as { text?: string }).text === 'Reach Altus Plateau',
+        ),
+      ).toBe(true),
+    )
+    expect(await screen.findByText('Reach Altus Plateau')).toBeInTheDocument()
+  })
+
+  it('toggles goal completion and refreshes derived progress', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await user.click(await screen.findByLabelText('Toggle Godrick the Grafted'))
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'PUT' &&
+            request.url.endsWith('/goals/2/completion') &&
+            (request.body as { completed?: boolean }).completed === true,
+        ),
+      ).toBe(true),
+    )
+    expect(await screen.findAllByText('2 of 2 goals')).not.toHaveLength(0)
+  })
+
+  it('manages section ordering through the section popup', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Main bosses' })
+    await user.click(screen.getByRole('button', { name: 'Manage sections' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Manage sections' })
+
+    await user.click(
+      within(dialog).getAllByRole('button', { name: 'Move section down' })[0],
+    )
+
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.method === 'PUT' &&
+            request.url.endsWith('/sections/order') &&
+            JSON.stringify(request.body) === JSON.stringify({ sectionIds: [2, 1] }),
+        ),
+      ).toBe(true),
+    )
+  })
+})
+
 async function expectNoAccessibilityViolations() {
   const result = await axe.run(document.body, {
     rules: { 'color-contrast': { enabled: false } },
@@ -392,6 +699,15 @@ describe('Games accessibility', () => {
     expect(
       await screen.findByRole('button', { name: 'All playthroughs' }),
     ).toBeInTheDocument()
+  })
+
+  it('has no automated violations on the progress page', async () => {
+    mockBackend({ summaries: [makeSummary(1, { name: 'First run' })] })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Main bosses' })
+    await expectNoAccessibilityViolations()
   })
 })
 
