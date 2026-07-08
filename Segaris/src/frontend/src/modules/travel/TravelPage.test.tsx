@@ -388,7 +388,9 @@ describe('Travel trips view', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Edit trip' })).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole('dialog', { name: 'Edit trip' }),
+      ).not.toBeInTheDocument(),
     )
 
     await user.click(await screen.findByRole('button', { name: 'Open Trip 01' }))
