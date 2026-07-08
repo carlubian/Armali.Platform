@@ -880,13 +880,24 @@ function toDraft(steps: ProcessStep[]): DraftStep[] {
 function newDraftStep(): DraftStep {
   return {
     id: null,
-    clientId: `new-${crypto.randomUUID()}`,
+    clientId: `new-${randomClientId()}`,
     description: '',
     dueDate: null,
     notes: null,
     isOptional: false,
     state: 'Pending',
   }
+}
+
+// crypto.randomUUID is only defined in secure contexts (HTTPS or localhost).
+// Segaris is served over plain HTTP on the household network, so fall back to a
+// locally-unique id when it is unavailable to keep "add step" from throwing.
+function randomClientId(): string {
+  const globalCrypto = globalThis.crypto
+  if (typeof globalCrypto?.randomUUID === 'function') {
+    return globalCrypto.randomUUID()
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function emptyToNull(value: string): string | null {

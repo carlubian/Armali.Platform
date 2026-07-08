@@ -60,6 +60,7 @@ export function TravelPage() {
   }
 
   const handleCreated = (trip: TravelTrip) => {
+    queryClient.setQueryData(travelKeys.trip(trip.id), trip)
     invalidateTrips(trip.id)
     setToast({ kind: 'created', name: trip.name })
     // Keep the dialog open in edit mode so the user can immediately add
@@ -68,6 +69,7 @@ export function TravelPage() {
   }
 
   const handleSaved = (trip: TravelTrip) => {
+    queryClient.setQueryData(travelKeys.trip(trip.id), trip)
     invalidateTrips(trip.id)
     setToast({ kind: 'updated', name: trip.name })
     closeDialog()

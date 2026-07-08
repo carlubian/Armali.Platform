@@ -25,7 +25,7 @@ export function PriceHistoryDialog({
     queryFn: ({ signal }) => inventoryApi.itemPriceHistory(item.id, signal),
   })
   const history = historyQuery.data
-  const entries = history?.entries ?? []
+  const entries = useMemo(() => history?.entries ?? [], [history])
   const chartEntries = useMemo(
     () =>
       [...entries].sort((left, right) => left.orderDate.localeCompare(right.orderDate)),
