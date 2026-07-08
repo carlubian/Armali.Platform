@@ -264,7 +264,7 @@ function mockBackend(options: BackendOptions = {}) {
     if (url.match(/^\/api\/travel\/trips\/\d+$/) && method === 'PUT') {
       const id = Number(url.match(/\/api\/travel\/trips\/(\d+)/)?.[1] ?? '1')
       requests.push({ method, url, body })
-      const updated = { ...tripDetail(id), ...(body as object), id } as TravelTrip
+      const updated = { ...tripDetail(id), ...(body as object), id }
       tripDetails.set(id, updated)
       tripUpdated = true
       return json(updated)
