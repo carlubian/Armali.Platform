@@ -10,6 +10,6 @@ In a second terminal run `./scripts/frontend-restore.ps1` then `corepack pnpm --
 
 ## Full stack
 
-Copy `deploy/compose/.env.example` to `.env`, set a strong password and run `./scripts/compose-up.ps1`. Open `http://localhost:5055`.
+Copy `deploy/compose/.env.example` to `.env`, set strong values for `BLACKWING_POSTGRES_PASSWORD` and `BLACKWING_INITIAL_ADMIN_PASSWORD`, then run `./scripts/compose-up.ps1`. Open `http://localhost:5055`.
 
 The API exposes `/health/live` and `/health/ready`. Persistent Docker volumes are `postgres-data` and `image-data`; the latter is reserved for private image storage in phase 3.

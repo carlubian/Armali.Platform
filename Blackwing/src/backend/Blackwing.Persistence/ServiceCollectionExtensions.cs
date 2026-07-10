@@ -1,3 +1,6 @@
+using Blackwing.Persistence.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,9 +14,21 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("Blackwing");
         if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Connection string 'Blackwing' is required.");
         services.AddDbContext<BlackwingDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddIdentityCore<BlackwingUser>(options =>
+        {
+            options.User.RequireUniqueEmail = false;
+            options.Password.RequiredLength = 12;
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+        })
+        .AddRoles<IdentityRole<Guid>>()
+        .AddEntityFrameworkStores<BlackwingDbContext>();
         return services;
     }
 }
 
-/// <summary>Phase 1 database boundary. Domain mappings arrive in phase 3.</summary>
-public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> options) : DbContext(options);
+public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> options)
+    : IdentityDbContext<BlackwingUser, IdentityRole<Guid>, Guid>(options);

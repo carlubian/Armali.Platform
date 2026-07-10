@@ -1,13 +1,37 @@
 using Blackwing.Api.Configuration;
+using Blackwing.Api.Identity;
 using Blackwing.Persistence;
+using Blackwing.Shared.Ownership;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOptions<BlackwingOptions>().Bind(builder.Configuration.GetSection(BlackwingOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddBlackwingPersistence(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserScope, CurrentUserScope>();
+builder.Services.AddScoped<IdentitySeeder>();
+builder.Services.Configure<InitialAdminOptions>(builder.Configuration.GetSection(InitialAdminOptions.SectionName));
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("login", limiter => { limiter.PermitLimit = 5; limiter.Window = TimeSpan.FromMinutes(1); limiter.QueueLimit = 0; }));
 builder.Services.AddHealthChecks().AddDbContextCheck<BlackwingDbContext>("postgres", tags: ["ready"]);
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/api") && !context.Request.Path.Equals("/api/auth/antiforgery"))
+        await context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().ValidateRequestAsync(context);
+    await next(context);
+});
+using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<IdentitySeeder>().SeedAsync();
 app.MapGet("/", () => Results.Redirect("/health/live"));
+app.MapIdentityEndpoints();
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready", new() { Predicate = registration => registration.Tags.Contains("ready", StringComparer.Ordinal) });
 app.Run();
