@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'Segaris/**'
+      - '.github/workflows/segaris-validation.yml'
   workflow_dispatch:
 
 permissions:
@@ -21,8 +24,31 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  changes:
+    name: Detect Segaris changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      segaris: ${{ steps.filter.outputs.segaris }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            segaris:
+              - 'Segaris/**'
+              - '.github/workflows/segaris-validation.yml'
+
   backend:
     name: Segaris Backend
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.segaris == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -56,6 +82,8 @@ jobs:
 
   backend-integration:
     name: Segaris Backend Integration (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.segaris == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -91,6 +119,8 @@ jobs:
 
   frontend:
     name: Segaris Frontend
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.segaris == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -129,6 +159,8 @@ jobs:
 
   postgres:
     name: Segaris PostgreSQL
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.segaris == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -170,6 +202,8 @@ jobs:
 
   compose:
     name: Segaris Compose
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.segaris == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
