@@ -14,6 +14,52 @@ namespace Blackwing.Api.Gallery;
 public sealed class GalleryMutationService(BlackwingDbContext database, IImageStore imageStore)
 {
     /// <summary>
+    /// Replaces an image's tags with owner-scoped values, creating missing tags,
+    /// and optionally completes its review in the same transaction.
+    /// </summary>
+    public async Task<bool> SetImageTagValuesAsync(
+        Guid imageId,
+        Guid ownerUserId,
+        IReadOnlyCollection<TagValue> tags,
+        bool markReviewed,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+        var image = await database.Images.FirstOrDefaultAsync(value => value.Id == imageId && value.OwnerUserId == ownerUserId, cancellationToken);
+        if (image is null) return false;
+
+        var requested = tags
+            .Select(value => new { value.Type, Value = value.Value?.Trim() ?? string.Empty })
+            .Where(value => value.Value.Length > 0)
+            .DistinctBy(value => new { value.Type, Normalized = TagNormalization.Normalize(value.Value) })
+            .ToList();
+        if (requested.Count != tags.Count) throw new ArgumentException("Tags must be non-empty and unique within their type.", nameof(tags));
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var tagIds = new List<Guid>(requested.Count);
+        foreach (var requestedTag in requested)
+        {
+            var normalized = TagNormalization.Normalize(requestedTag.Value);
+            var tag = await FindTagAsync(ownerUserId, requestedTag.Type, normalized, cancellationToken);
+            if (tag is null)
+            {
+                tag = Tag.Create(ownerUserId, requestedTag.Type, requestedTag.Value);
+                database.Tags.Add(tag);
+                await database.SaveChangesAsync(cancellationToken);
+            }
+            tagIds.Add(tag.Id);
+        }
+
+        var existing = await database.ImageTags.Where(link => link.ImageId == imageId).ToListAsync(cancellationToken);
+        database.ImageTags.RemoveRange(existing);
+        foreach (var tagId in tagIds) database.ImageTags.Add(ImageTag.Link(imageId, tagId));
+        if (markReviewed) image.MarkReviewed(DateTimeOffset.UtcNow);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    /// <summary>
     /// Resolves the owner's tag with the given type and (normalized) value,
     /// creating it when it does not yet exist. Tolerates a concurrent create by
     /// re-reading after a unique-constraint violation.
@@ -140,3 +186,5 @@ public sealed class GalleryMutationService(BlackwingDbContext database, IImageSt
             tag => tag.OwnerUserId == ownerUserId && tag.Type == type && tag.NormalizedValue == normalizedValue,
             cancellationToken);
 }
+
+public sealed record TagValue(TagType Type, string Value);

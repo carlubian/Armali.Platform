@@ -136,6 +136,27 @@ public sealed class GalleryPersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Reviewing_with_tag_values_creates_tags_replaces_links_and_marks_the_image()
+    {
+        if (!fixture.Available) return;
+        await using var scope = fixture.Factory!.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<BlackwingDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<GalleryMutationService>();
+        var owner = await PostgresFixture.CreateUserAsync(database, $"owner-{Guid.NewGuid():N}");
+        var image = Image.Create(new ImageValues(ShaA, "image/jpeg", 10, 10, 100, null), owner, Now);
+        database.Images.Add(image);
+        await database.SaveChangesAsync();
+
+        Assert.True(await service.SetImageTagValuesAsync(image.Id, owner, [new TagValue(TagType.Person, "Ana"), new TagValue(TagType.Topic, "Summer")], markReviewed: true));
+        database.ChangeTracker.Clear();
+
+        var stored = await database.Images.SingleAsync(value => value.Id == image.Id);
+        Assert.NotNull(stored.ReviewedAt);
+        Assert.Equal(2, await database.ImageTags.CountAsync(link => link.ImageId == image.Id));
+        Assert.Equal(2, await database.Tags.CountAsync(tag => tag.OwnerUserId == owner));
+    }
+
+    [Fact]
     public async Task Deleting_an_image_prunes_orphan_tags_keeps_shared_ones_and_removes_files()
     {
         if (!fixture.Available) return;

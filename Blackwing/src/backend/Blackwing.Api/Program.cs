@@ -36,7 +36,11 @@ app.UseAuthorization();
 app.UseAntiforgery();
 app.Use(async (context, next) =>
 {
-    if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/api") && !context.Request.Path.Equals("/api/auth/antiforgery"))
+    if (!HttpMethods.IsGet(context.Request.Method)
+        && !HttpMethods.IsHead(context.Request.Method)
+        && !HttpMethods.IsOptions(context.Request.Method)
+        && context.Request.Path.StartsWithSegments("/api")
+        && !context.Request.Path.Equals("/api/auth/antiforgery"))
         await context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().ValidateRequestAsync(context);
     await next(context);
 });
@@ -45,6 +49,7 @@ using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRe
 app.MapGet("/", () => Results.Redirect("/health/live"));
 app.MapIdentityEndpoints();
 app.MapUploadEndpoints();
+app.MapGalleryEndpoints();
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready", new() { Predicate = registration => registration.Tags.Contains("ready", StringComparer.Ordinal) });
 app.Run();
