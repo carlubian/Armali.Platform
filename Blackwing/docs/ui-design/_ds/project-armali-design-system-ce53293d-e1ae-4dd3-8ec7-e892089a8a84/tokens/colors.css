@@ -1,0 +1,117 @@
+/* ============================================================
+   Project Armali — Color tokens
+   A warm coastal / Mediterranean palette. Light theme only.
+   Bone & sand neutrals, aqua sea primary, sun-gold secondary,
+   Mediterranean azure, sea-green, terracotta for danger.
+   Nothing is pure black or pure white.
+   ============================================================ */
+
+:root {
+  /* ---- Neutrals: bone, sand, warm ink ----------------------- */
+  --bone-50:  #FDFBF6;   /* lightest wash */
+  --bone-100: #FAF5EC;   /* app background */
+  --bone-200: #F4ECDE;   /* sunk panels */
+  --sand-300: #EBDFCC;   /* hairline / sand */
+  --sand-400: #DCCBB0;   /* stronger sand border */
+
+  --ink-900: #2C2823;    /* primary text (warm near-black) */
+  --ink-700: #4C463D;    /* strong secondary */
+  --ink-500: #786F62;    /* secondary text */
+  --ink-400: #9A9081;    /* muted / placeholder */
+  --ink-300: #BCB2A2;    /* disabled text */
+
+  /* ---- Aqua — primary emphasis (the sea) -------------------- */
+  --aqua-700: #0A767B;
+  --aqua-600: #0E8E92;
+  --aqua-500: #16A6A6;
+  --aqua-400: #45BCB8;
+  --aqua-300: #86D4CF;
+  --aqua-100: #D8F0EC;
+  --aqua-50:  #EAF8F5;
+
+  /* ---- Gold — secondary emphasis (sun & sand) --------------- */
+  --gold-600: #C58E2C;
+  --gold-500: #DBA63E;
+  --gold-400: #E8BD63;
+  --gold-300: #F0D193;
+  --gold-100: #F8ECCD;
+  --gold-50:  #FCF6E6;
+
+  /* ---- Azure — Mediterranean blue (calls to action) --------- */
+  --azure-600: #2D6588;
+  --azure-500: #3A7CA5;
+  --azure-400: #5E99BD;
+  --azure-100: #DCEAF2;
+  --azure-50:  #ECF3F8;
+
+  /* ---- Sea green — success / positive ----------------------- */
+  --sea-600: #3F7A62;
+  --sea-500: #519B79;
+  --sea-400: #79B797;
+  --sea-100: #DEEFE4;
+  --sea-50:  #EDF6F0;
+
+  /* ---- Terracotta — destructive / error --------------------- */
+  --terracotta-600: #B0432F;
+  --terracotta-500: #CB5742;
+  --terracotta-400: #DE806E;
+  --terracotta-100: #F6DED7;
+  --terracotta-50:  #FBEDE8;
+
+  /* ---- Aurora blob hues (decorative backgrounds) ------------ */
+  --aurora-aqua: #7BD8D2;
+  --aurora-gold: #F2CE7E;
+  --aurora-azure: #8FB9D6;
+  --aurora-rose:  #E9A98F;
+
+  /* ============================================================
+     SEMANTIC ALIASES — reach for these in product code
+     ============================================================ */
+
+  /* Surfaces */
+  --surface-app:        var(--bone-100);
+  --surface-sunken:     var(--bone-200);
+  --surface-card:       rgba(255, 253, 248, 0.72);   /* glass card */
+  --surface-card-solid: #FFFDF8;
+  --surface-raised:     rgba(255, 253, 248, 0.85);
+  --surface-overlay:    rgba(253, 251, 246, 0.78);   /* dialogs / popovers */
+  --surface-frost:      rgba(255, 255, 255, 0.45);   /* foreground glass chips */
+  --scrim:              rgba(44, 40, 35, 0.28);       /* dialog backdrop */
+
+  /* Text */
+  --text-primary:   var(--ink-900);
+  --text-secondary: var(--ink-500);
+  --text-muted:     var(--ink-400);
+  --text-disabled:  var(--ink-300);
+  --text-on-accent: #FFFDF8;
+  --text-link:      var(--azure-600);
+
+  /* Accents */
+  --accent:           var(--aqua-500);
+  --accent-hover:     var(--aqua-600);
+  --accent-press:     var(--aqua-700);
+  --accent-soft:      var(--aqua-100);
+  --accent-secondary: var(--gold-500);
+  --accent-secondary-soft: var(--gold-100);
+  --action:           var(--azure-500);
+  --action-hover:     var(--azure-600);
+  --action-soft:      var(--azure-100);
+
+  /* Status */
+  --success:      var(--sea-500);
+  --success-soft: var(--sea-100);
+  --warning:      var(--gold-500);
+  --warning-soft: var(--gold-100);
+  --danger:       var(--terracotta-500);
+  --danger-hover: var(--terracotta-600);
+  --danger-soft:  var(--terracotta-100);
+  --info:         var(--azure-500);
+  --info-soft:    var(--azure-100);
+
+  /* Borders / hairlines */
+  --border-subtle: rgba(124, 110, 86, 0.16);
+  --border-default: rgba(124, 110, 86, 0.26);
+  --border-strong:  rgba(124, 110, 86, 0.40);
+  --border-glass:   rgba(255, 255, 255, 0.55);
+  --ring-focus:     var(--aqua-400);
+}

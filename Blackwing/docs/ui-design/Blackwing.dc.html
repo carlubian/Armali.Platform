@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/effects.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/tokens/base.css">
+  <link rel="stylesheet" href="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/styles.css">
+  <script src="_ds/project-armali-design-system-ce53293d-e1ae-4dd3-8ec7-e892089a8a84/_ds_bundle.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    a { color: var(--text-link); }
+    a:hover { color: var(--accent-press); }
+  </style>
+</helmet>
+
+<div class="armali-aurora" style="min-height: 100vh; width: 100%;">
+
+<sc-if value="{{ notAuthed }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px;">
+    <div class="armali-glass" style="width: 440px; max-width: 100%; padding: 48px; display: flex; flex-direction: column; gap: 28px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--accent); color: var(--text-on-accent); display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--glow-aqua);">
+          <i data-lucide="aperture" style="width: 24px; height: 24px;"></i>
+        </span>
+        <span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-2xl); letter-spacing: var(--tracking-title); color: var(--text-primary);">Blackwing</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="armali-eyebrow">Sign in</div>
+        <h1 style="font-size: var(--text-3xl);">Welcome back</h1>
+        <p style="color: var(--text-secondary); font-size: var(--text-base); line-height: var(--leading-relaxed);">Sign in to browse, upload and tag your private image gallery.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" label="Username" placeholder="yourname" value="{{ loginUsername }}" onChange="{{ loginUsernameChange }}" hint-size="100%,66px"></x-import>
+        <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" label="Password" type="password" placeholder="••••••••" value="{{ loginPassword }}" onChange="{{ loginPasswordChange }}" hint-size="100%,66px"></x-import>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+          <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary);">Sign in as</span>
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Tabs" tabs="{{ roleTabs }}" value="{{ loginRole }}" onChange="{{ setLoginRole }}" hint-size="auto,44px"></x-import>
+        </div>
+
+        <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ login }}" block="{{ true }}" size="lg" hint-size="100%,52px">Sign in</x-import>
+
+        <p style="color: var(--text-secondary); font-size: var(--text-sm); text-align: center; margin-top: 4px;">Forgot your password? Ask an admin to reset it.</p>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ false }}">
+  <div style="display: flex; min-height: 100vh; align-items: flex-start;">
+
+    <aside class="armali-glass" style="width: 264px; flex: none; margin: 16px 0 16px 16px; padding: 24px 18px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 16px; height: calc(100vh - 32px);">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 0 6px 20px 6px;">
+        <span style="width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--accent); color: var(--text-on-accent); display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--glow-aqua); flex: none;">
+          <i data-lucide="aperture" style="width: 18px; height: 18px;"></i>
+        </span>
+        <span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-xl); letter-spacing: var(--tracking-title); color: var(--text-primary);">Blackwing</span>
+      </div>
+
+      <nav style="display: flex; flex-direction: column; gap: 4px;">
+        <sc-if value="{{ isUser }}" hint-placeholder-val="{{ true }}">
+          <sc-if value="{{ navGalleryActive }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ goGallery }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--aqua-700); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left;">
+              <i data-lucide="image" style="width: 18px; height: 18px;"></i><span>Gallery</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ navGalleryInactive }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ goGallery }}" style-hover="background: var(--surface-sunken);" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left; transition: background 160ms var(--ease-soft);">
+              <i data-lucide="image" style="width: 18px; height: 18px;"></i><span>Gallery</span>
+            </button>
+          </sc-if>
+
+          <sc-if value="{{ navReviewActive }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ goReview }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--aqua-700); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left;">
+              <i data-lucide="list-checks" style="width: 18px; height: 18px;"></i><span style="flex: 1;">Pending review</span>
+              <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ false }}"><span style="font-family: var(--font-body); font-weight: 600; font-size: 11px; background: var(--surface-card-solid); color: var(--aqua-700); border-radius: var(--radius-pill); padding: 1px 8px;">{{ pendingCount }}</span></sc-if>
+            </button>
+          </sc-if>
+          <sc-if value="{{ navReviewInactive }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ goReview }}" style-hover="background: var(--surface-sunken);" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left; transition: background 160ms var(--ease-soft);">
+              <i data-lucide="list-checks" style="width: 18px; height: 18px;"></i><span style="flex: 1;">Pending review</span>
+              <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ false }}"><span style="font-family: var(--font-body); font-weight: 600; font-size: 11px; background: var(--gold-100); color: var(--gold-600); border-radius: var(--radius-pill); padding: 1px 8px;">{{ pendingCount }}</span></sc-if>
+            </button>
+          </sc-if>
+
+          <sc-if value="{{ navUploadActive }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ goUpload }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--aqua-700); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left;">
+              <i data-lucide="upload-cloud" style="width: 18px; height: 18px;"></i><span>Upload</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ navUploadInactive }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ goUpload }}" style-hover="background: var(--surface-sunken);" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left; transition: background 160ms var(--ease-soft);">
+              <i data-lucide="upload-cloud" style="width: 18px; height: 18px;"></i><span>Upload</span>
+            </button>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ goAdmin }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: none; border-radius: var(--radius-control); background: var(--accent-soft); color: var(--aqua-700); font-family: var(--font-display); font-weight: 600; font-size: var(--text-base); cursor: pointer; text-align: left;">
+            <i data-lucide="users" style="width: 18px; height: 18px;"></i><span>Manage accounts</span>
+          </button>
+        </sc-if>
+      </nav>
+
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 1px; background: var(--border-subtle);"></div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Avatar" name="{{ displayName }}" status="online" hint-size="40px,40px"></x-import>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ displayName }}</div>
+            <div style="font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-muted);">{{ roleLabelText }}</div>
+          </div>
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Tooltip" label="Sign out" side="top" hint-size="auto,auto">
+            <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.IconButton" label="Sign out" onClick="{{ signOut }}" variant="bare" size="sm" hint-size="32px,32px">
+              <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+            </x-import>
+          </x-import>
+        </div>
+      </div>
+    </aside>
+
+    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+      <header style="height: 88px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; position: sticky; top: 0; z-index: 10;">
+        <div>
+          <div class="armali-eyebrow">Blackwing</div>
+          <h1 style="font-size: var(--text-3xl); margin-top: 2px;">{{ topbarTitle }}</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Tooltip" label="Help" side="bottom" hint-size="auto,auto">
+            <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.IconButton" label="Help" hint-size="40px,40px"><i data-lucide="life-buoy"></i></x-import>
+          </x-import>
+        </div>
+      </header>
+
+      <main style="flex: 1; padding: 8px 40px 60px 40px;">
+
+        <sc-if value="{{ showGallery }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; gap: 32px; align-items: flex-start;">
+            <aside class="armali-glass" style="width: 276px; flex: none; padding: 24px; display: flex; flex-direction: column; gap: 24px; position: sticky; top: 104px; max-height: calc(100vh - 140px); overflow-y: auto; overflow-x: hidden; box-sizing: border-box;">
+              <div class="armali-eyebrow">Filter by tag</div>
+
+              <sc-if value="{{ hasSelectedTags }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--border-subtle);">
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <sc-for list="{{ selectedChips }}" as="chip" hint-placeholder-count="2">
+                      <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: {{ chip.bg }}; color: {{ chip.fg }};">
+                        <span>{{ chip.name }}</span>
+                        <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; align-items: center; padding: 2px; opacity: 0.75;">
+                          <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                        </button>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" size="sm" onClick="{{ clearFilters }}" hint-size="auto,32px">Clear all</x-import>
+                </div>
+              </sc-if>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary);">Person</span></div>
+                  <button onClick="{{ openPersonBrowse }}" style-hover="color: var(--accent-press);" style="border: none; background: transparent; color: var(--text-link); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); cursor: pointer; padding: 2px;">Browse all</button>
+                </div>
+                <div style="position: relative;">
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Search {{ personCountLabel }}…" value="{{ personSearch }}" onChange="{{ setPersonSearch }}" hint-size="100%,42px"></x-import>
+                  <sc-if value="{{ personSearchHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                    <div class="armali-glass" style="position: absolute; z-index: 20; top: 46px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto;">
+                      <sc-for list="{{ personSuggestions }}" as="sug" hint-placeholder-count="4">
+                        <div onClick="{{ sug.add }}" style-hover="background: var(--accent-soft);" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;">
+                          <span style="font-size: var(--text-sm); font-weight: 500; color: var(--text-primary);">{{ sug.name }}</span>
+                          <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted);">{{ sug.count }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--azure-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary);">Place</span></div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <sc-for list="{{ placeTagRows }}" as="t" hint-placeholder-count="4">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px;">
+                      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Checkbox" checked="{{ t.checked }}" onChange="{{ t.toggle }}" label="{{ t.name }}" hint-size="auto,28px"></x-import>
+                      <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted);">{{ t.count }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--gold-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary);">Topic</span></div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <sc-for list="{{ topicTagRows }}" as="t" hint-placeholder-count="4">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px;">
+                      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Checkbox" checked="{{ t.checked }}" onChange="{{ t.toggle }}" label="{{ t.name }}" hint-size="auto,28px"></x-import>
+                      <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted);">{{ t.count }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </aside>
+
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <div style="font-family: var(--font-body); font-weight: 600; color: var(--text-secondary); font-size: var(--text-base);">{{ resultCountLabel }}</div>
+              </div>
+
+              <sc-if value="{{ noFilteredImages }}" hint-placeholder-val="{{ false }}">
+                <div class="armali-glass" style="padding: 64px 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+                  <i data-lucide="image-off" style="width: 32px; height: 32px; color: var(--text-muted);"></i>
+                  <div style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--text-primary);">No images match these tags</div>
+                  <p style="color: var(--text-secondary); font-size: var(--text-base);">Try removing a filter or choosing a different combination.</p>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ hasFilteredImages }}" hint-placeholder-val="{{ true }}">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px;">
+                  <sc-for list="{{ pageImages }}" as="img" hint-placeholder-count="24">
+                    <div onClick="{{ img.open }}" style-hover="transform: translateY(-4px); box-shadow: var(--glow-aqua);" style="position: relative; aspect-ratio: 1; border-radius: var(--radius-md); overflow: hidden; cursor: pointer; border: 1px solid var(--border-subtle); background: {{ img.grad }}; transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);">
+                      <sc-if value="{{ img.pending }}" hint-placeholder-val="{{ false }}">
+                        <span style="position: absolute; top: 6px; left: 6px; font-family: var(--font-display); font-weight: 600; font-size: 10px; letter-spacing: 0.02em; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--gold-100); color: var(--gold-600); border: 1px solid rgba(219,166,62,0.3);">Pending</span>
+                      </sc-if>
+                      <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 8px 6px 8px; background: linear-gradient(transparent, rgba(44,40,35,0.55)); color: #FFFDF8; font-family: var(--font-display); font-weight: 600; font-size: 11px;">{{ img.dateLabel }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ hasMultiplePages }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding-top: 12px;">
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="outline" size="sm" onClick="{{ prevPage }}" disabled="{{ prevDisabled }}" hint-size="auto,36px">Previous</x-import>
+                    <span style="font-family: var(--font-body); font-weight: 600; color: var(--text-secondary); font-size: var(--text-sm);">{{ pageLabel }}</span>
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="outline" size="sm" onClick="{{ nextPage }}" disabled="{{ nextDisabled }}" hint-size="auto,36px">Next</x-import>
+                  </div>
+                </sc-if>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <button onClick="{{ backToGallery }}" style="display: inline-flex; align-items: center; gap: 8px; border: none; background: transparent; color: var(--text-secondary); font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); cursor: pointer; padding: 6px 4px; align-self: flex-start;">
+              <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i><span>Back to gallery</span>
+            </button>
+
+            <div style="display: flex; gap: 40px; align-items: flex-start;">
+              <div style="flex: 1.6; min-width: 0; height: 580px; background: var(--surface-sunken); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                <div style="aspect-ratio: {{ detailImage.ratio }}; height: 100%; max-width: 100%; background: {{ detailImage.grad }}; border-radius: var(--radius-lg);"></div>
+              </div>
+
+              <aside class="armali-glass" style="width: 380px; flex: none; padding: 28px; display: flex; flex-direction: column; gap: 22px;">
+                <div>
+                  <div class="armali-eyebrow">Image details</div>
+                  <sc-if value="{{ detailImage.pending }}" hint-placeholder-val="{{ false }}">
+                    <span style="display: inline-flex; margin-top: 10px; font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); padding: 5px 12px; border-radius: var(--radius-pill); background: var(--gold-100); color: var(--gold-600); border: 1px solid rgba(219,166,62,0.3);">Pending review</span>
+                  </sc-if>
+                  <sc-if value="{{ detailImage.reviewed }}" hint-placeholder-val="{{ true }}">
+                    <span style="display: inline-flex; margin-top: 10px; font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); padding: 5px 12px; border-radius: var(--radius-pill); background: var(--sea-100); color: var(--sea-600); border: 1px solid rgba(81,155,121,0.28);">Reviewed</span>
+                  </sc-if>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; font-family: var(--font-body); font-size: var(--text-sm);">
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted);">Captured</span><span style="color: var(--text-primary); font-weight: 600;">{{ detailImage.dateLabel }}</span></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted);">Dimensions</span><span style="color: var(--text-primary); font-weight: 600;">{{ detailImage.dimsLabel }}</span></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--text-muted);">File size</span><span style="color: var(--text-primary); font-weight: 600;">{{ detailImage.sizeLabel }}</span></div>
+                </div>
+
+                <div style="height: 1px; background: var(--border-subtle);"></div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Person</span></div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <sc-for list="{{ detailPersonChips }}" as="chip" hint-placeholder-count="1">
+                      <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--accent-soft); color: var(--aqua-700);">
+                        <span>{{ chip.name }}</span>
+                        <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <div style="position: relative;">
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a person…" value="{{ detailPersonInput }}" onChange="{{ detailPersonInputChange }}" onKeyDown="{{ detailPersonKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                    <sc-if value="{{ detailPersonHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                      <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                        <sc-for list="{{ detailPersonSuggestions }}" as="sug" hint-placeholder-count="2">
+                          <div onClick="{{ sug.add }}" style-hover="background: var(--accent-soft);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--azure-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Place</span></div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <sc-for list="{{ detailPlaceChips }}" as="chip" hint-placeholder-count="1">
+                      <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--azure-100); color: var(--azure-600);">
+                        <span>{{ chip.name }}</span>
+                        <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <div style="position: relative;">
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a place…" value="{{ detailPlaceInput }}" onChange="{{ detailPlaceInputChange }}" onKeyDown="{{ detailPlaceKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                    <sc-if value="{{ detailPlaceHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                      <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                        <sc-for list="{{ detailPlaceSuggestions }}" as="sug" hint-placeholder-count="2">
+                          <div onClick="{{ sug.add }}" style-hover="background: var(--azure-100);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--gold-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Topic</span></div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <sc-for list="{{ detailTopicChips }}" as="chip" hint-placeholder-count="1">
+                      <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--gold-100); color: var(--gold-600);">
+                        <span>{{ chip.name }}</span>
+                        <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <div style="position: relative;">
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a topic…" value="{{ detailTopicInput }}" onChange="{{ detailTopicInputChange }}" onKeyDown="{{ detailTopicKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                    <sc-if value="{{ detailTopicHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                      <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                        <sc-for list="{{ detailTopicSuggestions }}" as="sug" hint-placeholder-count="2">
+                          <div onClick="{{ sug.add }}" style-hover="background: var(--gold-100);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ detailSave }}" block="{{ true }}" hint-size="100%,44px">Save changes</x-import>
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="outline" onClick="{{ openDeleteConfirm }}" block="{{ true }}" hint-size="100%,44px"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> Delete image</x-import>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showReview }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+            <p style="color: var(--text-secondary); font-size: var(--text-base);">{{ reviewSubtitle }}</p>
+
+            <sc-if value="{{ noReviewQueue }}" hint-placeholder-val="{{ false }}">
+              <div class="armali-glass" style="padding: 80px 40px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;">
+                <i data-lucide="check-circle-2" style="width: 36px; height: 36px; color: var(--sea-500);"></i>
+                <div style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-xl); color: var(--text-primary);">You're all caught up</div>
+                <p style="color: var(--text-secondary); font-size: var(--text-base);">New uploads will appear here for review.</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ hasReviewQueue }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; gap: 40px; align-items: flex-start;">
+                <div style="flex: 1.6; min-width: 0; height: 480px; background: var(--surface-sunken); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                  <div style="aspect-ratio: {{ currentReview.ratio }}; height: 100%; max-width: 100%; background: {{ currentReview.grad }}; border-radius: var(--radius-lg);"></div>
+                </div>
+
+                <aside class="armali-glass" style="width: 380px; flex: none; padding: 28px; display: flex; flex-direction: column; gap: 20px;">
+                  <div>
+                    <div class="armali-eyebrow">{{ reviewPosLabel }}</div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 12px; font-family: var(--font-body); font-size: var(--text-sm);">
+                      <span style="color: var(--text-muted);">Uploaded</span><span style="color: var(--text-primary); font-weight: 600;">{{ currentReview.uploadedLabel }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-body); font-size: var(--text-sm);">
+                      <span style="color: var(--text-muted);">Dimensions</span><span style="color: var(--text-primary); font-weight: 600;">{{ currentReview.dimsLabel }}</span>
+                    </div>
+                  </div>
+
+                  <div style="height: 1px; background: var(--border-subtle);"></div>
+
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Person</span></div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                      <sc-for list="{{ reviewPersonChips }}" as="chip" hint-placeholder-count="1">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--accent-soft); color: var(--aqua-700);">
+                          <span>{{ chip.name }}</span>
+                          <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                        </span>
+                      </sc-for>
+                    </div>
+                    <div style="position: relative;">
+                      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a person…" value="{{ reviewPersonInput }}" onChange="{{ reviewPersonInputChange }}" onKeyDown="{{ reviewPersonKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                      <sc-if value="{{ reviewPersonHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                        <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                          <sc-for list="{{ reviewPersonSuggestions }}" as="sug" hint-placeholder-count="2">
+                            <div onClick="{{ sug.add }}" style-hover="background: var(--accent-soft);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--azure-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Place</span></div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                      <sc-for list="{{ reviewPlaceChips }}" as="chip" hint-placeholder-count="1">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--azure-100); color: var(--azure-600);">
+                          <span>{{ chip.name }}</span>
+                          <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                        </span>
+                      </sc-for>
+                    </div>
+                    <div style="position: relative;">
+                      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a place…" value="{{ reviewPlaceInput }}" onChange="{{ reviewPlaceInputChange }}" onKeyDown="{{ reviewPlaceKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                      <sc-if value="{{ reviewPlaceHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                        <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                          <sc-for list="{{ reviewPlaceSuggestions }}" as="sug" hint-placeholder-count="2">
+                            <div onClick="{{ sug.add }}" style-hover="background: var(--azure-100);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--gold-500);"></span><span style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm);">Topic</span></div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                      <sc-for list="{{ reviewTopicChips }}" as="chip" hint-placeholder-count="1">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); background: var(--gold-100); color: var(--gold-600);">
+                          <span>{{ chip.name }}</span>
+                          <button onClick="{{ chip.remove }}" style="border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; padding: 2px; opacity: 0.75;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+                        </span>
+                      </sc-for>
+                    </div>
+                    <div style="position: relative;">
+                      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Add a topic…" value="{{ reviewTopicInput }}" onChange="{{ reviewTopicInputChange }}" onKeyDown="{{ reviewTopicKeyDown }}" hint="Press Enter to add" hint-size="100%,66px"></x-import>
+                      <sc-if value="{{ reviewTopicHasSuggestions }}" hint-placeholder-val="{{ false }}">
+                        <div class="armali-glass" style="position: absolute; z-index: 20; top: 44px; left: 0; right: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                          <sc-for list="{{ reviewTopicSuggestions }}" as="sug" hint-placeholder-count="2">
+                            <div onClick="{{ sug.add }}" style-hover="background: var(--gold-100);" style="padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); font-weight: 500;">{{ sug.name }}</div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ reviewMarkDone }}" block="{{ true }}" size="lg" hint-size="100%,52px">Mark reviewed &amp; next</x-import>
+                </aside>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="armali-eyebrow">Up next</div>
+                <div style="display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px 2px;">
+                  <sc-for list="{{ filmstrip }}" as="item" hint-placeholder-count="6">
+                    <div onClick="{{ item.select }}" style="position: relative; width: 72px; height: 72px; flex: none; border-radius: var(--radius-sm); background: {{ item.grad }}; cursor: pointer;">
+                      <sc-if value="{{ item.isCurrent }}" hint-placeholder-val="{{ false }}">
+                        <div style="position: absolute; inset: -3px; border-radius: calc(var(--radius-sm) + 3px); border: 2px solid var(--accent); box-shadow: var(--glow-aqua);"></div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showUpload }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 28px;">
+            <p style="color: var(--text-secondary); font-size: var(--text-base); max-width: 640px;">Images land in pending review, whether you add one or hundreds at once. Tags are assigned afterward, in Review.</p>
+
+            <div onDragOver="{{ onDropZoneDragOver }}" onDragLeave="{{ onDropZoneDragLeave }}" onDrop="{{ onDropZoneDrop }}" style="border: 2px dashed {{ dropzoneBorderColor }}; background: {{ dropzoneBg }}; border-radius: var(--radius-xl); padding: 64px 40px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; transition: border-color 160ms var(--ease-soft), background 160ms var(--ease-soft);">
+              <span style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--aqua-700); display: inline-flex; align-items: center; justify-content: center;">
+                <i data-lucide="upload-cloud" style="width: 26px; height: 26px;"></i>
+              </span>
+              <div>
+                <div style="font-family: var(--font-display); font-weight: 600; font-size: var(--text-xl); color: var(--text-primary);">Drag images here</div>
+                <p style="color: var(--text-secondary); font-size: var(--text-base); margin-top: 4px;">or browse your device — single or bulk</p>
+              </div>
+              <label class="arm-btn" style="cursor: pointer;">
+                Browse files
+                <input type="file" accept="image/*" multiple="{{ true }}" onChange="{{ onFileInputChange }}" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden;" />
+              </label>
+            </div>
+
+            <sc-if value="{{ hasUploadFiles }}" hint-placeholder-val="{{ false }}">
+              <div class="armali-glass" style="padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+                <sc-for list="{{ uploadFiles }}" as="f" hint-placeholder-count="0">
+                  <div style="display: flex; align-items: center; gap: 16px; padding: 12px 16px;">
+                    <img src="{{ f.previewUrl }}" style="width: 52px; height: 52px; object-fit: cover; border-radius: var(--radius-sm); flex: none; border: 1px solid var(--border-subtle);" />
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ f.name }}</div>
+                      <div style="font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px;">{{ f.metaLabel }}</div>
+                      <div style="height: 5px; background: var(--surface-sunken); border-radius: var(--radius-pill); margin-top: 8px; overflow: hidden;">
+                        <div style="height: 100%; width: {{ f.progressPct }}; background: var(--accent); border-radius: var(--radius-pill); transition: width 160ms linear;"></div>
+                      </div>
+                    </div>
+                    <div style="width: 150px; flex: none; text-align: right; font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs);">
+                      <sc-if value="{{ f.isDone }}" hint-placeholder-val="{{ false }}"><span style="color: var(--sea-600);">Added to pending review</span></sc-if>
+                      <sc-if value="{{ f.isUploading }}" hint-placeholder-val="{{ true }}"><span style="color: var(--text-muted);">Uploading…</span></sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showAdmin }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;">
+              <p style="color: var(--text-secondary); font-size: var(--text-base); max-width: 620px;">Admins create accounts and reset passwords. Admins don't have access to any user's images or tags.</p>
+              <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ openNewUserDialog }}" hint-size="auto,44px"><i data-lucide="plus" style="width: 16px; height: 16px;"></i> New user</x-import>
+            </div>
+
+            <div class="armali-glass" style="padding: 8px;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1fr; gap: 12px; padding: 12px 16px; font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--text-muted); text-transform: uppercase;">
+                <span>Account</span><span>Role</span><span>Created</span><span>Last active</span><span></span>
+              </div>
+              <sc-for list="{{ usersRows }}" as="u" hint-placeholder-count="4">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1fr; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle);">
+                  <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Avatar" name="{{ u.username }}" size="sm" hint-size="28px,28px"></x-import>
+                    <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.username }}</span>
+                  </div>
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Badge" tone="{{ u.roleTone }}" hint-size="auto,24px">{{ u.roleLabel }}</x-import>
+                  <span style="font-family: var(--font-body); font-size: var(--text-sm); color: var(--text-secondary);">{{ u.createdLabel }}</span>
+                  <span style="font-family: var(--font-body); font-size: var(--text-sm); color: var(--text-secondary);">{{ u.lastActiveLabel }}</span>
+                  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" size="sm" onClick="{{ u.openReset }}" hint-size="auto,32px">Reset password</x-import>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+      </main>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ deleteConfirmOpen }}" hint-placeholder-val="{{ false }}">
+  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Dialog" open="{{ true }}" title="Delete this image?" description="This removes the image, its derivatives and its tag associations. Tags still used by other images are kept." onClose="{{ closeDeleteConfirm }}" hint-size="460px,260px">
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" onClick="{{ closeDeleteConfirm }}" hint-size="auto,44px">Cancel</x-import>
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="danger" onClick="{{ confirmDelete }}" hint-size="auto,44px">Delete image</x-import>
+    </div>
+  </x-import>
+</sc-if>
+
+<sc-if value="{{ personBrowseOpen }}" hint-placeholder-val="{{ false }}">
+  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Dialog" open="{{ true }}" title="All people" description="Select any number of people to filter the gallery by." onClose="{{ closePersonBrowse }}" width="560px" hint-size="560px,640px">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" placeholder="Search people…" value="{{ personBrowseSearch }}" onChange="{{ setPersonBrowseSearch }}" hint-size="100%,42px"></x-import>
+
+      <div style="border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow: hidden;">
+        <div style="display: grid; grid-template-columns: 1fr 90px; gap: 12px; padding: 10px 14px; background: var(--surface-sunken); font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); letter-spacing: 0.02em; color: var(--text-muted); text-transform: uppercase;">
+          <span>Name</span><span style="text-align: right;">Images</span>
+        </div>
+        <sc-if value="{{ personBrowseHasRows }}" hint-placeholder-val="{{ true }}">
+          <sc-for list="{{ personBrowseRows }}" as="t" hint-placeholder-count="8">
+            <div style="display: grid; grid-template-columns: 1fr 90px; gap: 12px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--border-subtle);">
+              <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Checkbox" checked="{{ t.checked }}" onChange="{{ t.toggle }}" label="{{ t.name }}" hint-size="auto,28px"></x-import>
+              <span style="text-align: right; font-family: var(--font-body); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted);">{{ t.count }}</span>
+            </div>
+          </sc-for>
+        </sc-if>
+        <sc-if value="{{ personBrowseNoRows }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 40px 14px; text-align: center; color: var(--text-secondary); font-size: var(--text-sm);">No people match your search</div>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-family: var(--font-body); font-weight: 600; color: var(--text-secondary); font-size: var(--text-sm);">{{ personBrowseSelectedLabel }}</span>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="outline" size="sm" onClick="{{ personBrowsePrevPage }}" disabled="{{ personBrowsePrevDisabled }}" hint-size="auto,36px">Previous</x-import>
+          <span style="font-family: var(--font-body); font-weight: 600; color: var(--text-secondary); font-size: var(--text-sm);">{{ personBrowsePageLabel }}</span>
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="outline" size="sm" onClick="{{ personBrowseNextPage }}" disabled="{{ personBrowseNextDisabled }}" hint-size="auto,36px">Next</x-import>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" onClick="{{ clearPersonFilter }}" disabled="{{ personBrowseClearDisabled }}" hint-size="auto,44px">Clear person filters</x-import>
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ closePersonBrowse }}" hint-size="auto,44px">Done</x-import>
+    </div>
+  </x-import>
+</sc-if>
+
+<sc-if value="{{ newUserDialogOpen }}" hint-placeholder-val="{{ false }}">
+  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Dialog" open="{{ true }}" title="Create a new account" description="The new user can sign in immediately with this temporary password." onClose="{{ closeNewUserDialog }}" hint-size="460px,360px">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Input" label="Username" placeholder="firstname.lastname" value="{{ newUserUsername }}" onChange="{{ newUserUsernameChange }}" hint-size="100%,66px"></x-import>
+      <div>
+        <span style="font-family: var(--font-body); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary);">Temporary password</span>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+          <div style="flex: 1; font-family: var(--font-display); font-weight: 600; letter-spacing: 0.03em; background: var(--surface-sunken); border-radius: var(--radius-control); padding: 10px 14px; color: var(--text-primary);">{{ newUserTempPassword }}</div>
+          <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.IconButton" label="Regenerate" onClick="{{ regenNewUserPassword }}" hint-size="40px,40px"><i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i></x-import>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" onClick="{{ closeNewUserDialog }}" hint-size="auto,44px">Cancel</x-import>
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ createUser }}" disabled="{{ cannotCreateUser }}" hint-size="auto,44px">Create account</x-import>
+    </div>
+  </x-import>
+</sc-if>
+
+<sc-if value="{{ resetDialogOpen }}" hint-placeholder-val="{{ false }}">
+  <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Dialog" open="{{ true }}" title="{{ resetDialogTitle }}" description="Share this temporary password with them directly — Blackwing doesn't email credentials." onClose="{{ closeResetDialog }}" hint-size="460px,300px">
+    <div style="font-family: var(--font-display); font-weight: 600; letter-spacing: 0.03em; background: var(--surface-sunken); border-radius: var(--radius-control); padding: 10px 14px; color: var(--text-primary);">{{ resetTempPassword }}</div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" variant="ghost" onClick="{{ closeResetDialog }}" hint-size="auto,44px">Cancel</x-import>
+      <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Button" onClick="{{ confirmReset }}" hint-size="auto,44px">Done</x-import>
+    </div>
+  </x-import>
+</sc-if>
+
+<div style="position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;">
+  <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+    <x-import component-from-global-scope="ProjectArmaliDesignSystem_ce5329.Toast" tone="{{ t.tone }}" title="{{ t.title }}" onClose="{{ t.close }}" hint-size="320px,80px">{{ t.msg }}</x-import>
+  </sc-for>
+</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    dataLoaded: false,
+    people: [], places: [], topics: [], images: [], users: [],
+
+    authed: false,
+    role: 'user',
+    loginRole: 'user',
+    loginUsername: '',
+    loginPassword: '',
+
+    view: 'gallery',
+
+    personSearch: '',
+    personBrowseOpen: false, personBrowseSearch: '', personBrowsePage: 1,
+    selectedPerson: [], selectedPlace: [], selectedTopic: [],
+    page: 1,
+
+    selectedImageId: null,
+    detailDraft: null,
+    detailInput: { person: '', place: '', topic: '' },
+
+    reviewIndex: 0,
+    reviewDraft: { person: [], place: [], topic: [] },
+    reviewInput: { person: '', place: '', topic: '' },
+
+    dragActive: false,
+    uploadFiles: [],
+
+    newUserDialogOpen: false,
+    newUserForm: { username: '', tempPassword: '' },
+
+    resetDialogOpen: false,
+    resetTargetUserId: null,
+    resetTempPassword: '',
+
+    deleteConfirmOpen: false,
+
+    toasts: [],
+  };
+
+  pageSize = 30;
+  personBrowsePageSize = 8;
+  _timers = {};
+
+  componentDidMount() {
+    import('./blackwing-data.js').then((mod) => {
+      this.setState({
+        people: mod.PEOPLE.slice(),
+        places: mod.PLACES.slice(),
+        topics: mod.TOPICS.slice(),
+        images: mod.IMAGES.slice(),
+        users: mod.USERS.slice(),
+        dataLoaded: true,
+      });
+    });
+    this._tickIcons();
+  }
+
+  componentDidUpdate() { this._tickIcons(); }
+  _tickIcons() { if (window.lucide) window.lucide.createIcons(); }
+
+  fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  fmtRelative(iso) {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + (mins === 1 ? ' minute ago' : ' minutes ago');
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return days + (days === 1 ? ' day ago' : ' days ago');
+    const months = Math.floor(days / 30);
+    if (months < 12) return months + (months === 1 ? ' month ago' : ' months ago');
+    const years = Math.floor(months / 12);
+    return years + (years === 1 ? ' year ago' : ' years ago');
+  }
+  fmtBytes(kb) {
+    if (kb < 1024) return kb + ' KB';
+    return (kb / 1024).toFixed(1) + ' MB';
+  }
+  fmtNumber(n) { return n.toLocaleString('en-US'); }
+
+  setLoginRole = (v) => this.setState({ loginRole: v });
+  loginUsernameChange = (e) => this.setState({ loginUsername: e.target.value });
+  loginPasswordChange = (e) => this.setState({ loginPassword: e.target.value });
+  login = () => {
+    const role = this.state.loginRole;
+    this.setState({ authed: true, role, view: role === 'admin' ? 'admin' : 'gallery' });
+  };
+  signOut = () => {
+    this.setState({
+      authed: false, role: 'user', view: 'gallery', selectedImageId: null,
+      selectedPerson: [], selectedPlace: [], selectedTopic: [], page: 1,
+    });
+  };
+
+  goGallery = () => this.setState({ view: 'gallery' });
+  goReview = () => this.setState({ view: 'review', reviewIndex: 0, reviewDraft: { person: [], place: [], topic: [] }, reviewInput: { person: '', place: '', topic: '' } });
+  goUpload = () => this.setState({ view: 'upload' });
+  goAdmin = () => this.setState({ view: 'admin' });
+
+  pushToast = (tone, title, msg) => {
+    const id = 't' + Date.now() + Math.random();
+    this.setState((s) => ({ toasts: [...s.toasts, { id, tone, title, msg }] }));
+    setTimeout(() => this.dismissToast(id), 4200);
+  };
+  dismissToast = (id) => this.setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+
+  setPersonSearch = (e) => this.setState({ personSearch: e.target.value });
+  selectPersonSuggestion = (name) => {
+    this.setState((s) => ({
+      selectedPerson: s.selectedPerson.includes(name) ? s.selectedPerson : [...s.selectedPerson, name],
+      personSearch: '',
+      page: 1,
+    }));
+  };
+  openPersonBrowse = () => this.setState({ personBrowseOpen: true, personBrowseSearch: '', personBrowsePage: 1 });
+  closePersonBrowse = () => this.setState({ personBrowseOpen: false });
+  setPersonBrowseSearch = (e) => this.setState({ personBrowseSearch: e.target.value, personBrowsePage: 1 });
+  _personBrowseTotalPages() {
+    const search = this.state.personBrowseSearch.trim().toLowerCase();
+    const n = this.state.people.filter((p) => !search || p.toLowerCase().includes(search)).length;
+    return Math.max(1, Math.ceil(n / this.personBrowsePageSize));
+  }
+  personBrowsePrevPage = () => this.setState((s) => ({ personBrowsePage: Math.max(1, s.personBrowsePage - 1) }));
+  personBrowseNextPage = () => this.setState((s) => ({ personBrowsePage: Math.min(this._personBrowseTotalPages(), s.personBrowsePage + 1) }));
+  clearPersonFilter = () => this.setState({ selectedPerson: [], page: 1 });
+
+  toggleFilter = (type, name) => {
+    const key = 'selected' + type[0].toUpperCase() + type.slice(1);
+    this.setState((s) => {
+      const cur = s[key];
+      const next = cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name];
+      return { [key]: next, page: 1 };
+    });
+  };
+  clearFilters = () => this.setState({ selectedPerson: [], selectedPlace: [], selectedTopic: [], page: 1 });
+  prevPage = () => this.setState((s) => ({ page: Math.max(1, s.page - 1) }));
+  nextPage = () => this.setState((s) => ({ page: Math.min(this._totalPages(), s.page + 1) }));
+
+  _filteredImages() {
+    const { images, selectedPerson, selectedPlace, selectedTopic } = this.state;
+    const anySelected = selectedPerson.length || selectedPlace.length || selectedTopic.length;
+    let list = images;
+    if (anySelected) {
+      list = images.filter((img) =>
+        selectedPerson.every((t) => img.tags.person.includes(t)) &&
+        selectedPlace.every((t) => img.tags.place.includes(t)) &&
+        selectedTopic.every((t) => img.tags.topic.includes(t))
+      );
+    }
+    return list.slice().sort((a, b) => new Date(b.captureDate) - new Date(a.captureDate));
+  }
+  _totalPages() {
+    const n = this._filteredImages().length;
+    return Math.max(1, Math.ceil(n / this.pageSize));
+  }
+
+  openDetail = (id) => {
+    const img = this.state.images.find((i) => i.id === id);
+    this.setState({
+      view: 'detail',
+      selectedImageId: id,
+      detailDraft: img ? { person: img.tags.person.slice(), place: img.tags.place.slice(), topic: img.tags.topic.slice() } : { person: [], place: [], topic: [] },
+      detailInput: { person: '', place: '', topic: '' },
+    });
+  };
+  backToGallery = () => this.setState({ view: 'gallery', selectedImageId: null });
+
+  detailInputChange = (type) => (e) => {
+    this.setState((s) => ({ detailInput: { ...s.detailInput, [type]: e.target.value } }));
+  };
+  detailKeyDown = (type) => (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); this.addDetailTag(type, this.state.detailInput[type]); }
+  };
+  _poolKey(type) { return type === 'person' ? 'people' : type === 'place' ? 'places' : 'topics'; }
+  _canonicalTag(type, value) {
+    const pool = this.state[this._poolKey(type)];
+    const existing = pool.find((t) => t.toLowerCase() === value.toLowerCase());
+    return existing || value;
+  }
+  addDetailTag = (type, rawValue) => {
+    const value = (rawValue || '').trim();
+    if (!value) return;
+    const canonical = this._canonicalTag(type, value);
+    this.setState((s) => {
+      if (s.detailDraft[type].some((t) => t.toLowerCase() === canonical.toLowerCase())) {
+        return { detailInput: { ...s.detailInput, [type]: '' } };
+      }
+      const poolKey = this._poolKey(type);
+      return {
+        detailDraft: { ...s.detailDraft, [type]: [...s.detailDraft[type], canonical] },
+        detailInput: { ...s.detailInput, [type]: '' },
+        [poolKey]: s[poolKey].includes(canonical) ? s[poolKey] : [...s[poolKey], canonical],
+      };
+    });
+  };
+  removeDetailTag = (type, name) => {
+    this.setState((s) => ({ detailDraft: { ...s.detailDraft, [type]: s.detailDraft[type].filter((t) => t !== name) } }));
+  };
+  detailSave = () => {
+    const { selectedImageId, detailDraft } = this.state;
+    this.setState((s) => ({
+      images: s.images.map((img) => img.id === selectedImageId ? { ...img, tags: { person: detailDraft.person.slice(), place: detailDraft.place.slice(), topic: detailDraft.topic.slice() } } : img),
+    }));
+    this.pushToast('success', 'Changes saved', 'Tags updated for this image.');
+  };
+  openDeleteConfirm = () => this.setState({ deleteConfirmOpen: true });
+  closeDeleteConfirm = () => this.setState({ deleteConfirmOpen: false });
+  confirmDelete = () => {
+    const id = this.state.selectedImageId;
+    this.setState((s) => ({
+      images: s.images.filter((img) => img.id !== id),
+      deleteConfirmOpen: false,
+      view: 'gallery',
+      selectedImageId: null,
+    }));
+    this.pushToast('danger', 'Image deleted', 'The image and its tag associations were removed.');
+  };
+
+  reviewInputChange = (type) => (e) => {
+    this.setState((s) => ({ reviewInput: { ...s.reviewInput, [type]: e.target.value } }));
+  };
+  reviewKeyDown = (type) => (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); this.addReviewTag(type, this.state.reviewInput[type]); }
+  };
+  addReviewTag = (type, rawValue) => {
+    const value = (rawValue || '').trim();
+    if (!value) return;
+    const canonical = this._canonicalTag(type, value);
+    this.setState((s) => {
+      if (s.reviewDraft[type].some((t) => t.toLowerCase() === canonical.toLowerCase())) {
+        return { reviewInput: { ...s.reviewInput, [type]: '' } };
+      }
+      const poolKey = this._poolKey(type);
+      return {
+        reviewDraft: { ...s.reviewDraft, [type]: [...s.reviewDraft[type], canonical] },
+        reviewInput: { ...s.reviewInput, [type]: '' },
+        [poolKey]: s[poolKey].includes(canonical) ? s[poolKey] : [...s[poolKey], canonical],
+      };
+    });
+  };
+  removeReviewTag = (type, name) => {
+    this.setState((s) => ({ reviewDraft: { ...s.reviewDraft, [type]: s.reviewDraft[type].filter((t) => t !== name) } }));
+  };
+  _reviewQueue() {
+    return this.state.images.filter((i) => i.pending).slice().sort((a, b) => new Date(a.captureDate) - new Date(b.captureDate));
+  }
+  jumpToReview = (idx) => this.setState({ reviewIndex: idx, reviewDraft: { person: [], place: [], topic: [] }, reviewInput: { person: '', place: '', topic: '' } });
+  reviewMarkDone = () => {
+    const queue = this._reviewQueue();
+    const current = queue[this.state.reviewIndex];
+    if (!current) return;
+    const draft = this.state.reviewDraft;
+    this.setState((s) => ({
+      images: s.images.map((img) => img.id === current.id ? { ...img, pending: false, tags: { person: draft.person.slice(), place: draft.place.slice(), topic: draft.topic.slice() } } : img),
+      reviewDraft: { person: [], place: [], topic: [] },
+      reviewInput: { person: '', place: '', topic: '' },
+      reviewIndex: 0,
+    }));
+    this.pushToast('success', 'Marked as reviewed', 'Tags saved — next pending image is up.');
+  };
+
+  onDropZoneDragOver = (e) => { e.preventDefault(); this.setState({ dragActive: true }); };
+  onDropZoneDragLeave = (e) => { e.preventDefault(); this.setState({ dragActive: false }); };
+  onDropZoneDrop = (e) => {
+    e.preventDefault();
+    this.setState({ dragActive: false });
+    this._addFiles(e.dataTransfer.files);
+  };
+  onFileInputChange = (e) => {
+    this._addFiles(e.target.files);
+    e.target.value = '';
+  };
+  _addFiles = (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'));
+    files.forEach((file) => {
+      const id = 'up-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+      const previewUrl = URL.createObjectURL(file);
+      const entry = { id, name: file.name, sizeKB: Math.round(file.size / 1024), previewUrl, progress: 0, status: 'uploading', width: null, height: null };
+      this.setState((s) => ({ uploadFiles: [entry, ...s.uploadFiles] }));
+      const probe = new Image();
+      probe.onload = () => {
+        this.setState((s) => ({ uploadFiles: s.uploadFiles.map((f) => f.id === id ? { ...f, width: probe.naturalWidth, height: probe.naturalHeight } : f) }));
+      };
+      probe.src = previewUrl;
+      this._timers[id] = setInterval(() => {
+        this.setState((s) => ({
+          uploadFiles: s.uploadFiles.map((f) => {
+            if (f.id !== id || f.status !== 'uploading') return f;
+            const nextProgress = Math.min(100, f.progress + 8 + Math.random() * 14);
+            return { ...f, progress: nextProgress };
+          }),
+        }));
+        const f = this.state.uploadFiles.find((f) => f.id === id);
+        if (f && f.progress >= 100) {
+          clearInterval(this._timers[id]);
+          delete this._timers[id];
+          this._finishUpload(id);
+        }
+      }, 180);
+    });
+  };
+  _finishUpload = (id) => {
+    this.setState((s) => ({ uploadFiles: s.uploadFiles.map((f) => f.id === id ? { ...f, status: 'done', progress: 100 } : f) }));
+    setTimeout(() => {
+      const f = this.state.uploadFiles.find((f) => f.id === id);
+      if (!f) return;
+      const HUE_ANCHORS = [176, 40, 204, 9, 152, 28, 190, 340, 60, 260];
+      const hue = HUE_ANCHORS[Math.floor(Math.random() * HUE_ANCHORS.length)];
+      const grad = 'linear-gradient(135deg, hsl(' + hue + ' 58% 80%), hsl(' + ((hue + 34) % 360) + ' 55% 54%))';
+      const newImage = {
+        id: 'img-' + id,
+        hue,
+        grad,
+        captureDate: new Date().toISOString(),
+        width: f.width || 4000,
+        height: f.height || 3000,
+        sizeKB: f.sizeKB,
+        pending: true,
+        tags: { person: [], place: [], topic: [] },
+      };
+      this.setState((s) => ({ images: [newImage, ...s.images] }));
+    }, 500);
+  };
+
+  openNewUserDialog = () => this.setState({ newUserDialogOpen: true, newUserForm: { username: '', tempPassword: this._genPassword() } });
+  closeNewUserDialog = () => this.setState({ newUserDialogOpen: false });
+  newUserUsernameChange = (e) => this.setState((s) => ({ newUserForm: { ...s.newUserForm, username: e.target.value } }));
+  regenNewUserPassword = () => this.setState((s) => ({ newUserForm: { ...s.newUserForm, tempPassword: this._genPassword() } }));
+  _genPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
+  createUser = () => {
+    const username = this.state.newUserForm.username.trim();
+    if (!username) return;
+    const newUser = { id: 'u' + Date.now(), username, role: 'user', created: new Date().toISOString().slice(0, 10), lastActive: new Date().toISOString() };
+    this.setState((s) => ({ users: [...s.users, newUser], newUserDialogOpen: false }));
+    this.pushToast('success', 'Account created', '"' + username + '" can sign in with the temporary password you shared.');
+  };
+  openResetDialog = (userId) => this.setState({ resetDialogOpen: true, resetTargetUserId: userId, resetTempPassword: this._genPassword() });
+  closeResetDialog = () => this.setState({ resetDialogOpen: false });
+  confirmReset = () => {
+    this.setState({ resetDialogOpen: false });
+    this.pushToast('success', 'Password reset', 'Share the temporary password with the user directly.');
+  };
+
+  renderVals() {
+    const s = this.state;
+    const isUser = s.role === 'user';
+    const isAdmin = s.role === 'admin';
+
+    const countFor = (type, name) => s.images.filter((img) => !img.pending && img.tags[type].includes(name)).length;
+    const buildRows = (type, pool, selected) => pool
+      .map((name) => ({ name, count: countFor(type, name), checked: selected.includes(name), toggle: () => this.toggleFilter(type, name) }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const placeTagRows = buildRows('place', s.places, s.selectedPlace);
+    const topicTagRows = buildRows('topic', s.topics, s.selectedTopic);
+
+    const personCountLabel = this.fmtNumber(s.people.length) + ' people';
+    const personSearchTrim = s.personSearch.trim().toLowerCase();
+    const personSuggestions = !personSearchTrim ? [] : s.people
+      .filter((name) => name.toLowerCase().includes(personSearchTrim) && !s.selectedPerson.includes(name))
+      .map((name) => ({ name, count: countFor('person', name) }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 8)
+      .map((row) => ({ ...row, add: () => this.selectPersonSuggestion(row.name) }));
+    const personSearchHasSuggestions = personSuggestions.length > 0;
+
+    const personBrowseSearchTrim = s.personBrowseSearch.trim().toLowerCase();
+    const personBrowseAllRows = s.people
+      .filter((name) => !personBrowseSearchTrim || name.toLowerCase().includes(personBrowseSearchTrim))
+      .map((name) => ({ name, count: countFor('person', name), checked: s.selectedPerson.includes(name) }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const personBrowseTotalPages = Math.max(1, Math.ceil(personBrowseAllRows.length / this.personBrowsePageSize));
+    const personBrowsePage = Math.min(s.personBrowsePage, personBrowseTotalPages);
+    const personBrowseStart = (personBrowsePage - 1) * this.personBrowsePageSize;
+    const personBrowseRows = personBrowseAllRows
+      .slice(personBrowseStart, personBrowseStart + this.personBrowsePageSize)
+      .map((row) => ({ ...row, toggle: () => this.toggleFilter('person', row.name) }));
+    const personBrowseHasRows = personBrowseRows.length > 0;
+    const personBrowseNoRows = !personBrowseHasRows;
+    const personBrowseSelectedLabel = s.selectedPerson.length + (s.selectedPerson.length === 1 ? ' person selected' : ' people selected');
+    const personBrowsePageLabel = 'Page ' + personBrowsePage + ' of ' + personBrowseTotalPages;
+    const personBrowsePrevDisabled = personBrowsePage <= 1;
+    const personBrowseNextDisabled = personBrowsePage >= personBrowseTotalPages;
+    const personBrowseClearDisabled = s.selectedPerson.length === 0;
+
+    const selectedChips = [
+      ...s.selectedPerson.map((name) => ({ name, remove: () => this.toggleFilter('person', name), bg: 'var(--accent-soft)', fg: 'var(--aqua-700)' })),
+      ...s.selectedPlace.map((name) => ({ name, remove: () => this.toggleFilter('place', name), bg: 'var(--azure-100)', fg: 'var(--azure-600)' })),
+      ...s.selectedTopic.map((name) => ({ name, remove: () => this.toggleFilter('topic', name), bg: 'var(--gold-100)', fg: 'var(--gold-600)' })),
+    ];
+    const hasSelectedTags = selectedChips.length > 0;
+
+    const filtered = this._filteredImages();
+    const totalPages = this._totalPages();
+    const page = Math.min(s.page, totalPages);
+    const pageStart = (page - 1) * this.pageSize;
+    const pageImages = filtered.slice(pageStart, pageStart + this.pageSize).map((img) => ({
+      id: img.id, grad: img.grad, pending: img.pending,
+      dateLabel: this.fmtDate(img.captureDate),
+      open: () => this.openDetail(img.id),
+    }));
+
+    const pendingCount = s.images.filter((i) => i.pending).length;
+
+    const detailImageRaw = s.selectedImageId ? s.images.find((i) => i.id === s.selectedImageId) : null;
+    const detailImage = detailImageRaw ? {
+      grad: detailImageRaw.grad,
+      pending: detailImageRaw.pending,
+      reviewed: !detailImageRaw.pending,
+      dateLabel: this.fmtDate(detailImageRaw.captureDate),
+      dimsLabel: detailImageRaw.width + ' × ' + detailImageRaw.height,
+      sizeLabel: this.fmtBytes(detailImageRaw.sizeKB),
+      ratio: detailImageRaw.width + ' / ' + detailImageRaw.height,
+    } : null;
+
+    const detailPersonChips = s.detailDraft ? s.detailDraft.person.map((name) => ({ name, remove: () => this.removeDetailTag('person', name) })) : [];
+    const detailPlaceChips = s.detailDraft ? s.detailDraft.place.map((name) => ({ name, remove: () => this.removeDetailTag('place', name) })) : [];
+    const detailTopicChips = s.detailDraft ? s.detailDraft.topic.map((name) => ({ name, remove: () => this.removeDetailTag('topic', name) })) : [];
+    const detailPersonSuggestions = s.detailDraft ? s.people.filter((n) => n.toLowerCase().includes(s.detailInput.person.trim().toLowerCase()) && s.detailInput.person.trim() && !s.detailDraft.person.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addDetailTag('person', name) })) : [];
+    const detailPlaceSuggestions = s.detailDraft ? s.places.filter((n) => n.toLowerCase().includes(s.detailInput.place.trim().toLowerCase()) && s.detailInput.place.trim() && !s.detailDraft.place.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addDetailTag('place', name) })) : [];
+    const detailTopicSuggestions = s.detailDraft ? s.topics.filter((n) => n.toLowerCase().includes(s.detailInput.topic.trim().toLowerCase()) && s.detailInput.topic.trim() && !s.detailDraft.topic.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addDetailTag('topic', name) })) : [];
+
+    const reviewQueue = this._reviewQueue();
+    const hasReviewQueue = reviewQueue.length > 0;
+    const reviewIndex = Math.min(s.reviewIndex, Math.max(0, reviewQueue.length - 1));
+    const currentReviewRaw = reviewQueue[reviewIndex] || null;
+    const currentReview = currentReviewRaw ? {
+      grad: currentReviewRaw.grad,
+      dimsLabel: currentReviewRaw.width + ' × ' + currentReviewRaw.height,
+      sizeLabel: this.fmtBytes(currentReviewRaw.sizeKB),
+      uploadedLabel: this.fmtRelative(currentReviewRaw.captureDate),
+      ratio: currentReviewRaw.width + ' / ' + currentReviewRaw.height,
+    } : null;
+    const reviewPersonChips = s.reviewDraft.person.map((name) => ({ name, remove: () => this.removeReviewTag('person', name) }));
+    const reviewPlaceChips = s.reviewDraft.place.map((name) => ({ name, remove: () => this.removeReviewTag('place', name) }));
+    const reviewTopicChips = s.reviewDraft.topic.map((name) => ({ name, remove: () => this.removeReviewTag('topic', name) }));
+    const reviewPersonSuggestions = s.people.filter((n) => n.toLowerCase().includes(s.reviewInput.person.trim().toLowerCase()) && s.reviewInput.person.trim() && !s.reviewDraft.person.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addReviewTag('person', name) }));
+    const reviewPlaceSuggestions = s.places.filter((n) => n.toLowerCase().includes(s.reviewInput.place.trim().toLowerCase()) && s.reviewInput.place.trim() && !s.reviewDraft.place.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addReviewTag('place', name) }));
+    const reviewTopicSuggestions = s.topics.filter((n) => n.toLowerCase().includes(s.reviewInput.topic.trim().toLowerCase()) && s.reviewInput.topic.trim() && !s.reviewDraft.topic.includes(n)).slice(0, 5).map((name) => ({ name, add: () => this.addReviewTag('topic', name) }));
+    const filmstrip = reviewQueue.map((img, idx) => ({ id: img.id, grad: img.grad, isCurrent: idx === reviewIndex, select: () => this.jumpToReview(idx) }));
+
+    const uploadFiles = s.uploadFiles.map((f) => ({
+      id: f.id, name: f.name, previewUrl: f.previewUrl,
+      metaLabel: this.fmtBytes(f.sizeKB) + (f.width ? ' · ' + f.width + ' × ' + f.height : ''),
+      progressPct: Math.round(f.progress) + '%',
+      isDone: f.status === 'done',
+      isUploading: f.status === 'uploading',
+    }));
+
+    const usersRows = s.users.map((u) => ({
+      id: u.id, username: u.username,
+      roleTone: u.role === 'admin' ? 'gold' : 'aqua',
+      roleLabel: u.role === 'admin' ? 'Admin' : 'User',
+      createdLabel: this.fmtDate(u.created),
+      lastActiveLabel: this.fmtRelative(u.lastActive),
+      openReset: () => this.openResetDialog(u.id),
+    }));
+    const resetTargetUser = s.resetTargetUserId ? s.users.find((u) => u.id === s.resetTargetUserId) : null;
+
+    const toasts = s.toasts.map((t) => ({ ...t, close: () => this.dismissToast(t.id) }));
+
+    const topbarTitleMap = { gallery: 'Gallery', detail: 'Gallery', review: 'Pending review', upload: 'Upload', admin: 'Manage accounts' };
+
+    return {
+      notAuthed: !s.authed,
+      authed: s.authed, isUser, isAdmin,
+      roleTabs: [{ value: 'user', label: 'User' }, { value: 'admin', label: 'Admin' }],
+      loginRole: s.loginRole, setLoginRole: this.setLoginRole,
+      loginUsername: s.loginUsername, loginUsernameChange: this.loginUsernameChange,
+      loginPassword: s.loginPassword, loginPasswordChange: this.loginPasswordChange,
+      login: this.login, signOut: this.signOut,
+      displayName: isAdmin ? 'Avery Lin' : (s.loginUsername.trim() || 'Jordan Reyes'),
+      roleLabelText: isAdmin ? 'Admin' : 'User',
+
+      view: s.view,
+      showGallery: s.view === 'gallery', showDetail: s.view === 'detail' && !!detailImage,
+      showReview: s.view === 'review', showUpload: s.view === 'upload', showAdmin: s.view === 'admin',
+      navGalleryActive: s.view === 'gallery' || s.view === 'detail',
+      navGalleryInactive: !(s.view === 'gallery' || s.view === 'detail'),
+      navReviewActive: s.view === 'review', navReviewInactive: s.view !== 'review',
+      navUploadActive: s.view === 'upload', navUploadInactive: s.view !== 'upload',
+      goGallery: this.goGallery, goReview: this.goReview, goUpload: this.goUpload, goAdmin: this.goAdmin,
+      pendingCount, hasPending: pendingCount > 0,
+      topbarTitle: topbarTitleMap[s.view] || 'Gallery',
+
+      personSearch: s.personSearch, setPersonSearch: this.setPersonSearch,
+      personCountLabel, personSuggestions, personSearchHasSuggestions,
+      openPersonBrowse: this.openPersonBrowse, closePersonBrowse: this.closePersonBrowse,
+      personBrowseOpen: s.personBrowseOpen,
+      personBrowseSearch: s.personBrowseSearch, setPersonBrowseSearch: this.setPersonBrowseSearch,
+      personBrowseRows, personBrowseHasRows, personBrowseNoRows,
+      personBrowseSelectedLabel, personBrowsePageLabel,
+      personBrowsePrevPage: this.personBrowsePrevPage, personBrowseNextPage: this.personBrowseNextPage,
+      personBrowsePrevDisabled, personBrowseNextDisabled,
+      clearPersonFilter: this.clearPersonFilter, personBrowseClearDisabled,
+      placeTagRows, topicTagRows,
+      selectedChips, hasSelectedTags, clearFilters: this.clearFilters,
+      resultCountLabel: this.fmtNumber(filtered.length) + (filtered.length === 1 ? ' image' : ' images'),
+      hasFilteredImages: filtered.length > 0, noFilteredImages: filtered.length === 0,
+      pageImages,
+      page, totalPages, hasMultiplePages: totalPages > 1,
+      pageLabel: 'Page ' + page + ' of ' + totalPages,
+      prevDisabled: page <= 1, nextDisabled: page >= totalPages,
+      prevPage: this.prevPage, nextPage: this.nextPage,
+
+      detailImage,
+      backToGallery: this.backToGallery,
+      detailPersonChips, detailPlaceChips, detailTopicChips,
+      detailPersonInput: s.detailInput.person, detailPlaceInput: s.detailInput.place, detailTopicInput: s.detailInput.topic,
+      detailPersonInputChange: this.detailInputChange('person'), detailPlaceInputChange: this.detailInputChange('place'), detailTopicInputChange: this.detailInputChange('topic'),
+      detailPersonKeyDown: this.detailKeyDown('person'), detailPlaceKeyDown: this.detailKeyDown('place'), detailTopicKeyDown: this.detailKeyDown('topic'),
+      detailPersonSuggestions, detailPlaceSuggestions, detailTopicSuggestions,
+      detailPersonHasSuggestions: detailPersonSuggestions.length > 0, detailPlaceHasSuggestions: detailPlaceSuggestions.length > 0, detailTopicHasSuggestions: detailTopicSuggestions.length > 0,
+      detailSave: this.detailSave,
+      openDeleteConfirm: this.openDeleteConfirm, closeDeleteConfirm: this.closeDeleteConfirm, confirmDelete: this.confirmDelete,
+      deleteConfirmOpen: s.deleteConfirmOpen,
+
+      hasReviewQueue, noReviewQueue: !hasReviewQueue,
+      reviewSubtitle: hasReviewQueue ? 'Assign tags one image at a time, then move to the next.' : 'Nothing waiting on you right now.',
+      reviewPosLabel: hasReviewQueue ? 'Image ' + (reviewIndex + 1) + ' of ' + reviewQueue.length : '',
+      currentReview,
+      reviewPersonChips, reviewPlaceChips, reviewTopicChips,
+      reviewPersonInput: s.reviewInput.person, reviewPlaceInput: s.reviewInput.place, reviewTopicInput: s.reviewInput.topic,
+      reviewPersonInputChange: this.reviewInputChange('person'), reviewPlaceInputChange: this.reviewInputChange('place'), reviewTopicInputChange: this.reviewInputChange('topic'),
+      reviewPersonKeyDown: this.reviewKeyDown('person'), reviewPlaceKeyDown: this.reviewKeyDown('place'), reviewTopicKeyDown: this.reviewKeyDown('topic'),
+      reviewPersonSuggestions, reviewPlaceSuggestions, reviewTopicSuggestions,
+      reviewPersonHasSuggestions: reviewPersonSuggestions.length > 0, reviewPlaceHasSuggestions: reviewPlaceSuggestions.length > 0, reviewTopicHasSuggestions: reviewTopicSuggestions.length > 0,
+      reviewMarkDone: this.reviewMarkDone,
+      filmstrip,
+
+      dragActive: s.dragActive,
+      dropzoneBorderColor: s.dragActive ? 'var(--accent)' : 'var(--border-strong)',
+      dropzoneBg: s.dragActive ? 'var(--accent-soft)' : 'transparent',
+      onDropZoneDragOver: this.onDropZoneDragOver, onDropZoneDragLeave: this.onDropZoneDragLeave, onDropZoneDrop: this.onDropZoneDrop,
+      onFileInputChange: this.onFileInputChange,
+      uploadFiles, hasUploadFiles: uploadFiles.length > 0,
+
+      usersRows,
+      newUserDialogOpen: s.newUserDialogOpen, openNewUserDialog: this.openNewUserDialog, closeNewUserDialog: this.closeNewUserDialog,
+      newUserUsername: s.newUserForm.username, newUserUsernameChange: this.newUserUsernameChange,
+      newUserTempPassword: s.newUserForm.tempPassword, regenNewUserPassword: this.regenNewUserPassword,
+      createUser: this.createUser, cannotCreateUser: s.newUserForm.username.trim().length === 0,
+      resetDialogOpen: s.resetDialogOpen, resetDialogTitle: 'Reset password for ' + (resetTargetUser ? resetTargetUser.username : ''),
+      resetTempPassword: s.resetTempPassword, closeResetDialog: this.closeResetDialog, confirmReset: this.confirmReset,
+
+      toasts,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
