@@ -1,0 +1,39 @@
+name: blackwing
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${BLACKWING_POSTGRES_DB:-blackwing}
+      POSTGRES_USER: ${BLACKWING_POSTGRES_USER:-blackwing}
+      POSTGRES_PASSWORD: ${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  backend:
+    build: { context: ../.., dockerfile: src/backend/Blackwing.Api/Dockerfile }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Blackwing: Host=postgres;Port=5432;Database=${BLACKWING_POSTGRES_DB:-blackwing};Username=${BLACKWING_POSTGRES_USER:-blackwing};Password=${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}
+      Blackwing__Storage__ImagesPath: /data/images
+    volumes: [image-data:/data/images]
+    depends_on: { postgres: { condition: service_healthy } }
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  frontend:
+    build: { context: ../../src/frontend }
+    depends_on: { backend: { condition: service_healthy } }
+    ports: ["${BLACKWING_HTTP_PORT:-5055}:80"]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+volumes:
+  postgres-data:
+  image-data:

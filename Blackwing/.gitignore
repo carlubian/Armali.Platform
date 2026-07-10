@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+node_modules/
+dist/
+coverage/
+src/backend/Blackwing.Api/appsettings.json
+src/frontend/.env

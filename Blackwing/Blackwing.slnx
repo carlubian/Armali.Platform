@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/backend/Blackwing.Api/Blackwing.Api.csproj" />
+  <Project Path="src/backend/Blackwing.Persistence/Blackwing.Persistence.csproj" />
+  <Project Path="src/backend/Blackwing.Shared/Blackwing.Shared.csproj" />
+  <Project Path="tests/backend/Blackwing.Api.Tests/Blackwing.Api.Tests.csproj" />
+</Solution>
