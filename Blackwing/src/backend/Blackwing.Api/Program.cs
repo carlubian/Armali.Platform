@@ -1,7 +1,11 @@
 using Blackwing.Api.Configuration;
+using Blackwing.Api.Gallery;
 using Blackwing.Api.Identity;
+using Blackwing.Api.Persistence;
+using Blackwing.Api.Storage;
 using Blackwing.Persistence;
 using Blackwing.Shared.Ownership;
+using Blackwing.Shared.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -10,6 +14,8 @@ builder.Services.AddOptions<BlackwingOptions>().Bind(builder.Configuration.GetSe
 builder.Services.AddBlackwingPersistence(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserScope, CurrentUserScope>();
+builder.Services.AddSingleton<IImageStore, LocalImageStore>();
+builder.Services.AddScoped<GalleryMutationService>();
 builder.Services.AddScoped<IdentitySeeder>();
 builder.Services.Configure<InitialAdminOptions>(builder.Configuration.GetSection(InitialAdminOptions.SectionName));
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
@@ -29,6 +35,7 @@ app.Use(async (context, next) =>
         await context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>().ValidateRequestAsync(context);
     await next(context);
 });
+await app.Services.MigrateBlackwingDatabaseAsync();
 using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<IdentitySeeder>().SeedAsync();
 app.MapGet("/", () => Results.Redirect("/health/live"));
 app.MapIdentityEndpoints();
