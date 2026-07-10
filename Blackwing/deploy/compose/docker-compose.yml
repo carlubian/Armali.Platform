@@ -18,9 +18,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Blackwing: Host=postgres;Port=5432;Database=${BLACKWING_POSTGRES_DB:-blackwing};Username=${BLACKWING_POSTGRES_USER:-blackwing};Password=${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}
       Blackwing__Storage__ImagesPath: /data/images
+      Blackwing__Storage__StagingPath: /data/staging
       InitialAdmin__Username: ${BLACKWING_INITIAL_ADMIN_USERNAME:-admin}
       InitialAdmin__Password: ${BLACKWING_INITIAL_ADMIN_PASSWORD:?BLACKWING_INITIAL_ADMIN_PASSWORD is required}
-    volumes: [image-data:/data/images]
+    volumes: [image-data:/data]
     depends_on: { postgres: { condition: service_healthy } }
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health/ready"]

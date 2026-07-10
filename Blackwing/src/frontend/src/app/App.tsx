@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Aperture, ClipboardCheck, Image, LogOut, UploadCloud, Users } from 'lucide-react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { GalleryPage, ReviewPage, UploadPage } from '@/features/pages'

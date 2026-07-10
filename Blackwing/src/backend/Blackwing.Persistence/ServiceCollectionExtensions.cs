@@ -1,5 +1,6 @@
 using Blackwing.Persistence.Gallery;
 using Blackwing.Persistence.Identity;
+using Blackwing.Persistence.Ingestion;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,7 @@ public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> opti
     public DbSet<Image> Images => Set<Image>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ImageTag> ImageTags => Set<ImageTag>();
+    public DbSet<UploadJob> UploadJobs => Set<UploadJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +87,27 @@ public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> opti
             builder.HasIndex(link => new { link.TagId, link.ImageId });
             builder.HasOne<Image>().WithMany().HasForeignKey(link => link.ImageId).OnDelete(DeleteBehavior.Cascade);
             builder.HasOne<Tag>().WithMany().HasForeignKey(link => link.TagId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UploadJob>(builder =>
+        {
+            builder.ToTable("upload_jobs");
+            builder.HasKey(job => job.Id);
+            builder.Property(job => job.OriginalFileName).HasMaxLength(UploadJob.FileNameMaxLength).IsRequired();
+            builder.Property(job => job.DeclaredContentType).HasMaxLength(UploadJob.ContentTypeMaxLength).IsRequired();
+            builder.Property(job => job.Sha256).HasMaxLength(64).IsFixedLength().IsRequired();
+            builder.Property(job => job.StagingToken).HasMaxLength(64).IsRequired();
+            builder.Property(job => job.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            builder.Property(job => job.FailureCode).HasMaxLength(40);
+            builder.Property(job => job.FailureMessage).HasMaxLength(UploadJob.FailureMessageMaxLength);
+            // The worker claims the oldest pending job; this index backs that scan.
+            builder.HasIndex(job => new { job.Status, job.CreatedAt });
+            // The owner's progress view, newest first.
+            builder.HasIndex(job => new { job.OwnerUserId, job.CreatedAt });
+            builder.ToTable(table => table.HasCheckConstraint(
+                "CK_upload_jobs_status",
+                $"\"{nameof(UploadJob.Status)}\" IN ({string.Join(", ", Enum.GetNames<UploadJobStatus>().Select(value => $"'{value}'"))})"));
+            builder.HasOne<BlackwingUser>().WithMany().HasForeignKey(job => job.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

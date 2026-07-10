@@ -5,6 +5,10 @@ COPY src/backend ./src/backend
 RUN dotnet restore src/backend/Blackwing.Api/Blackwing.Api.csproj
 RUN dotnet publish src/backend/Blackwing.Api/Blackwing.Api.csproj -c Release -o /app/publish --no-restore
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
+# Magick.NET's bundled native ImageMagick needs libgomp1 at runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/publish .
 ENV ASPNETCORE_HTTP_PORTS=8080

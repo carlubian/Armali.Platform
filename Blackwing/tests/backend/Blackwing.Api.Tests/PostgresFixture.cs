@@ -20,6 +20,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 {
     private PostgreSqlContainer? container;
     private string imagesRoot = string.Empty;
+    private string stagingRoot = string.Empty;
 
     public bool Available => Factory is not null;
     public WebApplicationFactory<Program>? Factory { get; private set; }
@@ -41,8 +42,11 @@ public sealed class PostgresFixture : IAsyncLifetime
             return;
         }
 
-        imagesRoot = Path.Combine(Path.GetTempPath(), "blackwing-it", Guid.NewGuid().ToString("N"));
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "blackwing-it", Guid.NewGuid().ToString("N"));
+        imagesRoot = Path.Combine(rootDirectory, "images");
+        stagingRoot = Path.Combine(rootDirectory, "staging");
         Directory.CreateDirectory(imagesRoot);
+        Directory.CreateDirectory(stagingRoot);
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
@@ -53,6 +57,9 @@ public sealed class PostgresFixture : IAsyncLifetime
                 {
                     ["ConnectionStrings:Blackwing"] = container.GetConnectionString(),
                     ["Blackwing:Storage:ImagesPath"] = imagesRoot,
+                    ["Blackwing:Storage:StagingPath"] = stagingRoot,
+                    // Poll fast so ingestion integration tests don't wait on the idle timer.
+                    ["Blackwing:Ingestion:PollSeconds"] = "1",
                 });
             });
         });
@@ -65,9 +72,12 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         if (Factory is not null) await Factory.DisposeAsync();
         if (container is not null) await container.DisposeAsync();
-        if (Directory.Exists(imagesRoot))
+        foreach (var directory in new[] { imagesRoot, stagingRoot })
         {
-            try { Directory.Delete(imagesRoot, recursive: true); } catch (IOException) { }
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                try { Directory.Delete(directory, recursive: true); } catch (IOException) { }
+            }
         }
     }
 
