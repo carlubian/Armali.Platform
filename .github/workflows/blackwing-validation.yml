@@ -1,0 +1,78 @@
+name: Blackwing Foundation Validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'Blackwing/**'
+      - '.github/workflows/blackwing-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blackwing-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      blackwing: ${{ steps.filter.outputs.blackwing }}
+    steps:
+      - uses: actions/checkout@v6
+        with: { persist-credentials: false }
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            blackwing:
+              - 'Blackwing/**'
+              - '.github/workflows/blackwing-validation.yml'
+
+  backend:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { persist-credentials: false }
+      - uses: actions/setup-dotnet@v5
+        with: { global-json-file: Blackwing/global.json }
+      - run: ./Blackwing/scripts/backend-restore.ps1
+        shell: pwsh
+      - run: ./Blackwing/scripts/backend-build.ps1
+        shell: pwsh
+      - run: ./Blackwing/scripts/backend-test.ps1
+        shell: pwsh
+
+  frontend:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v5
+        with: { node-version: 24.16.0 }
+      - run: corepack enable
+      - run: ./Blackwing/scripts/frontend-restore.ps1
+        shell: pwsh
+      - run: ./Blackwing/scripts/frontend-lint.ps1
+        shell: pwsh
+      - run: ./Blackwing/scripts/frontend-build.ps1
+        shell: pwsh
+      - run: ./Blackwing/scripts/frontend-test.ps1
+        shell: pwsh
+
+  compose:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { persist-credentials: false }
+      - run: docker compose --env-file Blackwing/deploy/compose/.env.example -f Blackwing/deploy/compose/docker-compose.yml config

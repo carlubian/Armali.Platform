@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../Blackwing.Persistence/Blackwing.Persistence.csproj" />
+    <ProjectReference Include="../Blackwing.Shared/Blackwing.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blackwing.Api.Tests" />
+  </ItemGroup>
+</Project>

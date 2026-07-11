@@ -1,0 +1,124 @@
+using Blackwing.Persistence.Gallery;
+using Blackwing.Persistence.Identity;
+using Blackwing.Persistence.Ingestion;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Blackwing.Persistence;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddBlackwingPersistence(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Read the connection string inside the options delegate, not at registration time.
+        // Under the minimal hosting model a WebApplicationFactory's ConfigureAppConfiguration
+        // is not yet applied when service registration runs, so an eager read here would miss
+        // the value injected by the integration tests; the delegate runs on first resolve,
+        // by which point configuration is fully assembled.
+        services.AddDbContext<BlackwingDbContext>(options =>
+        {
+            var connectionString = configuration.GetConnectionString("Blackwing");
+            if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Connection string 'Blackwing' is required.");
+            options.UseNpgsql(connectionString);
+        });
+        services.AddIdentityCore<BlackwingUser>(options =>
+        {
+            options.User.RequireUniqueEmail = false;
+            options.Password.RequiredLength = 12;
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+        })
+        .AddRoles<IdentityRole<Guid>>()
+        .AddEntityFrameworkStores<BlackwingDbContext>();
+        return services;
+    }
+}
+
+public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> options)
+    : IdentityDbContext<BlackwingUser, IdentityRole<Guid>, Guid>(options)
+{
+    public DbSet<Image> Images => Set<Image>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<ImageTag> ImageTags => Set<ImageTag>();
+    public DbSet<UploadJob> UploadJobs => Set<UploadJob>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Image>(builder =>
+        {
+            builder.ToTable("images");
+            builder.HasKey(image => image.Id);
+            builder.Property(image => image.Sha256).HasMaxLength(64).IsFixedLength().IsRequired();
+            builder.Property(image => image.ContentType).HasMaxLength(100).IsRequired();
+            builder.Property(image => image.Width).IsRequired();
+            builder.Property(image => image.Height).IsRequired();
+            builder.Property(image => image.Bytes).IsRequired();
+            builder.Property(image => image.UploadedAt).IsRequired();
+            // Stored generated column: capture date when known, else upload time.
+            builder.Property(image => image.EffectiveCapturedAt)
+                .HasColumnType("timestamp with time zone")
+                .HasComputedColumnSql("COALESCE(\"CapturedAt\", \"UploadedAt\")", stored: true);
+            // Per-user deduplication: the same bytes re-uploaded map to one row.
+            builder.HasIndex(image => new { image.OwnerUserId, image.Sha256 }).IsUnique();
+            // Default gallery ordering and keyset pagination within an owner.
+            builder.HasIndex(image => new { image.OwnerUserId, image.EffectiveCapturedAt, image.Id });
+            // Pending-review view.
+            builder.HasIndex(image => new { image.OwnerUserId, image.ReviewedAt });
+            builder.HasOne<BlackwingUser>().WithMany().HasForeignKey(image => image.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Tag>(builder =>
+        {
+            builder.ToTable("tags");
+            builder.HasKey(tag => tag.Id);
+            builder.Property(tag => tag.Type).HasConversion<string>().HasMaxLength(10).IsRequired();
+            builder.Property(tag => tag.Value).HasMaxLength(Tag.ValueMaxLength).IsRequired();
+            builder.Property(tag => tag.NormalizedValue).HasMaxLength(Tag.ValueMaxLength).IsRequired();
+            // One reusable tag per label; the leftmost columns also back owner+type prefix autocomplete.
+            builder.HasIndex(tag => new { tag.OwnerUserId, tag.Type, tag.NormalizedValue }).IsUnique();
+            builder.ToTable(table => table.HasCheckConstraint(
+                "CK_tags_type",
+                $"\"{nameof(Tag.Type)}\" IN ({string.Join(", ", Enum.GetNames<TagType>().Select(value => $"'{value}'"))})"));
+            builder.HasOne<BlackwingUser>().WithMany().HasForeignKey(tag => tag.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ImageTag>(builder =>
+        {
+            builder.ToTable("image_tags");
+            builder.HasKey(link => new { link.ImageId, link.TagId });
+            // Reverse lookup: images-of-a-tag.
+            builder.HasIndex(link => new { link.TagId, link.ImageId });
+            builder.HasOne<Image>().WithMany().HasForeignKey(link => link.ImageId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne<Tag>().WithMany().HasForeignKey(link => link.TagId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UploadJob>(builder =>
+        {
+            builder.ToTable("upload_jobs");
+            builder.HasKey(job => job.Id);
+            builder.Property(job => job.OriginalFileName).HasMaxLength(UploadJob.FileNameMaxLength).IsRequired();
+            builder.Property(job => job.DeclaredContentType).HasMaxLength(UploadJob.ContentTypeMaxLength).IsRequired();
+            builder.Property(job => job.Sha256).HasMaxLength(64).IsFixedLength().IsRequired();
+            builder.Property(job => job.StagingToken).HasMaxLength(64).IsRequired();
+            builder.Property(job => job.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            builder.Property(job => job.FailureCode).HasMaxLength(40);
+            builder.Property(job => job.FailureMessage).HasMaxLength(UploadJob.FailureMessageMaxLength);
+            // The worker claims the oldest pending job; this index backs that scan.
+            builder.HasIndex(job => new { job.Status, job.CreatedAt });
+            // The owner's progress view, newest first.
+            builder.HasIndex(job => new { job.OwnerUserId, job.CreatedAt });
+            builder.ToTable(table => table.HasCheckConstraint(
+                "CK_upload_jobs_status",
+                $"\"{nameof(UploadJob.Status)}\" IN ({string.Join(", ", Enum.GetNames<UploadJobStatus>().Select(value => $"'{value}'"))})"));
+            builder.HasOne<BlackwingUser>().WithMany().HasForeignKey(job => job.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+}
