@@ -155,8 +155,20 @@ autorización.
 están cubiertos por pruebas y los operadores conocen los datos persistentes que
 debe incluir la solución externa de backup.
 
-## Orden de continuación
+**Estado:** completada. Cobertura E2E de flujos completos vía integración HTTP
+(`GalleryLifecycleTests`), observabilidad escalada (correlación `X-Trace-ID`,
+`traceId` en `ProblemDetails`, métricas de la cola de ingesta y snapshot
+admin-only `GET /api/ops/ingestion`), revisión de seguridad y runbooks de
+operación bajo `docs/operations/`. El detalle y el mapa de aceptación están en
+[`FASE7_ACEPTACION.md`](FASE7_ACEPTACION.md). Las decisiones de alcance: E2E HTTP
+(sin navegador), pruebas de carga documentadas como metodología y objetivos, y
+observabilidad sin Seq ni diagnóstico de frontend.
 
-El siguiente trabajo es la fase 1. No se debe iniciar la ingesta de imágenes
-antes de terminar las fases 2 y 3, porque identidad, aislamiento y persistencia
-son requisitos de privacidad del producto, no detalles posteriores.
+## Estado del roadmap
+
+Las siete fases están completadas. Blackwing v1 queda listo para uso interno
+mantenible: identidad y aislamiento por propietario, dominio y almacenamiento
+privado, ingesta asíncrona con derivados, revisión y mantenimiento de la
+colección, galería con filtros y entrega autorizada, y la capa de calidad y
+operación de la fase 7. El trabajo futuro (HEIC/HEIF, un segundo proveedor
+SQLite, o una solución de backup propia) queda fuera de v1 y no está planificado.

@@ -1,4 +1,5 @@
 using Blackwing.Api.Configuration;
+using Blackwing.Api.Observability;
 using Blackwing.Persistence;
 using Blackwing.Persistence.Gallery;
 using Blackwing.Persistence.Ingestion;
@@ -21,6 +22,7 @@ public sealed class UploadProcessingWorker(
     IImageStore imageStore,
     ImageProcessingService processor,
     UploadSignal signal,
+    IngestionMetrics metrics,
     IOptions<BlackwingOptions> options,
     ILogger<UploadProcessingWorker> logger) : BackgroundService
 {
@@ -193,6 +195,7 @@ public sealed class UploadProcessingWorker(
             job.MarkDuplicate(now);
             await database.SaveChangesAsync(cancellationToken);
             await staging.DiscardAsync(job.OwnerUserId, job.StagingToken, cancellationToken);
+            metrics.RecordDuplicate();
             return;
         }
 
@@ -212,12 +215,14 @@ public sealed class UploadProcessingWorker(
             job.MarkDuplicate(now);
             await database.SaveChangesAsync(cancellationToken);
             await staging.DiscardAsync(job.OwnerUserId, job.StagingToken, cancellationToken);
+            metrics.RecordDuplicate();
             return;
         }
 
         job.Complete(image.Id, now);
         await database.SaveChangesAsync(cancellationToken);
         await staging.DiscardAsync(job.OwnerUserId, job.StagingToken, cancellationToken);
+        metrics.RecordCompleted();
         logger.LogInformation("Ingested upload {JobId} as image {ImageId} for owner {OwnerId}.", job.Id, image.Id, job.OwnerUserId);
     }
 
@@ -229,6 +234,7 @@ public sealed class UploadProcessingWorker(
         // permanent failure discards them because a retry cannot help.
         if (discard || !UploadFailureCodes.IsRecoverable(code))
             await staging.DiscardAsync(job.OwnerUserId, job.StagingToken, cancellationToken);
+        metrics.RecordFailed(code);
         logger.LogWarning("Upload {JobId} failed ({Code}) for owner {OwnerId}: {Message}", job.Id, code, job.OwnerUserId, message);
     }
 }
