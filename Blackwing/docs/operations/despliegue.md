@@ -8,16 +8,23 @@ de extremo a extremo; para el estado persistente y su recuperación ver
 
 ## Componentes del stack
 
-`deploy/compose/docker-compose.yml` (proyecto `blackwing`) levanta cuatro piezas:
+`deploy/compose/docker-compose.yml` (proyecto `blackwing`) es la topología base y
+levanta tres piezas:
 
 | Servicio | Imagen / origen | Rol |
 | --- | --- | --- |
 | `postgres` | `postgres:17` | Catálogo relacional. Healthcheck con `pg_isready`. |
-| `backend` | build de `src/backend/Blackwing.Api/Dockerfile` | API .NET. Aplica migraciones y siembra el admin inicial al arrancar. Healthcheck contra `/health/ready`. |
-| `frontend` | build de `src/frontend` (Caddy) | Sirve el SPA y hace de proxy inverso de `/api` al backend. Único servicio con puerto publicado. |
+| `backend` | `BLACKWING_BACKEND_IMAGE` (por defecto `blackwing-backend:local`) | API .NET. Aplica migraciones y siembra el admin inicial al arrancar. Healthcheck contra `/health/ready`. |
+| `frontend` | `BLACKWING_FRONTEND_IMAGE` (por defecto `blackwing-frontend:local`, Caddy) | Sirve el SPA y hace de proxy inverso de `/api` al backend. Único servicio con puerto publicado. |
 
 Solo `frontend` publica puerto al host (`BLACKWING_HTTP_PORT`, por defecto 5055).
 Backend y base de datos quedan en la red interna de Compose.
+
+El compose base **referencia las imágenes por tag y nunca las construye**, de modo
+que sirve tal cual para producción (donde se fijan `BLACKWING_BACKEND_IMAGE` y
+`BLACKWING_FRONTEND_IMAGE` a los tags inmutables por commit del registro / ACR). El
+override `deploy/compose/docker-compose.local.yml` añade el `build` para construir
+las imágenes localmente en lugar de descargarlas.
 
 ## Configuración
 
@@ -51,11 +58,25 @@ Desde la raíz de `Blackwing/`:
 ./scripts/compose-up.ps1
 ```
 
-Equivale a `docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml up -d --build`.
+Equivale a `docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.local.yml up -d --build`,
+es decir, la topología base más el override que construye las imágenes localmente.
 El orden de arranque lo garantizan los healthchecks: el backend espera a que
 Postgres esté `healthy`, y el frontend a que el backend responda `/health/ready`.
 
 Abrir `http://localhost:5055` e iniciar sesión con el administrador inicial.
+
+### Producción (imágenes desde el registro / ACR)
+
+En producción no se construye nada: se levanta **solo** el compose base y se fijan
+`BLACKWING_BACKEND_IMAGE` y `BLACKWING_FRONTEND_IMAGE` a los tags inmutables por
+commit publicados en el registro privado:
+
+```
+docker compose --env-file .env -f docker-compose.yml up -d
+```
+
+Las imágenes las genera el workflow `.github/workflows/blackwing-publish-images.yml`
+(ver más abajo).
 
 Para detener el stack conservando los volúmenes:
 
@@ -84,8 +105,32 @@ El workflow `.github/workflows/blackwing-validation.yml` valida en cada cambio b
 - **backend** — restore, build y test (los tests de integración corren con Docker
   disponible en el runner).
 - **frontend** — restore, lint, build y test.
-- **compose** — `docker compose config` sobre el stack con el `.env.example`, que
-  verifica que el fichero de Compose es válido y reproducible.
+- **compose** — `docker compose config` sobre el stack base y sobre base + override
+  local con el `.env.example`, que verifica que ambos ficheros de Compose son
+  válidos y reproducibles.
 
 La misma definición de Compose que valida el CI es la que se despliega, de modo que
 un build verde es un despliegue reproducible.
+
+## Publicación de imágenes al registro / ACR
+
+El workflow `.github/workflows/blackwing-publish-images.yml` construye y sube las
+imágenes `blackwing-backend` y `blackwing-frontend`, replicando el patrón de
+Segaris:
+
+- **Cuándo** — se dispara vía `workflow_run` cuando *Blackwing Foundation
+  Validation* termina con éxito en `main` (es decir, tras el *merge* de un PR que
+  toca `Blackwing/**`), o manualmente con `workflow_dispatch` sobre `main`. No se
+  publican imágenes desde PR abiertos: solo desde `main` ya validado.
+- **Qué** — una imagen por servicio en una matriz. El backend se construye con
+  contexto `Blackwing/` y el frontend con contexto `Blackwing/src/frontend/`.
+- **Tag** — el SHA del commit (`github.event.workflow_run.head_sha`), es decir, tags
+  inmutables por commit. Se empujan a `${ACR_LOGIN_SERVER}/blackwing-<servicio>:<sha>`.
+- **Autenticación** — inicio de sesión en Azure con OIDC (sin secretos de larga
+  vida) y `az acr login`, usando las variables de repositorio `AZURE_CLIENT_ID`,
+  `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` y `ACR_LOGIN_SERVER`. El job
+  usa el *environment* `blackwing-production-images` para las reglas de protección.
+
+Para desplegar una versión concreta, fijar `BLACKWING_BACKEND_IMAGE` y
+`BLACKWING_FRONTEND_IMAGE` al tag de commit correspondiente y volver a levantar el
+compose base.
