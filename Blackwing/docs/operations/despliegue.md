@@ -127,9 +127,12 @@ Segaris:
 - **Tag** — el SHA del commit (`github.event.workflow_run.head_sha`), es decir, tags
   inmutables por commit. Se empujan a `${ACR_LOGIN_SERVER}/blackwing-<servicio>:<sha>`.
 - **Autenticación** — inicio de sesión en Azure con OIDC (sin secretos de larga
-  vida) y `az acr login`, usando las variables de repositorio `AZURE_CLIENT_ID`,
-  `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` y `ACR_LOGIN_SERVER`. El job
-  usa el *environment* `blackwing-production-images` para las reglas de protección.
+  vida) y `az acr login`. El job usa el *environment* `segaris-production-images`,
+  que es donde viven las variables OIDC/ACR (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
+  `AZURE_SUBSCRIPTION_ID`, `ACR_NAME`, `ACR_LOGIN_SERVER`) y la credencial federada
+  de Azure. Se reutiliza el environment de Segaris porque comparten registro y
+  confianza OIDC; usar uno propio para Blackwing exigiría duplicar esas variables y
+  añadir una credencial federada nueva en Azure para el subject correspondiente.
 
 Para desplegar una versión concreta, fijar `BLACKWING_BACKEND_IMAGE` y
 `BLACKWING_FRONTEND_IMAGE` al tag de commit correspondiente y volver a levantar el
