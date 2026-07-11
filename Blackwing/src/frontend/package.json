@@ -1,5 +1,5 @@
 {
-  "name": "@blackwing/frontend", "version": "0.1.0", "private": true, "type": "module", "packageManager": "pnpm@11.8.0",
+  "name": "@blackwing/frontend", "version": "0.1.0", "private": true, "type": "module",
   "engines": { "node": ">=24.16.0 <25", "pnpm": ">=11.0.0 <12" },
   "scripts": { "dev": "vite", "build": "tsc -b && vite build", "lint": "eslint .", "format:check": "prettier --check .", "test": "vitest run --pool=threads --maxWorkers=1" },
   "dependencies": { "@hookform/resolvers": "5.4.0", "@tanstack/react-query": "5.101.0", "i18next": "26.3.1", "lucide-react": "1.17.0", "react": "19.2.7", "react-dom": "19.2.7", "react-hook-form": "7.78.0", "react-i18next": "17.0.8", "react-router-dom": "7.17.0", "zod": "4.4.3" },

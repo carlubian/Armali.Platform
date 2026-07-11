@@ -13,9 +13,17 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddBlackwingPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Blackwing");
-        if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Connection string 'Blackwing' is required.");
-        services.AddDbContext<BlackwingDbContext>(options => options.UseNpgsql(connectionString));
+        // Read the connection string inside the options delegate, not at registration time.
+        // Under the minimal hosting model a WebApplicationFactory's ConfigureAppConfiguration
+        // is not yet applied when service registration runs, so an eager read here would miss
+        // the value injected by the integration tests; the delegate runs on first resolve,
+        // by which point configuration is fully assembled.
+        services.AddDbContext<BlackwingDbContext>(options =>
+        {
+            var connectionString = configuration.GetConnectionString("Blackwing");
+            if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("Connection string 'Blackwing' is required.");
+            options.UseNpgsql(connectionString);
+        });
         services.AddIdentityCore<BlackwingUser>(options =>
         {
             options.User.RequireUniqueEmail = false;
