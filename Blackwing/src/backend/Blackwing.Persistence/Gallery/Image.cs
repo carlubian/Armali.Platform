@@ -26,6 +26,13 @@ public sealed class Image : IOwnedEntity
     public DateTimeOffset UploadedAt { get; private set; }
     public DateTimeOffset? ReviewedAt { get; private set; }
 
+    /// <summary>
+    /// The date the gallery orders by: EXIF capture date when known, upload time
+    /// otherwise. A database-generated, stored column so a single index backs the
+    /// default ordering and keyset pagination stays stable and index-only.
+    /// </summary>
+    public DateTimeOffset EffectiveCapturedAt { get; private set; }
+
     public static Image Create(ImageValues values, Guid ownerUserId, DateTimeOffset uploadedAt)
     {
         ArgumentNullException.ThrowIfNull(values);

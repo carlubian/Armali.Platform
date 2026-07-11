@@ -2,28 +2,52 @@ using Blackwing.Persistence;
 using Blackwing.Persistence.Gallery;
 using Blackwing.Shared.Ownership;
 using Blackwing.Shared.Storage;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 
 namespace Blackwing.Api.Gallery;
 
-/// <summary>Private, owner-scoped endpoints for the review and tag-maintenance workflow.</summary>
+/// <summary>Private, owner-scoped endpoints for browsing, review, tag maintenance and image delivery.</summary>
 public static class GalleryEndpoints
 {
     public static IEndpointRouteBuilder MapGalleryEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/images").RequireAuthorization();
+        group.MapGet("/", Browse);
         group.MapGet("/review", GetNextForReview);
         group.MapGet("/{id:guid}", GetImage);
         group.MapPut("/{id:guid}/tags", SetTags);
         group.MapPost("/{id:guid}/review", MarkReviewed);
         group.MapDelete("/{id:guid}", DeleteImage);
-        group.MapGet("/{id:guid}/preview", StreamPreview);
+        group.MapGet("/{id:guid}/thumb", (Guid id, HttpContext http, IUserScope userScope, BlackwingDbContext database, IImageStore store, CancellationToken cancellationToken) =>
+            StreamDerivative(id, ImageDerivative.Thumbnail, asDownload: false, http, userScope, database, store, cancellationToken));
+        group.MapGet("/{id:guid}/preview", (Guid id, HttpContext http, IUserScope userScope, BlackwingDbContext database, IImageStore store, CancellationToken cancellationToken) =>
+            StreamDerivative(id, ImageDerivative.Preview, asDownload: false, http, userScope, database, store, cancellationToken));
+        group.MapGet("/{id:guid}/original", (Guid id, HttpContext http, IUserScope userScope, BlackwingDbContext database, IImageStore store, CancellationToken cancellationToken) =>
+            StreamDerivative(id, ImageDerivative.Original, asDownload: true, http, userScope, database, store, cancellationToken));
 
         var tags = endpoints.MapGroup("/api/tags").RequireAuthorization();
         tags.MapGet("/", Autocomplete);
+        tags.MapGet("/facets", Facets);
         tags.MapPost("/{sourceId:guid}/merge", Merge);
         return endpoints;
     }
+
+    private static async Task<IResult> Browse(
+        string? status, string? cursor, int? limit,
+        IUserScope userScope, GalleryReadService gallery, HttpContext http, CancellationToken cancellationToken)
+    {
+        // Read tag ids straight from the query so a repeated ?tag= binds every value.
+        var tagIds = ParseTagIds(http.Request.Query["tag"]);
+        if (tagIds is null) return Results.BadRequest(new { error = "Every tag filter must be a valid id." });
+        if (!TryParseReviewFilter(status, out var review)) return Results.BadRequest(new { error = "Unknown review status filter." });
+        var page = await gallery.BrowseAsync(userScope.UserId, tagIds, review, cursor, limit, cancellationToken);
+        return Results.Ok(page);
+    }
+
+    private static async Task<IResult> Facets(IUserScope userScope, GalleryReadService gallery, CancellationToken cancellationToken) =>
+        Results.Ok(new { tags = await gallery.TagFacetsAsync(userScope.UserId, cancellationToken) });
 
     private static async Task<IResult> GetNextForReview(IUserScope userScope, BlackwingDbContext database, CancellationToken cancellationToken)
     {
@@ -66,12 +90,41 @@ public static class GalleryEndpoints
     private static async Task<IResult> DeleteImage(Guid id, IUserScope userScope, GalleryMutationService service, CancellationToken cancellationToken) =>
         await service.DeleteImageAsync(id, userScope.UserId, cancellationToken) ? Results.NoContent() : Results.NotFound();
 
-    private static async Task<IResult> StreamPreview(Guid id, IUserScope userScope, BlackwingDbContext database, IImageStore store, CancellationToken cancellationToken)
+    /// <summary>
+    /// Streams one derivative after verifying ownership. Never exposes files as
+    /// static content: the id is resolved to the owner's row first. Derivatives are
+    /// immutable (addressed by content hash), so responses carry a strong ETag and
+    /// long-lived private caching, and support HTTP range requests for the original.
+    /// </summary>
+    private static async Task<IResult> StreamDerivative(
+        Guid id, ImageDerivative derivative, bool asDownload,
+        HttpContext http, IUserScope userScope, BlackwingDbContext database, IImageStore store, CancellationToken cancellationToken)
     {
         var image = await database.Images.FirstOrDefaultAsync(value => value.Id == id && value.OwnerUserId == userScope.UserId, cancellationToken);
         if (image is null) return Results.NotFound();
-        var content = await store.OpenReadAsync(userScope.UserId, image.Sha256, ImageDerivative.Preview, cancellationToken);
-        return content is null ? Results.NotFound() : Results.File(content, "image/webp");
+
+        var stream = await store.OpenReadAsync(userScope.UserId, image.Sha256, derivative, cancellationToken);
+        if (stream is null) return Results.NotFound();
+
+        http.Response.Headers.CacheControl = "private, immutable, max-age=31536000";
+        var entityTag = new EntityTagHeaderValue($"\"{image.Sha256}-{(int)derivative}\"");
+        var contentType = derivative == ImageDerivative.Original ? image.ContentType : "image/webp";
+        var downloadName = asDownload ? DownloadName(image, derivative) : null;
+        return Results.File(stream, contentType, downloadName, lastModified: image.UploadedAt, entityTag: entityTag, enableRangeProcessing: true);
+    }
+
+    private static string DownloadName(Image image, ImageDerivative derivative)
+    {
+        var extension = derivative == ImageDerivative.Original
+            ? image.ContentType switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                _ => string.Empty,
+            }
+            : ".webp";
+        return $"blackwing-{image.Id:N}{extension}";
     }
 
     private static async Task<IResult> Autocomplete(string? type, string? query, IUserScope userScope, BlackwingDbContext database, CancellationToken cancellationToken)
@@ -98,6 +151,25 @@ public static class GalleryEndpoints
 
     private static TagType ParseTagType(string value) =>
         Enum.TryParse<TagType>(value, true, out var type) ? type : throw new ArgumentException("A valid tag type is required.", nameof(value));
+
+    private static List<Guid>? ParseTagIds(IEnumerable<string?> values)
+    {
+        var ids = new List<Guid>();
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            if (!Guid.TryParse(value, out var id)) return null;
+            ids.Add(id);
+        }
+        return ids;
+    }
+
+    private static bool TryParseReviewFilter(string? status, out ReviewFilter review)
+    {
+        review = ReviewFilter.All;
+        if (string.IsNullOrWhiteSpace(status)) return true;
+        return Enum.TryParse(status, ignoreCase: true, out review);
+    }
 }
 
 public sealed record UpdateImageTagsRequest(IReadOnlyList<TagRequest> Tags, bool MarkReviewed);

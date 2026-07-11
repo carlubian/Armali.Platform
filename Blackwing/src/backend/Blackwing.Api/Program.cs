@@ -21,6 +21,7 @@ builder.Services.AddSingleton<ImageProcessingService>();
 builder.Services.AddSingleton<UploadSignal>();
 builder.Services.AddHostedService<UploadProcessingWorker>();
 builder.Services.AddScoped<GalleryMutationService>();
+builder.Services.AddScoped<GalleryReadService>();
 builder.Services.AddScoped<IdentitySeeder>();
 builder.Services.Configure<InitialAdminOptions>(builder.Configuration.GetSection(InitialAdminOptions.SectionName));
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();

@@ -54,11 +54,14 @@ public sealed class BlackwingDbContext(DbContextOptions<BlackwingDbContext> opti
             builder.Property(image => image.Height).IsRequired();
             builder.Property(image => image.Bytes).IsRequired();
             builder.Property(image => image.UploadedAt).IsRequired();
+            // Stored generated column: capture date when known, else upload time.
+            builder.Property(image => image.EffectiveCapturedAt)
+                .HasColumnType("timestamp with time zone")
+                .HasComputedColumnSql("COALESCE(\"CapturedAt\", \"UploadedAt\")", stored: true);
             // Per-user deduplication: the same bytes re-uploaded map to one row.
             builder.HasIndex(image => new { image.OwnerUserId, image.Sha256 }).IsUnique();
-            // Default gallery ordering (capture date, upload-time fallback) within an owner.
-            builder.HasIndex(image => new { image.OwnerUserId, image.CapturedAt, image.Id });
-            builder.HasIndex(image => new { image.OwnerUserId, image.UploadedAt, image.Id });
+            // Default gallery ordering and keyset pagination within an owner.
+            builder.HasIndex(image => new { image.OwnerUserId, image.EffectiveCapturedAt, image.Id });
             // Pending-review view.
             builder.HasIndex(image => new { image.OwnerUserId, image.ReviewedAt });
             builder.HasOne<BlackwingUser>().WithMany().HasForeignKey(image => image.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
