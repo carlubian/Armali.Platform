@@ -1,0 +1,120 @@
+/* ============================================================
+   Blackwing — Project Armali design-system tokens.
+   Self-hosted webfonts, colour/typography/effect tokens and the
+   aurora + glass helpers, imported ahead of global.css.
+   Source: docs/ui-design/_ds/project-armali-design-system.
+   ============================================================ */
+
+/* ---- Webfonts (self-hosted) ---------------------------------- */
+@font-face {
+  font-family: "League Spartan";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/LeagueSpartan-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/Nunito-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/Nunito-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/Nunito-700.woff2") format("woff2");
+}
+
+:root {
+  /* ---- Font families --------------------------------------- */
+  --font-display: "League Spartan", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* ---- Aurora blob hues ------------------------------------ */
+  --aurora-aqua: #7bd8d2;
+  --aurora-gold: #f2ce7e;
+  --aurora-azure: #8fb9d6;
+  --aurora-rose: #e9a98f;
+
+  /* ---- Surfaces / glass ------------------------------------ */
+  --surface-app: #faf5ec;
+  --surface-card: rgba(255, 253, 248, 0.72);
+  --border-glass: rgba(255, 255, 255, 0.55);
+
+  /* ---- Radii / blur / glow --------------------------------- */
+  --radius-card: 20px;
+  --radius-control: 12px;
+  --blur-glass: blur(18px) saturate(135%);
+  --glow-card:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 18px 48px -22px rgba(86, 74, 54, 0.34),
+    0 4px 14px -8px rgba(86, 74, 54, 0.16);
+
+  /* ---- Motion ---------------------------------------------- */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-breathe: 4200ms;
+}
+
+/* ---- Aurora background --------------------------------------
+   Coloured blobs drift slowly behind a frosted veil. Decoration
+   only; drop .armali-aurora on a positioned container.          */
+@keyframes armali-aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(3%, -4%, 0) scale(1.08); }
+  66% { transform: translate3d(-3%, 3%, 0) scale(0.96); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.armali-aurora {
+  position: relative;
+  isolation: isolate;
+  background: var(--surface-app);
+  overflow: hidden;
+}
+.armali-aurora::before,
+.armali-aurora::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  z-index: -2;
+  background:
+    radial-gradient(40% 46% at 28% 30%, var(--aurora-aqua) 0%, transparent 62%),
+    radial-gradient(36% 42% at 73% 26%, var(--aurora-gold) 0%, transparent 62%),
+    radial-gradient(44% 50% at 67% 72%, var(--aurora-azure) 0%, transparent 60%),
+    radial-gradient(38% 44% at 30% 70%, var(--aurora-rose) 0%, transparent 62%);
+  opacity: 0.4;
+  filter: blur(6px);
+  animation: armali-aurora-drift var(--dur-breathe) var(--ease-soft) infinite alternate;
+}
+.armali-aurora::after {
+  animation-delay: -2100ms;
+  animation-duration: calc(var(--dur-breathe) * 1.4);
+  opacity: 0.22;
+  transform: scaleX(-1);
+}
+.armali-aurora > * { position: relative; z-index: 0; }
+
+/* ---- Glass surface helper ------------------------------------ */
+.armali-glass {
+  background: var(--surface-card);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .armali-aurora::before,
+  .armali-aurora::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
