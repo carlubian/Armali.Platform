@@ -1,9 +1,23 @@
 :80 {
-	root * /srv
 	encode gzip
-	@assets path /assets/*
-	header @assets Cache-Control "public, max-age=31536000, immutable"
-	header /index.html Cache-Control "no-store"
-	try_files {path} /index.html
-	file_server
+
+	# API calls are reverse-proxied to the backend. This must live in its own
+	# `handle` block: Caddy's `try_files` (below) rewrites unmatched paths to
+	# /index.html *before* a plain request matcher on reverse_proxy would run,
+	# so a matcher-based proxy never sees /api/* and the SPA fallback answers it
+	# with index.html (HTTP 200 HTML), making the frontend's JSON parse throw and
+	# login fail silently. `handle` blocks are mutually exclusive and ordered, so
+	# /api/* is proxied and never reaches the fallback.
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-store"
+		try_files {path} /index.html
+		file_server
+	}
 }
