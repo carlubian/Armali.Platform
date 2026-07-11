@@ -1,1 +1,2 @@
-docker compose --env-file "$PSScriptRoot/../deploy/compose/.env" -f "$PSScriptRoot/../deploy/compose/docker-compose.yml" up --build --detach
+$composeDir = "$PSScriptRoot/../deploy/compose"
+docker compose --env-file "$composeDir/.env" -f "$composeDir/docker-compose.yml" -f "$composeDir/docker-compose.local.yml" up --build --detach
