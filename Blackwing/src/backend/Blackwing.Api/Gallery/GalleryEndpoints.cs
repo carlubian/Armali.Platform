@@ -144,8 +144,11 @@ public static class GalleryEndpoints
 
     private static async Task<ImageView> ToViewAsync(Image image, BlackwingDbContext database, CancellationToken cancellationToken)
     {
+        // Order over the entity columns (Type/Value) before projecting: ordering after the
+        // projection would sort by tag.Type.ToString(), which EF cannot translate to SQL.
         var tags = await (from link in database.ImageTags join tag in database.Tags on link.TagId equals tag.Id
-                          where link.ImageId == image.Id select new TagView(tag.Id, tag.Type.ToString(), tag.Value)).OrderBy(tag => tag.Type).ThenBy(tag => tag.Value).ToListAsync(cancellationToken);
+                          where link.ImageId == image.Id orderby tag.Type, tag.Value
+                          select new TagView(tag.Id, tag.Type.ToString(), tag.Value)).ToListAsync(cancellationToken);
         return new ImageView(image.Id, image.Width, image.Height, image.Bytes, image.CapturedAt, image.UploadedAt, image.ReviewedAt, tags);
     }
 

@@ -6,6 +6,7 @@ using Blackwing.Api.Observability;
 using Blackwing.Api.Persistence;
 using Blackwing.Api.Storage;
 using Blackwing.Persistence;
+using Blackwing.Persistence.Identity;
 using Blackwing.Shared.Ownership;
 using Blackwing.Shared.Storage;
 using Microsoft.AspNetCore.Identity;
@@ -30,9 +31,25 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
     context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceId());
 builder.Services.Configure<InitialAdminOptions>(builder.Configuration.GetSection(InitialAdminOptions.SectionName));
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+// AddIdentityCookies() wires the application cookie's OnValidatePrincipal to
+// SecurityStampValidator, which resolves ISecurityStampValidator on every authenticated
+// request. AddSignInManager registers that validator (and lives in the ASP.NET Core
+// framework, so it is attached here rather than in the Persistence class library).
+new IdentityBuilder(typeof(BlackwingUser), typeof(IdentityRole<Guid>), builder.Services).AddSignInManager();
+// This is a JSON API, not a server-rendered site: return status codes instead of redirecting
+// unauthenticated/forbidden callers to login/access-denied pages. Only the redirect handlers
+// are overridden so the security-stamp OnValidatePrincipal wired above stays in place.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+    options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+});
 builder.Services.AddAuthorization();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
-builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("login", limiter => { limiter.PermitLimit = 5; limiter.Window = TimeSpan.FromMinutes(1); limiter.QueueLimit = 0; }));
+// The login limiter guards against brute force in production. Integration tests drive many
+// logins through a single in-process host inside one window, so the limit is lifted there.
+var loginPermitLimit = builder.Environment.IsEnvironment("Testing") ? int.MaxValue : 5;
+builder.Services.AddRateLimiter(options => options.AddFixedWindowLimiter("login", limiter => { limiter.PermitLimit = loginPermitLimit; limiter.Window = TimeSpan.FromMinutes(1); limiter.QueueLimit = 0; }));
 builder.Services.AddHealthChecks().AddDbContextCheck<BlackwingDbContext>("postgres", tags: ["ready"]);
 var app = builder.Build();
 app.UseExceptionHandler();
