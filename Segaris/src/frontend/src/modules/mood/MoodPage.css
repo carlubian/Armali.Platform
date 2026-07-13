@@ -245,6 +245,20 @@
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
+.mood-chartcard__well {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.mood-chartcard__well svg {
+  flex: none;
+}
 
 /* ---- Dashboard ------------------------------------------------- */
 .mood-dash {
@@ -548,6 +562,20 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+.mood-weekchart__well {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 14px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.mood-weekchart__well svg {
+  flex: none;
 }
 .mood-weekchart__lbl {
   font-family: var(--font-display);

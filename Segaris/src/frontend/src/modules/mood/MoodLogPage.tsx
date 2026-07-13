@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Sprout } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -8,6 +8,8 @@ import { isApiError } from '@/app/api/errors'
 import type { MoodEntry } from '@/app/api/mood'
 import { ServiceUnavailable } from '@/components/feedback/SystemScreens'
 import { Button, Spinner, Toast } from '@/components/ui'
+import { useWellnessDays } from '@/modules/wellness/queries'
+import { toWellnessDaysQuery } from '@/modules/wellness/wellnessState'
 
 import { MoodEntryDialog } from './MoodEntryDialog'
 import {
@@ -44,6 +46,7 @@ interface DayModel {
   isToday: boolean
   entries: MoodEntry[]
   average: number | null
+  wellness: number | null
 }
 
 export function MoodLogPage() {
@@ -58,6 +61,9 @@ export function MoodLogPage() {
   const range = weekRangeQuery(monday)
 
   const weekQuery = useMoodWeek(range)
+  // Composed in the frontend only: Mood reads the visible week's persisted Wellness
+  // scores and overlays them. A failed or empty response leaves the mood chart intact.
+  const wellnessQuery = useWellnessDays(toWellnessDaysQuery(range.from, range.to))
 
   const dayFormatter = useMemo(
     () =>
@@ -72,6 +78,13 @@ export function MoodLogPage() {
     const [year, month, day] = iso.split('-').map(Number)
     return dayFormatter.format(new Date(Date.UTC(year, month - 1, day)))
   }
+
+  // A failed Wellness read is swallowed to an empty map so the mood chart is never
+  // degraded; days simply carry no Wellness marker.
+  const wellnessByDate = useMemo(() => {
+    const scores = wellnessQuery.isError ? [] : (wellnessQuery.data?.days ?? [])
+    return new Map(scores.map((day) => [day.date, day.score]))
+  }, [wellnessQuery.data, wellnessQuery.isError])
 
   const days = useMemo<DayModel[]>(() => {
     const entries = weekQuery.data?.entries ?? []
@@ -88,8 +101,9 @@ export function MoodLogPage() {
       isToday: iso === today,
       entries: entries.filter((entry) => entry.entryDate === iso),
       average: averages.get(iso) ?? null,
+      wellness: wellnessByDate.get(iso) ?? null,
     }))
-  }, [weekQuery.data, monday, today])
+  }, [weekQuery.data, wellnessByDate, monday, today])
 
   const totalEntries = weekQuery.data?.entries.length ?? 0
   const weekAverage = useMemo(() => {
@@ -97,6 +111,16 @@ export function MoodLogPage() {
     if (scores.length === 0) return null
     return scores.reduce((total, score) => total + score, 0) / scores.length
   }, [weekQuery.data])
+
+  // Weekly Wellness readout: the mean of the week's recorded daily percentages,
+  // rounded to an integer. `null` when no day in the week has a Wellness record.
+  const weekWellness = useMemo(() => {
+    const scores = days
+      .map((day) => day.wellness)
+      .filter((score): score is number => score != null)
+    if (scores.length === 0) return null
+    return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length)
+  }, [days])
 
   const updateParams = (mutate: (next: URLSearchParams) => void) => {
     const next = new URLSearchParams(params)
@@ -215,9 +239,24 @@ export function MoodLogPage() {
                 {weekAverage == null ? t('log.chart.empty') : weekAverage.toFixed(1)}
               </div>
               <small>{t('log.chart.summary', { count: totalEntries })}</small>
+              {weekWellness != null && (
+                <div
+                  className="mood-chartcard__well"
+                  aria-label={t('log.chart.wellnessWeek', { score: weekWellness })}
+                >
+                  <Sprout size={14} aria-hidden="true" />
+                  <span aria-hidden="true">
+                    {t('log.chart.wellnessWeekValue', { score: weekWellness })}
+                  </span>
+                </div>
+              )}
             </div>
             <WeekScoreChart
-              days={days.map((day) => ({ label: day.dow, average: day.average }))}
+              days={days.map((day) => ({
+                label: day.dow,
+                average: day.average,
+                wellness: day.wellness,
+              }))}
             />
           </div>
 

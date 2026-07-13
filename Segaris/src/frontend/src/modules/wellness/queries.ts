@@ -1,6 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
-import { wellnessApi } from '@/app/api/wellness'
+import { wellnessApi, type WellnessDaysQuery } from '@/app/api/wellness'
 
 import { wellnessKeys } from './contracts'
 
@@ -8,6 +13,23 @@ export function useWellnessToday() {
   return useQuery({
     queryKey: wellnessKeys.today(),
     queryFn: ({ signal }) => wellnessApi.today(signal),
+  })
+}
+
+/**
+ * Per-day Wellness scores for a civil-date range, the seam the Mood weekly log
+ * consumes to overlay Wellness on its own chart. `query` is `null` until the visible
+ * week resolves, keeping the query idle so Mood renders without it. A failure surfaces
+ * as an errored query the caller treats as "no Wellness this week", never degrading
+ * the mood chart.
+ */
+export function useWellnessDays(query: WellnessDaysQuery | null) {
+  return useQuery({
+    queryKey:
+      query == null ? [...wellnessKeys.all, 'days', 'idle'] : wellnessKeys.days(query),
+    queryFn: ({ signal }) => wellnessApi.days(query as WellnessDaysQuery, signal),
+    enabled: query != null,
+    placeholderData: keepPreviousData,
   })
 }
 
