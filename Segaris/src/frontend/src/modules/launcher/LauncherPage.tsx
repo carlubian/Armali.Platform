@@ -17,6 +17,7 @@ import {
   Shirt,
   SlidersHorizontal,
   Smile,
+  Sprout,
   UserRound,
   Users,
   Wallet,
@@ -180,6 +181,15 @@ export function LauncherPage() {
         href: '/games',
         icon: Gamepad2,
         tone: 'aqua',
+      },
+      {
+        key: 'wellness',
+        title: t('wellness:launcher.title'),
+        description: t('wellness:launcher.description'),
+        actionLabel: t('launcher.open'),
+        href: '/wellness',
+        icon: Sprout,
+        tone: 'sea',
       },
       {
         key: 'projects',

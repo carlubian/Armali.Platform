@@ -19,6 +19,7 @@ import { processes } from '@/modules/processes/i18n/resources'
 import { projects } from '@/modules/projects/i18n/resources'
 import { recipes } from '@/modules/recipes/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
+import { wellness } from '@/modules/wellness/i18n/resources'
 
 import { platform } from './resources'
 
@@ -49,6 +50,7 @@ void i18n.use(initReactI18next).init({
     'projects',
     'recipes',
     'travel',
+    'wellness',
   ],
   resources: {
     [fallbackLanguage]: {
@@ -71,6 +73,7 @@ void i18n.use(initReactI18next).init({
       projects,
       recipes,
       travel,
+      wellness,
     },
   },
   interpolation: { escapeValue: false },

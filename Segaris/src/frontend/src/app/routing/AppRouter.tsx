@@ -131,6 +131,14 @@ const GamesProgressPage = lazy(() =>
   })),
 )
 
+// The Wellness module is lazily loaded so its daily-score ring and task
+// checklist stay out of the initial platform bundle.
+const WellnessPage = lazy(() =>
+  import('@/modules/wellness/WellnessPage').then((module) => ({
+    default: module.WellnessPage,
+  })),
+)
+
 // The Health module is lazily loaded so its two-tab surface, disease table, and
 // editor stay out of the initial platform bundle.
 const HealthPage = lazy(() =>
@@ -351,6 +359,16 @@ export function AppRouter() {
             <ModuleBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <GamesProgressPage />
+              </Suspense>
+            </ModuleBoundary>
+          }
+        />
+        <Route
+          path="wellness"
+          element={
+            <ModuleBoundary>
+              <Suspense fallback={<LoadingScreen />}>
+                <WellnessPage />
               </Suspense>
             </ModuleBoundary>
           }
