@@ -31,12 +31,12 @@ internal static class WellnessEndpoints
 
     private static void MapTodayEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/today", Placeholder)
+        group.MapGet("/today", GetTodayAsync)
             .WithName("GetWellnessToday")
             .WithSummary("Returns the current household day's selected tasks and score for the current user")
             .Produces<WellnessTodayResponse>();
 
-        group.MapPost("/today/tasks/{dayTaskId:int}/toggle", Placeholder)
+        group.MapPost("/today/tasks/{dayTaskId:int}/toggle", ToggleDayTaskAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("ToggleWellnessDayTask")
             .WithSummary("Flips one day-task's completion, recomputes the score, and returns the updated day")
@@ -46,7 +46,7 @@ internal static class WellnessEndpoints
 
     private static void MapDayRangeEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/days", Placeholder)
+        group.MapGet("/days", ListDaysAsync)
             .WithName("ListWellnessDays")
             .WithSummary("Returns per-day scores for existing days in an inclusive range, current user only")
             .Produces<WellnessDayListResponse>()
@@ -80,6 +80,48 @@ internal static class WellnessEndpoints
         CancellationToken cancellationToken) =>
         TypedResults.Ok(await read.ListAsync(cancellationToken));
 
+    private static async Task<IResult> GetTodayAsync(
+        WellnessDayService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await service.GetTodayAsync(userId, cancellationToken));
+    }
+
+    private static async Task<IResult> ToggleDayTaskAsync(
+        int dayTaskId,
+        WellnessDayService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await service.ToggleTaskAsync(dayTaskId, userId, cancellationToken));
+    }
+
+    private static async Task<IResult> ListDaysAsync(
+        DateOnly? from,
+        DateOnly? to,
+        WellnessDayService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await service.ListDaysAsync(from, to, userId, cancellationToken));
+    }
+
     private static async Task<IResult> CreateTaskAsync(
         CreateWellnessTaskRequest request,
         WellnessTaskManagementService service,
@@ -98,6 +140,4 @@ internal static class WellnessEndpoints
         await service.DeleteAsync(taskId, cancellationToken);
         return TypedResults.NoContent();
     }
-
-    private static IResult Placeholder() => TypedResults.StatusCode(StatusCodes.Status501NotImplemented);
 }

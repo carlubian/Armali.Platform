@@ -1,6 +1,7 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Launcher.Contracts;
 using Segaris.Api.Modules.Wellness.Attention;
+using Segaris.Api.Modules.Wellness.Domain;
 using Segaris.Api.Modules.Wellness.Mutations;
 using Segaris.Api.Modules.Wellness.Persistence;
 using Segaris.Api.Modules.Wellness.Queries;
@@ -30,6 +31,8 @@ internal sealed class WellnessModule : ISegarisModule
     {
         services.AddSingleton<ISegarisModelContributor, WellnessModelContributor>();
         services.AddScoped<WellnessSeeder>();
+        services.AddScoped<WellnessDaySelector>();
+        services.AddScoped<WellnessDayService>();
         services.AddScoped<WellnessTaskReadService>();
         services.AddScoped<WellnessTaskManagementService>();
         services.AddScoped<ILauncherAttentionContributor, WellnessAttentionContributor>();

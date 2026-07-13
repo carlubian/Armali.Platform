@@ -19,4 +19,17 @@ internal static class WellnessProblem
             WellnessErrorCodes.TaskValidation,
             "Wellness task validation failed.",
             errors: new Dictionary<string, string[]> { [field] = [message] });
+
+    public static ApiProblemException DayTaskNotFound() =>
+        new(StatusCodes.Status404NotFound, WellnessErrorCodes.DayTaskNotFound, "Wellness day task not found.");
+
+    public static ApiProblemException DayRangeValidation() =>
+        new(
+            StatusCodes.Status400BadRequest,
+            WellnessErrorCodes.DayRangeValidation,
+            "Wellness day range validation failed.",
+            errors: new Dictionary<string, string[]>
+            {
+                ["range"] = ["Both from and to are required, and from must be before or equal to to."],
+            });
 }
