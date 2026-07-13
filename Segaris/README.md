@@ -58,6 +58,13 @@ Create `src/backend/appsettings.json` from
 ./scripts/backend-run.ps1
 ```
 
+`./scripts/backend-test.ps1` runs the complete backend solution, including
+`Segaris.Api.IntegrationTests`. Agents should not run that full API integration
+suite locally unless explicitly asked: GitHub Actions shards it across four
+parallel jobs, while an unsharded local run can take more than 40 minutes. For
+local validation, prefer focused `dotnet test` runs against the changed project,
+class, or method and rely on GitHub for the full API integration gate.
+
 Useful supporting commands:
 
 ```powershell

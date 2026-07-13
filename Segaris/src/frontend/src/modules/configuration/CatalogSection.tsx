@@ -74,7 +74,9 @@ export function CatalogSection({ descriptor, onToast }: CatalogSectionProps) {
   }
 
   const handleSaved = (saved: CatalogRow, mode: 'create' | 'edit') => {
-    void invalidateCatalog(queryClient, descriptor, { affectsEntries: mode === 'edit' })
+    void invalidateCatalog(queryClient, descriptor, {
+      affectsEntries: mode === 'edit' || descriptor.hasWellnessCategory === true,
+    })
     setFormState(null)
     onToast(mode === 'create' ? 'created' : 'updated', saved.name)
   }

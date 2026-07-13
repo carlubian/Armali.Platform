@@ -43,7 +43,10 @@ export function CatalogTable({
   onMove,
 }: CatalogTableProps) {
   const { t } = useTranslation('configuration')
+  const { t: tWellness } = useTranslation('wellness')
   const moveButtons = useRef(new Map<string, HTMLButtonElement | null>())
+  const canMove = descriptor.canMove ?? true
+  const canEdit = descriptor.canEdit ?? true
 
   // After a reorder the rows re-render; restore focus to the control the user was
   // operating. If that direction is now a disabled boundary, fall back to the
@@ -66,9 +69,11 @@ export function CatalogTable({
       <table className="seg-catalog__table">
         <thead>
           <tr>
-            <th scope="col" className="seg-catalog__col-order">
-              {t('table.columns.order')}
-            </th>
+            {canMove && (
+              <th scope="col" className="seg-catalog__col-order">
+                {t('table.columns.order')}
+              </th>
+            )}
             <th scope="col">{t('table.columns.name')}</th>
             {descriptor.hasCode && (
               <th scope="col" className="seg-catalog__col-code">
@@ -90,6 +95,11 @@ export function CatalogTable({
                 {t('table.columns.platform')}
               </th>
             )}
+            {descriptor.hasWellnessCategory && (
+              <th scope="col" className="seg-catalog__col-category">
+                {t('table.columns.category')}
+              </th>
+            )}
             <th scope="col" className="seg-catalog__col-actions">
               {t('table.columns.actions')}
             </th>
@@ -101,34 +111,36 @@ export function CatalogTable({
             const isLast = index === rows.length - 1
             return (
               <tr key={row.id}>
-                <td className="seg-catalog__col-order">
-                  <div className="seg-catalog__move">
-                    <button
-                      type="button"
-                      className="seg-catalog__icon"
-                      ref={(node) => {
-                        moveButtons.current.set(moveButtonKey(row.id, 'up'), node)
-                      }}
-                      disabled={isFirst || busy}
-                      aria-label={t('table.moveUp', { name: row.name })}
-                      onClick={() => onMove(row, 'up')}
-                    >
-                      <ArrowUp size={16} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="seg-catalog__icon"
-                      ref={(node) => {
-                        moveButtons.current.set(moveButtonKey(row.id, 'down'), node)
-                      }}
-                      disabled={isLast || busy}
-                      aria-label={t('table.moveDown', { name: row.name })}
-                      onClick={() => onMove(row, 'down')}
-                    >
-                      <ArrowDown size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-                </td>
+                {canMove && (
+                  <td className="seg-catalog__col-order">
+                    <div className="seg-catalog__move">
+                      <button
+                        type="button"
+                        className="seg-catalog__icon"
+                        ref={(node) => {
+                          moveButtons.current.set(moveButtonKey(row.id, 'up'), node)
+                        }}
+                        disabled={isFirst || busy}
+                        aria-label={t('table.moveUp', { name: row.name })}
+                        onClick={() => onMove(row, 'up')}
+                      >
+                        <ArrowUp size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="seg-catalog__icon"
+                        ref={(node) => {
+                          moveButtons.current.set(moveButtonKey(row.id, 'down'), node)
+                        }}
+                        disabled={isLast || busy}
+                        aria-label={t('table.moveDown', { name: row.name })}
+                        onClick={() => onMove(row, 'down')}
+                      >
+                        <ArrowDown size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                )}
                 <td className="seg-catalog__name">{row.name}</td>
                 {descriptor.hasCode && (
                   <td className="seg-catalog__code">{row.code}</td>
@@ -159,17 +171,24 @@ export function CatalogTable({
                     {row.platform != null ? t(`games:platform.${row.platform}`) : ''}
                   </td>
                 )}
+                {descriptor.hasWellnessCategory && (
+                  <td className="seg-catalog__category">
+                    {row.category != null ? tWellness(`category.${row.category}`) : ''}
+                  </td>
+                )}
                 <td className="seg-catalog__col-actions">
                   <div className="seg-catalog__row-actions">
-                    <button
-                      type="button"
-                      className="seg-catalog__icon"
-                      disabled={busy}
-                      aria-label={t('table.edit', { name: row.name })}
-                      onClick={() => onEdit(row)}
-                    >
-                      <Pencil size={16} aria-hidden="true" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="seg-catalog__icon"
+                        disabled={busy}
+                        aria-label={t('table.edit', { name: row.name })}
+                        onClick={() => onEdit(row)}
+                      >
+                        <Pencil size={16} aria-hidden="true" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="seg-catalog__icon seg-catalog__icon--danger"

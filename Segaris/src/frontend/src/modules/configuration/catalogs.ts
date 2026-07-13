@@ -37,6 +37,12 @@ import {
   travelTripTypesManagementApi,
 } from '@/app/api/travel'
 import {
+  wellnessApi,
+  wellnessTaskNameMaxLength,
+  wellnessTasksManagementApi,
+  type WellnessCategory,
+} from '@/app/api/wellness'
+import {
   destinationCategoriesManagementApi,
   destinationsApi,
   placeCategoriesManagementApi,
@@ -54,6 +60,7 @@ import { opexKeys } from '@/modules/opex/contracts'
 import { processesKeys } from '@/modules/processes/contracts'
 import { recipesKeys } from '@/modules/recipes/contracts'
 import { travelKeys } from '@/modules/travel/contracts'
+import { wellnessKeys } from '@/modules/wellness/contracts'
 
 /** The administrative catalog keys backing the Configuration table and dialogs. */
 export type CatalogKey =
@@ -80,6 +87,7 @@ export type CatalogKey =
   | 'personCategories'
   | 'usernamePlatforms'
   | 'games'
+  | 'wellnessTasks'
 
 /** Flat top-level sections of the Configuration experience. */
 export type CatalogSectionId =
@@ -98,6 +106,7 @@ export type CatalogSectionId =
   | 'recipes'
   | 'health'
   | 'games'
+  | 'wellness'
 
 /**
  * Structural row shared by the catalog table and dialogs. Every catalog row has
@@ -114,6 +123,8 @@ export interface CatalogRow {
   exchangeRateToEur?: number | null
   /** Fixed platform; only games carry it. */
   platform?: GamePlatform
+  /** Fixed Wellness category; only Wellness tasks carry it. */
+  category?: WellnessCategory
 }
 
 /** Create/update body shape covering every catalog. */
@@ -123,6 +134,7 @@ export interface CatalogWriteBody {
   colorValue?: string
   exchangeRateToEur?: number
   platform?: GamePlatform
+  category?: WellnessCategory
 }
 
 export interface CatalogDescriptor {
@@ -139,6 +151,14 @@ export interface CatalogDescriptor {
   hasColorValue?: boolean
   /** Games carry a fixed platform enum, edited as a select and shown as a column. */
   hasPlatform?: boolean
+  /** Wellness tasks carry a fixed healthy-habit category enum. */
+  hasWellnessCategory?: boolean
+  /** Optional per-catalog name length bound. Defaults to the shared 100. */
+  nameMaxLength?: number
+  /** Whether rows can be edited after creation. Defaults to true. */
+  canEdit?: boolean
+  /** Whether the table exposes server-backed order controls. Defaults to true. */
+  canMove?: boolean
   /** Optional references may be cleared to null (suppliers and cost centres). */
   canClear: boolean
   /** Currency carries the exchange-rate conversion deletion path. */
@@ -466,6 +486,22 @@ export const gamesDescriptor: CatalogDescriptor = {
   management: asDescriptorClient(gamesManagementApi),
 }
 
+export const wellnessTasksDescriptor: CatalogDescriptor = {
+  key: 'wellnessTasks',
+  section: 'wellness',
+  hasCode: false,
+  hasWellnessCategory: true,
+  nameMaxLength: wellnessTaskNameMaxLength,
+  canEdit: false,
+  canMove: false,
+  canClear: false,
+  isCurrency: false,
+  queryKey: wellnessKeys.tasks(),
+  dependentKeys: [wellnessKeys.today(), wellnessKeys.all],
+  read: (signal) => wellnessApi.tasks(signal),
+  management: asDescriptorClient(wellnessTasksManagementApi),
+}
+
 /** Global-section catalogs, in tab order. */
 export const globalCatalogs: readonly CatalogDescriptor[] = [
   suppliersDescriptor,
@@ -525,6 +561,7 @@ export const allCatalogs: readonly CatalogDescriptor[] = [
   medicineCategoriesDescriptor,
   ...firebirdCatalogs,
   gamesDescriptor,
+  wellnessTasksDescriptor,
 ]
 
 /** The default Global tab a bare or unknown route falls back to. */
@@ -576,6 +613,8 @@ export function sectionCatalogs(
       return [opexCategoriesDescriptor]
     case 'games':
       return [gamesDescriptor]
+    case 'wellness':
+      return [wellnessTasksDescriptor]
   }
 }
 

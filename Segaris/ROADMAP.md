@@ -3,9 +3,10 @@
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
 Current phase: **Phase 2 - Functional Definition**. Capex, Opex, Inventory,
-Travel, Assets, Maintenance, Projects, Processes, and Recipes are implemented and
-accepted (see the matching acceptance records under `docs/planning/`); the
-remaining business modules are still in functional definition.
+Travel, Assets, Maintenance, Projects, Processes, Recipes, and Wellness are
+implemented and accepted (see the matching acceptance records under
+`docs/planning/`); the remaining business modules are still in functional
+definition.
 
 ## Status Legend
 
@@ -352,6 +353,20 @@ Module purpose: Track progress through video games, board games, tabletop campai
 | Resolved | User workflow | Games opens on a server-paginated playthrough card collection with search, filters for game/platform/status/tags/creator/visibility, sorting by name, game, start date, status, and derived progress, and URL-aware playthrough dialogs. Each playthrough exposes a dedicated progress page with a one-level section list on the left and selected-section goals on the right. The launcher card never requests attention. See `docs/requirements/GAMES_REQUIREMENTS.md`. |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/GAMES_IMPLEMENTATION_PLAN.md`. |
 | Deferred | Future Games scope | End dates, completion dates, time played, play sessions, progress history, richer game metadata, cover images, external imports, configurable platforms, attachments, screenshots, ratings, goal reordering, due dates, sub-goals, Analytics/Calendar integration, and launcher attention remain future versions. See `docs/requirements/GAMES_REQUIREMENTS.md`. |
+
+### Wellness
+
+Module purpose: Offer each user a daily set of healthy-habit tasks whose completion produces a persisted per-day score, also surfaced in the Mood weekly log.
+
+| Status | Decision | Notes |
+| --- | --- | --- |
+| Resolved | Entities and properties | Wellness owns an administrator-managed, household-shared `WellnessTask` catalogue with a required name and required fixed `WellnessCategory` (v1: `HealthAndBody`, `MindAndSleep`, `PeopleAndWork`), creation ordering, and delete-only management with no enable/disable. Per user and household date it owns a `WellnessDay` with an integer `0`-`100` score, and `WellnessDayTask` snapshot rows (copied name, category, completion flag) that are independent of the catalogue so task deletion never affects persisted days. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Score and daily selection | The day score is the percentage of the day's tasks completed (`completed / total * 100`, rounded). Six tasks are generated once per day and stay stable, including completion state, for the rest of that household day (`Europe/Madrid` via `IClock`); generation is lazy and idempotent on first read. Selection is random but includes at least one task per category that has tasks, with a defined rule when categories exceed the six slots or the catalogue is smaller than six. Past days' task sets are never shown; only the score persists. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Privacy model | The task pool is shared and administrator-managed, but each user's daily selection, completion state, and score are private, matching the Mood privacy model. |
+| Resolved | Mood integration | The Wellness score is surfaced only in the Mood weekly log for the initial release: the per-day percentage in the weekly chart plus a weekly summary, distinguished by a dedicated icon so it is not confused with the mood average. The integration is frontend-only through `GET /api/wellness/days`; the Mood backend gains no dependency on Wellness. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation accepted | The Wellness implementation plan is delivered through Wave 7. All accepted functional decisions are mapped to covering code and tests in `docs/planning/WELLNESS_ACCEPTANCE.md`. |
+| Deferred | Future Wellness scope | Historical task-set browsing, per-task streaks or history, weekly/monthly Wellness dashboards, configurable daily task count, configurable or per-user categories, task enable/disable and weighting, reminders or launcher attention, Analytics integration, and any Mood dashboard (non-weekly-log) integration remain future versions. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
 
 ### Analytics
 

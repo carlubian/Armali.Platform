@@ -13,6 +13,7 @@ interface Row {
   colorValue?: string
   exchangeRateToEur?: number | null
   platform?: string
+  category?: string
   sortOrder: number
   programId?: number
 }
@@ -74,6 +75,7 @@ interface BackendOptions {
   personCategories?: Row[]
   usernamePlatforms?: Row[]
   games?: Row[]
+  wellnessTasks?: Row[]
   programs?: Row[]
   axes?: Row[]
   /** Impact override keyed by `${catalog}:${id}`. */
@@ -105,6 +107,7 @@ const catalogPaths: Record<string, string> = {
   'people/categories': 'personCategories',
   'people/platforms': 'usernamePlatforms',
   'games/games': 'games',
+  'wellness/tasks': 'wellnessTasks',
 }
 
 function mockBackend(options: BackendOptions = {}) {
@@ -169,6 +172,10 @@ function mockBackend(options: BackendOptions = {}) {
     games: options.games ?? [
       { id: 1, name: 'Hollow Knight', platform: 'PC', sortOrder: 1 },
       { id: 2, name: 'Catan', platform: 'BoardGame', sortOrder: 2 },
+    ],
+    wellnessTasks: options.wellnessTasks ?? [
+      { id: 1, name: 'Drink water', category: 'HealthAndBody', sortOrder: 1 },
+      { id: 2, name: 'Sleep wind-down', category: 'MindAndSleep', sortOrder: 2 },
     ],
     programs: options.programs ?? [
       { id: 1, code: 'HOME', name: 'Household', sortOrder: 1 },
@@ -254,7 +261,7 @@ function mockBackend(options: BackendOptions = {}) {
       }
 
       const match = url.match(
-        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|destinations\/(?:categories|place-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms)|games\/games)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
+        /^\/api\/(configuration\/(?:suppliers|cost-centers|currencies)|capex\/categories|opex\/categories|travel\/(?:trip-types|expense-categories)|destinations\/(?:categories|place-categories)|clothes\/(?:categories|colors)|assets\/(?:categories|locations)|maintenance\/types|processes\/categories|people\/(?:categories|platforms)|games\/games|wellness\/tasks)(?:\/(\d+)(\/move|\/deletion-impact|\/replace-and-delete)?)?(?:\?.*)?$/,
       )
       if (match) {
         const key = catalogPaths[match[1]]
@@ -272,6 +279,7 @@ function mockBackend(options: BackendOptions = {}) {
             colorValue?: string
             exchangeRateToEur?: number
             platform?: string
+            category?: string
           }
           const created: Row = {
             id: nextId++,
@@ -280,6 +288,7 @@ function mockBackend(options: BackendOptions = {}) {
             colorValue: input.colorValue,
             exchangeRateToEur: input.exchangeRateToEur,
             platform: input.platform,
+            category: input.category,
             sortOrder: rows.length + 1,
           }
           rows.push(created)
@@ -307,6 +316,7 @@ function mockBackend(options: BackendOptions = {}) {
             colorValue?: string
             exchangeRateToEur?: number
             platform?: string
+            category?: string
           }
           const target = rows.find((row) => row.id === id)
           if (target != null) {
@@ -316,6 +326,7 @@ function mockBackend(options: BackendOptions = {}) {
             if (input.exchangeRateToEur != null)
               target.exchangeRateToEur = input.exchangeRateToEur
             if (input.platform != null) target.platform = input.platform
+            if (input.category != null) target.category = input.category
           }
           return json(target ?? {})
         }
@@ -497,6 +508,17 @@ describe('Configuration navigation and states', () => {
       await screen.findByRole('heading', { name: 'Process categories' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Administrative')).toBeInTheDocument()
+  })
+
+  it('shows the Wellness task catalogue section', async () => {
+    mockBackend()
+    renderAt('/configuration/wellness')
+    expect(
+      await screen.findByRole('heading', { name: 'Wellness tasks' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Drink water')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Category' })).toBeInTheDocument()
+    expect(screen.getByText('Health & Body')).toBeInTheDocument()
   })
 
   it('shows the Firebird catalog tabs', async () => {
@@ -1576,6 +1598,105 @@ describe('Configuration Games catalogue', () => {
         fetchMock.mock.calls.filter(([input]) => urlOf(input) === '/api/games/games')
           .length,
       ).toBeGreaterThan(1),
+    )
+  })
+})
+
+describe('Configuration Wellness catalogue', () => {
+  it('renders the empty catalogue state when no Wellness tasks exist', async () => {
+    mockBackend({ wellnessTasks: [] })
+    renderAt('/configuration/wellness')
+
+    expect(
+      await screen.findByText(
+        'No Wellness tasks yet. Add the first healthy-habit task so users can receive a daily set. The catalogue ships empty on purpose.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('creates a Wellness task with a name and category', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/wellness')
+    await screen.findByText('Drink water')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New task' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New Wellness task' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Call a friend')
+    await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'PeopleAndWork')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    expect(
+      calls.find((call) => call.method === 'POST' && call.url === '/api/wellness/tasks')
+        ?.body,
+    ).toEqual({ name: 'Call a friend', category: 'PeopleAndWork' })
+  })
+
+  it('shows Wellness task name validation feedback before submitting', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/wellness')
+    await screen.findByText('Drink water')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New task' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New Wellness task' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await within(dialog).findByText('Enter a name.')).toBeInTheDocument()
+    expect(calls.some((call) => call.url === '/api/wellness/tasks')).toBe(false)
+  })
+
+  it('deletes a Wellness task directly without a replacement flow', async () => {
+    const { calls } = mockBackend()
+    renderAt('/configuration/wellness')
+    await screen.findByText('Drink water')
+
+    expect(
+      screen.queryByRole('button', { name: 'Edit Drink water' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Move Drink water down' }),
+    ).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Drink water' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Drink water?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) => call.method === 'DELETE' && call.url === '/api/wellness/tasks/1',
+        ),
+      ).toBe(true),
+    )
+    expect(calls.some((call) => call.url.includes('deletion-impact'))).toBe(false)
+  })
+
+  it('refetches the Wellness catalogue after a mutation', async () => {
+    const { fetchMock } = mockBackend()
+    appQueryClient.setQueryData(['wellness', 'today'], {
+      date: '2026-07-13',
+      score: null,
+      tasks: [],
+    })
+    renderAt('/configuration/wellness')
+    await screen.findByText('Drink water')
+
+    await userEvent.click(screen.getByRole('button', { name: 'New task' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New Wellness task' })
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Stretch')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText('Added')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([input]) => urlOf(input) === '/api/wellness/tasks')
+          .length,
+      ).toBeGreaterThan(1),
+    )
+    await waitFor(() =>
+      expect(appQueryClient.getQueryState(['wellness', 'today'])?.isInvalidated).toBe(
+        true,
+      ),
     )
   })
 })

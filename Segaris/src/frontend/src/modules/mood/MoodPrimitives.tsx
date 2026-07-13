@@ -1,3 +1,4 @@
+import { Sprout } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import type { MoodEntry } from '@/app/api/mood'
@@ -78,11 +79,19 @@ export interface WeekChartDay {
   label: string
   /** Average score for the day, or `null` when the user logged nothing. */
   average: number | null
+  /**
+   * Wellness completion percentage (0–100) for the day, or `null` when the day has
+   * no Wellness record. Composed from `GET /api/wellness/days`; a visited day with
+   * nothing completed reports `0`, a day never opened reports `null`.
+   */
+  wellness: number | null
 }
 
 /**
  * Compact weekly average-score chart: seven bars, one per day. Days without
- * entries render as a dashed gap rather than a zero. The bars are decorative; a
+ * entries render as a dashed gap rather than a zero. Under each bar an icon-marked
+ * Wellness percentage is shown for days that have a Wellness record, so the two
+ * metrics share a column without sharing a scale. The bars are decorative; a
  * visually hidden list gives screen-reader users the same per-day values.
  */
 export function WeekScoreChart({ days }: { days: WeekChartDay[] }) {
@@ -115,6 +124,14 @@ export function WeekScoreChart({ days }: { days: WeekChartDay[] }) {
               <span className="mood-weekchart__val">
                 {filled ? day.average!.toFixed(1) : '·'}
               </span>
+              <span className="mood-weekchart__well" aria-hidden="true">
+                {day.wellness != null && (
+                  <>
+                    <Sprout size={11} />
+                    {day.wellness}
+                  </>
+                )}
+              </span>
               <span className="mood-weekchart__lbl">{day.label}</span>
             </div>
           )
@@ -123,8 +140,15 @@ export function WeekScoreChart({ days }: { days: WeekChartDay[] }) {
       <ul className="mood-sr-only">
         {days.map((day, index) => (
           <li key={index}>
-            {day.label}:{' '}
-            {day.average == null ? t('log.chart.noDay') : day.average.toFixed(1)}
+            <span>
+              {day.label}:{' '}
+              {day.average == null ? t('log.chart.noDay') : day.average.toFixed(1)}
+            </span>{' '}
+            <span>
+              {day.wellness == null
+                ? t('log.chart.wellnessNoDay')
+                : t('log.chart.wellnessDay', { score: day.wellness })}
+            </span>
           </li>
         ))}
       </ul>

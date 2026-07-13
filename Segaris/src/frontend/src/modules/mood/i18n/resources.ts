@@ -3,6 +3,8 @@
  * and criteria/scale labels that freeze the user-facing vocabulary. Wave 4 adds
  * the weekly log and entry dialog copy; Wave 5 adds the dashboard charts. The
  * derived-emotion codes from the Wave 1 matrix are translated through `emotions`.
+ * The Wellness integration Wave adds the `log.chart.wellness*` readouts that mark
+ * the composed Wellness scores in the weekly log chart.
  */
 export const mood = {
   launcher: {
@@ -62,6 +64,10 @@ export const mood = {
       summary: '{{count}} entries · simple mean per day',
       empty: '—',
       noDay: 'No entries',
+      wellnessDay: 'Wellness {{score}}%',
+      wellnessNoDay: 'No Wellness score',
+      wellnessWeek: 'Weekly Wellness score {{score}}%',
+      wellnessWeekValue: '{{score}}% Wellness',
     },
     day: {
       average: 'Average',
