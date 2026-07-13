@@ -1,4 +1,9 @@
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Launcher.Contracts;
+using Segaris.Api.Modules.Wellness.Attention;
+using Segaris.Api.Modules.Wellness.Persistence;
+using Segaris.Api.Modules.Wellness.Seeding;
+using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Wellness;
 
@@ -21,6 +26,9 @@ internal sealed class WellnessModule : ISegarisModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ISegarisModelContributor, WellnessModelContributor>();
+        services.AddScoped<WellnessSeeder>();
+        services.AddScoped<ILauncherAttentionContributor, WellnessAttentionContributor>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
