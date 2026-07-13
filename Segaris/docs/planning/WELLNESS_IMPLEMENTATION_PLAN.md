@@ -369,7 +369,7 @@ frontend/backend boundary.
 
 Tasks:
 
-1. Run backend format, build, unit, API, PostgreSQL, migration, and architecture
+1. Run backend format, build, unit, PostgreSQL, migration, and architecture
    suites through repository scripts.
 2. Run frontend format, lint, type-check, unit, build, and Playwright suites.
 3. Add a representative Playwright journey covering login, creating Wellness tasks

@@ -140,7 +140,7 @@ export function CatalogFormDialog({
             ? { name: values.name.trim(), platform: values.platform }
             : descriptor.hasWellnessCategory
               ? { name: values.name.trim(), category: values.category }
-            : { name: values.name.trim() }
+              : { name: values.name.trim() }
       return mode === 'create'
         ? descriptor.management.create(body)
         : descriptor.management.update(row!.id, body)
@@ -459,8 +459,7 @@ interface WellnessCategoryFieldProps {
 function WellnessCategoryField({ control, label }: WellnessCategoryFieldProps) {
   const { t } = useTranslation('wellness')
   const { field } = useController({ name: 'category', control })
-  const value =
-    typeof field.value === 'string' ? field.value : wellnessCategories[0]
+  const value = typeof field.value === 'string' ? field.value : wellnessCategories[0]
   return (
     <div className="seg-catalog__field">
       <label className="seg-catalog__field-control">

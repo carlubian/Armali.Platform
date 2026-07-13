@@ -3,9 +3,10 @@
 This roadmap tracks decisions that still need to be discussed or resolved. It is a living document: add new questions as they appear, and keep resolved decisions visible with a short rationale or a link to the document where they were settled.
 
 Current phase: **Phase 2 - Functional Definition**. Capex, Opex, Inventory,
-Travel, Assets, Maintenance, Projects, Processes, and Recipes are implemented and
-accepted (see the matching acceptance records under `docs/planning/`); the
-remaining business modules are still in functional definition.
+Travel, Assets, Maintenance, Projects, Processes, Recipes, and Wellness are
+implemented and accepted (see the matching acceptance records under
+`docs/planning/`); the remaining business modules are still in functional
+definition.
 
 ## Status Legend
 
@@ -364,6 +365,7 @@ Module purpose: Offer each user a daily set of healthy-habit tasks whose complet
 | Resolved | Privacy model | The task pool is shared and administrator-managed, but each user's daily selection, completion state, and score are private, matching the Mood privacy model. |
 | Resolved | Mood integration | The Wellness score is surfaced only in the Mood weekly log for the initial release: the per-day percentage in the weekly chart plus a weekly summary, distinguished by a dedicated icon so it is not confused with the mood average. The integration is frontend-only through `GET /api/wellness/days`; the Mood backend gains no dependency on Wellness. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
 | Resolved | Implementation plan | Delivery is divided into Waves 0-7 in `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
+| Resolved | Implementation accepted | The Wellness implementation plan is delivered through Wave 7. All accepted functional decisions are mapped to covering code and tests in `docs/planning/WELLNESS_ACCEPTANCE.md`. |
 | Deferred | Future Wellness scope | Historical task-set browsing, per-task streaks or history, weekly/monthly Wellness dashboards, configurable daily task count, configurable or per-user categories, task enable/disable and weighting, reminders or launcher attention, Analytics integration, and any Mood dashboard (non-weekly-log) integration remain future versions. See `docs/planning/WELLNESS_IMPLEMENTATION_PLAN.md`. |
 
 ### Analytics

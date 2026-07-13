@@ -130,10 +130,7 @@ export function CatalogTable({
                         type="button"
                         className="seg-catalog__icon"
                         ref={(node) => {
-                          moveButtons.current.set(
-                            moveButtonKey(row.id, 'down'),
-                            node,
-                          )
+                          moveButtons.current.set(moveButtonKey(row.id, 'down'), node)
                         }}
                         disabled={isLast || busy}
                         aria-label={t('table.moveDown', { name: row.name })}
@@ -176,9 +173,7 @@ export function CatalogTable({
                 )}
                 {descriptor.hasWellnessCategory && (
                   <td className="seg-catalog__category">
-                    {row.category != null
-                      ? tWellness(`category.${row.category}`)
-                      : ''}
+                    {row.category != null ? tWellness(`category.${row.category}`) : ''}
                   </td>
                 )}
                 <td className="seg-catalog__col-actions">
