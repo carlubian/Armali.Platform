@@ -43,6 +43,8 @@ public sealed class ModuleBoundaryTests
     private const string HealthContractsNamespace = "Segaris.Api.Modules.Health.Contracts";
     private const string GamesNamespace = "Segaris.Api.Modules.Games";
     private const string GamesContractsNamespace = "Segaris.Api.Modules.Games.Contracts";
+    private const string WellnessNamespace = "Segaris.Api.Modules.Wellness";
+    private const string WellnessContractsNamespace = "Segaris.Api.Modules.Wellness.Contracts";
 
     private static readonly Assembly ApiAssembly = typeof(Program).Assembly;
 
@@ -70,6 +72,7 @@ public sealed class ModuleBoundaryTests
         Assert.NotEmpty(TypesIn(DestinationsNamespace));
         Assert.NotEmpty(TypesIn(HealthNamespace));
         Assert.NotEmpty(TypesIn(GamesNamespace));
+        Assert.NotEmpty(TypesIn(WellnessNamespace));
     }
 
     [Fact]
@@ -323,6 +326,7 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(LauncherNamespace, CalendarNamespace);
         AssertNoDependency(LauncherNamespace, AnalyticsNamespace);
         AssertNoDependency(LauncherNamespace, GamesNamespace);
+        AssertNoDependency(LauncherNamespace, WellnessNamespace);
     }
 
     [Fact]
@@ -979,6 +983,85 @@ public sealed class ModuleBoundaryTests
         AssertNoDependency(HealthNamespace, GamesNamespace);
         AssertNoDependency(CalendarNamespace, GamesNamespace);
         AssertNoDependency(AnalyticsNamespace, GamesNamespace);
+        AssertNoDependency(WellnessNamespace, GamesNamespace);
+    }
+
+    [Fact]
+    public void Configuration_does_not_depend_on_wellness()
+    {
+        AssertNoDependency(ConfigurationNamespace, WellnessNamespace);
+    }
+
+    [Fact]
+    public void Wellness_depends_on_configuration_contracts()
+    {
+        // Wellness owns the WellnessTask catalogue surfaced through the Configuration
+        // presentation boundary, so it consumes Configuration's published contracts.
+        // Its absence would mean the catalogue-presentation boundary was inverted.
+        var dependsOnConfiguration = TypesIn(WellnessNamespace)
+            .SelectMany(ReferencedTypes)
+            .Any(referenced => IsInNamespace(referenced, ConfigurationNamespace));
+
+        Assert.True(
+            dependsOnConfiguration,
+            "Wellness must depend on Configuration's published catalog contracts.");
+    }
+
+    [Fact]
+    public void Wellness_does_not_depend_on_forbidden_business_modules()
+    {
+        // Wellness is an independent business module: it may consume Configuration,
+        // Launcher, Identity, and platform contracts (its launcher card reports a
+        // constant non-attention state from Wave 1 on), but it must remain independent
+        // from every other business module. Mood in particular must never be a
+        // dependency, since the Mood/Wellness integration is frontend-only.
+        AssertNoDependency(WellnessNamespace, CapexNamespace);
+        AssertNoDependency(WellnessNamespace, OpexNamespace);
+        AssertNoDependency(WellnessNamespace, InventoryNamespace);
+        AssertNoDependency(WellnessNamespace, TravelNamespace);
+        AssertNoDependency(WellnessNamespace, ClothesNamespace);
+        AssertNoDependency(WellnessNamespace, AssetsNamespace);
+        AssertNoDependency(WellnessNamespace, MoodNamespace);
+        AssertNoDependency(WellnessNamespace, MaintenanceNamespace);
+        AssertNoDependency(WellnessNamespace, ProjectsNamespace);
+        AssertNoDependency(WellnessNamespace, ProcessesNamespace);
+        AssertNoDependency(WellnessNamespace, FirebirdNamespace);
+        AssertNoDependency(WellnessNamespace, RecipesNamespace);
+        AssertNoDependency(WellnessNamespace, DestinationsNamespace);
+        AssertNoDependency(WellnessNamespace, HealthNamespace);
+        AssertNoDependency(WellnessNamespace, CalendarNamespace);
+        AssertNoDependency(WellnessNamespace, AnalyticsNamespace);
+        AssertNoDependency(WellnessNamespace, GamesNamespace);
+    }
+
+    [Fact]
+    public void No_module_depends_on_wellness()
+    {
+        // Wellness publishes no cross-module business contracts: no other module,
+        // including Configuration, Launcher, and Mood, may reference the Wellness
+        // namespace. The Mood assertion preserves Mood's autonomy: the Mood/Wellness
+        // integration is composed in the frontend, so the Mood backend must gain no
+        // dependency on Wellness.
+        Assert.NotEmpty(TypesIn(WellnessContractsNamespace));
+        AssertNoDependency(ConfigurationNamespace, WellnessNamespace);
+        AssertNoDependency(LauncherNamespace, WellnessNamespace);
+        AssertNoDependency(CapexNamespace, WellnessNamespace);
+        AssertNoDependency(OpexNamespace, WellnessNamespace);
+        AssertNoDependency(InventoryNamespace, WellnessNamespace);
+        AssertNoDependency(TravelNamespace, WellnessNamespace);
+        AssertNoDependency(ClothesNamespace, WellnessNamespace);
+        AssertNoDependency(AssetsNamespace, WellnessNamespace);
+        AssertNoDependency(MoodNamespace, WellnessNamespace);
+        AssertNoDependency(MaintenanceNamespace, WellnessNamespace);
+        AssertNoDependency(ProjectsNamespace, WellnessNamespace);
+        AssertNoDependency(ProcessesNamespace, WellnessNamespace);
+        AssertNoDependency(FirebirdNamespace, WellnessNamespace);
+        AssertNoDependency(RecipesNamespace, WellnessNamespace);
+        AssertNoDependency(DestinationsNamespace, WellnessNamespace);
+        AssertNoDependency(HealthNamespace, WellnessNamespace);
+        AssertNoDependency(CalendarNamespace, WellnessNamespace);
+        AssertNoDependency(AnalyticsNamespace, WellnessNamespace);
+        AssertNoDependency(GamesNamespace, WellnessNamespace);
     }
 
     [Fact]
