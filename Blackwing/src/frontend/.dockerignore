@@ -1,0 +1,13 @@
+# Dependencies are installed inside the image from the lockfile; never copy the
+# host's node_modules over the container's (Windows pnpm symlinks don't resolve
+# on Linux and clobber the freshly installed tree).
+node_modules
+
+# Build output and TS incremental caches are regenerated in the image.
+dist
+*.tsbuildinfo
+
+# Local tooling noise
+.git
+Dockerfile
+.dockerignore
