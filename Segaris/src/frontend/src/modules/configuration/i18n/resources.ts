@@ -36,6 +36,7 @@ export const configuration = {
     health: 'Health',
     projects: 'Projects',
     games: 'Games',
+    wellness: 'Wellness',
   },
   catalogs: {
     label: 'Global catalogs',
@@ -327,6 +328,21 @@ export const configuration = {
         'No games yet. Add the first one so playthroughs can link to it. The catalogue ships empty on purpose.',
       itemName: 'game',
     },
+    wellnessTasks: {
+      tab: 'Tasks',
+      title: 'Wellness tasks',
+      description:
+        'Healthy-habit tasks used to generate each user’s private daily Wellness set.',
+      addAction: 'New task',
+      createTitle: 'New Wellness task',
+      editTitle: 'Edit Wellness task',
+      nameLabel: 'Name',
+      namePlaceholder: 'Task name',
+      categoryLabel: 'Category',
+      empty:
+        'No Wellness tasks yet. Add the first healthy-habit task so users can receive a daily set. The catalogue ships empty on purpose.',
+      itemName: 'Wellness task',
+    },
   },
   projectsStructure: {
     tabsLabel: 'Projects structure catalogs',
@@ -414,6 +430,7 @@ export const configuration = {
       color: 'Colour',
       rate: 'Rate to EUR',
       platform: 'Platform',
+      category: 'Category',
       actions: 'Actions',
     },
     rateUnset: 'Not set',
@@ -433,7 +450,7 @@ export const configuration = {
     create: 'Create',
     creating: 'Creating…',
     nameRequired: 'Enter a name.',
-    nameTooLong: 'The name must be 100 characters or fewer.',
+    nameTooLong: 'The name must be {{max}} characters or fewer.',
     codeRequired: 'Enter a three-letter code.',
     codeInvalid: 'Use exactly three letters, for example EUR.',
     colorInvalid: 'Enter a hex colour value, for example #1A2B3C.',

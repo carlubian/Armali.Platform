@@ -1,4 +1,5 @@
 import { apiRequest } from './client'
+import type { CatalogDeletionImpact, CatalogManagementClient } from './catalogs'
 
 /** Fixed category vocabulary for a catalogue task, exchanged on the wire. */
 export type WellnessCategory = 'HealthAndBody' | 'MindAndSleep' | 'PeopleAndWork'
@@ -92,4 +93,25 @@ export const wellnessApi = {
       method: 'DELETE',
       signal,
     }),
+}
+
+const directDeleteImpact: CatalogDeletionImpact = {
+  isReferenced: false,
+  canDeleteDirectly: true,
+  canClearReferences: false,
+  requiresExchangeRate: false,
+  hasReplacementCandidates: false,
+}
+
+export const wellnessTasksManagementApi: CatalogManagementClient<
+  WellnessTask,
+  WellnessTaskRequest
+> = {
+  create: (body, signal) => wellnessApi.createTask(body, signal),
+  update: () => Promise.reject(new Error('Wellness tasks are not editable.')),
+  move: () => Promise.reject(new Error('Wellness task order is creation order.')),
+  deletionImpact: () => Promise.resolve(directDeleteImpact),
+  remove: (id, signal) => wellnessApi.deleteTask(id, signal),
+  replaceAndDelete: () =>
+    Promise.reject(new Error('Wellness task deletion does not replace references.')),
 }
