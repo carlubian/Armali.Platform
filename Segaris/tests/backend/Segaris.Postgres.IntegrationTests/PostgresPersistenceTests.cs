@@ -38,6 +38,7 @@ using Segaris.Api.Modules.Projects.Mutations;
 using Segaris.Api.Modules.Recipes.Domain;
 using Segaris.Api.Modules.Travel.Contracts;
 using Segaris.Api.Modules.Travel.Domain;
+using Segaris.Api.Modules.Wellness.Domain;
 using Segaris.Api.Persistence;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
@@ -121,6 +122,51 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
+        database.ChangeTracker.Clear();
+
+        database.Set<SegarisUser>().Add(new SegarisUser
+        {
+            Id = 9001,
+            UserName = "wellness-owner",
+            NormalizedUserName = "WELLNESS-OWNER",
+            DisplayName = "Wellness Owner",
+            Language = "en-GB",
+            CreatedAt = createdAt,
+        });
+        database.Set<SegarisUser>().Add(new SegarisUser
+        {
+            Id = 9002,
+            UserName = "wellness-other",
+            NormalizedUserName = "WELLNESS-OTHER",
+            DisplayName = "Wellness Other",
+            Language = "en-GB",
+            CreatedAt = createdAt,
+        });
+        await database.SaveChangesAsync();
+
+        var wellnessDay = WellnessDay.Create(new DateOnly(2026, 7, 13), new UserId(9001), createdAt, 0);
+        database.Add(wellnessDay);
+        await database.SaveChangesAsync();
+        database.Add(WellnessDayTask.CreateSnapshot(
+            wellnessDay.Id,
+            "Drink water",
+            WellnessCategory.HealthAndBody,
+            0));
+        await database.SaveChangesAsync();
+
+        database.Add(WellnessDay.Create(new DateOnly(2026, 7, 13), new UserId(9001), createdAt, 0));
+        await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
+        database.ChangeTracker.Clear();
+
+        database.Add(WellnessDay.Create(new DateOnly(2026, 7, 13), new UserId(9002), createdAt, 0));
+        await database.SaveChangesAsync();
+
+        var storedWellnessDay = await database.Set<WellnessDay>()
+            .SingleAsync(day => day.CreatedBy == 9001);
+        database.Remove(storedWellnessDay);
+        await database.SaveChangesAsync();
+
+        Assert.Equal(0, await database.Set<WellnessDayTask>().CountAsync());
     }
 
     [Fact]

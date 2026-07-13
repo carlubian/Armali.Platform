@@ -91,13 +91,30 @@ function isoAddDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+interface WellnessDayScore {
+  date: string
+  score: number | null
+}
+
+// Wellness scores for the default week (Mon 15 – Sun 21 Jun 2026). Tue is a visited
+// day with nothing completed (0), which must still render a marker; the untouched
+// days carry no record at all.
+const weekWellness: WellnessDayScore[] = [
+  { date: '2026-06-15', score: 80 },
+  { date: '2026-06-16', score: 0 },
+  { date: '2026-06-17', score: 50 },
+]
+
 interface BackendOptions {
   currentWeek?: MoodEntry[]
   entryStatus?: number
+  wellness?: WellnessDayScore[]
+  wellnessStatus?: number
 }
 
 function mockBackend(options: BackendOptions = {}) {
   let currentWeek = options.currentWeek ?? weekEntries
+  const wellness = options.wellness ?? weekWellness
   const requests: Array<{ method: string; url: string; body?: string }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -162,6 +179,16 @@ function mockBackend(options: BackendOptions = {}) {
         derivedEmotion: 'Energetic',
       }
       return json(created, 201)
+    }
+
+    if (url.startsWith('/api/wellness/days') && method === 'GET') {
+      if (options.wellnessStatus != null)
+        return json({ code: 'wellness.day.error' }, options.wellnessStatus)
+      const parsed = new URL(url, 'http://localhost')
+      const from = parsed.searchParams.get('from') ?? ''
+      const to = parsed.searchParams.get('to') ?? ''
+      const days = wellness.filter((day) => day.date >= from && day.date <= to)
+      return json({ from, to, days })
     }
 
     if (url.startsWith('/api/mood/entries') && method === 'GET') {
@@ -374,5 +401,71 @@ describe('Mood log view', () => {
     expect(
       await screen.findByText('This entry no longer exists. It may have been deleted.'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('Mood log Wellness integration', () => {
+  it('overlays each day Wellness score alongside the mood average', async () => {
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    // The composed Wellness percentages read out per day, including a visited day
+    // with nothing completed (0) which must still show a marker, not a blank.
+    expect(await screen.findByText('Wellness 80%')).toBeInTheDocument()
+    expect(screen.getByText('Wellness 0%')).toBeInTheDocument()
+    expect(screen.getByText('Wellness 50%')).toBeInTheDocument()
+    // Untouched days carry no Wellness record at all.
+    expect(screen.getAllByText('No Wellness score').length).toBeGreaterThan(0)
+  })
+
+  it('requests the visible week Wellness scores through the days range', async () => {
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    expect(
+      requests.some(
+        (r) =>
+          r.url.includes('/api/wellness/days') &&
+          r.url.includes('from=2026-06-15') &&
+          r.url.includes('to=2026-06-21'),
+      ),
+    ).toBe(true)
+  })
+
+  it('shows the weekly Wellness summary in the chart lead', async () => {
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    // Mean of the recorded days 80, 0, 50 rounds to 43.
+    expect(await screen.findByText('43% Wellness')).toBeInTheDocument()
+    expect(screen.getByLabelText('Weekly Wellness score 43%')).toBeInTheDocument()
+  })
+
+  it('keeps the mood chart intact when the Wellness request fails', async () => {
+    mockBackend({ wellnessStatus: 500 })
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    expect(
+      screen.getByRole('img', { name: 'Average score per day this week' }),
+    ).toBeInTheDocument()
+    // No Wellness markers or weekly summary when the read fails.
+    expect(screen.queryByText('Wellness 80%')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Weekly Wellness score/)).not.toBeInTheDocument()
+  })
+
+  it('renders the mood chart when Wellness returns no days', async () => {
+    mockBackend({ wellness: [] })
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    expect(
+      screen.getByRole('img', { name: 'Average score per day this week' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Weekly Wellness score/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('No Wellness score')).toHaveLength(7)
   })
 })

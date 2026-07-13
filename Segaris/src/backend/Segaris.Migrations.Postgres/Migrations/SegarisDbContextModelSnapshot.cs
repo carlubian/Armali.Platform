@@ -3743,6 +3743,131 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.ToTable("travel_trip_types", (string)null);
                 });
 
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("CreatedBy", "Date")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedBy", "Date", "Id");
+
+                    b.ToTable("wellness_days", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_wellness_days_score", "\"Score\" IS NULL OR (\"Score\" BETWEEN 0 AND 100)");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessDayTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WellnessDayId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WellnessDayId", "Position", "Id");
+
+                    b.ToTable("wellness_day_tasks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_wellness_day_tasks_category", "\"Category\" IN ('HealthAndBody', 'MindAndSleep', 'PeopleAndWork')");
+                        });
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("SortOrder", "Id");
+
+                    b.ToTable("wellness_tasks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_wellness_tasks_category", "\"Category\" IN ('HealthAndBody', 'MindAndSleep', 'PeopleAndWork')");
+                        });
+                });
+
             modelBuilder.Entity("Segaris.Api.Platform.Attachments.AttachmentRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -4807,6 +4932,43 @@ namespace Segaris.Migrations.Postgres.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessDay", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessDayTask", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Wellness.Domain.WellnessDay", null)
+                        .WithMany()
+                        .HasForeignKey("WellnessDayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Segaris.Api.Modules.Wellness.Domain.WellnessTask", b =>
+                {
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Segaris.Api.Modules.Identity.SegarisUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Segaris.Api.Modules.Capex.Domain.CapexEntry", b =>

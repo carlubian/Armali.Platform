@@ -36,6 +36,7 @@ const sections: CatalogSectionId[] = [
   'projects',
   'processes',
   'games',
+  'wellness',
 ]
 
 interface ToastState {

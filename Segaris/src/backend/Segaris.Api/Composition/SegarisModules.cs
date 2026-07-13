@@ -18,6 +18,7 @@ using Segaris.Api.Modules.Processes;
 using Segaris.Api.Modules.Projects;
 using Segaris.Api.Modules.Recipes;
 using Segaris.Api.Modules.Travel;
+using Segaris.Api.Modules.Wellness;
 using Segaris.Api.Platform;
 
 namespace Segaris.Api.Composition;
@@ -46,6 +47,7 @@ internal static class SegarisModules
         new CalendarModule(),
         new AnalyticsModule(),
         new GamesModule(),
+        new WellnessModule(),
         new LauncherModule(),
     ];
 

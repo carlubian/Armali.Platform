@@ -18,6 +18,7 @@ import { processes } from '@/modules/processes/i18n/resources'
 import { projects } from '@/modules/projects/i18n/resources'
 import { recipes } from '@/modules/recipes/i18n/resources'
 import { travel } from '@/modules/travel/i18n/resources'
+import { wellness } from '@/modules/wellness/i18n/resources'
 
 import { i18n } from './i18n'
 import { platform } from './resources'
@@ -44,6 +45,7 @@ const namespaces = [
   'projects',
   'recipes',
   'travel',
+  'wellness',
 ] as const
 
 function leafKeys(value: object, prefix = ''): string[] {
@@ -165,6 +167,12 @@ describe('platform translations', () => {
   it('registers every travel resource key', () => {
     for (const key of leafKeys(travel)) {
       expect(i18n.exists(key, { ns: 'travel', lng: 'en-GB' }), key).toBe(true)
+    }
+  })
+
+  it('registers every wellness resource key', () => {
+    for (const key of leafKeys(wellness)) {
+      expect(i18n.exists(key, { ns: 'wellness', lng: 'en-GB' }), key).toBe(true)
     }
   })
 

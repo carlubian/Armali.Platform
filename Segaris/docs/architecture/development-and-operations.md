@@ -121,9 +121,18 @@ There is no initial repository-wide percentage coverage target. Coverage is judg
 ### Execution Tiers
 
 - Fast unit and component tests run routinely during development and on every pull request.
-- Backend integration and PostgreSQL migration tests run in GitHub Actions for pull requests.
+- The full backend API integration suite runs in GitHub Actions as sharded
+  parallel jobs. Developers and agents should avoid running the unsharded suite
+  locally during ordinary work because it can take more than 40 minutes; use
+  focused integration tests locally when the changed behavior needs API-boundary
+  feedback.
+- PostgreSQL integration and provider-specific migration tests run in GitHub
+  Actions for pull requests and may be run locally when their infrastructure is
+  available and the change warrants it.
 - End-to-end tests run in GitHub Actions against a disposable Compose stack. Their exact trigger and whether they become required merge checks will be decided with the CI workflow.
-- Developers can run every CI suite locally using documented repository commands before opening or updating a pull request.
+- Most CI suites can be run locally using documented repository commands before
+  opening or updating a pull request; the full API integration suite is the
+  deliberate exception and should normally be left to GitHub's sharded check.
 
 GitHub Actions will report suite status on pull requests so contributors can assess application stability before merging. Workflow structure, required checks, image builds, release triggers, and deployment automation remain part of the open CI/CD decision.
 
@@ -179,7 +188,9 @@ GitHub Actions provides validation and image publication. Production deployment 
 Pull request workflows run the repository validation suites without publishing images or deploying:
 
 - `Segaris Backend`: restore, formatting verification, build, unit tests, architecture
-  tests, and API integration tests.
+  tests, and non-API-integration backend validation.
+- `Segaris Backend Integration (shard N/M)`: the API integration test suite,
+  split across four parallel shards.
 - `Segaris PostgreSQL`: production-provider integration tests and provider-specific
   migration tests through disposable Testcontainers databases.
 - `Segaris Compose`: a clean build of the complete stack plus readiness and Caddy routing

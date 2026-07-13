@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 import { isApiError } from '@/app/api/errors'
 import { gamePlatforms, type GamePlatform } from '@/app/api/games'
+import { wellnessCategories, type WellnessCategory } from '@/app/api/wellness'
 import { Button, Dialog, Input, Select } from '@/components/ui'
 
 import type { CatalogDescriptor, CatalogRow, CatalogWriteBody } from './catalogs'
@@ -32,11 +33,12 @@ export interface CatalogFormDialogProps {
 type TFunc = ReturnType<typeof useTranslation<'configuration'>>['t']
 
 function buildSchema(t: TFunc, descriptor: CatalogDescriptor) {
+  const nameMaxLength = descriptor.nameMaxLength ?? 100
   const name = z
     .string()
     .trim()
     .min(1, t('form.nameRequired'))
-    .max(100, t('form.nameTooLong'))
+    .max(nameMaxLength, t('form.nameTooLong', { max: nameMaxLength }))
   if (descriptor.hasCode) {
     const code = z
       .string()
@@ -70,6 +72,12 @@ function buildSchema(t: TFunc, descriptor: CatalogDescriptor) {
       platform: z.enum(gamePlatforms as [GamePlatform, ...GamePlatform[]]),
     })
   }
+  if (descriptor.hasWellnessCategory) {
+    return z.object({
+      name,
+      category: z.enum(wellnessCategories as [WellnessCategory, ...WellnessCategory[]]),
+    })
+  }
   return z.object({ name })
 }
 
@@ -79,6 +87,7 @@ type FormValues = {
   colorValue?: string
   exchangeRateToEur?: string
   platform?: GamePlatform
+  category?: WellnessCategory
 }
 
 /**
@@ -107,6 +116,7 @@ export function CatalogFormDialog({
       exchangeRateToEur:
         row?.exchangeRateToEur != null ? String(row.exchangeRateToEur) : '',
       platform: row?.platform ?? gamePlatforms[0],
+      category: row?.category ?? wellnessCategories[0],
     },
   })
   const { register, handleSubmit, formState, setError, control } = form
@@ -128,7 +138,9 @@ export function CatalogFormDialog({
           ? { name: values.name.trim(), colorValue: (values.colorValue ?? '').trim() }
           : descriptor.hasPlatform
             ? { name: values.name.trim(), platform: values.platform }
-            : { name: values.name.trim() }
+            : descriptor.hasWellnessCategory
+              ? { name: values.name.trim(), category: values.category }
+              : { name: values.name.trim() }
       return mode === 'create'
         ? descriptor.management.create(body)
         : descriptor.management.update(row!.id, body)
@@ -272,6 +284,12 @@ export function CatalogFormDialog({
           )}
           {descriptor.hasPlatform && (
             <PlatformField control={control} label={t(`${labels}.platformLabel`)} />
+          )}
+          {descriptor.hasWellnessCategory && (
+            <WellnessCategoryField
+              control={control}
+              label={t(`${labels}.categoryLabel`)}
+            />
           )}
         </form>
       </Dialog>
@@ -422,6 +440,37 @@ function PlatformField({ control, label }: PlatformFieldProps) {
           options={gamePlatforms.map((platform) => ({
             value: platform,
             label: t(`platform.${platform}`),
+          }))}
+        />
+      </label>
+    </div>
+  )
+}
+
+interface WellnessCategoryFieldProps {
+  control: Control<FormValues>
+  label: string
+}
+
+/**
+ * Fixed category selector for `WellnessTask`. Labels come from the Wellness
+ * namespace so the daily surface and Configuration never drift apart.
+ */
+function WellnessCategoryField({ control, label }: WellnessCategoryFieldProps) {
+  const { t } = useTranslation('wellness')
+  const { field } = useController({ name: 'category', control })
+  const value = typeof field.value === 'string' ? field.value : wellnessCategories[0]
+  return (
+    <div className="seg-catalog__field">
+      <label className="seg-catalog__field-control">
+        <span className="seg-catalog__field-label">{label}</span>
+        <Select
+          value={value}
+          onChange={(event) => field.onChange(event.target.value)}
+          onBlur={field.onBlur}
+          options={wellnessCategories.map((category) => ({
+            value: category,
+            label: t(`category.${category}`),
           }))}
         />
       </label>
