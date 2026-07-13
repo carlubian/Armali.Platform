@@ -83,5 +83,10 @@ English when that is more conventional.
 - Keep changes scoped to the requested behavior and preserve unrelated work in a
   dirty worktree.
 - Add or update tests in proportion to the behavioral risk.
+- Do not run the full `Segaris.Api.IntegrationTests` suite during local agent
+  work unless the user explicitly asks for it. That suite is intentionally
+  validated as a sharded GitHub Actions check because an unsharded local run can
+  take more than 40 minutes. Prefer focused project, class, or method tests for
+  local backend feedback.
 - Use the scripts documented in `README.md` for repeatable restore, build, test,
   format, and local execution workflows.
