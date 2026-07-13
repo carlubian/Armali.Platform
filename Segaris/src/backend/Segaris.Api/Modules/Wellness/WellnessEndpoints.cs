@@ -1,7 +1,10 @@
 using Segaris.Api.Modules.Identity;
 using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Wellness.Contracts;
+using Segaris.Api.Modules.Wellness.Mutations;
+using Segaris.Api.Modules.Wellness.Queries;
 using Segaris.Api.Platform.Api;
+using Segaris.Shared.Identity;
 
 namespace Segaris.Api.Modules.Wellness;
 
@@ -52,21 +55,48 @@ internal static class WellnessEndpoints
 
     private static void MapTaskCatalogueEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet("/tasks", Placeholder)
+        group.MapGet("/tasks", ListTasksAsync)
             .WithName("ListWellnessTasks")
+            .WithSummary("Returns the shared task catalogue in creation order")
             .Produces<IReadOnlyList<WellnessTaskResponse>>();
 
         var tasks = group.MapGroup("/tasks").RequireAuthorization(IdentityPolicies.Admin);
-        tasks.MapPost("", Placeholder)
+        tasks.MapPost("", CreateTaskAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("CreateWellnessTask")
+            .WithSummary("Creates a catalogue task with a name and a fixed category")
             .Produces<WellnessTaskResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest);
-        tasks.MapDelete(WellnessApiRoutes.TaskById, Placeholder)
+        tasks.MapDelete(WellnessApiRoutes.TaskById, DeleteTaskAsync)
             .AddEndpointFilter<AntiforgeryEndpointFilter>()
             .WithName("DeleteWellnessTask")
+            .WithSummary("Deletes a catalogue task; impact-free because days hold task snapshots")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static async Task<IResult> ListTasksAsync(
+        WellnessTaskReadService read,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await read.ListAsync(cancellationToken));
+
+    private static async Task<IResult> CreateTaskAsync(
+        CreateWellnessTaskRequest request,
+        WellnessTaskManagementService service,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        var created = await service.CreateAsync(request, currentUser.UserId, cancellationToken);
+        return TypedResults.Created($"/api/wellness/tasks/{created.Id}", created);
+    }
+
+    private static async Task<IResult> DeleteTaskAsync(
+        int taskId,
+        WellnessTaskManagementService service,
+        CancellationToken cancellationToken)
+    {
+        await service.DeleteAsync(taskId, cancellationToken);
+        return TypedResults.NoContent();
     }
 
     private static IResult Placeholder() => TypedResults.StatusCode(StatusCodes.Status501NotImplemented);

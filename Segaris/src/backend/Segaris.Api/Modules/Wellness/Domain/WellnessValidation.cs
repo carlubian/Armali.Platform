@@ -30,6 +30,17 @@ internal static class WellnessValidation
         return category;
     }
 
+    public static WellnessCategory ParseCategory(string? value)
+    {
+        if (!Enum.TryParse<WellnessCategory>(value, ignoreCase: false, out var category)
+            || !Enum.IsDefined(category))
+        {
+            throw new WellnessValidationException("Category is invalid.", "category");
+        }
+
+        return category;
+    }
+
     public static int? ValidateScore(int? score)
     {
         if (score is < WellnessDefaults.MinimumScore or > WellnessDefaults.MaximumScore)
