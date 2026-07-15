@@ -5,6 +5,8 @@ internal static class SegarisMcpToolNames
     public const int DefaultListLimit = 10;
     public const int MaximumListLimit = 20;
 
+    public const string IdentityGetCurrentUser = "identity_get_current_user";
+
     public const string CapexSearchEntries = "capex_search_entries";
     public const string CapexGetEntry = "capex_get_entry";
     public const string CapexListCategories = "capex_list_categories";

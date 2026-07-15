@@ -180,6 +180,12 @@ The household backup service is an external client of Segaris's authenticated ad
 
 This client will eventually authenticate through an explicitly provisioned user-bound API key or another approved machine credential with the minimum administrative capability required for backups.
 
+### Model Context Protocol Clients
+
+MCP clients are incoming trusted automation clients, not outbound provider integrations. Segaris exposes MCP from the backend process at `/mcp` only when `Segaris:Mcp:Enabled` is true, and the endpoint accepts user-bound API keys rather than browser cookies. A tool call therefore runs with the permissions and privacy boundaries of the API-key owner.
+
+MCP tools must not create a second authorization model or bypass module APIs. They remain a transport surface over Segaris-owned behavior, with provider-specific client concerns kept outside the domain modules.
+
 ### Future OCR, AI, And Calendar Providers
 
 No provider is selected. If these capabilities are approved, each consuming module defines its contract and receives an adapter with its own privacy review, configuration, resilience, and failure behavior.

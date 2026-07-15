@@ -285,6 +285,14 @@ API keys follow these constraints:
 
 Permission granularity below the user level, management screens, rotation, and rate limits remain outside this scope. A future per-key scope belongs in the key record rather than in the callers.
 
+### Model Context Protocol
+
+Segaris hosts its Model Context Protocol surface inside the same `Segaris.Api` process rather than running a separate service. The MCP host is platform infrastructure under `Platform/Mcp` and exposes Streamable HTTP at `/mcp` only when `Segaris:Mcp:Enabled` is true. The endpoint is disabled by default.
+
+MCP clients authenticate with the same user-bound API key scheme described above. Browser cookies are not accepted for `/mcp`, CORS remains disabled, and antiforgery is not involved because API keys do not rely on ambient browser credentials. Once authenticated, MCP tools execute as the owning Segaris user and must reuse the same authorization, privacy, and module-boundary rules as REST endpoints.
+
+The initial MCP surface contains only an identity probe tool used to validate endpoint mapping, API-key authentication, current-user resolution, and SDK transport behavior. Domain tools are added by module-owned contributors and must keep stable names, explicit descriptions, input schemas, read/write classification, idempotency classification, and focused tests.
+
 ## Background Jobs
 
 Segaris provides a small shared background-job infrastructure inside the backend process. It is built with ASP.NET Core `BackgroundService` and persists job state in PostgreSQL.

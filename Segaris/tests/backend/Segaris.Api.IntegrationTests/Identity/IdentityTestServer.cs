@@ -25,7 +25,8 @@ internal sealed class IdentityTestServer : IDisposable
     public IdentityTestServer(
         string? databasePath = null,
         string? keysPath = null,
-        bool deleteOnDispose = true)
+        bool deleteOnDispose = true,
+        bool mcpEnabled = false)
     {
         _deleteOnDispose = deleteOnDispose;
         DatabasePath = databasePath
@@ -53,6 +54,7 @@ internal sealed class IdentityTestServer : IDisposable
                     ["Segaris:Storage:AttachmentsPath"] = AttachmentsPath,
                     ["Segaris:Identity:Bootstrap:UserName"] = AdminUserName,
                     ["Segaris:Identity:Bootstrap:Password"] = AdminPassword,
+                    ["Segaris:Mcp:Enabled"] = mcpEnabled.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 });
             });
         });

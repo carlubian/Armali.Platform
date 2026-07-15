@@ -3,6 +3,7 @@ using Segaris.Api.Platform.Api;
 using Segaris.Api.Platform.Attachments;
 using Segaris.Api.Platform.Backup;
 using Segaris.Api.Platform.Jobs;
+using Segaris.Api.Platform.Mcp;
 using Segaris.Api.Platform.Observability;
 using Segaris.Api.Platform.Persistence;
 using Segaris.Persistence;
@@ -19,12 +20,14 @@ internal sealed class PlatformModule : ISegarisModule
         services.AddSegarisAttachments(configuration);
         services.AddSegarisJobs();
         services.AddSegarisBackup();
+        services.AddSegarisMcp(configuration);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapBackupEndpoints();
         endpoints.MapFrontendDiagnostics();
+        endpoints.MapSegarisMcp();
 
         var environment = endpoints.ServiceProvider.GetRequiredService<IHostEnvironment>();
         if (environment.IsEnvironment("Testing"))
