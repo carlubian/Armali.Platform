@@ -1,11 +1,13 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
+using Segaris.Api.Modules.Opex.Mcp;
 using Segaris.Api.Modules.Opex.Contracts;
 using Segaris.Api.Modules.Opex.Domain;
 using Segaris.Api.Modules.Opex.Mutations;
 using Segaris.Api.Modules.Opex.Persistence;
 using Segaris.Api.Modules.Opex.Queries;
 using Segaris.Api.Modules.Opex.Seeding;
+using Segaris.Api.Platform.Mcp;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Opex;
@@ -36,6 +38,7 @@ internal sealed class OpexModule : ISegarisModule
         services.AddScoped<OpexCatalogValidator>();
         services.AddScoped<OpexContractWriteService>();
         services.AddScoped<OpexOccurrenceWriteService>();
+        services.AddSingleton<ISegarisMcpToolContributor, OpexMcpToolContributor>();
         services.AddScoped<ICatalogReferenceHandler>(provider => new OpexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));
         services.AddScoped<ICatalogReferenceHandler>(provider => new OpexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.CostCenters));
         services.AddScoped<ICatalogReferenceHandler>(provider => new OpexCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Currencies));

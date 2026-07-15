@@ -2,11 +2,13 @@ using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
 using Segaris.Api.Modules.Inventory.Attention;
 using Segaris.Api.Modules.Inventory.Contracts;
+using Segaris.Api.Modules.Inventory.Mcp;
 using Segaris.Api.Modules.Inventory.Mutations;
 using Segaris.Api.Modules.Inventory.Persistence;
 using Segaris.Api.Modules.Inventory.Queries;
 using Segaris.Api.Modules.Inventory.Seeding;
 using Segaris.Api.Modules.Launcher.Contracts;
+using Segaris.Api.Platform.Mcp;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Inventory;
@@ -39,6 +41,7 @@ internal sealed class InventoryModule : ISegarisModule
         services.AddScoped<InventoryOrderWriteService>();
         services.AddScoped<InventoryCategoryManagementService>();
         services.AddScoped<InventoryLocationManagementService>();
+        services.AddSingleton<ISegarisMcpToolContributor, InventoryMcpToolContributor>();
         services.AddScoped<ICatalogReferenceHandler>(provider => new InventoryCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Suppliers));
         services.AddScoped<ICatalogReferenceHandler>(provider => new InventoryCatalogReferenceHandler(provider.GetRequiredService<SegarisDbContext>(), ConfigurationCatalogKind.Currencies));
         services.AddScoped<ILauncherAttentionContributor, InventoryAttentionContributor>();

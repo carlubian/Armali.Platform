@@ -88,8 +88,9 @@ scope decision inside the key record rather than in the tools.
 
 - `ModelContextProtocol` and `ModelContextProtocol.AspNetCore`, the official C#
   SDK maintained jointly by Microsoft, Anthropic, and the MCP organization.
-- The package is prerelease. The version is pinned explicitly and upgraded
-  deliberately, never by floating range.
+- The package version is pinned explicitly and upgraded deliberately, never by
+  floating range. Wave 0 pins the current stable `1.4.1` release and deliberately
+  does not adopt the newer `2.0.0-preview.*` line.
 - Transport is **Streamable HTTP**. SSE is deprecated by recent protocol
   revisions and is not offered.
 
