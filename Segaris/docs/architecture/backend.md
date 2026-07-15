@@ -253,9 +253,9 @@ ASP.NET Core Data Protection keys must persist outside the disposable backend co
 
 The production Compose topology mounts a dedicated persistent location for the key ring. The key directory is accessible only to the backend container user and is included in operational recovery planning. Key encryption at rest, rotation, and the exact host or named-volume path are finalized with secrets management and deployment provisioning.
 
-### Future User API Keys
+### User API Keys
 
-The authentication architecture preserves a separate future API-key scheme for trusted non-browser clients acting as a specific Segaris user.
+Trusted non-browser clients acting as a specific Segaris user authenticate with a user-bound API key. The scheme is implemented in the Identity module, which owns keys because a key is user-bound state and Identity already owns the user, its roles, and its security stamp.
 
 An API key is presented through the `Authorization` header and never through the browser authentication cookie. It produces the same application user identity and enters the same authorization policies as an interactive session, so role and creator-only privacy rules remain centralized and unchanged.
 
@@ -270,7 +270,20 @@ API keys follow these constraints:
 - Deactivating the user or revoking the key immediately prevents future authenticated use.
 - Even an administrator's key cannot access another user's creator-only private records.
 
-API-key creation, permission granularity, management screens, rotation, rate limits, and concrete token format remain outside the initial implementation scope and must be defined before the capability is delivered.
+#### Implemented Scheme
+
+- Keys live in `identity_api_keys`. The record stores the owning user, name, key identifier, secret verifier, the owner's security stamp at issue time, creation time, and the optional expiration, last-use, and revocation times.
+- The token format is `segaris_<keyId>_<secret>`. Both segments are lowercase hexadecimal, because base64url contains the underscore that separates them. The `keyId` is the lookup index; the `secret` is 256 bits of cryptographic randomness.
+- Only a SHA-256 digest of the secret is persisted. A password hasher is deliberately not used: it defends against dictionary attacks that do not apply to a uniformly random secret, and would add a key derivation to every authenticated request. This is the one place where application code selects a hash directly, and it does not contradict the password-hashing rule above, which governs user passwords.
+- The scheme name is `Segaris.ApiKey`, presented as `Authorization: Bearer segaris_...`. A policy scheme selects the key handler when an `Authorization` header is present and the cookie handler otherwise, so cookie behaviour is unchanged.
+- The handler builds its principal with the same claims factory the cookie sign-in uses, so `ICurrentUser`, `VisibilityPolicy`, and every module's authorization policy apply to a key with no module changes.
+- Keys carry the owner's security stamp. Deactivation, password changes, and administrative credential recovery rotate that stamp and therefore invalidate the user's keys through the same central mechanism that invalidates their sessions.
+- Antiforgery validation is bypassed for the key scheme only. The bypass is keyed on the scheme that authenticated the request, never on the endpoint, so cookie-authenticated writes keep antiforgery validation unconditionally.
+- Expired, revoked, unknown, and malformed tokens all produce the same generic `401`, consistent with the login-failure position.
+- Last use is recorded at five-minute granularity so a burst of agent calls does not turn every read into a write.
+- Self-service management lives under `/api/session/profile/api-keys` (`POST` to create, `GET` to list, `DELETE` to revoke). Creation is self-service only: no user, including an administrator, can mint a key bound to another user.
+
+Permission granularity below the user level, management screens, rotation, and rate limits remain outside this scope. A future per-key scope belongs in the key record rather than in the callers.
 
 ## Background Jobs
 

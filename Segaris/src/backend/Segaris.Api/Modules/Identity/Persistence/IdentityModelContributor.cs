@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Segaris.Api.Modules.Identity.ApiKeys;
 using Segaris.Persistence;
 
 namespace Segaris.Api.Modules.Identity.Persistence;
@@ -105,6 +106,30 @@ internal sealed class IdentityModelContributor : ISegarisModelContributor
         {
             claim.ToTable("identity_role_claims");
             claim.HasKey(entity => entity.Id);
+        });
+
+        modelBuilder.Entity<SegarisApiKey>(apiKey =>
+        {
+            apiKey.ToTable("identity_api_keys");
+            apiKey.HasKey(entity => entity.Id);
+            apiKey.Property(entity => entity.Id).ValueGeneratedOnAdd();
+            apiKey.Property(entity => entity.Name)
+                .HasMaxLength(ApiKeyPolicy.MaximumNameLength).IsRequired();
+            apiKey.Property(entity => entity.KeyId)
+                .HasMaxLength(ApiKeyToken.KeyIdLength).IsRequired();
+            apiKey.Property(entity => entity.SecretHash).HasMaxLength(100).IsRequired();
+            apiKey.Property(entity => entity.SecurityStamp).HasMaxLength(256).IsRequired();
+            apiKey.Property(entity => entity.CreatedAt).IsRequired();
+
+            apiKey.HasOne<SegarisUser>()
+                .WithMany()
+                .HasForeignKey(entity => entity.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The lookup index for authentication: every request resolves a key by
+            // its public identifier before the secret is verified.
+            apiKey.HasIndex(entity => entity.KeyId).IsUnique();
+            apiKey.HasIndex(entity => entity.UserId);
         });
     }
 }

@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Segaris.Api.Composition;
+using Segaris.Api.Modules.Identity.ApiKeys;
 using Segaris.Api.Modules.Identity.Configuration;
 using Segaris.Api.Modules.Identity.Endpoints;
 using Segaris.Api.Modules.Identity.Persistence;
+using Segaris.Api.Modules.Identity.Security;
 using Segaris.Api.Modules.Identity.Seeding;
 using Segaris.Persistence;
 using Segaris.Shared.Identity;
@@ -20,6 +23,7 @@ internal sealed class IdentityModule : ISegarisModule
     {
         services.AddSingleton<ISegarisModelContributor, IdentityModelContributor>();
         services.AddScoped<IdentitySeeder>();
+        services.AddScoped<ApiKeyService>();
 
         services
             .AddOptions<IdentityBootstrapOptions>()
@@ -50,6 +54,8 @@ internal sealed class IdentityModule : ISegarisModule
         // password recovery invalidate active sessions promptly.
         services.Configure<SecurityStampValidatorOptions>(options =>
             options.ValidationInterval = TimeSpan.Zero);
+
+        AddApiKeyAuthentication(services);
 
         services.ConfigureApplicationCookie(options =>
         {
@@ -93,7 +99,36 @@ internal sealed class IdentityModule : ISegarisModule
     {
         endpoints.MapSessionEndpoints();
         endpoints.MapProfileEndpoints();
+        endpoints.MapApiKeyEndpoints();
         endpoints.MapAdminUserEndpoints();
+    }
+
+    /// <summary>
+    /// Adds the API-key scheme alongside the cookie scheme without altering cookie
+    /// behaviour: a request carrying no <c>Authorization</c> header reaches exactly
+    /// the same handler it reached before.
+    /// </summary>
+    private static void AddApiKeyAuthentication(IServiceCollection services)
+    {
+        services.AddAuthentication(options =>
+        {
+            // AddIdentity pins both to the cookie application scheme. Routing them
+            // through the selector is what lets a key-bearing request reach the key
+            // handler. DefaultSignInScheme is deliberately left untouched, so
+            // SignInManager keeps issuing cookies as before.
+            options.DefaultAuthenticateScheme = ApiKeyAuthenticationDefaults.SelectorScheme;
+            options.DefaultChallengeScheme = ApiKeyAuthenticationDefaults.SelectorScheme;
+        })
+        .AddPolicyScheme(
+            ApiKeyAuthenticationDefaults.SelectorScheme,
+            displayName: null,
+            options => options.ForwardDefaultSelector = context =>
+                context.Request.Headers.ContainsKey(Microsoft.Net.Http.Headers.HeaderNames.Authorization)
+                    ? ApiKeyAuthenticationDefaults.Scheme
+                    : IdentityConstants.ApplicationScheme)
+        .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationDefaults.Scheme,
+            configureOptions: null);
     }
 
     private static void ConfigureDataProtection(IServiceCollection services, IConfiguration configuration)

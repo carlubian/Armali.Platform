@@ -1,8 +1,8 @@
 using Segaris.Api.Composition;
 using Segaris.Api.Modules.Configuration.Contracts;
-using Segaris.Api.Modules.Opex.Mcp;
 using Segaris.Api.Modules.Opex.Contracts;
 using Segaris.Api.Modules.Opex.Domain;
+using Segaris.Api.Modules.Opex.Mcp;
 using Segaris.Api.Modules.Opex.Mutations;
 using Segaris.Api.Modules.Opex.Persistence;
 using Segaris.Api.Modules.Opex.Queries;

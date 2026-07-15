@@ -64,6 +64,8 @@ internal sealed class IdentityTestServer : IDisposable
 
     public string AttachmentsPath { get; }
 
+    public IServiceProvider Services => _factory.Services;
+
     public HttpClient CreateClient(bool handleCookies = true) =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
 

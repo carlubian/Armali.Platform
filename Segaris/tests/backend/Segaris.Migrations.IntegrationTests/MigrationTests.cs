@@ -187,13 +187,14 @@ public sealed class MigrationTests
         Assert.Contains("CurrencyExchangeRateToEur", sqliteNames);
         Assert.Contains("GamesDomainPersistence", sqliteNames);
         Assert.Contains("WellnessDomainPersistence", sqliteNames);
+        Assert.Contains("IdentityApiKeys", sqliteNames);
     }
 
     [Fact]
-    public void Wellness_domain_persistence_is_the_current_tail()
+    public void Identity_api_keys_is_the_current_tail()
     {
-        // Wellness Wave 1 adds its catalogue, day, and day-task snapshot model after
-        // the accepted Games persistence migration.
+        // MCP Wave 1 adds the user-bound API key table after the accepted Wellness
+        // persistence migration.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -205,8 +206,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("WellnessDomainPersistence", migrations[^1]);
-            Assert.Equal("GamesDomainPersistence", migrations[^2]);
+            Assert.Equal("IdentityApiKeys", migrations[^1]);
+            Assert.Equal("WellnessDomainPersistence", migrations[^2]);
         }
     }
 

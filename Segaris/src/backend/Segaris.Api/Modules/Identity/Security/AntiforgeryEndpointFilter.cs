@@ -17,7 +17,8 @@ internal sealed class AntiforgeryEndpointFilter(IAntiforgery antiforgery) : IEnd
         if (!HttpMethods.IsGet(httpContext.Request.Method)
             && !HttpMethods.IsHead(httpContext.Request.Method)
             && !HttpMethods.IsOptions(httpContext.Request.Method)
-            && !HttpMethods.IsTrace(httpContext.Request.Method))
+            && !HttpMethods.IsTrace(httpContext.Request.Method)
+            && !IsApiKeyAuthenticated(httpContext))
         {
             try
             {
@@ -34,4 +35,17 @@ internal sealed class AntiforgeryEndpointFilter(IAntiforgery antiforgery) : IEnd
 
         return await next(context);
     }
+
+    /// <summary>
+    /// Antiforgery defends against a browser attaching ambient cookies to a
+    /// cross-site request. An API key is carried explicitly in a header that no
+    /// browser attaches on its own, so the token pair has nothing to protect.
+    /// </summary>
+    /// <remarks>
+    /// The decision is keyed on the scheme that actually authenticated the request,
+    /// never on the endpoint: a cookie-authenticated write is validated wherever it
+    /// arrives, and no endpoint can opt itself out.
+    /// </remarks>
+    private static bool IsApiKeyAuthenticated(HttpContext httpContext) =>
+        httpContext.User.Identity is { IsAuthenticated: true, AuthenticationType: ApiKeyAuthenticationDefaults.Scheme };
 }
