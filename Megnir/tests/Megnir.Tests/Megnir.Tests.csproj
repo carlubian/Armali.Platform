@@ -22,4 +22,12 @@
     <ProjectReference Include="..\..\src\Megnir\Megnir.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Se enlaza el appsettings.json real del proyecto para probar el binding sobre
+         el fichero versionado (y verificar que NO contiene el secreto). -->
+    <Content Include="..\..\src\Megnir\appsettings.json" Link="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
