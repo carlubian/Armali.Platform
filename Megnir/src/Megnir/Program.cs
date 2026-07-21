@@ -42,9 +42,12 @@ builder.Services.PostConfigure<MegnirOptions>(options =>
     }
 });
 
-// Job de backup: implementación placeholder para H0 (NoOpBackupJob). En H1–H3 se sustituye
-// el registro por la implementación real sin tocar el flujo one-shot.
-builder.Services.AddSingleton<IBackupJob, NoOpBackupJob>();
+// Job de backup: implementación real del núcleo local (H1). Orquesta copia en caliente +
+// compresión .zip + limpieza del temporal. Sus colaboradores (copiador y empaquetador) se
+// registran también en el contenedor; el flujo one-shot no cambia.
+builder.Services.AddSingleton<HotFileCopier>();
+builder.Services.AddSingleton<BackupArchiver>();
+builder.Services.AddSingleton<IBackupJob, LocalBackupJob>();
 
 using var host = builder.Build();
 

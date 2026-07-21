@@ -6,9 +6,11 @@ namespace Megnir.Backup;
 /// ruta/app), la ruta del <c>.zip</c> generado y su tamaño en bytes.
 /// </summary>
 /// <remarks>
-/// En la Fase 0 de H1 solo se define el contrato: el <see cref="NoOpBackupJob"/> devuelve
-/// <see cref="BackupOutcome.Success"/> sin rellenar zip ni errores. Las fases 1–3 poblarán
-/// <see cref="PartialErrors"/>, <see cref="ZipPath"/> y <see cref="SizeBytes"/>.
+/// Lo ensambla el <see cref="LocalBackupJob"/> (Fase 3 de H1) a partir de los errores parciales que
+/// devuelve el copiador y del artefacto que produce el empaquetador: <see cref="BackupOutcome.Success"/>
+/// si no hubo errores, <see cref="BackupOutcome.Partial"/> si el <c>.zip</c> se generó pero alguna
+/// ruta/fichero falló. <see cref="PartialErrors"/>, <see cref="ZipPath"/> y <see cref="SizeBytes"/> se
+/// rellenan con el desenlace real.
 /// </remarks>
 public sealed class BackupResult
 {
