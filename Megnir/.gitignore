@@ -1,0 +1,12 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Publish artifacts
+**/publish/
+*.nupkg
+
+# Local secrets / user config (never version the Azure secret - RNF3)
+appsettings.*.local.json
+*.user
+.vs/

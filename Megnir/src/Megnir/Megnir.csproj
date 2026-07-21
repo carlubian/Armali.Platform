@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Declarado para hitos posteriores (H4: publish self-contained a linux-x64).
+         Se usa RuntimeIdentifiers (plural) en vez de RuntimeIdentifier (singular) para NO
+         forzar el RID activo en build/run local: con el singular, "dotnet run" en Windows
+         falla al intentar ejecutar el binario linux-x64. El plural deja el RID disponible
+         para restore y para "dotnet publish -r linux-x64". -->
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>
