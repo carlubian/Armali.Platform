@@ -7,8 +7,9 @@ namespace Megnir.Backup;
 public interface IBackupJob
 {
     /// <summary>
-    /// Ejecuta el trabajo de backup una vez. Debe completar (o lanzar) para que el
-    /// proceso one-shot termine con el código de salida correspondiente.
+    /// Ejecuta el trabajo de backup una vez y devuelve el <see cref="BackupResult"/> con el
+    /// desenlace (que <see cref="Megnir.Hosting.AppRunner"/> traduce a exit code). Debe
+    /// completar (o lanzar) para que el proceso one-shot termine.
     /// </summary>
-    Task RunAsync(CancellationToken cancellationToken);
+    Task<BackupResult> RunAsync(CancellationToken cancellationToken);
 }

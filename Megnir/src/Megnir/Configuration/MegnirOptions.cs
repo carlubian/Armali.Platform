@@ -18,6 +18,19 @@ public sealed class MegnirOptions
     /// <summary>Aplicaciones a respaldar, cada una con sus rutas de origen.</summary>
     public List<AppEntry> Apps { get; set; } = new();
 
+    /// <summary>
+    /// Directorio de salida donde se deja el <c>.zip</c> final (obligatorio en runtime
+    /// real). El nombre del fichero se genera por timestamp. Lo consume la Fase 2 de H1.
+    /// </summary>
+    public string OutputDirectory { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Directorio de trabajo temporal. Si queda vacío, en runtime se usará
+    /// <see cref="System.IO.Path.GetTempPath"/> (esa lógica llega en fases posteriores;
+    /// aquí solo se declara el campo).
+    /// </summary>
+    public string TempDirectory { get; set; } = string.Empty;
+
     /// <summary>Configuración del destino en Azure.</summary>
     public AzureOptions Azure { get; set; } = new();
 

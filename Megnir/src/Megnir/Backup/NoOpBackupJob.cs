@@ -17,10 +17,11 @@ public sealed class NoOpBackupJob : IBackupJob
         _logger = logger;
     }
 
-    public Task RunAsync(CancellationToken cancellationToken)
+    public Task<BackupResult> RunAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("job vacío OK");
-        return Task.CompletedTask;
+        // Placeholder de H0/Fase 0: sin copia real, siempre éxito. Se sustituye en la Fase 3.
+        return Task.FromResult(new BackupResult { Outcome = BackupOutcome.Success });
     }
 }
