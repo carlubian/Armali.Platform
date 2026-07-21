@@ -42,12 +42,14 @@ builder.Services.PostConfigure<MegnirOptions>(options =>
     }
 });
 
-// Job de backup: implementación real del núcleo local (H1). Orquesta copia en caliente +
-// compresión .zip + limpieza del temporal. Sus colaboradores (copiador y empaquetador) se
-// registran también en el contenedor; el flujo one-shot no cambia.
+// Pipeline one-shot (H2): el job local de H1 genera el zip y el decorador lo confirma en
+// Azure. LocalBackupJob se registra como concreto para que no haya una dependencia circular;
+// IBackupJob es el pipeline completo que resuelve AppRunner.
 builder.Services.AddSingleton<HotFileCopier>();
 builder.Services.AddSingleton<BackupArchiver>();
-builder.Services.AddSingleton<IBackupJob, LocalBackupJob>();
+builder.Services.AddSingleton<LocalBackupJob>();
+builder.Services.AddSingleton<IBackupUploader, AzureBlobBackupUploader>();
+builder.Services.AddSingleton<IBackupJob, UploadingBackupJob>();
 
 using var host = builder.Build();
 

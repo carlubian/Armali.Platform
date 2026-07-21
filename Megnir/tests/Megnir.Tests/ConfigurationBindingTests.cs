@@ -25,7 +25,7 @@ public class ConfigurationBindingTests
         var appB = Assert.Single(options.Apps, a => a.Name == "app-b");
         Assert.Equal(new[] { "/var/lib/app-b" }, appB.Paths);
 
-        Assert.Equal("megnir-backups", options.Azure.Container);
+        Assert.Equal("megnir", options.Azure.Container);
         Assert.Equal("auto", options.Azure.HostPrefix);
         Assert.Equal(4, options.Retention.KeepLast);
         Assert.Equal(100, options.SizeWarningMb);
@@ -79,4 +79,75 @@ public class ConfigurationBindingTests
         Assert.DoesNotContain("AccountKey", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("SharedAccessSignature", json, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Azure_validation_fails_without_revealing_the_connection_string()
+    {
+        const string secret = "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=c2VjcmV0;EndpointSuffix=core.windows.net";
+        var options = new AzureOptions
+        {
+            ConnectionString = secret,
+            Container = "megnir",
+            HostPrefix = "host-a"
+        };
+
+        options.ConnectionString = " ";
+        var exception = Assert.Throws<InvalidOperationException>(() => AzureOptionsValidator.ValidateAndResolve(options));
+
+        Assert.DoesNotContain(secret, exception.ToString(), StringComparison.Ordinal);
+        Assert.Contains(MegnirOptions.ConnectionStringEnvVar, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("invalid_container")]
+    [InlineData("MeGnir")]
+    [InlineData("ab")]
+    public void Azure_validation_rejects_invalid_container_names(string container)
+    {
+        var options = ValidAzureOptions();
+        options.Container = container;
+
+        Assert.Throws<InvalidOperationException>(() => AzureOptionsValidator.ValidateAndResolve(options));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("host/path")]
+    [InlineData("host\\path")]
+    [InlineData("..")]
+    [InlineData(" host")]
+    public void Azure_validation_rejects_ambiguous_host_prefixes(string hostPrefix)
+    {
+        var options = ValidAzureOptions();
+        options.HostPrefix = hostPrefix;
+
+        Assert.Throws<InvalidOperationException>(() => AzureOptionsValidator.ValidateAndResolve(options));
+    }
+
+    [Fact]
+    public void Azure_validation_resolves_auto_host_prefix_to_a_safe_blob_segment()
+    {
+        var resolved = AzureOptionsValidator.ValidateAndResolve(ValidAzureOptions(), "NODE_01.Example");
+
+        Assert.Equal("megnir", resolved.Container);
+        Assert.Equal("node-01-example", resolved.HostPrefix);
+    }
+
+    [Fact]
+    public void Azure_validation_keeps_a_valid_explicit_host_prefix()
+    {
+        var options = ValidAzureOptions();
+        options.HostPrefix = "Madrid-01";
+
+        var resolved = AzureOptionsValidator.ValidateAndResolve(options);
+
+        Assert.Equal("Madrid-01", resolved.HostPrefix);
+    }
+
+    private static AzureOptions ValidAzureOptions() => new()
+    {
+        ConnectionString = "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=c2VjcmV0;EndpointSuffix=core.windows.net",
+        Container = "megnir",
+        HostPrefix = "auto"
+    };
 }
