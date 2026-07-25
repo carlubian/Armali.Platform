@@ -65,8 +65,9 @@ internal sealed record InventoryItemPriceHistoryEntryResponse(
     decimal UnitPrice);
 
 /// <summary>
-/// One item of the computed replenishment shopping list. <c>Block</c> is
-/// <c>Required</c> or <c>Optional</c>; <c>RequiredQuantity</c> carries the amount
+/// One item of the computed replenishment shopping list. <c>Block</c> carries an
+/// <c>InventoryShoppingListBlock</c> name, so it is <c>Required</c> or
+/// <c>Optional</c>; <c>RequiredQuantity</c> carries the amount
 /// needed to reach the minimum stock for <c>Required</c> entries and is <c>null</c>
 /// for <c>Optional</c> ones. <c>Suppliers</c> carries the allowed supplier display
 /// names already ordered; their separator and wording belong to the frontend.

@@ -29,9 +29,6 @@ internal sealed class InventoryReadService(
 {
     private const int PriceHistoryMinimumRecentOrderCount = 24;
 
-    private const string ShoppingListRequiredBlock = "Required";
-    private const string ShoppingListOptionalBlock = "Optional";
-
     public async Task<IReadOnlyList<InventoryCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
         return await database.Set<InventoryCategory>()
@@ -388,7 +385,9 @@ internal sealed class InventoryReadService(
                 entry.Row.CategoryId,
                 entry.Row.CategoryName,
                 entry.Row.CategorySortOrder,
-                entry.Required ? ShoppingListRequiredBlock : ShoppingListOptionalBlock,
+                (entry.Required
+                    ? InventoryShoppingListBlock.Required
+                    : InventoryShoppingListBlock.Optional).ToString(),
                 entry.Required ? entry.Row.MinimumStock - entry.Row.CurrentStock : null,
                 suppliersByItem.TryGetValue(entry.Row.ItemId, out var suppliers) ? suppliers : []))
             .ToArray();

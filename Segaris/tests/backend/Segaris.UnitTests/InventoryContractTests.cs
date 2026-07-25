@@ -17,6 +17,7 @@ public sealed class InventoryContractTests
             ["Planning", "Active", "Received", "Cancelled"],
             Enum.GetNames<InventoryOrderStatus>());
         Assert.Equal(["Increase", "Decrease"], Enum.GetNames<InventoryStockAdjustmentDirection>());
+        Assert.Equal(["Required", "Optional"], Enum.GetNames<InventoryShoppingListBlock>());
     }
 
     [Fact]
