@@ -8,6 +8,7 @@ import type {
   InventoryItemPriceHistory,
   InventoryItemSummary,
   InventoryOrderSummary,
+  InventoryShoppingListEntry,
 } from '@/app/api/inventory'
 
 const session = {
@@ -133,14 +134,32 @@ function makePriceHistory(item: InventoryItemSummary): InventoryItemPriceHistory
   }
 }
 
+function makeShoppingListEntry(
+  overrides: Partial<InventoryShoppingListEntry> = {},
+): InventoryShoppingListEntry {
+  return {
+    itemId: 1,
+    name: 'Item 01',
+    categoryId: 1,
+    categoryName: 'Cleaning',
+    categorySortOrder: 1,
+    block: 'Required',
+    requiredQuantity: 5,
+    suppliers: ['Endesa'],
+    ...overrides,
+  }
+}
+
 interface BackendOptions {
   items?: InventoryItemSummary[]
   orders?: InventoryOrderSummary[]
+  shoppingList?: InventoryShoppingListEntry[]
 }
 
 function mockBackend(options: BackendOptions = {}) {
   const items = options.items ?? [makeItem(1, { currentStock: 0, minimumStock: 5 })]
   const orders = options.orders ?? [makeOrder(1)]
+  const shoppingList = options.shoppingList ?? [makeShoppingListEntry()]
   const requests: Array<{ method: string; url: string }> = []
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -159,6 +178,10 @@ function mockBackend(options: BackendOptions = {}) {
     }
     if (url.startsWith('/api/launcher/attention')) return json({ modules: [] })
 
+    if (url === '/api/inventory/shopping-list' && method === 'GET') {
+      requests.push({ method, url })
+      return json({ entries: shoppingList })
+    }
     if (url.startsWith('/api/inventory/categories')) {
       return json([{ id: 1, name: 'Cleaning', sortOrder: 1 }])
     }
@@ -292,6 +315,16 @@ describe('Inventory items view', () => {
     )
   })
 
+  it('does not offer the shopping list on the items tab', async () => {
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Item 01')
+    expect(
+      screen.queryByRole('button', { name: 'Shopping list' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('opens the new item editor', async () => {
     const user = userEvent.setup()
     mockBackend()
@@ -315,5 +348,28 @@ describe('Inventory orders view', () => {
 
     expect(await screen.findByText('Endesa')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New order' })).toBeInTheDocument()
+  })
+
+  it('opens the shopping list from the orders header', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      shoppingList: [
+        makeShoppingListEntry({ itemId: 1, name: 'Item 01', requiredQuantity: 5 }),
+      ],
+    })
+    render(<App />)
+
+    await screen.findByText('Item 01')
+    await user.click(screen.getByRole('tab', { name: 'Orders' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Shopping list' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Shopping list' })
+    expect(
+      within(dialog).getByRole('heading', { name: 'Required' }),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('At least 5 units')).toBeInTheDocument()
+    expect(within(dialog).getByText('Suppliers: Endesa')).toBeInTheDocument()
+    expect(requests.some((r) => r.url === '/api/inventory/shopping-list')).toBe(true)
   })
 })

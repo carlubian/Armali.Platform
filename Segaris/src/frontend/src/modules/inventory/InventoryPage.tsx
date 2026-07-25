@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ShoppingCart } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,6 +24,7 @@ import { OrderDialog } from './OrderDialog'
 import { OrdersFilters } from './OrdersFilters'
 import { OrdersTable } from './OrdersTable'
 import { PriceHistoryDialog } from './PriceHistoryDialog'
+import { ShoppingListDialog } from './ShoppingListDialog'
 import { StockAdjustmentDialog } from './StockAdjustmentDialog'
 import { activeItemFilterCount, useItemsState } from './itemsState'
 import { activeOrderFilterCount, useOrdersState } from './ordersState'
@@ -255,6 +256,7 @@ function OrdersPanel({ onToast }: PanelProps) {
   const { state, listQuery, setFilters, setSort, setPage, setPageSize, clearFilters } =
     useOrdersState(currentUserId)
   const { dialog, openCreate, openOrder, close } = useOrderDialog()
+  const [shoppingListOpen, setShoppingListOpen] = useState(false)
 
   const invalidateOrders = (orderId?: number, alsoItems = false) => {
     void queryClient.invalidateQueries({ queryKey: inventoryKeys.orders() })
@@ -262,6 +264,9 @@ function OrdersPanel({ onToast }: PanelProps) {
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.order(orderId) })
     if (alsoItems) {
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.items() })
+      // Receiving an order is the only action on this screen that moves stock,
+      // so it is the only one that can change the computed shopping list.
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.shoppingList() })
       void queryClient.invalidateQueries({ queryKey: launcherKeys.attention() })
     }
   }
@@ -316,9 +321,20 @@ function OrdersPanel({ onToast }: PanelProps) {
     <>
       <section className="seg-inv__panel-head">
         <Badge tone="neutral">{t('orders.count', { count: totalCount })}</Badge>
-        <Button iconLeft={<Plus size={16} />} onClick={openCreate}>
-          {t('orders.newOrder')}
-        </Button>
+        <div className="seg-inv__panel-actions">
+          {/* The shopping list is a replenishment view, so it belongs to the
+              orders workflow and is deliberately absent from the items tab. */}
+          <Button
+            variant="secondary"
+            iconLeft={<ShoppingCart size={16} />}
+            onClick={() => setShoppingListOpen(true)}
+          >
+            {t('shoppingList.open')}
+          </Button>
+          <Button iconLeft={<Plus size={16} />} onClick={openCreate}>
+            {t('orders.newOrder')}
+          </Button>
+        </div>
       </section>
 
       <OrdersFilters state={state} onChange={setFilters} onClear={clearFilters} />
@@ -365,6 +381,13 @@ function OrdersPanel({ onToast }: PanelProps) {
           onSaved={handleSaved}
           onDeleted={handleDeleted}
           onReceived={handleReceived}
+        />
+      )}
+
+      {shoppingListOpen && (
+        <ShoppingListDialog
+          language={i18n.language}
+          onClose={() => setShoppingListOpen(false)}
         />
       )}
     </>

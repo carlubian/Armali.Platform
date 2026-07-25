@@ -124,6 +124,33 @@ export interface InventoryItemPriceHistory {
   entries: InventoryItemPriceHistoryEntry[]
 }
 
+/**
+ * The block a shopping list entry belongs to. `Required` covers items whose
+ * current stock is strictly below the minimum, `Optional` those whose current
+ * stock equals it. Only `Required` entries carry a replenishment quantity.
+ */
+export type InventoryShoppingListBlock = 'Required' | 'Optional'
+
+export interface InventoryShoppingListEntry {
+  itemId: number
+  name: string
+  categoryId: number
+  categoryName: string
+  categorySortOrder: number
+  block: InventoryShoppingListBlock
+  requiredQuantity: number | null
+  suppliers: string[]
+}
+
+/**
+ * The computed shopping list. `entries` is flat and already ordered by block,
+ * category sort order, category identifier, and item name, so the dialog groups
+ * by consuming the received order and never re-sorts.
+ */
+export interface InventoryShoppingList {
+  entries: InventoryShoppingListEntry[]
+}
+
 export interface InventoryOrderLine {
   id: number
   itemId: number
@@ -254,6 +281,8 @@ export const inventoryApi = {
     apiRequest<InventoryCategory[]>('/api/inventory/categories', { signal }),
   locations: (signal?: AbortSignal) =>
     apiRequest<InventoryLocation[]>('/api/inventory/locations', { signal }),
+  shoppingList: (signal?: AbortSignal) =>
+    apiRequest<InventoryShoppingList>('/api/inventory/shopping-list', { signal }),
   listItems: (query: InventoryItemListQuery = {}, signal?: AbortSignal) =>
     apiRequest<PaginatedResponse<InventoryItemSummary>>(
       `/api/inventory/items${buildQuery(query)}`,

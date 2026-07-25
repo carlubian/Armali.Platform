@@ -20,6 +20,9 @@ describe('Inventory Wave 0 contracts', () => {
       'price-history',
     ])
     expect(inventoryKeys.order(9)).toEqual(['inventory', 'orders', 9])
+    // The shopping list is a module-level derived read, so it hangs off the root
+    // key rather than under the item keys it is invalidated alongside.
+    expect(inventoryKeys.shoppingList()).toEqual(['inventory', 'shopping-list'])
     expect(inventoryKeys.itemAttachments(7)).toEqual([
       'inventory',
       'items',
