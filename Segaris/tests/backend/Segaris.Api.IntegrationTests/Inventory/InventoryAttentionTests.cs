@@ -21,11 +21,11 @@ public sealed class InventoryAttentionTests
     [Theory]
     [InlineData("Active", 1, 5, true)]
     [InlineData("Active", 5, 5, true)]
-    [InlineData("Active", 0, 0, true)]
+    [InlineData("Active", 0, 0, false)]
     [InlineData("Active", 6, 5, false)]
     [InlineData("Candidate", 1, 5, false)]
     [InlineData("Deprecated", 1, 5, false)]
-    public async Task Attention_activates_only_for_active_low_or_equal_stock_items(
+    public async Task Attention_activates_only_for_active_tracked_low_or_equal_stock_items(
         string status,
         decimal currentStock,
         decimal minimumStock,
@@ -43,6 +43,34 @@ public sealed class InventoryAttentionTests
             minimumStock: minimumStock);
 
         Assert.Equal(expected, await InventoryAttentionAsync(client));
+    }
+
+    [Fact]
+    public async Task Item_without_a_replenishment_threshold_does_not_activate_attention()
+    {
+        using var server = new CapexTestServer();
+        using var client = await server.CreateAuthenticatedClientAsync();
+        var founderId = await server.GetUserIdAsync(CapexTestServer.AdminUserName);
+        await InventoryTestData.SeedItemAsync(
+            server.Services,
+            founderId,
+            name: "Untracked",
+            status: InventoryItemStatus.Active,
+            currentStock: 0m,
+            minimumStock: 0m);
+
+        // A zero minimum means no replenishment threshold, so the item is never a purchase need.
+        Assert.False(await InventoryAttentionAsync(client));
+
+        await InventoryTestData.SeedItemAsync(
+            server.Services,
+            founderId,
+            name: "Tracked",
+            status: InventoryItemStatus.Active,
+            currentStock: 0m,
+            minimumStock: 3m);
+
+        Assert.True(await InventoryAttentionAsync(client));
     }
 
     [Fact]
