@@ -23,6 +23,7 @@ as separate entities, or stock by location tuple.
 - Create and manage supplier-specific orders with ordered lines.
 - Receive an active order through an explicit operation that updates stock.
 - Support quick stock increase and decrease actions directly on an item.
+- Compute a read-only shopping list of the items that need replenishing.
 - Keep Inventory independent from Capex, Opex, Travel, Assets, and other
   business modules in the initial release.
 
@@ -35,7 +36,8 @@ The initial Inventory implementation excludes:
 - Weight, volume, or unit conversion.
 - Partial receipt of an order.
 - A separate stock-movement history entity or audit timeline.
-- Automatic reorder suggestions, forecasts, or recurring purchases.
+- Automatic reorder suggestions, forecasts, recurring purchases, or orders
+  created automatically from the shopping list.
 - Cross-module links to Capex, Opex, Archive, Assets, or Maintenance.
 - Spanish translations.
 
@@ -438,16 +440,69 @@ The table supports:
 - User-controlled sorting and bounded pagination following platform
   conventions.
 
+## Shopping List
+
+Inventory exposes a read-only shopping list of the items that need
+replenishing. It is opened from the orders view, computed on demand from the
+current stock, and never persisted or scheduled.
+
+An item is listed when it satisfies all three conditions:
+
+- Status is `Active`.
+- `MinimumStock` is greater than zero.
+- `CurrentStock` is less than or equal to `MinimumStock`.
+
+An item whose `MinimumStock` is zero is never listed. A zero minimum means the
+household does not track a replenishment threshold for that item, so it is
+never a purchase need. `Candidate` and `Deprecated` items are never listed
+either.
+
+The list contains two blocks:
+
+- `Required`, for items whose `CurrentStock` is strictly below `MinimumStock`.
+- `Optional`, for items whose `CurrentStock` equals `MinimumStock`.
+
+Within each block, items are grouped by category. Categories follow the
+Inventory category `SortOrder`, categories without listed items are omitted,
+and items inside a category are ordered alphabetically by name.
+
+Every listed item shows:
+
+- Its name.
+- The quantity needed to reach the minimum stock, which is `MinimumStock`
+  minus `CurrentStock`, worded as "at least N units". The quantity appears
+  only in the `Required` block and is omitted entirely in the `Optional`
+  block.
+- Its allowed suppliers, on a separate line, ordered alphabetically.
+
+Orders in progress are ignored. An item already covered by a `Planning` or
+`Active` order still appears, with the full quantity, because the list
+compares current stock against minimum stock and nothing else.
+
+A user sees only the items they may access under the standard Inventory
+privacy rules: public items plus their own private items, with no
+administrator bypass.
+
+The list is global. It ignores every items and orders view filter, offers no
+filters or search of its own, and is not paginated.
+
+Exporting the list and creating orders from it are outside the initial scope.
+
 ## Attention
 
 The Inventory launcher card requires attention when at least one accessible
-Inventory item satisfies both conditions:
+Inventory item satisfies all three conditions:
 
 - Status is `Active`.
+- `MinimumStock` is greater than zero.
 - `CurrentStock` is less than or equal to `MinimumStock`.
 
+These are exactly the shopping list inclusion conditions, so attention is true
+when the current user's shopping list is not empty.
+
 Only accessible items count for the current user. `Candidate` and `Deprecated`
-items do not activate attention.
+items do not activate attention, and neither do items that track no
+replenishment threshold.
 
 The launcher exposes only the platform-standard boolean attention state.
 
@@ -484,9 +539,16 @@ The initial Inventory definition is satisfied when:
 11. Shared Supplier and Currency catalogs come from Configuration through
     published contracts rather than direct entity access.
 12. Inventory attention is true exactly when the current user can access at
-    least one active item whose current stock is less than or equal to its
-    minimum stock.
-13. SQLite and PostgreSQL migrations, backend unit/integration/architecture
+    least one active item whose minimum stock is greater than zero and whose
+    current stock is less than or equal to that minimum stock.
+13. The shopping list opens from the orders view and lists exactly the
+    accessible active items with a minimum stock greater than zero and a
+    current stock at or below it, split into a `Required` block below the
+    minimum and an `Optional` block at the minimum, grouped by category in
+    catalog order and alphabetically inside each category, showing the
+    quantity needed to reach the minimum in the `Required` block only and the
+    allowed suppliers alphabetically, without filters and without pagination.
+14. SQLite and PostgreSQL migrations, backend unit/integration/architecture
     tests, frontend component tests, and a representative Playwright journey
     verify the supported behavior and privacy boundaries.
 
@@ -496,3 +558,5 @@ The initial Inventory definition is satisfied when:
 - Whether stock should later gain a movement history or audit timeline.
 - Whether expiration dates, lots, or stock-by-location should be introduced.
 - Whether future Analytics will consume Inventory read contracts.
+- Whether the shopping list should later support exporting or creating orders
+  directly from its entries.
