@@ -229,9 +229,11 @@ Tasks:
 3. Add the button to the Orders panel header only, and invalidate the shopping
    list key on the order-received path.
 4. Add the dialog styles to the Inventory page stylesheet.
-5. Add the Spanish and English strings for the button, title, description, both
-   block names, the quantity wording, the supplier line, the empty states, the
-   load error, and the close action.
+5. Add the English strings for the button, title, description, both block names,
+   the quantity wording, the supplier line, the empty states, the load error,
+   and the close action. The frontend is monolingual `en-GB` today: `i18n.ts`
+   declares a single supported language and every module ships one resource
+   bundle, so there is no second language to add strings to.
 
 Tests:
 
@@ -244,7 +246,7 @@ Tests:
 Exit criteria:
 
 - A user opens the shopping list from Orders and sees the grouped result
-  recomputed on every open, in both languages.
+  recomputed on every open, in the `en-GB` bundle the frontend ships.
 
 ### Wave 4: Verification And Acceptance
 
