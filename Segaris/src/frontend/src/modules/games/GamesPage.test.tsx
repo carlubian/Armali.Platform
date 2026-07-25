@@ -627,6 +627,69 @@ describe('Games progress page', () => {
     expect(await screen.findAllByText('2 of 2 goals')).not.toHaveLength(0)
   })
 
+  it('opens the playthrough editor from the progress page header', async () => {
+    const user = userEvent.setup()
+    mockBackend({ summaries: [makeSummary(1, { name: 'First run' })] })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit playthrough' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit playthrough' })
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('First run')
+  })
+
+  it('saves editor changes from the progress page and confirms with a toast', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit playthrough' }))
+
+    const nameField = await screen.findByLabelText('Name')
+    await user.clear(nameField)
+    await user.type(nameField, 'Second run')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      const put = requests.find(
+        (request) =>
+          request.method === 'PUT' && request.url.endsWith('/playthroughs/1'),
+      )
+      expect(put).toBeDefined()
+      expect(put?.body).toMatchObject({ name: 'Second run' })
+    })
+    expect(await screen.findByText('Playthrough saved')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('dialog', { name: 'Edit playthrough' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('returns to the collection when the playthrough is deleted from the editor', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend({
+      summaries: [makeSummary(1, { name: 'First run' })],
+    })
+    window.history.replaceState({}, '', '/games/playthroughs/1?sectionId=1')
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit playthrough' }))
+    await screen.findByLabelText('Name')
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(await screen.findByRole('button', { name: 'Delete playthrough' }))
+
+    await waitFor(() =>
+      expect(requests.some((r) => r.method === 'DELETE' && r.url.endsWith('/1'))).toBe(
+        true,
+      ),
+    )
+    await waitFor(() => expect(window.location.pathname).toBe('/games'))
+  })
+
   it('manages section ordering through the section popup', async () => {
     const user = userEvent.setup()
     const { requests } = mockBackend({
