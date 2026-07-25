@@ -20,7 +20,8 @@ namespace Segaris.Api.Modules.Inventory;
 /// surfaced through Configuration; Wave 2 adds the paginated item list, item detail,
 /// and quick stock-adjustment routes; Wave 3 adds item mutation and attachment
 /// routes; Wave 4 adds order read, mutation, and attachment routes. Wave 5 adds the
-/// remaining receive route frozen in <see cref="InventoryApiRoutes"/>.
+/// remaining receive route frozen in <see cref="InventoryApiRoutes"/>; the computed
+/// shopping list read is mapped on the module root beside them.
 /// State-changing routes carry antiforgery protection and never expose EF Core
 /// entities.
 /// </summary>
@@ -33,8 +34,20 @@ internal static class InventoryEndpoints
 
         MapItemEndpoints(group);
         MapOrderEndpoints(group);
+        MapShoppingListEndpoints(group);
         MapCategoryEndpoints(group);
         MapLocationEndpoints(group);
+    }
+
+    private static void MapShoppingListEndpoints(RouteGroupBuilder group)
+    {
+        // The shopping list hangs off the module root rather than off "/items" because it
+        // is a derived replenishment view and not a paginated item collection. It is a
+        // read, so it carries no antiforgery filter.
+        group.MapGet("/shopping-list", GetShoppingListAsync)
+            .WithName("GetInventoryShoppingList")
+            .WithSummary("Returns the computed replenishment shopping list for the accessible Inventory items")
+            .Produces<InventoryShoppingListResponse>();
     }
 
     private static void MapItemEndpoints(RouteGroupBuilder group)
@@ -427,6 +440,20 @@ internal static class InventoryEndpoints
 
         var item = await read.GetItemAsync(itemId, userId, cancellationToken);
         return TypedResults.Ok(item);
+    }
+
+    private static async Task<IResult> GetShoppingListAsync(
+        InventoryReadService read,
+        ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var shoppingList = await read.GetShoppingListAsync(userId, cancellationToken);
+        return TypedResults.Ok(shoppingList);
     }
 
     private static async Task<IResult> ListOrdersAsync(

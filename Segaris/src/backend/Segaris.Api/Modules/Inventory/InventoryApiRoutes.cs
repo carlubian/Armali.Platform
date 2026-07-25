@@ -13,6 +13,8 @@ internal static class InventoryApiRoutes
     public const string ItemAttachments = "/{itemId:int}/attachments";
     public const string ItemAttachmentById = "/{itemId:int}/attachments/{attachmentId}";
 
+    public const string ShoppingList = "inventory/shopping-list";
+
     public const string Orders = "inventory/orders";
     public const string OrderById = "/{orderId:int}";
     public const string OrderReceive = "/{orderId:int}/receive";

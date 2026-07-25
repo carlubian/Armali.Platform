@@ -19,7 +19,8 @@ namespace Segaris.Api.Modules.Inventory.Queries;
 /// filtered, and sorted item list and the item detail read. Every item query is
 /// privacy-correct: it filters to the items the supplied user may access before any
 /// projection, pagination, or detail lookup. Related catalog and audit display
-/// names are resolved through correlated sub-queries.
+/// names are resolved through correlated sub-queries. The computed shopping list
+/// read follows the same privacy rules and is derived entirely from current stock.
 /// </summary>
 internal sealed class InventoryReadService(
     SegarisDbContext database,
@@ -27,6 +28,9 @@ internal sealed class InventoryReadService(
     IClock clock)
 {
     private const int PriceHistoryMinimumRecentOrderCount = 24;
+
+    private const string ShoppingListRequiredBlock = "Required";
+    private const string ShoppingListOptionalBlock = "Optional";
 
     public async Task<IReadOnlyList<InventoryCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken)
     {
@@ -309,6 +313,89 @@ internal sealed class InventoryReadService(
             entries);
     }
 
+    /// <summary>
+    /// Computes the replenishment shopping list for the supplied user. An item is
+    /// listed when it is accessible, <c>Active</c>, tracks a replenishment threshold
+    /// (<c>MinimumStock</c> greater than zero), and its <c>CurrentStock</c> is at or
+    /// below that threshold. Orders in progress are ignored: the list compares current
+    /// stock against minimum stock and nothing else. Nothing is persisted, the result
+    /// is not paginated, and no filter other than privacy applies.
+    /// </summary>
+    public async Task<InventoryShoppingListResponse> GetShoppingListAsync(
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await database.Set<InventoryItem>()
+            .AsNoTracking()
+            .Where(InventoryItemPolicies.AccessibleTo(userId))
+            .Where(item => item.Status == InventoryItemStatus.Active
+                && item.MinimumStock > 0m
+                && item.CurrentStock <= item.MinimumStock)
+            .Select(item => new ShoppingListRow(
+                item.Id,
+                item.Name,
+                item.CategoryId,
+                database.Set<InventoryCategory>()
+                    .Where(category => category.Id == item.CategoryId).Select(category => category.Name).First(),
+                database.Set<InventoryCategory>()
+                    .Where(category => category.Id == item.CategoryId).Select(category => category.SortOrder).First(),
+                item.CurrentStock,
+                item.MinimumStock))
+            .ToArrayAsync(cancellationToken);
+
+        if (rows.Length == 0)
+        {
+            return new InventoryShoppingListResponse([]);
+        }
+
+        // Allowed suppliers are resolved in a second flat query restricted to the
+        // listed items, so the projection above stays a single query.
+        var itemIds = rows.Select(row => row.ItemId).ToArray();
+        var supplierRows = await database.Set<InventoryItemSupplier>()
+            .AsNoTracking()
+            .Where(association => itemIds.Contains(association.ItemId))
+            .Select(association => new
+            {
+                association.ItemId,
+                SupplierName = database.Set<SegarisSupplier>()
+                    .Where(supplier => supplier.Id == association.SupplierId)
+                    .Select(supplier => supplier.Name)
+                    .First(),
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var suppliersByItem = supplierRows
+            .GroupBy(row => row.ItemId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<string>)[.. group
+                    .Select(row => row.SupplierName)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)]);
+
+        // The final ordering is applied in memory after materialization: the default
+        // collation differs between SQLite and PostgreSQL and the alphabetical order
+        // must be identical on both. The result set is small and unpaginated.
+        var entries = rows
+            .Select(row => new { Row = row, Required = row.CurrentStock < row.MinimumStock })
+            .OrderBy(entry => entry.Required ? 0 : 1)
+            .ThenBy(entry => entry.Row.CategorySortOrder)
+            .ThenBy(entry => entry.Row.CategoryId)
+            .ThenBy(entry => entry.Row.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(entry => entry.Row.ItemId)
+            .Select(entry => new InventoryShoppingListEntryResponse(
+                entry.Row.ItemId,
+                entry.Row.Name,
+                entry.Row.CategoryId,
+                entry.Row.CategoryName,
+                entry.Row.CategorySortOrder,
+                entry.Required ? ShoppingListRequiredBlock : ShoppingListOptionalBlock,
+                entry.Required ? entry.Row.MinimumStock - entry.Row.CurrentStock : null,
+                suppliersByItem.TryGetValue(entry.Row.ItemId, out var suppliers) ? suppliers : []))
+            .ToArray();
+
+        return new InventoryShoppingListResponse(entries);
+    }
+
     public async Task<InventoryOrderResponse?> GetOrderAsync(
         int orderId,
         UserId userId,
@@ -583,6 +670,15 @@ internal sealed class InventoryReadService(
         int UpdatedById,
         string UpdatedByName,
         DateTimeOffset UpdatedAt);
+
+    private sealed record ShoppingListRow(
+        int ItemId,
+        string Name,
+        int CategoryId,
+        string CategoryName,
+        int CategorySortOrder,
+        decimal CurrentStock,
+        decimal MinimumStock);
 
     private sealed record OrderDetailRow(
         int Id,

@@ -45,6 +45,7 @@ public sealed class InventoryContractTests
         Assert.Equal("/{itemId:int}/attachments/{attachmentId}", InventoryApiRoutes.ItemAttachmentById);
         Assert.Equal("inventory/orders", InventoryApiRoutes.Orders);
         Assert.Equal("/{orderId:int}/receive", InventoryApiRoutes.OrderReceive);
+        Assert.Equal("inventory/shopping-list", InventoryApiRoutes.ShoppingList);
         Assert.Equal("inventory/categories", InventoryApiRoutes.Categories);
         Assert.Equal("inventory/locations", InventoryApiRoutes.Locations);
     }
