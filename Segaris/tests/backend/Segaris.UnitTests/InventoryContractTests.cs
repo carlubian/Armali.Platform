@@ -17,6 +17,7 @@ public sealed class InventoryContractTests
             ["Planning", "Active", "Received", "Cancelled"],
             Enum.GetNames<InventoryOrderStatus>());
         Assert.Equal(["Increase", "Decrease"], Enum.GetNames<InventoryStockAdjustmentDirection>());
+        Assert.Equal(["Required", "Optional"], Enum.GetNames<InventoryShoppingListBlock>());
     }
 
     [Fact]
@@ -45,6 +46,7 @@ public sealed class InventoryContractTests
         Assert.Equal("/{itemId:int}/attachments/{attachmentId}", InventoryApiRoutes.ItemAttachmentById);
         Assert.Equal("inventory/orders", InventoryApiRoutes.Orders);
         Assert.Equal("/{orderId:int}/receive", InventoryApiRoutes.OrderReceive);
+        Assert.Equal("inventory/shopping-list", InventoryApiRoutes.ShoppingList);
         Assert.Equal("inventory/categories", InventoryApiRoutes.Categories);
         Assert.Equal("inventory/locations", InventoryApiRoutes.Locations);
     }

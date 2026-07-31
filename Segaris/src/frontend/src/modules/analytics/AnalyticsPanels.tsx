@@ -94,14 +94,14 @@ function AnalyticsAsync<T extends AnalyticsResponse>({
   return <>{children(query.data)}</>
 }
 
-function TabHead({ tab }: { tab: AnalyticsTab }) {
+function TabHead({ tab, year }: { tab: AnalyticsTab; year?: number }) {
   const { t } = useTranslation('analytics')
   const scope = t(`tab.${tab}.scope`, { defaultValue: '' })
   return (
     <div className="an-tabhead">
       <div className="an-tabhead__txt">
         <div className="armali-eyebrow">{t(`tab.${tab}.eyebrow`)}</div>
-        <h2>{t(`tab.${tab}.title`)}</h2>
+        <h2>{t(`tab.${tab}.title`, { year })}</h2>
         <p>{t(`tab.${tab}.description`)}</p>
       </div>
       {scope !== '' && <span className="an-tabhead__scope">{scope}</span>}
@@ -485,7 +485,7 @@ export function AnalyticsOverviewPanel({ year, onConfigure }: PanelProps) {
     <AnalyticsAsync query={query} onConfigure={onConfigure}>
       {(data) => (
         <>
-          <TabHead tab="overview" />
+          <TabHead tab="overview" year={data.selectedYear} />
           <OverviewTotals
             totals={data.totals}
             previousYear={data.previousYear}

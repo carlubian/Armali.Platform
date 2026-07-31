@@ -136,8 +136,10 @@ function ScoreRing({ score, completed, total }: ScoreRingProps) {
           />
         </svg>
         <div className="seg-wellness-ring__center" aria-hidden="true">
-          <span className="seg-wellness-ring__value">{clamped}</span>
-          <span className="seg-wellness-ring__unit">%</span>
+          <div className="seg-wellness-ring__reading">
+            <span className="seg-wellness-ring__value">{clamped}</span>
+            <span className="seg-wellness-ring__unit">%</span>
+          </div>
         </div>
       </div>
       <div className="seg-wellness-score__meta">

@@ -129,6 +129,22 @@ export const inventory = {
       },
     },
   },
+  shoppingList: {
+    open: 'Shopping list',
+    title: 'Shopping list',
+    description:
+      'Computed from the current stock every time it is opened. It covers every item you can access and ignores the items and orders filters.',
+    close: 'Close',
+    blocks: {
+      Required: 'Required',
+      Optional: 'Optional',
+    },
+    quantity_one: 'At least {{quantity}} unit',
+    quantity_other: 'At least {{quantity}} units',
+    suppliers: 'Suppliers: {{suppliers}}',
+    empty: 'Nothing needs replenishing right now.',
+    loadError: 'The shopping list could not be loaded. Please try again.',
+  },
   orders: {
     newOrder: 'New order',
     openRow: 'Open order from {{supplier}}',

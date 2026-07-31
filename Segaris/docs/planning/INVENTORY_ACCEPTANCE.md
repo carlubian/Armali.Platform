@@ -4,6 +4,12 @@ This document records the Wave 8 end-to-end, hardening, and acceptance pass for
 the Inventory module against `docs/requirements/INVENTORY_REQUIREMENTS.md` and
 the exit criteria in `docs/planning/INVENTORY_IMPLEMENTATION_PLAN.md`.
 
+The shopping list increment
+(`docs/planning/INVENTORY_SHOPPING_LIST_IMPLEMENTATION_PLAN.md`) adds acceptance
+criterion 13 and corrects criterion 12, whose original wording described a
+defect in the launcher attention rule. That increment is delivered, so both rows
+record its result; every other row records the Wave 8 result unchanged.
+
 ## Verification Approach
 
 Wave 8 was executed as a focused hardening and acceptance pass, matching the
@@ -85,7 +91,7 @@ shapes in `InventoryReadService`, `InventoryItemListQuery`, and
 | --- | --- |
 | `inventory_items (Name, Id)` | Default item ordering (name asc, id asc tie-breaker) |
 | `inventory_items (CreatedBy, Visibility, Id)` | `InventoryItemPolicies.AccessibleTo` privacy filter and attention scope |
-| `inventory_items (Status, Visibility)` | Status exact filter; launcher attention (`Active` and low stock) |
+| `inventory_items (Status, Visibility)` | Status exact filter; launcher attention and the shopping list (`Active`, positive minimum, low stock) |
 | `inventory_items (CategoryId)` / `(LocationId)` | Category/location exact filters and reference migration |
 | `inventory_items (Visibility)` / `(UpdatedBy)` | Visibility filter; audit display-name resolution |
 | `inventory_item_suppliers (SupplierId)` | Supplier eligibility lookups and supplier reference migration |
@@ -121,10 +127,11 @@ evidence:
 | 9 | Quick stock increase and decrease update only the item stock and reject negative results | Met | `InventoryStockAdjustmentTests` (increase, decrease, `Decrease_below_zero_is_rejected_and_leaves_stock_unchanged`, invalid input), `InventoryDomainTests`, `inventory.spec.ts` |
 | 10 | Inventory-owned categories and locations are initialized once and managed through Configuration with CRUD, reorder, and atomic reference migration before deletion | Met | `InventoryCatalogEndpointTests` (seeded order, admin create/move/delete, normal-user rejection, duplicate conflict), `InventoryConfigurationMigrationTests`; final-row protection in `InventoryCategoryManagementService`/`InventoryLocationManagementService` |
 | 11 | Shared Supplier and Currency catalogs come from Configuration through published contracts rather than direct entity access | Met | `InventoryConfigurationMigrationTests`, `ModuleBoundaryTests` (Inventory depends on Configuration only), `InventoryContractTests` |
-| 12 | Inventory attention is true exactly when the current user can access at least one active item whose current stock is at or below minimum | Met | `InventoryAttentionTests` (no-attention baseline, `Attention_activates_only_for_active_low_or_equal_stock_items`, public vs. another user's private low-stock item) |
-| 13 | SQLite and PostgreSQL migrations, backend unit/integration/architecture tests, frontend component tests, and a representative Playwright journey verify behaviour and privacy | Met (single-user E2E) | `MigrationTests` (both providers), `PostgresPersistenceTests`, `ModuleBoundaryTests`/`ModuleRegistrationTests`, the Inventory unit suite, the full Inventory API integration suite, `contracts.test.ts`/`itemsState.test.ts`/`ordersState.test.ts`/`InventoryPage.test.tsx`, `inventory.spec.ts` |
+| 12 | Inventory attention is true exactly when the current user can access at least one active item whose minimum stock is greater than zero and whose current stock is at or below that minimum | Met | `InventoryAttentionTests` (no-attention baseline, `Attention_activates_only_for_active_tracked_low_or_equal_stock_items`, `Item_without_a_replenishment_threshold_does_not_activate_attention`, public vs. another user's private low-stock item) |
+| 13 | The shopping list opens from the orders view and lists exactly the accessible active items with a minimum stock greater than zero and a current stock at or below it, in `Required` and `Optional` blocks grouped by category in catalog order and alphabetically inside each category, with the needed quantity only in `Required` and alphabetical suppliers, without filters or pagination | Met | `InventoryShoppingListTests` (`Shopping_list_requires_authentication`, `Shopping_list_lists_only_active_items_that_track_a_threshold` covering the empty response, excluded statuses and both zero-minimum shapes, `Blocks_split_on_the_minimum_stock_boundary_and_carry_exact_quantities`, `Entries_are_ordered_by_block_then_category_order_then_item_name`, `Shopping_list_hides_private_items_of_other_users_from_every_reader`), `ShoppingListDialog.test.tsx` (block and category grouping, quantity present in `Required` and absent in `Optional`, comma-separated suppliers, omitted empty block, empty state, error state), `InventoryPage.test.tsx` (`opens the shopping list from the orders header`, `does not offer the shopping list on the items tab`), `contracts.test.ts` (`inventoryKeys.shoppingList()`) |
+| 14 | SQLite and PostgreSQL migrations, backend unit/integration/architecture tests, frontend component tests, and a representative Playwright journey verify behaviour and privacy | Met (single-user E2E) | `MigrationTests` (both providers), `PostgresPersistenceTests`, `ModuleBoundaryTests`/`ModuleRegistrationTests`, the Inventory unit suite, the full Inventory API integration suite, `contracts.test.ts`/`itemsState.test.ts`/`ordersState.test.ts`/`InventoryPage.test.tsx`/`ShoppingListDialog.test.tsx`, `inventory.spec.ts` |
 
-Attachment behaviour underlying criteria 1 and 13 is covered by
+Attachment behaviour underlying criteria 1 and 14 is covered by
 `InventoryItemAttachmentTests` and `InventoryOrderAttachmentTests` (upload, list,
 download, delete round-trip, private-record hiding, and filesystem cleanup on
 item/order deletion).

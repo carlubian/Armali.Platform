@@ -101,8 +101,14 @@
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
+}
+/* The reading keeps the unit sitting on the number's baseline, while the
+   centering happens one level up so the block lands in the ring's hole. */
+.seg-wellness-ring__reading {
+  display: flex;
+  align-items: baseline;
   gap: 2px;
 }
 .seg-wellness-ring__value {
@@ -117,6 +123,7 @@
   font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--text-lg);
+  line-height: 1;
   color: var(--text-secondary);
 }
 .seg-wellness-score__meta {

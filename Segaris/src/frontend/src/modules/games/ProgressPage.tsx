@@ -36,6 +36,7 @@ import {
   type SectionColor,
 } from '@/app/api/games'
 import { isApiError } from '@/app/api/errors'
+import { useSession } from '@/app/session/SessionContext'
 import {
   Badge,
   Button,
@@ -48,6 +49,7 @@ import {
   type BadgeTone,
 } from '@/components/ui'
 
+import { PlaythroughDialog } from './PlaythroughDialog'
 import { goalRequestSchema, gamesKeys, sectionRequestSchema } from './contracts'
 import { useProgressPageState } from './gamesState'
 import { useGoals, usePlaythrough, useSections } from './queries'
@@ -83,7 +85,12 @@ type ConfirmState =
   | { mode: 'deleteSection'; section: Section }
   | { mode: 'deleteGoal'; section: Section; goal: Goal }
 
-type ToastState = 'sectionSaved' | 'sectionDeleted' | 'goalSaved' | 'goalDeleted'
+type ToastState =
+  | 'playthroughSaved'
+  | 'sectionSaved'
+  | 'sectionDeleted'
+  | 'goalSaved'
+  | 'goalDeleted'
 
 function pct(done: number, total: number): number {
   return total > 0 ? Math.round((done / total) * 100) : 0
@@ -98,6 +105,8 @@ export function ProgressPage() {
   const navigate = useNavigate()
   const params = useParams()
   const queryClient = useQueryClient()
+  const { session } = useSession()
+  const currentUserId = session?.userId ?? null
   const {
     selectedSectionId: selectedSectionFromUrl,
     manageSections,
@@ -110,6 +119,7 @@ export function ProgressPage() {
   })
   const [goalDialog, setGoalDialog] = useState<GoalDialogState>({ mode: 'closed' })
   const [confirming, setConfirming] = useState<ConfirmState>({ mode: 'closed' })
+  const [editingPlaythrough, setEditingPlaythrough] = useState(false)
   const [toast, setToast] = useState<ToastState | null>(null)
 
   const playthroughId = Number.parseInt(params.playthroughId ?? '', 10)
@@ -193,7 +203,17 @@ export function ProgressPage() {
 
   return (
     <main className="seg-games-progress armali-aurora">
-      <div className="seg-games-progress__back">{back}</div>
+      <div className="seg-games-progress__back">
+        {back}
+        <Button
+          variant="outline"
+          size="sm"
+          iconLeft={<Pencil size={15} />}
+          onClick={() => setEditingPlaythrough(true)}
+        >
+          {t('progressPage.editPlaythrough')}
+        </Button>
+      </div>
       <ProgressHeader playthrough={playthrough} />
 
       {sectionsQuery.isPending ? (
@@ -233,6 +253,29 @@ export function ProgressPage() {
             onChanged={(sectionId) => invalidateProgress(sectionId)}
           />
         </section>
+      )}
+
+      {editingPlaythrough && (
+        <PlaythroughDialog
+          mode="edit"
+          playthroughId={playthroughId}
+          currentUserId={currentUserId}
+          onClose={() => setEditingPlaythrough(false)}
+          onSaved={(saved) => {
+            setEditingPlaythrough(false)
+            queryClient.setQueryData(gamesKeys.playthrough(saved.id), saved)
+            invalidateProgress()
+            setToast('playthroughSaved')
+          }}
+          onDeleted={() => {
+            setEditingPlaythrough(false)
+            void queryClient.invalidateQueries({
+              queryKey: gamesKeys.playthroughs(),
+            })
+            void navigate('/games')
+          }}
+          onOpenProgress={() => setEditingPlaythrough(false)}
+        />
       )}
 
       {manageSections && (

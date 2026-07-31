@@ -224,6 +224,7 @@ export const games = {
   progressPage: {
     title: 'Playthrough progress',
     back: 'All playthroughs',
+    editPlaythrough: 'Edit playthrough',
     loading: 'Loading playthrough...',
     loadError: 'This playthrough could not be loaded.',
     notFound: 'This playthrough no longer exists.',
@@ -306,6 +307,7 @@ export const games = {
       },
     },
     toast: {
+      playthroughSaved: 'Playthrough saved',
       sectionSaved: 'Section saved',
       sectionDeleted: 'Section deleted',
       goalSaved: 'Goal saved',

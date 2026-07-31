@@ -64,6 +64,33 @@ internal sealed record InventoryItemPriceHistoryEntryResponse(
     decimal LineTotal,
     decimal UnitPrice);
 
+/// <summary>
+/// One item of the computed replenishment shopping list. <c>Block</c> carries an
+/// <c>InventoryShoppingListBlock</c> name, so it is <c>Required</c> or
+/// <c>Optional</c>; <c>RequiredQuantity</c> carries the amount
+/// needed to reach the minimum stock for <c>Required</c> entries and is <c>null</c>
+/// for <c>Optional</c> ones. <c>Suppliers</c> carries the allowed supplier display
+/// names already ordered; their separator and wording belong to the frontend.
+/// </summary>
+internal sealed record InventoryShoppingListEntryResponse(
+    int ItemId,
+    string Name,
+    int CategoryId,
+    string CategoryName,
+    int CategorySortOrder,
+    string Block,
+    decimal? RequiredQuantity,
+    IReadOnlyList<string> Suppliers);
+
+/// <summary>
+/// The computed shopping list. <c>Entries</c> is a flat list already ordered by
+/// block (<c>Required</c> first), category sort order, category identifier, item
+/// name case-insensitively, and item identifier, so no client-side sorting is
+/// needed to render the grouped view.
+/// </summary>
+internal sealed record InventoryShoppingListResponse(
+    IReadOnlyList<InventoryShoppingListEntryResponse> Entries);
+
 internal sealed record InventoryOrderSummaryResponse(
     int Id,
     int SupplierId,
