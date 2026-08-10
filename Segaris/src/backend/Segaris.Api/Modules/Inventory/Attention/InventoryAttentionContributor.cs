@@ -10,10 +10,10 @@ namespace Segaris.Api.Modules.Inventory.Attention;
 /// Contributes the Inventory launcher card's attention state. Attention is required
 /// when the current user can access at least one item that satisfies all three
 /// conditions: its status is <c>Active</c>, its <c>MinimumStock</c> is greater than
-/// zero, and its <c>CurrentStock</c> is less than or equal to its <c>MinimumStock</c>.
-/// These are exactly the shopping list inclusion conditions, so attention is true when
-/// the current user's shopping list is not empty. The same visibility rules as the read
-/// APIs apply, so administrators receive no privacy bypass, <c>Candidate</c> and
+/// zero, and its <c>CurrentStock</c> is less than its <c>MinimumStock</c>. Items that
+/// are exactly at their minimum remain visible in the inventory as a non-urgent state,
+/// but do not trigger launcher attention. The same visibility rules as the read APIs
+/// apply, so administrators receive no privacy bypass, <c>Candidate</c> and
 /// <c>Deprecated</c> items never activate attention, and neither do items that track no
 /// replenishment threshold.
 /// </summary>
@@ -36,7 +36,7 @@ internal sealed class InventoryAttentionContributor(
             .AnyAsync(
                 item => item.Status == InventoryItemStatus.Active
                     && item.MinimumStock > 0m
-                    && item.CurrentStock <= item.MinimumStock,
+                    && item.CurrentStock < item.MinimumStock,
                 cancellationToken);
     }
 }

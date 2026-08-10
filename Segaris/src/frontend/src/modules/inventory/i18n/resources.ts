@@ -32,6 +32,7 @@ export const inventory = {
     newItem: 'New item',
     openRow: 'Open item {{name}}',
     lowStock: 'Low',
+    minimumStock: 'Min',
     count_one: '{{count}} item',
     count_other: '{{count}} items',
     columns: {

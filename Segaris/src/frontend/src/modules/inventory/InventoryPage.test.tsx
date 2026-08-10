@@ -242,20 +242,26 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('Inventory items view', () => {
-  it('renders items and flags low stock', async () => {
+  it('distinguishes low stock from stock at the minimum threshold', async () => {
     mockBackend({
       items: [
         makeItem(1, { currentStock: 0, minimumStock: 5 }),
-        makeItem(2, { currentStock: 10, minimumStock: 2 }),
+        makeItem(2, { currentStock: 5, minimumStock: 5 }),
+        makeItem(3, { currentStock: 10, minimumStock: 2 }),
       ],
     })
     render(<App />)
 
     expect(await screen.findByText('Item 01')).toBeInTheDocument()
     const lowRow = screen.getByText('Item 01').closest('tr') as HTMLElement
-    const okRow = screen.getByText('Item 02').closest('tr') as HTMLElement
+    const minimumRow = screen.getByText('Item 02').closest('tr') as HTMLElement
+    const okRow = screen.getByText('Item 03').closest('tr') as HTMLElement
     expect(within(lowRow).getByText('Low')).toBeInTheDocument()
+    expect(within(lowRow).queryByText('Min')).not.toBeInTheDocument()
+    expect(within(minimumRow).getByText('Min')).toBeInTheDocument()
+    expect(within(minimumRow).queryByText('Low')).not.toBeInTheDocument()
     expect(within(okRow).queryByText('Low')).not.toBeInTheDocument()
+    expect(within(okRow).queryByText('Min')).not.toBeInTheDocument()
   })
 
   it('serializes the search term into the items request', async () => {

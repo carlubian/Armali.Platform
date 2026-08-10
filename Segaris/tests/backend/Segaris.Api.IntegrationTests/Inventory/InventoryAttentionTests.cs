@@ -20,12 +20,12 @@ public sealed class InventoryAttentionTests
 
     [Theory]
     [InlineData("Active", 1, 5, true)]
-    [InlineData("Active", 5, 5, true)]
+    [InlineData("Active", 5, 5, false)]
     [InlineData("Active", 0, 0, false)]
     [InlineData("Active", 6, 5, false)]
     [InlineData("Candidate", 1, 5, false)]
     [InlineData("Deprecated", 1, 5, false)]
-    public async Task Attention_activates_only_for_active_tracked_low_or_equal_stock_items(
+    public async Task Attention_activates_only_for_active_tracked_below_minimum_stock_items(
         string status,
         decimal currentStock,
         decimal minimumStock,
