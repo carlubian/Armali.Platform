@@ -138,3 +138,46 @@
   overflow-y: auto;
   padding: var(--space-6) var(--space-7);
 }
+
+/* ---- Signed-in account, right of the topbar --------------------- */
+.bw-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.bw-account__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: var(--leading-snug);
+}
+.bw-account__name {
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+.bw-account__role {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.bw-account__spin {
+  animation: armali-spin 900ms linear infinite;
+}
+@keyframes armali-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sign-out failure notice, pinned under the topbar so it reads as a
+   consequence of the action that raised it. */
+.bw-shell__notice {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-7) 0;
+}

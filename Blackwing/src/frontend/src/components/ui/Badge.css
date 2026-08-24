@@ -1,0 +1,55 @@
+.arm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 0.42em 0.75em;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  background: var(--accent-soft);
+  color: var(--aqua-700);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.arm-badge--gold {
+  background: var(--gold-100);
+  color: var(--gold-600);
+  border-color: color-mix(in srgb, var(--gold-500) 28%, transparent);
+}
+.arm-badge--azure {
+  background: var(--azure-100);
+  color: var(--azure-600);
+  border-color: color-mix(in srgb, var(--azure-500) 26%, transparent);
+}
+.arm-badge--success {
+  background: var(--sea-100);
+  color: var(--sea-600);
+  border-color: color-mix(in srgb, var(--sea-500) 28%, transparent);
+}
+.arm-badge--danger {
+  background: var(--danger-soft);
+  color: var(--terracotta-600);
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+.arm-badge--neutral {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+.arm-badge--solid {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+.arm-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.arm-badge__dot--pulse {
+  animation: armali-pulse-dot 1800ms var(--ease-soft) infinite;
+}

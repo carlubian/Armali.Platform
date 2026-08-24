@@ -16,6 +16,17 @@ The screen prototypes for milestone 1 live in the vault as
 typography and color is not negotiable.** Layout may be adapted where the
 implementation demands it; fonts and colors may not.
 
+Two screens have **no prototype**: login and account administration. The
+prototype's artboards are gallery, upload, review, tags, filtering, viewer and
+maintenance — the product itself. For those two the reference is, in order,
+`Segaris/src/frontend/src/modules/auth/LoginPage.tsx`,
+`modules/admin/UsersPage.tsx`, and the tokens. Fidelity in typography and color
+still applies; composition is free within them.
+
+Blackwing has no logo of its own. The brand mark is the Lucide `Feather` icon
+that `AppShell` already uses, reused on the login screen. Do not add an image
+asset for it.
+
 ## What is ported, and what is not
 
 Only the *foundations* are reused. This phase ports:
@@ -26,15 +37,27 @@ Only the *foundations* are reused. This phase ports:
   `spacing`, `effects`, `base`. `src/styles/global.css` is nothing but the chain
   of `@import`s in that order — primitive tokens first, then semantic aliases,
   then base styles.
-- Four UI primitives from `Segaris/src/frontend/src/components/ui/`: `Button`,
-  `IconButton`, `Card`, `Spinner`, each with its `.css` and its `.test.tsx`, plus
-  the barrel `index.ts`.
+- Nine UI primitives from `Segaris/src/frontend/src/components/ui/`, each with
+  its `.css` and its `.test.tsx`, plus the barrel `index.ts`:
+  - phase 1: `Button`, `IconButton`, `Card`, `Spinner`;
+  - phase 2: `Input`, `Select`, `Dialog`, `Badge`, `Toast`.
 - `src/components/shell/AppShell.tsx`, adapted to Blackwing's own navigation.
 
-Deliberately **not** ported yet: `Input`, `Select`, `Checkbox`, `Switch`,
-`Badge`, `Avatar`, `Dialog`, `Toast`, `Tooltip`, `Tabs`, `SegmentedControl`.
-Each later phase ports the primitive it actually needs, from Segaris, unchanged.
-A primitive that nothing uses is dead weight that still has to be maintained.
+Deliberately **not** ported yet: `Checkbox`, `Switch`, `Avatar`, `Tooltip`,
+`Tabs`, `SegmentedControl`. Each later phase ports the primitive it actually
+needs, from Segaris, unchanged. A primitive that nothing uses is dead weight that
+still has to be maintained.
+
+Two deliberate divergences in the ported primitives:
+
+- `Dialog.closeLabel` and `Toast.closeLabel` are **required** props rather than
+  defaulted, following the phase-1 precedent of `Spinner.label` and
+  `IconButton.label`. A default would be an English string leaking into a Spanish
+  interface.
+- Segaris has no toast provider — its `Toast` is presentational and each screen
+  owns the state. Blackwing adds `ToastProvider` / `useToast` inside
+  `components/ui/Toast.tsx`, taking `closeLabel` as a prop so the primitive stays
+  free of i18next.
 
 Unlike Segaris, Blackwing keeps `--sidebar-w`: the prototype gives Blackwing a
 persistent side navigation. Before pruning any token, check the prototype.

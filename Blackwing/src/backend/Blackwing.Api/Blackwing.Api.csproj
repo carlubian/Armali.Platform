@@ -12,7 +12,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!--
+      Design-time tooling for `dotnet ef`. Migrations live in Blackwing.Persistence, but they are
+      generated with this project as the startup project (only here is the identity model
+      contributor registered), and the EF tools require the Design package in the startup project
+      as well as in the target one. Its assets stay private, so nothing design-time leaks into
+      the published output or into anything that references this project.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Serilog.AspNetCore" />

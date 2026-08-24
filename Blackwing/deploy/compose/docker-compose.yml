@@ -46,6 +46,13 @@ services:
       CONNECTIONSTRINGS__BLACKWING: "Host=postgres;Port=5432;Database=${BLACKWING_POSTGRES_DB:-blackwing};Username=${BLACKWING_POSTGRES_USER:-blackwing};Password=${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}"
       BLACKWING__STORAGE__IMAGESPATH: /data/images
       BLACKWING__STORAGE__DATAPROTECTIONKEYSPATH: /data/dataprotection-keys
+      # First-administrator bootstrap. Only needed on a first start against an empty
+      # database; the seed is idempotent from then on. Deliberately empty by default: a
+      # default committed here would be a publicly known administrator account on every
+      # deployment of this file. Supply both values or neither - half a pair fails the
+      # host at start rather than starting without an administrator.
+      BLACKWING__IDENTITY__BOOTSTRAP__USERNAME: ${BLACKWING_BOOTSTRAP_USERNAME:-}
+      BLACKWING__IDENTITY__BOOTSTRAP__PASSWORD: ${BLACKWING_BOOTSTRAP_PASSWORD:-}
       # Optional best-effort Seq delivery. Disabled by default.
       BLACKWING__OBSERVABILITY__SEQ__ENABLED: ${BLACKWING_SEQ_ENABLED:-false}
       BLACKWING__OBSERVABILITY__SEQ__SERVERURL: ${BLACKWING_SEQ_SERVERURL:-}

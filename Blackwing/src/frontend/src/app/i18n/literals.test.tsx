@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { App, appQueryClient } from '@/app/App'
+import { adminSession, defaultUsers, mockBackend } from '@/test/backend'
 
 import { platform } from './resources'
 
@@ -77,32 +78,79 @@ function announcedTexts(): { text: string; where: string }[] {
   )
 }
 
-function expectEverythingTranslated() {
+/**
+ * Screens that show stored data render values no resource file can contain — an
+ * account's display name, for instance. Those exact values are declared by the
+ * caller, so anything else still fails: the guarantee is unchanged, it is only
+ * told which strings came from the backend fixture.
+ */
+function expectEverythingTranslated(dataValues: readonly string[] = []) {
+  const data = new Set(dataValues)
   for (const { text, where } of [...visibleTexts(), ...announcedTexts()]) {
     expect(
-      isTranslated(text),
+      isTranslated(text) || data.has(text),
       `untranslated literal ${JSON.stringify(text)} in ${where}`,
     ).toBe(true)
   }
 }
+
+/** Display names of the fixture accounts, the only stored text these screens show. */
+const accountNames = [
+  adminSession.displayName,
+  ...defaultUsers().map((user) => user.displayName),
+]
 
 beforeEach(() => {
   appQueryClient.clear()
   window.history.replaceState({}, '', '/')
 })
 
+afterEach(() => vi.restoreAllMocks())
+
 describe('user-facing text comes from i18next', () => {
-  it('has no literal strings on the boot screen', () => {
+  it('has no literal strings on the login screen', async () => {
+    mockBackend({ session: null })
     render(<App />)
-    // Guard against a vacuous pass if the tree failed to render.
+    await screen.findByRole('heading', { name: platform.auth.login.title })
     expect(visibleTexts().length).toBeGreaterThan(5)
     expectEverythingTranslated()
   })
 
+  it('has no literal strings on the boot screen', async () => {
+    mockBackend({ session: adminSession })
+    render(<App />)
+    await screen.findByText(platform.startup.cardTitle)
+    // Guard against a vacuous pass if the tree failed to render.
+    expect(visibleTexts().length).toBeGreaterThan(5)
+    expectEverythingTranslated(accountNames)
+  })
+
   it('has no literal strings after interacting with the boot screen', async () => {
     const user = userEvent.setup()
+    mockBackend({ session: adminSession })
     render(<App />)
+    await screen.findByText(platform.startup.cardTitle)
     await user.click(screen.getByRole('button', { name: platform.startup.action }))
-    expectEverythingTranslated()
+    expectEverythingTranslated(accountNames)
+  })
+
+  it('has no literal strings on the account administration screen', async () => {
+    const user = userEvent.setup()
+    mockBackend({ session: adminSession })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('link', { name: platform.shell.nav.admin.label }),
+    )
+    await screen.findAllByRole('listitem')
+    expectEverythingTranslated(accountNames)
+
+    // And in its dialogs, which never render until they are opened.
+    await user.click(screen.getByRole('button', { name: platform.admin.users.newUser }))
+    const dialog = await screen.findByRole('dialog', {
+      name: platform.admin.users.create.title,
+    })
+    expect(within(dialog).getAllByRole('button').length).toBeGreaterThan(1)
+    expectEverythingTranslated(accountNames)
   })
 })

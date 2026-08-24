@@ -27,17 +27,36 @@ public sealed class HealthEndpointTests(PostgresFixture postgres)
                 + await DescribeReadinessAsync(factory));
     }
 
+    /// <summary>
+    /// Acceptance criterion 12: <c>/health/live</c> stays at 200 with PostgreSQL down.
+    /// </summary>
+    /// <remarks>
+    /// This test used to start a host against port 1, so the database was unreachable from the
+    /// very first request. Phase 2 made the host apply migrations at startup, and a host that
+    /// starts against an unreachable database now fails to start at all: it never gets as far as
+    /// having a pipeline to probe, so the old arrangement could no longer demonstrate anything.
+    /// The scenario is therefore staged the other way round. The host starts healthy against a
+    /// real database of its own and the database is taken away underneath it, which is also the
+    /// closer match to what the criterion guards against: PostgreSQL falling over while the
+    /// backend is running, not a backend deployed without one.
+    /// </remarks>
     [Fact]
-    public async Task Liveness_reports_healthy_even_when_the_database_is_unreachable()
+    public async Task Liveness_reports_healthy_even_when_the_database_becomes_unreachable()
     {
-        // Port 1 is never a PostgreSQL server, so the database check is guaranteed to fail while
-        // the process itself stays perfectly healthy.
-        using var factory = new BlackwingApiFactory(
-            "Host=127.0.0.1;Port=1;Database=blackwing;Username=blackwing;Password=blackwing;Timeout=1");
+        ArgumentNullException.ThrowIfNull(postgres);
+
+        var connectionString = await postgres.CreateDatabaseAsync(CancellationToken.None);
+        using var factory = new BlackwingApiFactory(connectionString);
         using var client = factory.CreateClient();
+
+        var readinessWhileHealthy = await client.GetAsync("/health/ready", CancellationToken.None);
+
+        await postgres.DropDatabaseAsync(connectionString, CancellationToken.None);
 
         var liveness = await client.GetAsync("/health/live", CancellationToken.None);
         var readiness = await client.GetAsync("/health/ready", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, readinessWhileHealthy.StatusCode);
 
         // Liveness must not depend on anything external: reporting the process dead because
         // PostgreSQL is down would have orchestration restart a container that is working.

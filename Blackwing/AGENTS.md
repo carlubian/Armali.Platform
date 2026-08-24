@@ -66,6 +66,17 @@ a temporary shortcut.
   in `Segaris/`: copy the pattern and rename, do not invent a variant.
 - `TreatWarningsAsErrors` is intentional. Do not relax it to make something
   compile.
+- **Every content entity implements `IOwnedByUser`.** Content in Blackwing belongs
+  to exactly one account and is never shared, not even with an administrator.
+  Implementing the interface opts an entity into the global ownership filter and
+  into owner stamping on insert, both enforced by `BlackwingDbContext`; an
+  architecture test fails if an owned entity ends up without a filter. Never accept
+  an owner identifier in a request body, and never add an administrative endpoint
+  that returns another account's content.
+- **`IgnoreQueryFilters` is not used without a written justification in the code
+  itself.** It is the single call that steps outside the privacy perimeter, so
+  every use carries a comment explaining why that particular query is safe. A use
+  without one is a defect, not a style preference.
 - Keep changes scoped to the requested behavior and preserve unrelated work in a
   dirty worktree.
 - Add or update tests in proportion to the behavioral risk.

@@ -11,15 +11,20 @@ src/
   main.tsx              Entry point: providers, then the router
   app/
     App.tsx             Provider composition
+    api/                HTTP client, error shapes, one file per API area
     config/env.ts       Typed, validated access to import.meta.env
     i18n/               i18next setup, resources, formatters
     query/queryClient.ts  TanStack Query client and its defaults
-    routing/AppRouter.tsx React Router route table
+    routing/AppRouter.tsx React Router route table and guards
+    session/            Session context: who is signed in, and expiry
   assets/fonts/         The four self-hosted .woff2 faces
   components/
+    feedback/            Loading, service-unavailable and not-found screens
     shell/AppShell       Sidebar + topbar + aurora body
     ui/                  Ported design-system primitives
   modules/
+    admin/               Account administration (Admin only)
+    auth/                The login screen
     startup/             The startup screen
   styles/               global.css and the token layer
   test/setup.ts         Vitest setup
@@ -87,17 +92,71 @@ Only the gallery route exists in this phase; the other four entries render as
 disabled buttons with a translated `title`, because inventing screens that belong
 to phases 5-7 would be worse than showing them unavailable.
 
+The topbar also carries the signed-in account and a sign-out action, and the
+navigation gains an account-administration entry that is **hidden**, not
+disabled, for anyone who is not an `Admin`. The distinction is deliberate: a
+disabled entry advertises that the area exists.
+
 The content area does not scroll on itself: `.bw-body` carries the aurora and
 clips it, and an inner `.bw-body__scroll` does the scrolling. Without that split
 the aurora blobs (`inset: -25%`) overflow the page.
 
+## The HTTP client, and CSRF
+
+`app/api/` is the only place that talks to the backend. Nothing else builds a
+URL or calls `fetch`.
+
+- **`errors.ts`** — `ApiError`, `ApiErrorKind` and the `ProblemDetails` shape the
+  backend returns. A failed call always surfaces as an `ApiError`, so screens
+  branch on a kind, never on a status number scattered through components.
+- **`client.ts`** — the transport. Three parts of it are load-bearing and should
+  not be simplified away:
+  - a request timeout driven by `AbortSignal`, so a hung backend fails the query
+    instead of hanging the screen;
+  - a cached CSRF token, fetched from `GET /api/session/antiforgery` and sent as
+    `X-CSRF-TOKEN` on **every** mutation;
+  - `suppressSessionExpired`, so a 401 from the login call is a form error rather
+    than a global session expiry.
+- **`session.ts`** — `getSession`, `signIn`, `signOut`. `signIn` calls
+  `resetCsrfToken()` after authenticating: the cached token was bound to the
+  anonymous identity, and without the reset the next mutation fails with a 400
+  that looks like nothing.
+- **`adminUsers.ts`** — `list`, `create`, `resetPassword`, `activate`,
+  `deactivate`.
+
+Paths are composed from `appConfig.apiBaseUrl` rather than hardcoding `/api`, so
+the validated environment layer stays the single source of that value.
+
+Any request that comes back 401 outside the login flow raises a
+`blackwing:session-expired` event; the session context listens for it and moves
+the whole application to the unauthenticated state at once.
+
+## Session and route guards
+
+`app/session/SessionContext.tsx` holds the only answer to "who is signed in".
+It exposes a status of `loading`, `authenticated`, `unauthenticated` or
+`unavailable`, the session itself, plus `refresh` and `signOut`. There is no
+profile query and no language switch: the interface is Spanish only.
+
+`AppRouter` puts every screen behind that status:
+
+- `/login` is the **only public route**.
+- `loading` renders the loading screen, `unavailable` the service-unavailable
+  screen with a retry, and `unauthenticated` redirects to `/login`.
+- `/admin/users` additionally requires the `Admin` role. A `User` who reaches it
+  by typing the URL gets the **not-found** screen, not an access-denied one: the
+  answer must not confirm that the area exists. It is the same reasoning the
+  backend applies when it answers 404 for another account's resource.
+
+Client-side guards are convenience, not security. Every one of them has a
+server-side counterpart; see `identity.md`.
+
 ## Data fetching
 
 TanStack Query, with the client created in `app/query/queryClient.ts`. Retries
-are conservative (`1` for queries, none for mutations) and deliberately not yet
-conditioned on the error shape: there is no API client layer until phase 2, and
-the retry predicate should be narrowed when there is a real error type to
-inspect.
+are conservative: `1` for queries, none for mutations. Every call goes through
+`app/api/client.ts`, so a retry predicate can now be narrowed against `ApiError`
+whenever a case appears that actually needs it.
 
 ## Tests
 

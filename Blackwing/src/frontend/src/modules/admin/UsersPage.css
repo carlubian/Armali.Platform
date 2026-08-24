@@ -1,0 +1,136 @@
+/*
+ * Account administration.
+ *
+ * The screen renders inside the shell's content area, so it owns no page
+ * chrome: the topbar already carries the eyebrow and the title. There is no
+ * prototype artboard for it (see phase 2, task 9); the composition is a plain
+ * vertical list of glass rows, one per account, on the design-language tokens.
+ */
+
+.bw-users {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: var(--content-max);
+}
+
+.bw-users__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+.bw-users__description {
+  font-family: var(--font-body);
+  font-weight: var(--weight-body);
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+
+.bw-users__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-9);
+}
+.bw-users__empty {
+  font-family: var(--font-body);
+  font-weight: var(--weight-body);
+  color: var(--text-secondary);
+  padding: var(--space-7);
+  text-align: center;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-card);
+}
+
+.bw-users__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.bw-ucard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-card);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glow-soft);
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+.bw-ucard:hover {
+  box-shadow: var(--glow-card);
+}
+/* A deactivated account stays legible: it is dimmed by a warmer, sunken
+   surface rather than by lowering the text contrast. */
+.bw-ucard--inactive {
+  background: var(--surface-sunken);
+  box-shadow: none;
+}
+
+.bw-ucard__id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.bw-ucard__id strong {
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+.bw-ucard__id em {
+  font-family: var(--font-body);
+  font-style: normal;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.bw-ucard__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+.bw-ucard__joined {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.bw-ucard__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.bw-users__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.bw-users__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bw-users__field > span {
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}

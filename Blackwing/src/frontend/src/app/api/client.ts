@@ -1,0 +1,168 @@
+import { appConfig } from '@/app/config/env'
+
+import { ApiError, classifyStatus, type ProblemDetails } from './errors'
+
+/**
+ * Dispatched on `window` when the backend rejects a request with `401` and the
+ * caller did not opt out. `SessionContext` listens for it and tears the session
+ * down once, from a single place, instead of every screen handling expiry.
+ */
+export const SESSION_EXPIRED_EVENT = 'blackwing:session-expired'
+
+let csrfToken: string | null = null
+const requestTimeoutMs = 8_000
+
+/** Absolute, same-origin URL for an API path such as `/session`. */
+function apiUrl(path: string): string {
+  return `${appConfig.apiBaseUrl}${path}`
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number = requestTimeoutMs,
+): Promise<Response> {
+  const controller = new AbortController()
+  const signal =
+    init.signal == null
+      ? controller.signal
+      : AbortSignal.any([init.signal, controller.signal])
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      fetch(input, { ...init, signal }),
+      new Promise<Response>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort()
+          reject(new DOMException('The request timed out.', 'TimeoutError'))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
+}
+
+function isMutation(method: string): boolean {
+  return !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())
+}
+
+export interface ApiRequestOptions extends RequestInit {
+  /**
+   * When true, a `401` response does not dispatch the global session-expired
+   * event. The sign-in request uses this because a `401` there means invalid
+   * credentials, not an expired session, and must surface as a form error.
+   */
+  suppressSessionExpired?: boolean
+  /**
+   * Overrides the default request timeout. Image uploads use a longer window
+   * because a multi-megabyte body can legitimately exceed the short default on
+   * a slow connection.
+   */
+  timeoutMs?: number
+}
+
+async function parseProblem(response: Response): Promise<ProblemDetails | undefined> {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('json')) return undefined
+
+  try {
+    return (await response.json()) as ProblemDetails
+  } catch {
+    return undefined
+  }
+}
+
+async function getCsrfToken(signal?: AbortSignal): Promise<string> {
+  if (csrfToken !== null) return csrfToken
+
+  let response: Response
+  try {
+    response = await fetchWithTimeout(apiUrl('/session/antiforgery'), {
+      credentials: 'same-origin',
+      signal,
+    })
+  } catch (error) {
+    throw new ApiError('unavailable', null, {
+      detail: error instanceof Error ? error.message : undefined,
+    })
+  }
+
+  if (!response.ok) {
+    throw new ApiError(
+      classifyStatus(response.status),
+      response.status,
+      await parseProblem(response),
+    )
+  }
+
+  const payload = (await response.json()) as { csrfToken: string }
+  csrfToken = payload.csrfToken
+  return csrfToken
+}
+
+/**
+ * Issues a same-origin API request and returns the decoded body.
+ *
+ * `path` is relative to the configured API base (`/session`, `/admin/users`),
+ * cookies always travel with the request, and every mutation carries the
+ * antiforgery header the backend requires.
+ */
+export async function apiRequest<T>(
+  path: string,
+  init: ApiRequestOptions = {},
+): Promise<T> {
+  const { suppressSessionExpired = false, timeoutMs, ...requestInit } = init
+  const method = requestInit.method ?? 'GET'
+  const headers = new Headers(requestInit.headers)
+
+  if (
+    requestInit.body != null &&
+    !(requestInit.body instanceof FormData) &&
+    !headers.has('Content-Type')
+  ) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  if (isMutation(method)) {
+    headers.set('X-CSRF-TOKEN', await getCsrfToken(requestInit.signal ?? undefined))
+  }
+
+  let response: Response
+  try {
+    response = await fetchWithTimeout(
+      apiUrl(path),
+      {
+        ...requestInit,
+        method,
+        headers,
+        credentials: 'same-origin',
+      },
+      timeoutMs,
+    )
+  } catch (error) {
+    throw new ApiError('unavailable', null, {
+      detail: error instanceof Error ? error.message : undefined,
+    })
+  }
+
+  if (!response.ok) {
+    const apiError = new ApiError(
+      classifyStatus(response.status),
+      response.status,
+      await parseProblem(response),
+    )
+    if (apiError.kind === 'authentication-expired' && !suppressSessionExpired) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    }
+    throw apiError
+  }
+
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+export function resetCsrfToken(): void {
+  csrfToken = null
+}
