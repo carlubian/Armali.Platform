@@ -56,9 +56,14 @@ const visibilityTone: Record<InventoryVisibility, BadgeTone> = {
   Private: 'neutral',
 }
 
-/** An active item at or below its minimum threshold needs attention. */
-function isLowStock(item: InventoryItemSummary): boolean {
-  return item.status === 'Active' && item.currentStock <= item.minimumStock
+type StockStatus = 'low' | 'minimum' | null
+
+/** Classifies active items that have reached or fallen below their stock threshold. */
+function getStockStatus(item: InventoryItemSummary): StockStatus {
+  if (item.status !== 'Active') return null
+  if (item.currentStock < item.minimumStock) return 'low'
+  if (item.currentStock === item.minimumStock) return 'minimum'
+  return null
 }
 
 interface ItemsTableProps {
@@ -130,7 +135,7 @@ export function ItemsTable({
         </thead>
         <tbody>
           {items.map((item) => {
-            const lowStock = isLowStock(item)
+            const stockStatus = getStockStatus(item)
             return (
               <tr
                 key={item.id}
@@ -160,7 +165,12 @@ export function ItemsTable({
                 <td className="seg-inv__num">
                   <span className="seg-inv__stock">
                     {formatNumber(item.currentStock, language)}
-                    {lowStock && <Badge tone="gold">{t('items.lowStock')}</Badge>}
+                    {stockStatus === 'low' && (
+                      <Badge tone="gold">{t('items.lowStock')}</Badge>
+                    )}
+                    {stockStatus === 'minimum' && (
+                      <Badge tone="azure">{t('items.minimumStock')}</Badge>
+                    )}
                   </span>
                 </td>
                 <td className="seg-inv__num">
