@@ -1,0 +1,15 @@
+# Docker Desktop on Windows cannot use the production Linux bind-mount default
+# (/data/volumes/blackwing) with the ownership expected by the non-root backend
+# (UID:GID 5526:5526). Use Docker-managed volumes for local PowerShell execution
+# instead. The base Compose file remains production-oriented and keeps its
+# explicit bind mounts.
+
+services:
+  backend:
+    volumes:
+      - images-data:/data/images
+      - dataprotection-keys-data:/data/dataprotection-keys
+
+volumes:
+  images-data:
+  dataprotection-keys-data:

@@ -1,0 +1,39 @@
+/* ============================================================
+   Project Armali — Webfonts (self-hosted)
+   Display: League Spartan SemiBold (600)
+   Body:    Nunito Medium (500) + SemiBold (600) + Bold (700, sparingly)
+   Never use weights above 600 for UI text; 700 is reserved for
+   rare numeric emphasis only.
+   ============================================================ */
+
+@font-face {
+  font-family: 'League Spartan';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../../assets/fonts/LeagueSpartan-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../../assets/fonts/Nunito-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../../assets/fonts/Nunito-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../assets/fonts/Nunito-700.woff2') format('woff2');
+}

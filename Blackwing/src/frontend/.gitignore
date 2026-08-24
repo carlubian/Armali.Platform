@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test and coverage artifacts
+coverage/
+playwright-report/
+test-results/
+.tmp/
+
+# Logs and local editor noise
+*.log

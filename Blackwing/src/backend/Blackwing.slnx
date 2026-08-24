@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="../../tests/backend/Blackwing.Api.IntegrationTests/Blackwing.Api.IntegrationTests.csproj" />
+  <Project Path="../../tests/backend/Blackwing.ArchitectureTests/Blackwing.ArchitectureTests.csproj" />
+  <Project Path="../../tests/backend/Blackwing.UnitTests/Blackwing.UnitTests.csproj" />
+  <Project Path="Blackwing.Api/Blackwing.Api.csproj" />
+  <Project Path="Blackwing.Persistence/Blackwing.Persistence.csproj" />
+  <Project Path="Blackwing.Shared/Blackwing.Shared.csproj" />
+</Solution>

@@ -1,0 +1,43 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.2" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Seq" Version="9.1.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!--
+    Transitive-only pins. No project references these packages directly; they are
+    listed so central transitive pinning can override the version some other
+    package resolves. Segaris pins SSH.NET the same way, for the same reason.
+  -->
+  <ItemGroup>
+    <!--
+      Testcontainers 4.12.0 resolves SSH.NET 2025.1.0, which carries a
+      high-severity advisory (NU1903). With NuGetAudit and TreatWarningsAsErrors
+      both active that fails the build. Blackwing never uses SSH.NET itself.
+    -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <!--
+      Npgsql.EntityFrameworkCore.PostgreSQL 10.0.2 resolves EF Core 10.0.4, while
+      Microsoft.EntityFrameworkCore.Design resolves 10.0.9. Unifying the graph
+      here keeps the Design package's assets private instead of leaking
+      design-time tooling into every referencing project, which is the only other
+      way to avoid CS1705.
+    -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+  </ItemGroup>
+</Project>

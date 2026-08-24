@@ -1,0 +1,23 @@
+/*
+ * Boot screen layout. Deliberately thin: it exists to prove the foundations
+ * render, not to prefigure the gallery.
+ */
+
+.bw-startup {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-8);
+}
+
+.bw-startup__card {
+  width: min(560px, 100%);
+}
+
+.bw-startup__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

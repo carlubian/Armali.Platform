@@ -1,0 +1,106 @@
+# Blackwing production-oriented Compose stack.
+#
+# This is the base topology used for both full local container execution and
+# Portainer production deployment. It references images by tag and never builds.
+#
+#   * Local full stack:   add docker-compose.local.yml to build the images
+#                         (see scripts/compose-up.ps1).
+#   * Production:         Portainer supplies the BLACKWING_* image tags
+#                         (immutable commit-SHA tags from the private registry)
+#                         and the required secrets as stack environment
+#                         variables.
+#
+# Secrets (database password, Seq API key) are injected as environment variables
+# and never committed. See deploy/compose/.env.example.
+
+name: blackwing
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${BLACKWING_POSTGRES_DB:-blackwing}
+      POSTGRES_USER: ${BLACKWING_POSTGRES_USER:-blackwing}
+      POSTGRES_PASSWORD: ${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BLACKWING_POSTGRES_USER:-blackwing} -d ${BLACKWING_POSTGRES_DB:-blackwing}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    image: ${BLACKWING_BACKEND_IMAGE:-blackwing-backend:local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      CONNECTIONSTRINGS__BLACKWING: "Host=postgres;Port=5432;Database=${BLACKWING_POSTGRES_DB:-blackwing};Username=${BLACKWING_POSTGRES_USER:-blackwing};Password=${BLACKWING_POSTGRES_PASSWORD:?BLACKWING_POSTGRES_PASSWORD is required}"
+      BLACKWING__STORAGE__IMAGESPATH: /data/images
+      BLACKWING__STORAGE__DATAPROTECTIONKEYSPATH: /data/dataprotection-keys
+      # Optional best-effort Seq delivery. Disabled by default.
+      BLACKWING__OBSERVABILITY__SEQ__ENABLED: ${BLACKWING_SEQ_ENABLED:-false}
+      BLACKWING__OBSERVABILITY__SEQ__SERVERURL: ${BLACKWING_SEQ_SERVERURL:-}
+      BLACKWING__OBSERVABILITY__SEQ__APIKEY: ${BLACKWING_SEQ_APIKEY:-}
+    volumes:
+      - "${BLACKWING_DATA_PATH:-/data/volumes/blackwing}/images:/data/images"
+      - "${BLACKWING_DATA_PATH:-/data/volumes/blackwing}/dataprotection-keys:/data/dataprotection-keys"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  frontend:
+    image: ${BLACKWING_FRONTEND_IMAGE:-blackwing-frontend:local}
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  caddy:
+    image: ${BLACKWING_CADDY_IMAGE:-blackwing-caddy:local}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    ports:
+      - "${BLACKWING_HTTP_PORT:-5526}:80"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
+    driver: bridge

@@ -28,7 +28,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: segaris-production-images
+    environment: blackwing-production-images
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +41,10 @@ jobs:
             repository: blackwing-frontend
             context: Blackwing/src/frontend
             dockerfile: Blackwing/src/frontend/Dockerfile
+          - name: caddy
+            repository: blackwing-caddy
+            context: Blackwing/deploy/caddy
+            dockerfile: Blackwing/deploy/caddy/Dockerfile
 
     steps:
       - name: Check out repository

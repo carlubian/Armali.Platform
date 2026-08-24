@@ -1,0 +1,121 @@
+/* ============================================================
+   Project Armali — Base element styles & utility primitives.
+   Applies the warm coastal foundation to bare HTML so screens
+   and components inherit the look for free.
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: var(--weight-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background-color: var(--surface-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-title);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--aqua-100);
+  color: var(--ink-900);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-xs);
+}
+
+/* ---- Eyebrow / overline label --------------------------------- */
+.armali-eyebrow {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ---- Aurora background ----------------------------------------
+   Drop .armali-aurora on a positioned container; coloured blobs
+   drift slowly behind a frosted veil. Pure decoration.            */
+.armali-aurora {
+  position: relative;
+  isolation: isolate;
+  background: var(--surface-app);
+  overflow: hidden;
+}
+.armali-aurora::before,
+.armali-aurora::after {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  z-index: -2;
+  background:
+    radial-gradient(40% 46% at 28% 30%, var(--aurora-aqua) 0%, transparent 62%),
+    radial-gradient(36% 42% at 73% 26%, var(--aurora-gold) 0%, transparent 62%),
+    radial-gradient(44% 50% at 67% 72%, var(--aurora-azure) 0%, transparent 60%),
+    radial-gradient(38% 44% at 30% 70%, var(--aurora-rose) 0%, transparent 62%);
+  opacity: 0.4;
+  filter: blur(6px);
+  animation: armali-aurora-drift var(--dur-breathe) var(--ease-soft) infinite alternate;
+}
+.armali-aurora::after {
+  animation-delay: -2100ms;
+  animation-duration: calc(var(--dur-breathe) * 1.4);
+  opacity: 0.22;
+  transform: scaleX(-1);
+}
+/* Frost veil so foreground text stays readable over the aurora */
+.armali-aurora > * {
+  position: relative;
+  z-index: 0;
+}
+
+/* ---- Glass surface helper ------------------------------------- */
+.armali-glass {
+  background: var(--surface-card);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glow-card);
+}

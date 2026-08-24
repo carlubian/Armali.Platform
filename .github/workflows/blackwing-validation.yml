@@ -17,6 +17,10 @@ concurrency:
   group: blackwing-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -37,6 +41,7 @@ jobs:
     needs: changes
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with: { persist-credentials: false }
@@ -44,15 +49,59 @@ jobs:
         with: { global-json-file: Blackwing/global.json }
       - run: ./Blackwing/scripts/backend-restore.ps1
         shell: pwsh
+      - name: Verify formatting
+        run: ./Blackwing/scripts/backend-format.ps1 -Verify
+        shell: pwsh
       - run: ./Blackwing/scripts/backend-build.ps1
         shell: pwsh
-      - run: ./Blackwing/scripts/backend-test.ps1
+      - name: Run unit tests
+        run: dotnet test Blackwing/tests/backend/Blackwing.UnitTests/Blackwing.UnitTests.csproj --no-restore --no-build
+      - name: Run architecture tests
+        run: dotnet test Blackwing/tests/backend/Blackwing.ArchitectureTests/Blackwing.ArchitectureTests.csproj --no-restore --no-build
+
+  backend-integration:
+    name: Blackwing Backend Integration (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      # Sharding scaffolding. The suite currently holds a single health-check
+      # test, so the second shard legitimately runs nothing; the split is in
+      # place so that new integration classes are distributed automatically as
+      # they appear (see scripts/backend-test-shard.ps1). Phase 8 tunes the
+      # shard count against the real suite size.
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v6
+        with: { persist-credentials: false }
+      - uses: actions/setup-dotnet@v5
+        with: { global-json-file: Blackwing/global.json }
+      # Testcontainers needs a working Docker daemon. The ubuntu-latest runner
+      # image ships one and starts it by default, so nothing has to be installed
+      # here; this step only makes the dependency explicit and fails loudly if
+      # that ever stops being true.
+      - name: Verify Docker is available for Testcontainers
+        run: docker info
+      - run: ./Blackwing/scripts/backend-restore.ps1
         shell: pwsh
+      - run: ./Blackwing/scripts/backend-build.ps1
+        shell: pwsh
+      - name: Run API integration tests (shard ${{ matrix.shard }})
+        shell: pwsh
+        run: >-
+          ./Blackwing/scripts/backend-test-shard.ps1
+          -Project tests/backend/Blackwing.Api.IntegrationTests/Blackwing.Api.IntegrationTests.csproj
+          -ShardIndex ${{ matrix.shard }}
+          -ShardCount ${{ strategy.job-total }}
 
   frontend:
     needs: changes
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.blackwing == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with: { persist-credentials: false }
@@ -62,6 +111,9 @@ jobs:
       - run: ./Blackwing/scripts/frontend-restore.ps1
         shell: pwsh
       - run: ./Blackwing/scripts/frontend-lint.ps1
+        shell: pwsh
+      - name: Verify formatting
+        run: ./Blackwing/scripts/frontend-format.ps1 -Verify
         shell: pwsh
       - run: ./Blackwing/scripts/frontend-build.ps1
         shell: pwsh

@@ -1,0 +1,41 @@
+# Blackwing ingress routing.
+#
+# Caddy is the only household-facing service. It listens on port 80 inside its
+# container; the published host port is controlled by the Compose port mapping
+# (BLACKWING_HTTP_PORT, default 5526). Blackwing is served over plain HTTP on a
+# trusted local network; TLS is intentionally out of scope.
+{
+	# No public domains or certificates are managed here.
+	auto_https off
+	# The admin API is not needed and is disabled to reduce surface area.
+	admin off
+}
+
+:80 {
+	# Health endpoints. The backend serves them at /health/*, outside the /api
+	# surface, so the prefix is stripped here. They are exposed through the
+	# ingress on purpose: the stack must be verifiable from the published port
+	# without shelling into a container.
+	handle /api/health/* {
+		uri strip_prefix /api
+		reverse_proxy backend:8080
+	}
+
+	# Backend REST API. Everything else under /api/ is proxied to the backend
+	# untouched, because the backend maps its own routes under /api.
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Everything else is the frontend single-page application.
+	handle {
+		reverse_proxy frontend:80
+	}
+
+	encode gzip
+
+	log {
+		output stdout
+		format console
+	}
+}

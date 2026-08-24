@@ -1,0 +1,29 @@
+# Local build override for the full container stack.
+#
+# Layer this on top of docker-compose.yml to build the Blackwing images locally
+# instead of pulling them from a registry:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+#
+# (scripts/compose-up.ps1 wraps this.) Production never uses this file; Portainer
+# pulls immutable image tags instead.
+
+services:
+  backend:
+    build:
+      # The backend image builds from the Blackwing root (see the Dockerfile).
+      context: ../..
+      dockerfile: src/backend/Blackwing.Api/Dockerfile
+    image: ${BLACKWING_BACKEND_IMAGE:-blackwing-backend:local}
+
+  frontend:
+    build:
+      context: ../../src/frontend
+      args:
+        VITE_APP_VERSION: ${BLACKWING_FRONTEND_VERSION:-local}
+    image: ${BLACKWING_FRONTEND_IMAGE:-blackwing-frontend:local}
+
+  caddy:
+    build:
+      context: ../caddy
+    image: ${BLACKWING_CADDY_IMAGE:-blackwing-caddy:local}

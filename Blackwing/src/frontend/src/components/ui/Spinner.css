@@ -1,0 +1,28 @@
+.arm-spinner {
+  display: inline-block;
+  width: var(--_s, 28px);
+  height: var(--_s, 28px);
+}
+.arm-spinner svg {
+  width: 100%;
+  height: 100%;
+  animation: arm-spin 900ms linear infinite;
+}
+.arm-spinner circle {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.arm-spinner__track {
+  stroke: var(--border-default);
+}
+.arm-spinner__head {
+  stroke: var(--accent);
+  stroke-dasharray: 64;
+  stroke-dashoffset: 44;
+}
+@keyframes arm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

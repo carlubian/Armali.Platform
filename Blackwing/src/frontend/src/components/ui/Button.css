@@ -1,0 +1,105 @@
+.arm-btn {
+  --_bg: var(--accent);
+  --_fg: var(--text-on-accent);
+  --_glow: var(--glow-aqua);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0.72em 1.25em;
+  font-size: var(--text-base);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  background: var(--_bg);
+  color: var(--_fg);
+  box-shadow: var(--glow-soft);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-soft),
+    filter var(--dur-base) var(--ease-soft);
+}
+.arm-btn:hover {
+  box-shadow: var(--_glow);
+  filter: brightness(1.04);
+}
+.arm-btn:active {
+  transform: translateY(1px) scale(0.985);
+  filter: brightness(0.97);
+}
+.arm-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring), var(--_glow);
+}
+.arm-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+
+.arm-btn--sm {
+  font-size: var(--text-sm);
+  padding: 0.55em 1em;
+  border-radius: var(--radius-sm);
+}
+.arm-btn--lg {
+  font-size: var(--text-lg);
+  padding: 0.85em 1.6em;
+}
+.arm-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+/* primary (aqua) is default */
+.arm-btn--secondary {
+  --_bg: var(--accent-secondary);
+  --_fg: #3a2c08;
+  --_glow: var(--glow-gold);
+}
+.arm-btn--action {
+  --_bg: var(--action);
+  --_fg: var(--text-on-accent);
+  --_glow: var(--glow-azure);
+}
+.arm-btn--danger {
+  --_bg: var(--danger);
+  --_fg: var(--text-on-accent);
+  --_glow: var(--glow-danger);
+}
+
+.arm-btn--outline {
+  background: var(--surface-frost);
+  color: var(--accent-press);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  -webkit-backdrop-filter: var(--blur-chip);
+  backdrop-filter: var(--blur-chip);
+  box-shadow: none;
+}
+.arm-btn--outline:hover {
+  background: var(--accent-soft);
+  box-shadow: var(--glow-aqua);
+  filter: none;
+}
+
+.arm-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+.arm-btn--ghost:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-900);
+  box-shadow: none;
+  filter: none;
+}

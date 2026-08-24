@@ -1,0 +1,140 @@
+/*
+ * Application shell.
+ *
+ * Geometry comes straight from the M1 prototype: a 264px persistent sidebar on
+ * bone-50 with a hairline divider, a 64px acrylic topbar, and a content area
+ * that carries the drifting aurora. Blackwing targets large desktop screens;
+ * there is deliberately no mobile breakpoint.
+ */
+
+.bw-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--surface-app);
+}
+
+.bw-sidebar {
+  width: var(--sidebar-w);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-4);
+  background: var(--bone-50);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.bw-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+}
+.bw-brand__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: linear-gradient(140deg, var(--aqua-400), var(--azure-500));
+  color: var(--text-on-accent);
+  box-shadow: var(--glow-aqua);
+}
+.bw-brand__name {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-title);
+  color: var(--text-primary);
+}
+
+.bw-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.bw-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-family: var(--font-body);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-md);
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-soft),
+    color var(--dur-base) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.bw-nav__item:hover:not([disabled]) {
+  background: var(--surface-card-solid);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.bw-nav__item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.bw-nav__item.active {
+  background: var(--surface-card-solid);
+  color: var(--aqua-700);
+  box-shadow: var(--glow-soft);
+}
+.bw-nav__item--pending {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+}
+.bw-nav__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.bw-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bw-topbar {
+  height: var(--topbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: 0 var(--space-7);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+}
+.bw-topbar__eyebrow {
+  font-size: 10px;
+}
+.bw-topbar__title {
+  font-size: var(--text-xl);
+}
+
+.bw-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  /* `.armali-aurora` already clips; repeated here so the intent is local. */
+  overflow: hidden;
+}
+.bw-body__scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-7);
+}

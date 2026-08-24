@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blackwing.Shared\Blackwing.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Design-time tooling for `dotnet ef`. Migrations live in this project from phase 3 onwards.
+      Its assets stay private, as in Segaris; the EF Core version skew it would otherwise
+      introduce is resolved by the central pin in Directory.Packages.props.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+</Project>
