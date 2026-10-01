@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MetadataExtractor" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <!--
@@ -29,6 +30,15 @@
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Seq" />
+    <!--
+      Image processing. SkiaSharp (MIT) decodes, rotates, resizes and encodes WebP;
+      MetadataExtractor (Apache 2.0) reads EXIF. The NoDependencies native assets keep the runtime
+      image free of libfontconfig, which Blackwing never needs because it never draws text. Both
+      libraries stay confined to this project: an architecture test fails if Blackwing.Shared or
+      Blackwing.Persistence ever reference them.
+    -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
   </ItemGroup>
 
   <ItemGroup>

@@ -67,6 +67,137 @@ public sealed class OptionsValidationTests
     }
 
     [Fact]
+    public void Image_validator_accepts_the_defaults()
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions());
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(1024L * 1024 - 1)]
+    [InlineData(1024L * 1024 * 1024 + 1)]
+    [InlineData(-1L)]
+    public void Image_validator_rejects_a_maximum_file_size_outside_1_mb_and_1_gb(long bytes)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { MaximumFileSizeBytes = bytes });
+
+        Assert.True(result.Failed);
+        Assert.Contains("MaximumFileSizeBytes", result.FailureMessage!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1024L * 1024)]
+    [InlineData(1024L * 1024 * 1024)]
+    public void Image_validator_accepts_the_edges_of_the_maximum_file_size_range(long bytes)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { MaximumFileSizeBytes = bytes });
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(15)]
+    [InlineData(8193)]
+    public void Image_validator_rejects_a_thumbnail_edge_outside_16_and_8192_pixels(int edge)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { ThumbnailLongestEdge = edge });
+
+        Assert.True(result.Failed);
+        Assert.Contains("ThumbnailLongestEdge", result.FailureMessage!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(15)]
+    [InlineData(8193)]
+    public void Image_validator_rejects_a_preview_edge_outside_16_and_8192_pixels(int edge)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { PreviewLongestEdge = edge });
+
+        Assert.True(result.Failed);
+        Assert.Contains("PreviewLongestEdge", result.FailureMessage!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(400, 400)]
+    [InlineData(800, 400)]
+    public void Image_validator_requires_the_preview_to_be_strictly_larger_than_the_thumbnail(
+        int thumbnail,
+        int preview)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(
+            name: null,
+            new ImageOptions { ThumbnailLongestEdge = thumbnail, PreviewLongestEdge = preview });
+
+        Assert.True(result.Failed);
+    }
+
+    [Fact]
+    public void Image_validator_accepts_a_preview_one_pixel_larger_than_the_thumbnail()
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(
+            name: null,
+            new ImageOptions { ThumbnailLongestEdge = 400, PreviewLongestEdge = 401 });
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public void Image_validator_rejects_a_thumbnail_quality_outside_1_and_100(int quality)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { ThumbnailQuality = quality });
+
+        Assert.True(result.Failed);
+        Assert.Contains("ThumbnailQuality", result.FailureMessage!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public void Image_validator_rejects_a_preview_quality_outside_1_and_100(int quality)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(name: null, new ImageOptions { PreviewQuality = quality });
+
+        Assert.True(result.Failed);
+        Assert.Contains("PreviewQuality", result.FailureMessage!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(100)]
+    public void Image_validator_accepts_the_edges_of_the_quality_range(int quality)
+    {
+        var validator = new ImageOptionsValidator();
+
+        var result = validator.Validate(
+            name: null,
+            new ImageOptions { ThumbnailQuality = quality, PreviewQuality = quality });
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
     public void Observability_validator_rejects_an_unknown_minimum_level()
     {
         var validator = new ObservabilityOptionsValidator();

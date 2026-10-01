@@ -1,6 +1,4 @@
-using System.Reflection;
 using Blackwing.Persistence;
-using Blackwing.Shared.Identity;
 using Blackwing.Shared.Ownership;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -14,12 +12,8 @@ namespace Blackwing.ArchitectureTests;
 /// </summary>
 public sealed class OwnershipTests
 {
-    /// <summary>
-    /// The production model, built once. No database is touched: building a model requires a
-    /// provider but never a connection. The identity module is loaded through the very seam the
-    /// real host uses, so the model under test includes the module's tables.
-    /// </summary>
-    private static readonly Lazy<IModel> Model = new(BuildModel, isThreadSafe: true);
+    /// <summary>The production model. See <see cref="ProductionModel"/>.</summary>
+    private static readonly Lazy<IModel> Model = new(() => ProductionModel.Value, isThreadSafe: true);
 
     [Fact]
     public void Every_owned_entity_type_in_the_model_has_a_query_filter()
@@ -45,7 +39,7 @@ public sealed class OwnershipTests
             .ToHashSet();
 
         var declared = new[] { PersistenceAssembly.Assembly, typeof(Program).Assembly }
-            .SelectMany(GetLoadableTypes)
+            .SelectMany(ProductionModel.GetLoadableTypes)
             .Where(type => type is { IsClass: true, IsAbstract: false })
             .Where(typeof(IOwnedByUser).IsAssignableFrom)
             .ToArray();
@@ -75,7 +69,7 @@ public sealed class OwnershipTests
             .ToArray();
 
         // Also proves the module seam was exercised: without the identity contributor the model
-        // would hold nothing but the ownership canary and this test would pass vacuously.
+        // would hold nothing but the content entities and this test would pass vacuously.
         Assert.Contains("identity_users", tables);
         Assert.Contains("identity_roles", tables);
         Assert.Empty(filtered);
@@ -104,45 +98,4 @@ public sealed class OwnershipTests
             .Where(entityType => typeof(IOwnedByUser).IsAssignableFrom(entityType.ClrType))
             .ToArray();
 
-    private static IModel BuildModel()
-    {
-        var options = new DbContextOptionsBuilder<BlackwingDbContext>()
-            .UseNpgsql("Host=localhost;Database=blackwing;Username=blackwing;Password=blackwing")
-            .Options;
-
-        using var context = new BlackwingDbContext(options, DiscoverContributors(), new NoCurrentUser());
-        return context.Model;
-    }
-
-    /// <summary>
-    /// Discovers the model contributors the API registers, so the test never has to name them. A
-    /// module that starts contributing tables is covered from the moment it exists.
-    /// </summary>
-    private static IEnumerable<IBlackwingModelContributor> DiscoverContributors() =>
-        GetLoadableTypes(typeof(Program).Assembly)
-            .Where(type => type is { IsClass: true, IsAbstract: false })
-            .Where(typeof(IBlackwingModelContributor).IsAssignableFrom)
-            .Select(type => (IBlackwingModelContributor)Activator.CreateInstance(type)!)
-            .ToArray();
-
-    private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
-    {
-        try
-        {
-            return assembly.GetTypes();
-        }
-        catch (ReflectionTypeLoadException exception)
-        {
-            return exception.Types.OfType<Type>();
-        }
-    }
-
-    private sealed class NoCurrentUser : ICurrentUser
-    {
-        public bool IsAuthenticated => false;
-
-        public UserId? UserId => null;
-
-        public bool IsInRole(PlatformRole role) => false;
-    }
 }

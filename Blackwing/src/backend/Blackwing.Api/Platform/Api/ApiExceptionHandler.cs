@@ -22,6 +22,13 @@ internal sealed class ApiExceptionHandler(
         var problem = exception switch
         {
             ApiProblemException apiProblem => CreateProblem(apiProblem),
+            // Kestrel enforces the request body limit while the body is being read, and reports a
+            // body over the limit as a BadHttpRequestException carrying 413.
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } => new ProblemDetails
+            {
+                Status = StatusCodes.Status413PayloadTooLarge,
+                Title = "The request is too large.",
+            },
             BadHttpRequestException => new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,

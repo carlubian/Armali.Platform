@@ -2,8 +2,9 @@ using Blackwing.Api.Configuration;
 using Blackwing.Api.Modules.Identity;
 using Blackwing.Api.Modules.Identity.Seeding;
 using Blackwing.Api.Platform.Api;
+using Blackwing.Api.Platform.Images;
+using Blackwing.Api.Platform.Images.Endpoints;
 using Blackwing.Api.Platform.Observability;
-using Blackwing.Api.Platform.Ownership;
 using Blackwing.Api.Platform.Persistence;
 using Blackwing.Api.Platform.Storage;
 using Blackwing.Persistence;
@@ -16,6 +17,7 @@ builder.Services.AddBlackwingConfiguration(builder.Configuration);
 builder.AddBlackwingLogging();
 builder.Services.AddBlackwingApiConventions();
 builder.Services.AddBlackwingStorage();
+builder.Services.AddBlackwingImages();
 builder.Services.AddBlackwingPersistence(provider =>
     provider.GetRequiredService<IConfiguration>()
         .GetConnectionString(DatabaseOptions.ConnectionStringName) ?? string.Empty);
@@ -71,7 +73,7 @@ app.MapHealthChecks("/health/ready", new()
 });
 
 app.MapBlackwingIdentityEndpoints();
-app.MapOwnershipProbeEndpoints();
+app.MapImageEndpoints();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {

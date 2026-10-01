@@ -33,6 +33,16 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
 
         services
+            .AddOptions<ImageOptions>()
+            .Bind(configuration.GetSection(ImageOptions.SectionName), binder =>
+            {
+                binder.ErrorOnUnknownConfiguration = true;
+            })
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<ImageOptions>, ImageOptionsValidator>();
+
+        services
             .AddOptions<ObservabilityOptions>()
             .Bind(configuration.GetSection(ObservabilityOptions.SectionName), binder =>
             {

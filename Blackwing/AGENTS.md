@@ -77,6 +77,10 @@ a temporary shortcut.
   itself.** It is the single call that steps outside the privacy perimeter, so
   every use carries a comment explaining why that particular query is safe. A use
   without one is a defect, not a style preference.
+- **No endpoint serves files from the image volume as static files.** Every access
+  goes through `IImageBlobStore`, after the row has been found for the current
+  account, so ownership is verified before a single byte is opened. Image files
+  are also never held whole in memory: they are streamed and bounded.
 - Keep changes scoped to the requested behavior and preserve unrelated work in a
   dirty worktree.
 - Add or update tests in proportion to the behavioral risk.

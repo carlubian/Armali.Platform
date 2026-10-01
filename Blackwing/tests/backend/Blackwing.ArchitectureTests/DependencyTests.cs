@@ -22,6 +22,42 @@ public sealed class DependencyTests
         Assert.DoesNotContain(PersistenceAssemblyName, references);
     }
 
+    /// <summary>
+    /// Image handling lives in the API layer and nowhere else. If the imaging libraries leaked
+    /// into the contracts or the persistence layer, swapping one of them would stop being a change
+    /// confined to <c>SkiaImageProcessor</c> and <c>ImageMetadataReader</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("Blackwing.Shared")]
+    [InlineData("Blackwing.Persistence")]
+    public void Imaging_libraries_are_confined_to_the_api_layer(string assemblyName)
+    {
+        var assembly = assemblyName == "Blackwing.Shared"
+            ? SharedAssembly.Assembly
+            : PersistenceAssembly.Assembly;
+
+        var leaked = GetReferencedAssemblyNames(assembly)
+            .Where(name => name is not null
+                && (name.StartsWith("SkiaSharp", StringComparison.Ordinal)
+                    || name.StartsWith("MetadataExtractor", StringComparison.Ordinal)))
+            .ToArray();
+
+        Assert.Empty(leaked);
+    }
+
+    /// <summary>
+    /// Guards the rule above against passing vacuously: if the libraries were ever renamed, the
+    /// prefixes it looks for would match nothing and it would silently stop protecting anything.
+    /// </summary>
+    [Fact]
+    public void The_api_does_reference_both_imaging_libraries()
+    {
+        var references = GetReferencedAssemblyNames(typeof(Program).Assembly);
+
+        Assert.Contains("SkiaSharp", references);
+        Assert.Contains("MetadataExtractor", references);
+    }
+
     [Fact]
     public void Persistence_does_not_reference_the_api()
     {

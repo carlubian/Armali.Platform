@@ -84,6 +84,8 @@ public. Never put a secret there.
 ## Documentation
 
 - `docs/architecture/backend.md`
+- `docs/architecture/identity.md`
+- `docs/architecture/images.md`
 - `docs/architecture/frontend.md`
 - `docs/architecture/design-system.md`
 - `docs/architecture/deployment.md`

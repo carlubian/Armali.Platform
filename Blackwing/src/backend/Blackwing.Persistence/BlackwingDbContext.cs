@@ -1,5 +1,6 @@
 using System.Reflection;
-using Blackwing.Persistence.Ownership;
+using Blackwing.Persistence.Content;
+using Blackwing.Persistence.Uploads;
 using Blackwing.Shared.Identity;
 using Blackwing.Shared.Ownership;
 using Microsoft.EntityFrameworkCore;
@@ -27,8 +28,13 @@ public sealed class BlackwingDbContext(
             BindingFlags.Instance | BindingFlags.NonPublic)
         ?? throw new InvalidOperationException("The ownership filter helper could not be located.");
 
-    /// <summary>Ownership perimeter canary. See <see cref="OwnedProbe"/>.</summary>
-    public DbSet<OwnedProbe> OwnershipProbes => Set<OwnedProbe>();
+    public DbSet<Image> Images => Set<Image>();
+
+    public DbSet<Tag> Tags => Set<Tag>();
+
+    public DbSet<ImageTag> ImageTags => Set<ImageTag>();
+
+    public DbSet<UploadJob> UploadJobs => Set<UploadJob>();
 
     /// <summary>
     /// The account every owned query is narrowed to. Zero is never a valid identifier
@@ -41,11 +47,12 @@ public sealed class BlackwingDbContext(
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
-        // 1. Model contributors. This project maps nothing of its own beyond the ownership
-        // canary; each module maps its own entities from its own folder. That is what keeps
-        // Blackwing.Persistence free of any dependency on ASP.NET Core Identity, and what makes
-        // swapping the local identity module for an Armali SSO a change confined to one module.
-        modelBuilder.ApplyConfiguration(new OwnedProbeConfiguration());
+        // 1. Model. The content entities of this project are mapped by the configurations that
+        // live next to them; each module maps its own entities from its own folder through a
+        // contributor. That is what keeps Blackwing.Persistence free of any dependency on
+        // ASP.NET Core Identity, and what makes swapping the local identity module for an
+        // Armali SSO a change confined to one module.
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(BlackwingDbContext).Assembly);
 
         foreach (var contributor in modelContributors)
         {

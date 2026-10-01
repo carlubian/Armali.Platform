@@ -84,32 +84,40 @@ an explicit `IgnoreQueryFilters` at the call site, which is visible in review.
 justification in the code itself.
 
 `Blackwing.ArchitectureTests/OwnershipTests.cs` fails if an `IOwnedByUser` entity
-reaches the model without a query filter.
+reaches the model without a query filter, and `ContentOwnershipTests.cs` names
+`Image`, `Tag`, `ImageTag` and `UploadJob` so that none of them can quietly fall
+outside it: the generic rule proves the mechanism, the nominal one proves the four
+entities that matter are inside it.
 
-### The ownership canary
+### How the perimeter is demonstrated
 
-`OwnedProbe` (table `ownership_probes`) and its endpoints under
-`/api/platform/ownership` exist so the perimeter can be demonstrated end to end
-with two real accounts *before* `Image` and `Tag` exist. It is production code
-with its own migration and tests, not a test fixture — the same precedent as the
-platform probes in Segaris.
+Phase 2 proved it over a purpose-built probe resource, because no content entity
+existed yet. Phase 3 retired that probe: now that `Image` exists, the isolation
+tests (`Blackwing.Api.IntegrationTests/Images/ImageIsolationTests.cs`) run against
+the thing the perimeter is actually there to protect. The generic architecture
+test stayed, so the *mechanism* is still covered independently of any entity.
 
-Its contract carries the argument: the create endpoint **does not accept an
-owner**, so impersonation cannot even be expressed, and reading another account's
-probe answers **404, never 403** — a 403 would confirm that the identifier
-exists, which is itself a leak.
+What the tests assert, from outside the process and with the exact identifier of a
+real image:
 
-**Phase 3 decides** whether this resource is retired when `Image` arrives, or
-kept permanently. The case for keeping it is that an isolation test which depends
-on no product entity stays green, and stays meaningful, however much the model
-changes.
+- Another account gets **404, never 403**, on the metadata and on all three file
+  variants. A 403 would confirm that the identifier exists, which is itself a
+  leak.
+- An `Admin` gets the same 404.
+- Another account cannot delete the image, and the owner keeps it together with
+  its files.
+- An anonymous caller gets 401 everywhere.
+
+The contract carries part of the argument too: the upload endpoint **does not
+accept an owner**, so impersonation cannot even be expressed, and a form field
+that tries is simply ignored.
 
 ### Administrators are not exempt
 
 `Admin` grants exactly five endpoints, all under `/api/admin/users`: list, create,
 reset password, activate, deactivate. That is the entire administrative surface.
 An administrator has **no route at all** to another account's content, and an
-integration test asserts it against the canary.
+integration test asserts it against `Image`.
 
 If a review ever turns up an admin endpoint returning images, tags, or any
 `IOwnedByUser` entity, it is wrong by definition — not a design trade-off.
@@ -134,6 +142,19 @@ pages, and a redirect to HTML is useless to the client.
 `SecurityStampValidatorOptions.ValidationInterval` is `TimeSpan.Zero`. That is
 what makes deactivating an account or resetting its password cut its live
 sessions on the very next request, instead of up to thirty minutes later.
+
+The price is that every successful validation also asks the cookie handler to
+**re-issue the session cookie**, and re-issuing has a side effect that cannot be
+switched off: the response gets `Set-Cookie`, `Cache-Control: no-store, no-cache`,
+`Pragma: no-cache` and an expiry in 1970, overwriting whatever the endpoint set.
+For ordinary API calls that is harmless. For image serving it would defeat the
+whole `private, immutable` policy: a gallery would re-download every thumbnail on
+every visit. The image-serving routes therefore carry `SkipSessionRenewalMetadata`,
+and the cookie's `OnValidatePrincipal` event sets `ShouldRenew = false` for them
+after Identity's validator has run. **The session is still validated on every one
+of those requests**; only the re-issue is skipped. A test covers both halves: the
+cache headers survive, and a deactivated account is cut off on the next image
+request.
 
 Login refuses an unknown user, a wrong password and a deactivated account with
 **the same status and the same body**. The shape of the failure can never be used

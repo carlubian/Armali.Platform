@@ -15,7 +15,7 @@ public sealed class AuthorizationTests(PostgresFixture postgres)
     [Theory]
     [InlineData("/api/session")]
     [InlineData("/api/admin/users")]
-    [InlineData("/api/platform/ownership")]
+    [InlineData("/api/images/1")]
     public async Task An_anonymous_caller_gets_401_and_never_a_redirect(string url)
     {
         using var server = await IdentityTestServer.StartAsync(RequirePostgres());

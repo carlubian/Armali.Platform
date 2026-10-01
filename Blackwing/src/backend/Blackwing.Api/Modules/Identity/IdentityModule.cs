@@ -1,6 +1,7 @@
 using Blackwing.Api.Modules.Identity.Configuration;
 using Blackwing.Api.Modules.Identity.Endpoints;
 using Blackwing.Api.Modules.Identity.Persistence;
+using Blackwing.Api.Modules.Identity.Security;
 using Blackwing.Api.Modules.Identity.Seeding;
 using Blackwing.Persistence;
 using Blackwing.Shared.Identity;
@@ -86,6 +87,21 @@ internal static class IdentityModule
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return Task.CompletedTask;
+            };
+
+            // Identity installs the security stamp validator here. It still runs, on every
+            // request; what an endpoint marked with SkipSessionRenewalMetadata opts out of is the
+            // renewed cookie that follows it, because renewing overwrites the response's cache
+            // headers. See the metadata type for why that matters for images.
+            var validatePrincipal = options.Events.OnValidatePrincipal;
+            options.Events.OnValidatePrincipal = async context =>
+            {
+                await validatePrincipal(context);
+
+                if (context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<SkipSessionRenewalMetadata>() is not null)
+                {
+                    context.ShouldRenew = false;
+                }
             };
         });
 

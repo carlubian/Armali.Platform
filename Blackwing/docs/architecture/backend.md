@@ -8,8 +8,8 @@ not `.sln`).
 
 | Project | Responsibility |
 | --- | --- |
-| `Blackwing.Api` | HTTP surface, composition root, configuration, observability, health |
-| `Blackwing.Persistence` | `BlackwingDbContext`, its DI registration, and later the entities and migrations |
+| `Blackwing.Api` | HTTP surface, composition root, configuration, observability, health, image processing |
+| `Blackwing.Persistence` | `BlackwingDbContext`, its DI registration, the content entities (`Image`, `Tag`, `ImageTag`, `UploadJob`) and the migrations |
 | `Blackwing.Shared` | Types and contracts shared by the other two |
 
 The dependency direction is fixed:
@@ -55,6 +55,24 @@ everything else the backend does:
 Adding a content entity without `IOwnedByUser` is a security defect, not a style
 slip, and `Blackwing.ArchitectureTests` fails on it.
 
+## Content model
+
+Four entities, all `IOwnedByUser`, mapped by `IEntityTypeConfiguration`s that sit
+next to them and are picked up by `ApplyConfigurationsFromAssembly`:
+
+| Entity | Table | Notes |
+| --- | --- | --- |
+| `Image` | `images` | Hash and metadata, never a path. `SortedAt` is a PostgreSQL stored generated column, `COALESCE("CapturedAt", "UploadedAt")`, so it cannot drift. Unique `(OwnerUserId, ContentHash)` rejects an exact duplicate per account. |
+| `Tag` | `tags` | Kind (`Person`, `Place`, `Topic`), the value as typed, and a `NormalizedValue` (see `TagNormalizer`). Unique `(OwnerUserId, Kind, NormalizedValue)`. |
+| `ImageTag` | `image_tags` | Explicit many-to-many, **also owned**: a link table outside the perimeter would let a query that starts from it step out of it. Both foreign keys cascade. |
+| `UploadJob` | `upload_jobs` | Defined and migrated here; phase 4 puts it to work. Its foreign key to `Image` is `SET NULL`, so deleting an image keeps the history of its upload. |
+
+Enums are stored as `int` and their numeric values are part of the contract: they
+must never be renumbered.
+
+The file side of images, the content-addressed layout and the processing pipeline
+are in [`images.md`](images.md).
+
 ## Migrations
 
 Migrations live in `Blackwing.Persistence/Migrations` — the `DbContext`
@@ -78,6 +96,18 @@ There is **no `IDesignTimeDbContextFactory`** on purpose. One would force
 very isolation described above. The cost is remembering the startup project,
 which the script removes.
 
+Two migrations exist so far, and **the historical ones are never edited**:
+
+| Migration | What it does |
+| --- | --- |
+| `IdentityFoundation` | The ASP.NET Identity tables and the phase 2 ownership probe table |
+| `ImageStorageModel` | Creates `images`, `tags`, `image_tags` and `upload_jobs`, and drops `ownership_probes` |
+
+Read a generated migration before accepting it. `ImageStorageModel` is the one to
+look at for the generated column: PostgreSQL needs the expression to quote the
+column names (`COALESCE("CapturedAt", "UploadedAt")`) because the solution does
+not force `snake_case`, and the real names only show up in the migration.
+
 Migrations are applied **automatically at startup**
 (`MigrateBlackwingDatabaseAsync`, right after `app.Build()` and before the
 pipeline), followed by the idempotent identity seed. A fresh deployment against
@@ -94,6 +124,9 @@ per area, under `Blackwing.Api/Configuration`:
   to PostgreSQL.
 - `StorageOptions` — `ImagesPath` (the root of the image volume) and
   `DataProtectionKeysPath`.
+- `ImageOptions` — the maximum upload size (100 MB, allowed range 1 MB to 1 GB),
+  the longest edge and the WebP quality of each derivative. Every value has a
+  default, so the whole `Blackwing:Images` section is optional.
 - `ObservabilityOptions` — the `Seq` subsection: `Enabled`, `ServerUrl`,
   `ApiKey`, `MinimumLevel`.
 
@@ -149,12 +182,45 @@ prefix, and the ingress strips `/api` for them specifically (see
 OpenAPI is served in Development and Testing; the Scalar reference UI only in
 Development.
 
+Every group is opened through `MapBlackwingApiGroup`, which also fixes the URL
+shape. Groups so far:
+
+| Group | Routes |
+| --- | --- |
+| `session` | login, logout, current session, antiforgery token |
+| `admin/users` | the five account-management endpoints |
+| `images` | `POST /api/images`, `GET /api/images/{id}`, `GET .../{id}/thumb`, `.../preview`, `.../original`, `DELETE /api/images/{id}` |
+
+**404, never 403, for someone else's resource.** The global ownership filter
+removes another account's rows from every query, so the endpoint answers exactly
+as it would for an identifier that does not exist. A 403 would confirm that the
+identifier exists.
+
+**A row whose file is missing answers 503, not 404.** The identifier is valid and
+belongs to the caller, so the volume and the database disagree, which is the
+server's problem and gets logged as an error.
+
+Failures are `application/problem+json` with a stable `code`. The image module's
+own codes are `image.format_unsupported`, `image.content_mismatch`,
+`image.too_large`, `image.duplicate`, `image.undecodable` and
+`image.storage_unavailable`.
+
+`POST /api/images` is `multipart/form-data` with one file part, validated by the
+same antiforgery filter as every other mutation. The body is read part by part
+instead of being bound to an `IFormFile`, which would copy the whole upload to a
+temporary file before the endpoint ever saw it. The request-size limit is raised
+for this endpoint to the maximum file size plus a megabyte of multipart framing,
+and a body over the limit becomes a 413 whichever layer notices first.
+
 ## Tests
 
 Three projects under `tests/backend`:
 
-- `Blackwing.UnitTests` — fast, in-process. Currently covers the options
-  validators.
+- `Blackwing.UnitTests` — fast, in-process. Covers the options validators, the
+  tag normalizer, the upload policy, the blob store against a temporary
+  directory, and the imaging code (SkiaSharp, EXIF) against real encoded pictures.
+  Test images are built in memory by `TestImages`, which lives in the integration
+  project and is linked into this one; no binary is committed.
 - `Blackwing.Api.IntegrationTests` — `WebApplicationFactory` over the real
   application, against a real PostgreSQL started with Testcontainers. Requires
   Docker.
