@@ -834,6 +834,7 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(2, monday.MinScore);
         Assert.Equal(3.0d, monday.AverageScore);
         Assert.Equal(4, monday.MaxScore);
+        Assert.Equal(1.0d, monday.StandardDeviation);
         Assert.Equal(5.0d, dashboard.ScoreByDayOfWeek.Single(day => day.DayOfWeek == "Tuesday").AverageScore);
 
         // Month buckets and arithmetic average evaluated end-to-end against PostgreSQL.

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,11 +44,19 @@ interface MoodDashboardResponseFixture {
   nextPeriod: string
   bucketGranularity: string
   entryCount: number
+  score: {
+    minScore: number | null
+    averageScore: number | null
+    maxScore: number | null
+    standardDeviation: number | null
+    histogram: Array<{ score: number; count: number }>
+  }
   scoreByDayOfWeek: Array<{
     dayOfWeek: string
     minScore: number | null
     averageScore: number | null
     maxScore: number | null
+    standardDeviation: number | null
   }>
   distribution: CriteriaDistributionFixture
   buckets: Array<{
@@ -58,6 +66,7 @@ interface MoodDashboardResponseFixture {
     minScore: number | null
     averageScore: number | null
     maxScore: number | null
+    standardDeviation: number | null
     distribution: CriteriaDistributionFixture
   }>
 }
@@ -91,10 +100,41 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
     nextPeriod: period === '2026' ? '2027' : '2026-07',
     bucketGranularity: scale === 'month' ? 'Week' : 'Month',
     entryCount: 8,
+    score: {
+      minScore: 2,
+      averageScore: 3.5,
+      maxScore: 5,
+      standardDeviation: 0.87,
+      histogram: [
+        { score: 1, count: 0 },
+        { score: 2, count: 1 },
+        { score: 3, count: 3 },
+        { score: 4, count: 3 },
+        { score: 5, count: 1 },
+      ],
+    },
     scoreByDayOfWeek: [
-      { dayOfWeek: 'Monday', minScore: 3, averageScore: 3.5, maxScore: 4 },
-      { dayOfWeek: 'Wednesday', minScore: 2, averageScore: 2.8, maxScore: 4 },
-      { dayOfWeek: 'Friday', minScore: 4, averageScore: 4.2, maxScore: 5 },
+      {
+        dayOfWeek: 'Monday',
+        minScore: 3,
+        averageScore: 3.5,
+        maxScore: 4,
+        standardDeviation: 0.5,
+      },
+      {
+        dayOfWeek: 'Wednesday',
+        minScore: 2,
+        averageScore: 2.8,
+        maxScore: 4,
+        standardDeviation: 0.75,
+      },
+      {
+        dayOfWeek: 'Friday',
+        minScore: 4,
+        averageScore: 4.2,
+        maxScore: 5,
+        standardDeviation: 0.4,
+      },
     ],
     distribution: {
       energy: [
@@ -126,6 +166,7 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
         minScore: 3,
         averageScore: 3.2,
         maxScore: 4,
+        standardDeviation: 0.4,
         distribution: {
           energy: [
             { value: 'Low', count: 0 },
@@ -156,6 +197,7 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
         minScore: 2,
         averageScore: 3.6,
         maxScore: 5,
+        standardDeviation: 1.2,
         distribution: {
           energy: [
             { value: 'Low', count: 1 },
@@ -193,6 +235,13 @@ function emptyDashboard(scale: string, period: string): MoodDashboardResponseFix
     nextPeriod: '2027',
     bucketGranularity: 'Month',
     entryCount: 0,
+    score: {
+      minScore: null,
+      averageScore: null,
+      maxScore: null,
+      standardDeviation: null,
+      histogram: [],
+    },
     scoreByDayOfWeek: [],
     distribution: { energy: [], alignment: [], direction: [], source: [] },
     buckets: [],
@@ -243,12 +292,32 @@ describe('Mood dashboard view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    expect(await screen.findByText('Interval average')).toBeInTheDocument()
+    const lead = (await screen.findByText('Std deviation')).closest('.mood-sdlead')
+    expect(lead).not.toBeNull()
+    expect(within(lead as HTMLElement).getByText('3.5')).toBeInTheDocument()
+    expect(within(lead as HTMLElement).getByText('0.9')).toBeInTheDocument()
+    expect(screen.getByText('Some swings')).toBeInTheDocument()
     expect(
-      screen.getAllByRole('img', {
-        name: 'Mood score minimum, average, and maximum by day of week',
-      }).length,
-    ).toBeGreaterThan(0)
+      screen.getByText(/most check-ins land between 2\.6 and 4\.4/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Number of entries for each mood score' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', {
+        name: 'Mood score average, standard deviation, and range by day of week',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', {
+        name: 'Mood score average, standard deviation, and range by period interval',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /^Mon: min 3\.0, average 3\.5, max 4\.0, standard deviation 0\.5$/,
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Energy distribution' })).toBeInTheDocument()
     expect(
       screen.getByRole('img', { name: 'Energy criteria evolution by period interval' }),
@@ -263,7 +332,7 @@ describe('Mood dashboard view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Interval average')
+    await screen.findByText('Std deviation')
     await user.click(screen.getByRole('button', { name: 'Month' }))
 
     await waitFor(() => expect(window.location.search).toContain('scale=month'))
@@ -280,7 +349,7 @@ describe('Mood dashboard view', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Interval average')
+    await screen.findByText('Std deviation')
     await user.click(screen.getByRole('button', { name: 'Previous period' }))
 
     await waitFor(() => expect(window.location.search).toContain('period=2025'))

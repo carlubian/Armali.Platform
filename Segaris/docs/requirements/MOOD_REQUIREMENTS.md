@@ -87,7 +87,9 @@ valid and are ordered by insertion order.
 `Score` is a simple integer between `1` and `5`, inclusive. It is interpreted by
 the user as the overall subjective score for that entry.
 
-The initial module uses simple arithmetic averages for score summaries. Scores
+The initial module uses simple arithmetic averages for score summaries, and the
+dashboard complements them with the population standard deviation (divided by
+the entry count) to show how widely scores spread around that average. Scores
 are not weighted by Energy, Alignment, Direction, Source, or derived emotion.
 
 ## Energy
@@ -332,10 +334,14 @@ or no-data states rather than special errors.
 
 The initial Dashboard may include:
 
-- Minimum, average, and maximum score by day of week for the selected period.
-- Minimum, average, and maximum score by month for Year, Semester, and Quarter
-  scales.
-- Minimum, average, and maximum score by week for Month scale.
+- Overall average and standard deviation of the score for the selected period,
+  with the distribution of entries across scores 1 to 5.
+- Average, standard deviation (average ± 1σ band), minimum, and maximum score by
+  day of week for the selected period.
+- Average, standard deviation, minimum, and maximum score by month for Year,
+  Semester, and Quarter scales.
+- Average, standard deviation, minimum, and maximum score by week for Month
+  scale.
 - Distribution of Energy values in the selected period.
 - Distribution of Alignment values in the selected period.
 - Distribution of Direction values in the selected period.
@@ -419,7 +425,8 @@ The initial Mood definition is satisfied when:
 11. Dashboard periods are strict calendar periods in `Europe/Madrid`, and all
     aggregates include only entries whose `EntryDate` falls inside the selected
     period.
-12. Dashboard charts provide score min/average/max summaries and criteria
+12. Dashboard charts provide score min/average/max and standard deviation
+    summaries and criteria
     distribution or evolution views for the current user's selected period.
 13. SQLite and PostgreSQL migrations, backend unit/integration/architecture
     tests, frontend component tests, and a representative Playwright journey
