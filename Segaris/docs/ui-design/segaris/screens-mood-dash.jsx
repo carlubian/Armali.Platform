@@ -294,5 +294,138 @@ function MoodDashCriteria() {
   );
 }
 
-Object.assign(window, { MoodDashScore, MoodDashCriteria });
+// ── Variant C · Spread emphasis (avg ± standard deviation) ─────
+const sdOf = (s) => { if (!s.length) return 0; const m = avg(s); return Math.sqrt(s.reduce((a, v) => a + (v - m) ** 2, 0) / s.length); };
+function useSpread(period) {
+  return React.useMemo(() => {
+    const { start, end } = periodRange(period);
+    const rows = YEAR_ENTRIES.filter((e) => e.date >= start && e.date <= end);
+    const scores = rows.map((e) => e.score);
+    const hist = [1, 2, 3, 4, 5].map((v) => scores.filter((s) => s === v).length);
+    const byDow = DOW.map((_, i) => {
+      const s = rows.filter((e) => dowIndex(e.date) === i).map((e) => e.score);
+      return s.length ? { min: Math.min(...s), max: Math.max(...s), avg: avg(s), sd: sdOf(s), n: s.length } : null;
+    });
+    return { sd: sdOf(scores), hist, byDow };
+  }, [period.scale, period.year, period.idx]);
+}
+const spreadWord = (sd) => sd < 0.6 ? "Steady" : sd < 1.0 ? "Some swings" : "Wide swings";
+const clamp15 = (v) => Math.max(1, Math.min(5, v));
+
+// Period score histogram (1–5) with the avg ± 1σ band beneath on the same axis.
+function SpreadHistogram({ hist, mean, sd }) {
+  const max = Math.max(...hist, 1);
+  const x = (v) => ((v - 0.5) / 5) * 100; // bin centres at 10/30/50/70/90%
+  return (
+    <div className="mood-sdhist">
+      <div className="mood-sdhist__bars">
+        {hist.map((n, i) => (
+          <div key={i} className="mood-sdhist__col">
+            <span className="mood-sdhist__bar" style={{ height: Math.max(n / max * 100, n ? 4 : 0) + "%", background: scoreColor(i + 1) }} />
+          </div>
+        ))}
+      </div>
+      <div className="mood-sdhist__axis">
+        <span className="mood-sdhist__band" style={{ left: x(clamp15(mean - sd)) + "%", right: (100 - x(clamp15(mean + sd))) + "%" }} />
+        <span className="mood-sdhist__mean" style={{ left: x(mean) + "%" }} />
+      </div>
+      <div className="mood-sdhist__lbls">{[1, 2, 3, 4, 5].map((v) => <span key={v}>{v}</span>)}</div>
+    </div>
+  );
+}
+
+// Score by weekday: thin min–max whisker, avg ± 1σ band, avg marker.
+function DowSpreadChart({ byDow }) {
+  const pos = (v) => ((v - 1) / 4) * 100;
+  return (
+    <div style={{ display: "flex", gap: "var(--space-4)" }}>
+      <div className="mood-dow__scale"><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+      <div className="mood-dow mood-dowsd" style={{ flex: 1 }}>
+        {byDow.map((d, i) => (
+          <div key={i} className="mood-dow__col">
+            <div className="mood-dowsd__plot">
+              {[0, 25, 50, 75, 100].map((p) => <span key={p} className="mood-dowsd__grid" style={{ bottom: p + "%" }} />)}
+              {d && <React.Fragment>
+                <span className="mood-dowsd__whisker" style={{ bottom: pos(d.min) + "%", top: (100 - pos(d.max)) + "%" }} />
+                <span className="mood-dowsd__cap" style={{ bottom: pos(d.max) + "%" }} />
+                <span className="mood-dowsd__cap" style={{ bottom: pos(d.min) + "%" }} />
+                <span className="mood-dowsd__band" style={{ bottom: pos(clamp15(d.avg - d.sd)) + "%", top: (100 - pos(clamp15(d.avg + d.sd))) + "%", "--band": scoreColor(d.avg) }} />
+                <span className="mood-dowsd__avg" style={{ bottom: pos(d.avg) + "%" }} />
+              </React.Fragment>}
+            </div>
+            <div className="mood-dow__cap">
+              <span className="mood-dow__avgval">{d ? d.avg.toFixed(1) : "·"}<small className="mood-dowsd__sd">{d ? " ±" + d.sd.toFixed(1) : ""}</small></span>
+              <span className="mood-dow__lbl">{DOW[i]}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MoodDashSpread() {
+  const [period, setPeriod] = React.useState(currentPeriod("Year"));
+  const g = useAggregates(period);
+  const s = useSpread(period);
+  return (
+    <DashShell period={period} setPeriod={setPeriod}>
+      <div className="mood-dash">
+        {g.n === 0 ? <EmptyPeriod /> : (
+          <React.Fragment>
+            <div className="mood-sdtop">
+              <div className="mood-card mood-sdlead">
+                <div className="mood-sdlead__nums">
+                  <div className="mood-sdlead__metric">
+                    <div className="armali-eyebrow" style={{ color: "var(--accent)" }}>Average</div>
+                    <div className="mood-chartcard__big mood-sdlead__big">{g.overall.avg.toFixed(1)}</div>
+                  </div>
+                  <div className="mood-sdlead__metric">
+                    <div className="armali-eyebrow" style={{ color: "var(--gold-700, var(--text-secondary))" }}>Std deviation</div>
+                    <div className="mood-chartcard__big mood-sdlead__big"><span className="mood-sdlead__pm">±</span>{s.sd.toFixed(1)}</div>
+                  </div>
+                </div>
+                <div className="mood-sdlead__note"><strong>{spreadWord(s.sd)}</strong> — most days land between {clamp15(g.overall.avg - s.sd).toFixed(1)} and {clamp15(g.overall.avg + s.sd).toFixed(1)}.</div>
+                <SpreadHistogram hist={s.hist} mean={g.overall.avg} sd={s.sd} />
+                <small className="mood-sdlead__foot">{g.overall.n} entries · low {g.overall.min} · high {g.overall.max}</small>
+              </div>
+              <div className="mood-card">
+                <div className="mood-card__head">
+                  <span className="mood-card__title">Score by day of week</span>
+                  <span className="mood-sdlegend">
+                    <span><i className="mood-sdlegend__band"></i>Avg ± 1σ</span>
+                    <span><i className="mood-sdlegend__avg"></i>Average</span>
+                    <span><i className="mood-sdlegend__whisker"></i>Min – max</span>
+                  </span>
+                </div>
+                <DowSpreadChart byDow={s.byDow} />
+              </div>
+            </div>
+
+            <div className="mood-distgrid">
+              <div className="mood-card">
+                <div className="mood-card__head"><span className="mood-card__title">Energy</span><span className="mood-card__sub">Intensity</span></div>
+                <Distribution rows={g.energy} />
+              </div>
+              <div className="mood-card">
+                <div className="mood-card__head"><span className="mood-card__title">Alignment</span><span className="mood-card__sub">Habitually good / bad</span></div>
+                <Distribution rows={g.alignment} />
+              </div>
+              <div className="mood-card">
+                <div className="mood-card__head"><span className="mood-card__title">Direction</span><span className="mood-card__sub">Purpose</span></div>
+                <Distribution rows={g.direction} />
+              </div>
+              <div className="mood-card">
+                <div className="mood-card__head"><span className="mood-card__title">Source</span><span className="mood-card__sub">Origin</span></div>
+                <Distribution rows={g.source} />
+              </div>
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </DashShell>
+  );
+}
+
+Object.assign(window, { MoodDashScore, MoodDashCriteria, MoodDashSpread });
 })();
