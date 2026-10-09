@@ -10,8 +10,8 @@ namespace Segaris.Api.Modules.Mood.Queries;
 /// <summary>
 /// Builds the owner-only strict-period dashboard aggregates. The selected period's
 /// entries are read once with a minimal projection and aggregated in memory, which
-/// keeps weekday, month, and Monday-week bucketing and the arithmetic average
-/// identical across SQLite and PostgreSQL.
+/// keeps weekday, month, and Monday-week bucketing, the arithmetic average, and the
+/// population standard deviation identical across SQLite and PostgreSQL.
 /// </summary>
 internal sealed class MoodDashboardService(SegarisDbContext database)
 {
@@ -55,9 +55,21 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
             period.Next.Token,
             byWeek ? "Week" : "Month",
             rows.Length,
+            BuildScoreSummary(rows),
             BuildScoreByDayOfWeek(rows),
             BuildDistribution(rows),
             BuildBuckets(period, rows, byWeek));
+    }
+
+    private static MoodScoreSummaryResponse BuildScoreSummary(IReadOnlyList<Row> rows)
+    {
+        var (min, average, max, standardDeviation) = ScoreStats(rows);
+        var counts = rows.CountBy(row => row.Score).ToDictionary();
+        var histogram = Enumerable
+            .Range(MoodDefaults.ScoreMinimum, MoodDefaults.ScoreMaximum - MoodDefaults.ScoreMinimum + 1)
+            .Select(score => new MoodScoreCountResponse(score, counts.GetValueOrDefault(score)))
+            .ToArray();
+        return new MoodScoreSummaryResponse(min, average, max, standardDeviation, histogram);
     }
 
     private static IReadOnlyList<MoodScoreByDayResponse> BuildScoreByDayOfWeek(IReadOnlyList<Row> rows)
@@ -66,8 +78,13 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
         return WeekdayOrder
             .Select(day =>
             {
-                var (min, average, max) = ScoreStats(byDay[day]);
-                return new MoodScoreByDayResponse(day.ToString(), min, average, max);
+                var (min, average, max, standardDeviation) = ScoreStats(byDay[day]);
+                return new MoodScoreByDayResponse(
+                    day.ToString(),
+                    min,
+                    average,
+                    max,
+                    standardDeviation);
             })
             .ToArray();
     }
@@ -86,7 +103,7 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
             .Select(bucket =>
             {
                 var bucketRows = assigned[bucket.Start].ToArray();
-                var (min, average, max) = ScoreStats(bucketRows);
+                var (min, average, max, standardDeviation) = ScoreStats(bucketRows);
                 return new MoodBucketResponse(
                     bucket.Key,
                     bucket.Start,
@@ -94,6 +111,7 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
                     min,
                     average,
                     max,
+                    standardDeviation,
                     BuildDistribution(bucketRows));
             })
             .ToArray();
@@ -142,12 +160,23 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
             .ToArray();
     }
 
-    private static (int? Min, double? Average, int? Max) ScoreStats(IEnumerable<Row> rows)
+    /// <summary>
+    /// Score min/average/max plus the population standard deviation (divided by the
+    /// entry count, not count - 1): the dashboard describes the spread of the logged
+    /// entries themselves rather than estimating a wider population.
+    /// </summary>
+    private static (int? Min, double? Average, int? Max, double? StandardDeviation) ScoreStats(
+        IEnumerable<Row> rows)
     {
         var scores = rows.Select(row => row.Score).ToArray();
-        return scores.Length == 0
-            ? (null, null, null)
-            : (scores.Min(), scores.Average(), scores.Max());
+        if (scores.Length == 0)
+        {
+            return (null, null, null, null);
+        }
+
+        var average = scores.Average();
+        var variance = scores.Sum(score => (score - average) * (score - average)) / scores.Length;
+        return (scores.Min(), average, scores.Max(), Math.Sqrt(variance));
     }
 
     private sealed record Bucket(string Key, DateOnly Start, DateOnly End);

@@ -109,6 +109,14 @@ export interface MoodScoreStat {
   min: number | null
   average: number | null
   max: number | null
+  /** Population standard deviation of the scores; `null` when there are no entries. */
+  standardDeviation: number | null
+}
+
+/** Whole-period score statistics plus the entry count for each score 1–5. */
+export interface MoodScoreSummary extends MoodScoreStat {
+  /** Entry counts indexed by score - 1 (always five bins, zeros included). */
+  histogram: number[]
 }
 
 export interface MoodScoreByDay extends MoodScoreStat {
@@ -153,6 +161,8 @@ export interface MoodDashboard {
   periodEnd: string
   previousPeriod: string
   nextPeriod: string
+  entryCount: number
+  score: MoodScoreSummary
   scoreByDayOfWeek: MoodScoreByDay[]
   scoreByInterval: MoodScoreByInterval[]
   distribution: MoodCriteriaDistribution
@@ -164,6 +174,15 @@ interface MoodScoreByDayResponse {
   minScore: number | null
   averageScore: number | null
   maxScore: number | null
+  standardDeviation: number | null
+}
+
+interface MoodScoreSummaryResponse {
+  minScore: number | null
+  averageScore: number | null
+  maxScore: number | null
+  standardDeviation: number | null
+  histogram: Array<{ score: number; count: number }>
 }
 
 interface MoodValueCountResponse {
@@ -183,6 +202,7 @@ interface MoodBucketResponse {
   minScore: number | null
   averageScore: number | null
   maxScore: number | null
+  standardDeviation: number | null
   distribution: MoodCriteriaDistributionResponse
 }
 
@@ -193,6 +213,8 @@ interface MoodDashboardResponse {
   to: string
   previousPeriod: string
   nextPeriod: string
+  entryCount: number
+  score: MoodScoreSummaryResponse
   scoreByDayOfWeek: MoodScoreByDayResponse[]
   distribution: MoodCriteriaDistributionResponse
   buckets: MoodBucketResponse[]
@@ -250,6 +272,18 @@ function mapDistribution(
   }
 }
 
+function mapScoreSummary(score: MoodScoreSummaryResponse): MoodScoreSummary {
+  return {
+    min: score.minScore,
+    average: score.averageScore,
+    max: score.maxScore,
+    standardDeviation: score.standardDeviation,
+    histogram: [1, 2, 3, 4, 5].map(
+      (value) => score.histogram.find((bin) => bin.score === value)?.count ?? 0,
+    ),
+  }
+}
+
 function mapDashboard(response: MoodDashboardResponse): MoodDashboard {
   return {
     scale: scaleFromResponse[response.scale] ?? 'year',
@@ -258,17 +292,21 @@ function mapDashboard(response: MoodDashboardResponse): MoodDashboard {
     periodEnd: response.to,
     previousPeriod: response.previousPeriod,
     nextPeriod: response.nextPeriod,
+    entryCount: response.entryCount,
+    score: mapScoreSummary(response.score),
     scoreByDayOfWeek: response.scoreByDayOfWeek.map((day) => ({
       dayOfWeek: dayOfWeekToNumber[day.dayOfWeek] ?? 1,
       min: day.minScore,
       average: day.averageScore,
       max: day.maxScore,
+      standardDeviation: day.standardDeviation,
     })),
     scoreByInterval: response.buckets.map((bucket) => ({
       interval: bucket.key,
       min: bucket.minScore,
       average: bucket.averageScore,
       max: bucket.maxScore,
+      standardDeviation: bucket.standardDeviation,
     })),
     distribution: mapDistribution(response.distribution),
     evolution: response.buckets.map((bucket) => ({

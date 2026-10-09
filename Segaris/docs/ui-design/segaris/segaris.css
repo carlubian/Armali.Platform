@@ -528,6 +528,38 @@
 .mood-dist__pct { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); color: var(--text-primary); text-align: right; font-variant-numeric: tabular-nums; }
 .mood-distgrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 
+/* Variant C · avg ± standard deviation */
+.mood-sdtop { display: grid; grid-template-columns: 360px minmax(0,1fr); gap: var(--space-5); }
+.mood-sdlead { gap: var(--space-3); }
+.mood-sdlead__nums { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.mood-sdlead__metric { display: flex; flex-direction: column; gap: 6px; }
+.mood-sdlead__big { font-size: var(--text-5xl) !important; }
+.mood-sdlead__pm { font-size: 0.6em; color: var(--text-muted); margin-right: 2px; vertical-align: 0.18em; }
+.mood-sdlead__note { font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-secondary); text-wrap: pretty; }
+.mood-sdlead__note strong { font-weight: 600; color: var(--text-primary); }
+.mood-sdlead__foot { font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-muted); }
+.mood-sdhist { display: flex; flex-direction: column; gap: 6px; margin-top: var(--space-2); }
+.mood-sdhist__bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); height: 72px; align-items: end; }
+.mood-sdhist__col { height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.mood-sdhist__bar { width: 100%; max-width: 40px; border-radius: 8px 8px 4px 4px; opacity: 0.85; }
+.mood-sdhist__axis { position: relative; height: 12px; background: var(--surface-sunken); border-radius: var(--radius-pill); }
+.mood-sdhist__band { position: absolute; top: 0; bottom: 0; background: color-mix(in oklch, var(--aqua-500) 45%, transparent); border-radius: var(--radius-pill); }
+.mood-sdhist__mean { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: var(--text-primary); border-radius: var(--radius-pill); }
+.mood-sdhist__lbls { display: grid; grid-template-columns: repeat(5, 1fr); text-align: center; font-family: var(--font-display); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted); }
+.mood-dowsd__plot { position: relative; flex: 1; width: 100%; min-height: 0; }
+.mood-dowsd__grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--border-subtle); }
+.mood-dowsd__whisker { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--text-muted); opacity: 0.55; }
+.mood-dowsd__cap { position: absolute; left: 50%; width: 12px; margin-left: -6px; height: 2px; background: var(--text-muted); opacity: 0.55; transform: translateY(50%); border-radius: 2px; }
+.mood-dowsd__band { position: absolute; left: 50%; width: 22px; margin-left: -11px; border-radius: 8px; background: var(--band, var(--aqua-300)); opacity: 0.9; min-height: 6px; }
+.mood-dowsd__avg { position: absolute; left: 50%; width: 34px; margin-left: -17px; height: 4px; border-radius: var(--radius-pill); background: var(--text-primary); transform: translateY(50%); }
+.mood-dowsd__sd { font-family: var(--font-body); font-weight: 600; font-size: var(--text-xs); color: var(--text-muted); }
+.mood-sdlegend { display: flex; gap: var(--space-4); font-family: var(--font-body); font-weight: 500; font-size: var(--text-xs); color: var(--text-muted); }
+.mood-sdlegend > span { display: flex; align-items: center; gap: 6px; }
+.mood-sdlegend i { display: inline-block; }
+.mood-sdlegend__band { width: 10px; height: 14px; border-radius: 4px; background: var(--aqua-300); }
+.mood-sdlegend__avg { width: 14px; height: 3px; border-radius: 2px; background: var(--text-primary); }
+.mood-sdlegend__whisker { width: 2px; height: 14px; background: var(--text-muted); opacity: 0.55; }
+
 /* Empty period note inside a card */
 .mood-emptynote { padding: var(--space-7); text-align: center; font-family: var(--font-body); font-weight: 500; font-size: var(--text-sm); color: var(--text-muted); border: 1.5px dashed var(--border-default); border-radius: var(--radius-md); }
 

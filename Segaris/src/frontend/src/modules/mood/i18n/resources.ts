@@ -103,7 +103,14 @@ export const mood = {
       range: '{{start}} – {{end}}',
     },
     summary: {
-      eyebrow: 'Interval average',
+      average: 'Average',
+      standardDeviation: 'Std deviation',
+      spread: {
+        steady: 'Steady',
+        some: 'Some swings',
+        wide: 'Wide swings',
+      },
+      spreadRange: 'most check-ins land between {{low}} and {{high}}.',
       meta: '{{count}} entries · low {{low}} · high {{high}}',
     },
     days: {
@@ -117,15 +124,24 @@ export const mood = {
     },
     charts: {
       noData: 'No entries',
-      scoreSummary: 'min {{min}}, average {{average}}, max {{max}}',
+      scoreSummary:
+        'min {{min}}, average {{average}}, max {{max}}, standard deviation {{standardDeviation}}',
+      legend: {
+        band: 'Avg ± 1σ',
+        average: 'Average',
+        range: 'Min – max',
+      },
+      histogram: {
+        aria: 'Number of entries for each mood score',
+        bin: 'Score {{score}}: {{count}} entries',
+      },
       dayOfWeek: {
         title: 'Score by day of week',
-        subtitle: 'Min, average, and max',
-        aria: 'Mood score minimum, average, and maximum by day of week',
+        aria: 'Mood score average, standard deviation, and range by day of week',
       },
       interval: {
         title: 'Score by period interval',
-        aria: 'Mood score minimum, average, and maximum by period interval',
+        aria: 'Mood score average, standard deviation, and range by period interval',
         subtitle: {
           year: 'Grouped by month',
           semester: 'Grouped by month',

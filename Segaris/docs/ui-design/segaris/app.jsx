@@ -150,6 +150,7 @@ function App() {
         <DCSection id="mood-dash" title="Mood · Dashboard" subtitle="Calendar-period trends · switch scale & navigate periods">
           <DCArtboard id="mood-dash-score" label="A · Score emphasis" width={1320} height={940}><Frame><window.MoodDashScore /></Frame></DCArtboard>
           <DCArtboard id="mood-dash-criteria" label="B · Criteria emphasis" width={1320} height={940}><Frame><window.MoodDashCriteria /></Frame></DCArtboard>
+          <DCArtboard id="mood-dash-spread" label="C · Average & spread (σ)" width={1320} height={940}><Frame><window.MoodDashSpread /></Frame></DCArtboard>
         </DCSection>
 
         <DCSection id="projects" title="Projects" subtitle="Program → Axis → (Project | Activity) · tree + details, edit popup, risk popup">

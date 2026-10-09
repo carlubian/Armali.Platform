@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 
@@ -9,9 +10,8 @@ import type {
   MoodDirection,
   MoodDistributionBucket,
   MoodEnergy,
-  MoodScoreByDay,
-  MoodScoreByInterval,
   MoodScoreStat,
+  MoodScoreSummary,
   MoodSource,
 } from '@/app/api/mood'
 import {
@@ -116,9 +116,20 @@ function formatStat(value: number | null): string {
   return value == null ? '·' : value.toFixed(1)
 }
 
-function average(values: number[]): number | null {
-  if (values.length === 0) return null
-  return values.reduce((total, value) => total + value, 0) / values.length
+function formatSpread(value: number | null): string {
+  return value == null ? '' : ` ±${value.toFixed(1)}`
+}
+
+/** Clamps a derived score (such as average ± σ) to the 1–5 score axis. */
+function clampScore(value: number): number {
+  return Math.max(1, Math.min(5, value))
+}
+
+/** Qualitative reading of the period's standard deviation on the 1–5 scale. */
+function spreadLevel(standardDeviation: number): 'steady' | 'some' | 'wide' {
+  if (standardDeviation < 0.6) return 'steady'
+  if (standardDeviation < 1) return 'some'
+  return 'wide'
 }
 
 function countEntries(buckets: readonly MoodDistributionBucket[]): number {
@@ -133,17 +144,7 @@ export function MoodDashboardPage() {
   const dashboardQuery = useMoodDashboard(state)
   const dashboard = dashboardQuery.data
 
-  const entryCount = countEntries(dashboard?.distribution.energy ?? [])
-  const hasScoreData =
-    dashboard?.scoreByDayOfWeek.some(statHasData) === true ||
-    dashboard?.scoreByInterval.some(statHasData) === true
-  const hasEvolution = dashboard?.evolution.some((point) =>
-    (Object.keys(criteriaValues) as CriteriaKey[]).some((key) =>
-      Object.values(point[key]).some((count) => count > 0),
-    ),
-  )
-  const isEmpty =
-    dashboard != null && entryCount === 0 && !hasScoreData && !hasEvolution
+  const isEmpty = dashboard != null && dashboard.entryCount === 0
 
   const periodRange =
     dashboard == null
@@ -240,12 +241,22 @@ export function MoodDashboardPage() {
         </div>
       ) : (
         <div className="mood-dash">
-          <ScoreSummaryCard
-            dayStats={dashboard.scoreByDayOfWeek}
-            intervalStats={dashboard.scoreByInterval}
-            entryCount={entryCount}
-            period={periodTitle(state.scale, state.period, i18n.language)}
-          />
+          <div className="mood-sdtop">
+            <ScoreSpreadLead
+              score={dashboard.score}
+              entryCount={dashboard.entryCount}
+            />
+            <ScoreSpreadCard
+              title={t('dashboard.charts.dayOfWeek.title')}
+              label={t('dashboard.charts.dayOfWeek.aria')}
+              points={dayOrder.map((day) => ({
+                key: String(day),
+                label: t(`dashboard.days.${day}`),
+                ...emptyStat(),
+                ...dashboard.scoreByDayOfWeek.find((row) => row.dayOfWeek === day),
+              }))}
+            />
+          </div>
           <div className="mood-distgrid">
             <DistributionCard
               criterion="energy"
@@ -264,29 +275,16 @@ export function MoodDashboardPage() {
               buckets={dashboard.distribution.source}
             />
           </div>
-          <div className="mood-grid mood-grid--two">
-            <ScoreRangeCard
-              title={t('dashboard.charts.dayOfWeek.title')}
-              subtitle={t('dashboard.charts.dayOfWeek.subtitle')}
-              label={t('dashboard.charts.dayOfWeek.aria')}
-              points={dayOrder.map((day) => ({
-                key: String(day),
-                label: t(`dashboard.days.${day}`),
-                ...emptyStat(),
-                ...dashboard.scoreByDayOfWeek.find((row) => row.dayOfWeek === day),
-              }))}
-            />
-            <ScoreRangeCard
-              title={t('dashboard.charts.interval.title')}
-              subtitle={t(`dashboard.charts.interval.subtitle.${state.scale}`)}
-              label={t('dashboard.charts.interval.aria')}
-              points={dashboard.scoreByInterval.map((row) => ({
-                key: row.interval,
-                label: intervalLabel(row.interval, i18n.language),
-                ...row,
-              }))}
-            />
-          </div>
+          <ScoreSpreadCard
+            title={t('dashboard.charts.interval.title')}
+            subtitle={t(`dashboard.charts.interval.subtitle.${state.scale}`)}
+            label={t('dashboard.charts.interval.aria')}
+            points={dashboard.scoreByInterval.map((row) => ({
+              key: row.interval,
+              label: intervalLabel(row.interval, i18n.language),
+              ...row,
+            }))}
+          />
           <div className="mood-grid mood-grid--two">
             <EvolutionCard criterion="energy" points={dashboard.evolution} />
             <EvolutionCard criterion="alignment" points={dashboard.evolution} />
@@ -300,138 +298,265 @@ export function MoodDashboardPage() {
 }
 
 function emptyStat(): MoodScoreStat {
-  return { min: null, average: null, max: null }
+  return { min: null, average: null, max: null, standardDeviation: null }
 }
 
-function ScoreSummaryCard({
-  dayStats,
-  intervalStats,
+type ScorePoint = MoodScoreStat & { key: string; label: string }
+
+/** Lead card: period average and standard deviation over a 1–5 score histogram. */
+function ScoreSpreadLead({
+  score,
   entryCount,
-  period,
 }: {
-  dayStats: MoodScoreByDay[]
-  intervalStats: MoodScoreByInterval[]
+  score: MoodScoreSummary
   entryCount: number
-  period: string
 }) {
   const { t } = useTranslation('mood')
-  const stats = [...dayStats, ...intervalStats].filter(statHasData)
-  const low = stats
-    .map((stat) => stat.min)
-    .filter((value): value is number => value != null)
-  const high = stats
-    .map((stat) => stat.max)
-    .filter((value): value is number => value != null)
-  const avg = average(
-    intervalStats
-      .map((stat) => stat.average)
-      .filter((value): value is number => value != null),
-  )
-
+  const mean = score.average
+  const sd = score.standardDeviation
   return (
-    <div className="mood-card mood-card--summary">
-      <div className="mood-chartcard__lead">
-        <div className="armali-eyebrow">{t('dashboard.summary.eyebrow')}</div>
-        <div className="mood-chartcard__big">{formatStat(avg)}</div>
-        <small>
-          {t('dashboard.summary.meta', {
-            count: entryCount,
-            low: low.length > 0 ? Math.min(...low).toFixed(0) : '·',
-            high: high.length > 0 ? Math.max(...high).toFixed(0) : '·',
-          })}
-        </small>
+    <div className="mood-card mood-sdlead">
+      <div className="mood-sdlead__nums">
+        <div className="mood-sdlead__metric">
+          <div className="armali-eyebrow mood-sdlead__eyebrow--avg">
+            {t('dashboard.summary.average')}
+          </div>
+          <div className="mood-chartcard__big mood-sdlead__big">{formatStat(mean)}</div>
+        </div>
+        <div className="mood-sdlead__metric">
+          <div className="armali-eyebrow mood-sdlead__eyebrow--sd">
+            {t('dashboard.summary.standardDeviation')}
+          </div>
+          <div className="mood-chartcard__big mood-sdlead__big">
+            {sd == null ? (
+              '·'
+            ) : (
+              <>
+                <span className="mood-sdlead__pm" aria-hidden="true">
+                  ±
+                </span>
+                {sd.toFixed(1)}
+              </>
+            )}
+          </div>
+        </div>
       </div>
-      <ScoreRangeChart
-        label={t('dashboard.charts.dayOfWeek.aria')}
-        points={dayOrder.map((day) => ({
-          key: String(day),
-          label: t(`dashboard.days.${day}`),
-          ...emptyStat(),
-          ...dayStats.find((row) => row.dayOfWeek === day),
-        }))}
-        compact
-      />
-      <span className="mood-card__sub">{period}</span>
+      {mean != null && sd != null ? (
+        <div className="mood-sdlead__note">
+          <strong>{t(`dashboard.summary.spread.${spreadLevel(sd)}`)}</strong>
+          {' — '}
+          {t('dashboard.summary.spreadRange', {
+            low: clampScore(mean - sd).toFixed(1),
+            high: clampScore(mean + sd).toFixed(1),
+          })}
+        </div>
+      ) : null}
+      <ScoreHistogram histogram={score.histogram} mean={mean} sd={sd} />
+      <small className="mood-sdlead__foot">
+        {t('dashboard.summary.meta', {
+          count: entryCount,
+          low: score.min ?? '·',
+          high: score.max ?? '·',
+        })}
+      </small>
     </div>
   )
 }
 
-function ScoreRangeCard({
+/** Score 1–5 histogram with the average ± 1σ band drawn beneath on the same axis. */
+function ScoreHistogram({
+  histogram,
+  mean,
+  sd,
+}: {
+  histogram: number[]
+  mean: number | null
+  sd: number | null
+}) {
+  const { t } = useTranslation('mood')
+  const max = Math.max(...histogram, 1)
+  // Bin centres sit at 10/30/50/70/90% of the axis.
+  const x = (value: number) => ((value - 0.5) / 5) * 100
+  return (
+    <div className="mood-sdhist">
+      <div
+        className="mood-sdhist__bars"
+        role="img"
+        aria-label={t('dashboard.charts.histogram.aria')}
+      >
+        {histogram.map((count, index) => (
+          <div key={index} className="mood-sdhist__col">
+            <span
+              className="mood-sdhist__bar"
+              style={{
+                height: `${Math.max((count / max) * 100, count > 0 ? 4 : 0)}%`,
+                background: scoreColor(index + 1),
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mood-sdhist__axis" aria-hidden="true">
+        {mean != null && sd != null ? (
+          <>
+            <span
+              className="mood-sdhist__band"
+              style={{
+                left: `${x(clampScore(mean - sd))}%`,
+                right: `${100 - x(clampScore(mean + sd))}%`,
+              }}
+            />
+            <span className="mood-sdhist__mean" style={{ left: `${x(mean)}%` }} />
+          </>
+        ) : null}
+      </div>
+      <div className="mood-sdhist__lbls" aria-hidden="true">
+        {[1, 2, 3, 4, 5].map((value) => (
+          <span key={value}>{value}</span>
+        ))}
+      </div>
+      <ul className="mood-sr-only">
+        {histogram.map((count, index) => (
+          <li key={index}>
+            {t('dashboard.charts.histogram.bin', { score: index + 1, count })}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function ScoreSpreadCard({
   title,
   subtitle,
   label,
   points,
 }: {
   title: string
-  subtitle: string
+  subtitle?: string
   label: string
-  points: Array<MoodScoreStat & { key: string; label: string }>
+  points: ScorePoint[]
 }) {
+  const { t } = useTranslation('mood')
   return (
     <div className="mood-card">
       <div className="mood-card__head">
-        <span className="mood-card__title">{title}</span>
-        <span className="mood-card__sub">{subtitle}</span>
+        <span className="mood-card__titles">
+          <span className="mood-card__title">{title}</span>
+          {subtitle != null ? <span className="mood-card__sub">{subtitle}</span> : null}
+        </span>
+        <span className="mood-sdlegend" aria-hidden="true">
+          <span>
+            <i className="mood-sdlegend__band" />
+            {t('dashboard.charts.legend.band')}
+          </span>
+          <span>
+            <i className="mood-sdlegend__avg" />
+            {t('dashboard.charts.legend.average')}
+          </span>
+          <span>
+            <i className="mood-sdlegend__whisker" />
+            {t('dashboard.charts.legend.range')}
+          </span>
+        </span>
       </div>
-      <ScoreRangeChart label={label} points={points} />
+      <ScoreSpreadChart label={label} points={points} />
     </div>
   )
 }
 
-function ScoreRangeChart({
-  label,
-  points,
-  compact = false,
-}: {
-  label: string
-  points: Array<MoodScoreStat & { key: string; label: string }>
-  compact?: boolean
-}) {
+/** Per-slot score spread: thin min–max whisker, average ± 1σ band, average marker. */
+function ScoreSpreadChart({ label, points }: { label: string; points: ScorePoint[] }) {
   const { t } = useTranslation('mood')
   const position = (value: number) => ((value - 1) / 4) * 100
   return (
-    <div
-      className={['mood-rangechart', compact ? 'mood-rangechart--compact' : ''].join(
-        ' ',
-      )}
-    >
-      <div className="mood-dow__scale" aria-hidden="true">
-        <span>5</span>
-        <span>4</span>
-        <span>3</span>
-        <span>2</span>
-        <span>1</span>
+    <div className="mood-rangechart">
+      {/* The axis mirrors a column (plot + invisible caption) so the ticks stay
+          aligned with the grid lines however tall the captions wrap. */}
+      <div className="mood-dow__col mood-dowsd__axis" aria-hidden="true">
+        <div className="mood-dowsd__plot">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <span
+              key={value}
+              className="mood-dowsd__tick"
+              style={{ bottom: `${position(value)}%` }}
+            >
+              {value}
+            </span>
+          ))}
+        </div>
+        <div className="mood-dow__cap mood-dowsd__phantom">
+          <span className="mood-dow__avgval">
+            0.0<small className="mood-dowsd__sd"> ±0.0</small>
+          </span>
+          <span className="mood-dow__lbl">M</span>
+        </div>
       </div>
-      <div className="mood-dow" role="img" aria-label={label}>
-        {points.map((point) => {
-          const hasPoint = statHasData(point)
-          return (
-            <div key={point.key} className="mood-dow__col">
-              <div className="mood-dow__track">
-                {hasPoint && point.min != null && point.max != null ? (
+      <div
+        className="mood-dow mood-dowsd"
+        role="img"
+        aria-label={label}
+        style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }}
+      >
+        {points.map((point) => (
+          <div key={point.key} className="mood-dow__col">
+            <div className="mood-dowsd__plot">
+              {[0, 25, 50, 75, 100].map((pct) => (
+                <span
+                  key={pct}
+                  className="mood-dowsd__grid"
+                  style={{ bottom: `${pct}%` }}
+                />
+              ))}
+              {point.min != null && point.max != null ? (
+                <>
                   <span
-                    className="mood-dow__range"
+                    className="mood-dowsd__whisker"
                     style={{
                       bottom: `${position(point.min)}%`,
                       top: `${100 - position(point.max)}%`,
-                      background: scoreColor(point.average ?? point.max),
                     }}
                   />
-                ) : null}
-                {hasPoint && point.average != null ? (
                   <span
-                    className="mood-dow__avg"
-                    style={{ bottom: `${position(point.average)}%` }}
+                    className="mood-dowsd__cap"
+                    style={{ bottom: `${position(point.max)}%` }}
                   />
-                ) : null}
-              </div>
-              <div className="mood-dow__cap">
-                <span className="mood-dow__avgval">{formatStat(point.average)}</span>
-                <span className="mood-dow__lbl">{point.label}</span>
-              </div>
+                  <span
+                    className="mood-dowsd__cap"
+                    style={{ bottom: `${position(point.min)}%` }}
+                  />
+                </>
+              ) : null}
+              {point.average != null && point.standardDeviation != null ? (
+                <span
+                  className="mood-dowsd__band"
+                  style={
+                    {
+                      bottom: `${position(clampScore(point.average - point.standardDeviation))}%`,
+                      top: `${100 - position(clampScore(point.average + point.standardDeviation))}%`,
+                      '--band': scoreColor(point.average),
+                    } as CSSProperties
+                  }
+                />
+              ) : null}
+              {point.average != null ? (
+                <span
+                  className="mood-dowsd__avg"
+                  style={{ bottom: `${position(point.average)}%` }}
+                />
+              ) : null}
             </div>
-          )
-        })}
+            <div className="mood-dow__cap">
+              <span className="mood-dow__avgval">
+                {formatStat(point.average)}
+                <small className="mood-dowsd__sd">
+                  {formatSpread(point.standardDeviation)}
+                </small>
+              </span>
+              <span className="mood-dow__lbl">{point.label}</span>
+            </div>
+          </div>
+        ))}
       </div>
       <ul className="mood-sr-only">
         {points.map((point) => (
@@ -442,6 +567,7 @@ function ScoreRangeChart({
                   min: formatStat(point.min),
                   average: formatStat(point.average),
                   max: formatStat(point.max),
+                  standardDeviation: formatStat(point.standardDeviation),
                 })
               : t('dashboard.charts.noData')}
           </li>

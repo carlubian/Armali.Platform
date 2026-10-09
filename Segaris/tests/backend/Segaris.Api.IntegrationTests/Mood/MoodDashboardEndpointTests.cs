@@ -56,6 +56,14 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal("Month", dashboard.BucketGranularity);
         Assert.Equal(4, dashboard.EntryCount);
 
+        // Whole-period score summary over the entries (2, 4, 5, 1): mean 3, population σ √2.5.
+        Assert.Equal(1, dashboard.Score.MinScore);
+        Assert.Equal(3.0d, dashboard.Score.AverageScore);
+        Assert.Equal(5, dashboard.Score.MaxScore);
+        Assert.Equal(Math.Sqrt(2.5d), dashboard.Score.StandardDeviation!.Value, 10);
+        Assert.Equal([1, 2, 3, 4, 5], dashboard.Score.Histogram.Select(bin => bin.Score).ToArray());
+        Assert.Equal([1, 1, 0, 1, 1], dashboard.Score.Histogram.Select(bin => bin.Count).ToArray());
+
         // Score by day of week, Monday-first, missing days null.
         Assert.Equal(7, dashboard.ScoreByDayOfWeek.Count);
         Assert.Equal("Monday", dashboard.ScoreByDayOfWeek[0].DayOfWeek);
@@ -64,6 +72,9 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal(2, monday.MinScore);
         Assert.Equal(3.0d, monday.AverageScore);
         Assert.Equal(4, monday.MaxScore);
+        Assert.Equal(1.0d, monday.StandardDeviation);
+        Assert.Equal(0.0d, Day(dashboard, "Tuesday").StandardDeviation);
+        Assert.Null(Day(dashboard, "Thursday").StandardDeviation);
         Assert.Equal(5.0d, Day(dashboard, "Tuesday").AverageScore);
         Assert.Equal(1.0d, Day(dashboard, "Wednesday").AverageScore);
         Assert.Null(Day(dashboard, "Thursday").AverageScore);
@@ -79,6 +90,8 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal(2, january.MinScore);
         Assert.Equal(3.0d, january.AverageScore);
         Assert.Equal(4, january.MaxScore);
+        Assert.Equal(1.0d, january.StandardDeviation);
+        Assert.Null(Bucket(dashboard, "2026-02").StandardDeviation);
         Assert.Equal(5.0d, Bucket(dashboard, "2026-03").AverageScore);
         Assert.Equal(1.0d, Bucket(dashboard, "2026-07").AverageScore);
         Assert.Null(Bucket(dashboard, "2026-02").AverageScore);
@@ -149,12 +162,17 @@ public sealed class MoodDashboardEndpointTests
 
         Assert.NotNull(dashboard);
         Assert.Equal(0, dashboard.EntryCount);
+        Assert.Null(dashboard.Score.AverageScore);
+        Assert.Null(dashboard.Score.StandardDeviation);
+        Assert.Equal(5, dashboard.Score.Histogram.Count);
+        Assert.All(dashboard.Score.Histogram, bin => Assert.Equal(0, bin.Count));
         Assert.Equal(7, dashboard.ScoreByDayOfWeek.Count);
         Assert.All(dashboard.ScoreByDayOfWeek, day =>
         {
             Assert.Null(day.MinScore);
             Assert.Null(day.AverageScore);
             Assert.Null(day.MaxScore);
+            Assert.Null(day.StandardDeviation);
         });
         Assert.Equal(12, dashboard.Buckets.Count);
         Assert.All(dashboard.Buckets, bucket => Assert.Null(bucket.AverageScore));

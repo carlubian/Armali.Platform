@@ -53,8 +53,9 @@ internal sealed record MoodOptionsResponse(
 internal sealed record MoodDerivedEmotionResponse(string DerivedEmotion);
 
 /// <summary>
-/// Score minimum, average, and maximum for one weekday slot of the selected period.
-/// All three values are null when the selected period has no entries on that weekday.
+/// Score minimum, average, maximum, and population standard deviation for one
+/// weekday slot of the selected period. All four values are null when the selected
+/// period has no entries on that weekday.
 /// <see cref="DayOfWeek"/> is the stable enum name (<c>Monday</c>..<c>Sunday</c>);
 /// the dashboard orders the seven slots Monday-first.
 /// </summary>
@@ -62,7 +63,8 @@ internal sealed record MoodScoreByDayResponse(
     string DayOfWeek,
     int? MinScore,
     double? AverageScore,
-    int? MaxScore);
+    int? MaxScore,
+    double? StandardDeviation);
 
 /// <summary>Count of entries carrying one fixed criterion value, including zeros.</summary>
 internal sealed record MoodValueCountResponse(string Value, int Count);
@@ -79,7 +81,8 @@ internal sealed record MoodCriteriaDistributionResponse(
     IReadOnlyList<MoodValueCountResponse> Source);
 
 /// <summary>
-/// A single dashboard time bucket carrying both the score min/average/max summary
+/// A single dashboard time bucket carrying both the score min/average/max and
+/// population standard deviation summary
 /// and the criteria distribution used for evolution charts. Buckets are calendar
 /// months for the Year, Semester, and Quarter scales and Monday-to-Sunday weeks for
 /// the Month scale. <see cref="Key"/> is the stable bucket token (<c>2026-07</c> for
@@ -94,7 +97,24 @@ internal sealed record MoodBucketResponse(
     int? MinScore,
     double? AverageScore,
     int? MaxScore,
+    double? StandardDeviation,
     MoodCriteriaDistributionResponse Distribution);
+
+/// <summary>Count of entries carrying one score value (<c>1</c>..<c>5</c>), including zeros.</summary>
+internal sealed record MoodScoreCountResponse(int Score, int Count);
+
+/// <summary>
+/// Whole-period score summary: minimum, arithmetic average, maximum, and population
+/// standard deviation over every entry in the period (not over bucket averages),
+/// plus the per-score histogram covering every score value in ascending order.
+/// The statistics are null when the period has no entries.
+/// </summary>
+internal sealed record MoodScoreSummaryResponse(
+    int? MinScore,
+    double? AverageScore,
+    int? MaxScore,
+    double? StandardDeviation,
+    IReadOnlyList<MoodScoreCountResponse> Histogram);
 
 /// <summary>
 /// Owner-only strict-period dashboard payload. Every aggregate covers only the
@@ -111,6 +131,7 @@ internal sealed record MoodDashboardResponse(
     string NextPeriod,
     string BucketGranularity,
     int EntryCount,
+    MoodScoreSummaryResponse Score,
     IReadOnlyList<MoodScoreByDayResponse> ScoreByDayOfWeek,
     MoodCriteriaDistributionResponse Distribution,
     IReadOnlyList<MoodBucketResponse> Buckets);
