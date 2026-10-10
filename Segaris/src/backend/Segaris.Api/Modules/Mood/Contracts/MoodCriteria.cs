@@ -16,19 +16,12 @@ internal enum MoodAlignment
     Positive,
 }
 
-/// <summary>The objective or purpose of the emotion.</summary>
-/// <remarks>The value is spelled <c>Offensive</c> in code, API contracts, and documentation.</remarks>
-internal enum MoodDirection
+/// <summary>What the emotion moves the user to do.</summary>
+internal enum MoodIntent
 {
-    Harmony,
-    Defensive,
-    Offensive,
-    Stability,
-}
-
-/// <summary>The origin or motive of the emotion.</summary>
-internal enum MoodSource
-{
-    Internal,
-    External,
+    Stay,
+    Defend,
+    Attack,
+    Rebuild,
+    Explore,
 }

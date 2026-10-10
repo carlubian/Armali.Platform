@@ -8,8 +8,7 @@ internal sealed record MoodEntryValues(
     int Score,
     MoodEnergy Energy,
     MoodAlignment Alignment,
-    MoodDirection Direction,
-    MoodSource Source,
+    MoodIntent Intent,
     string? Notes);
 
 internal sealed class MoodEntry
@@ -23,8 +22,7 @@ internal sealed class MoodEntry
     public int Score { get; private set; }
     public MoodEnergy Energy { get; private set; }
     public MoodAlignment Alignment { get; private set; }
-    public MoodDirection Direction { get; private set; }
-    public MoodSource Source { get; private set; }
+    public MoodIntent Intent { get; private set; }
     public string? Notes { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public int CreatedBy { get; private set; }
@@ -57,8 +55,7 @@ internal sealed class MoodEntry
         Score = MoodValidation.ValidateScore(values.Score);
         Energy = MoodValidation.ValidateEnergy(values.Energy);
         Alignment = MoodValidation.ValidateAlignment(values.Alignment);
-        Direction = MoodValidation.ValidateDirection(values.Direction);
-        Source = MoodValidation.ValidateSource(values.Source);
+        Intent = MoodValidation.ValidateIntent(values.Intent);
         Notes = MoodValidation.ValidateNotes(values.Notes);
     }
 

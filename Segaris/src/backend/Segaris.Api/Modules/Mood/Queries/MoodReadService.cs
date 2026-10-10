@@ -58,8 +58,7 @@ internal sealed class MoodReadService(SegarisDbContext database)
     public MoodOptionsResponse GetOptions() => new(
         MoodCriteriaCatalog.Energies,
         MoodCriteriaCatalog.Alignments,
-        MoodCriteriaCatalog.Directions,
-        MoodCriteriaCatalog.Sources,
+        MoodCriteriaCatalog.Intents,
         MoodCriteriaCatalog.Emotions);
 
     private IQueryable<MoodEntryRow> ProjectEntryRows(IQueryable<MoodEntry> entries) =>
@@ -69,8 +68,7 @@ internal sealed class MoodReadService(SegarisDbContext database)
             entry.Score,
             entry.Energy,
             entry.Alignment,
-            entry.Direction,
-            entry.Source,
+            entry.Intent,
             entry.Notes,
             entry.CreatedBy,
             database.Set<SegarisUser>()
@@ -91,9 +89,8 @@ internal sealed class MoodReadService(SegarisDbContext database)
         row.Score,
         row.Energy.ToString(),
         row.Alignment.ToString(),
-        row.Direction.ToString(),
-        row.Source.ToString(),
-        MoodDerivedEmotionMatrix.Resolve(row.Energy, row.Alignment, row.Direction, row.Source),
+        row.Intent.ToString(),
+        MoodDerivedEmotionMatrix.Resolve(row.Energy, row.Alignment, row.Intent),
         row.Notes,
         row.CreatedBy,
         row.CreatedByName,
@@ -118,8 +115,7 @@ internal sealed class MoodReadService(SegarisDbContext database)
         int Score,
         MoodEnergy Energy,
         MoodAlignment Alignment,
-        MoodDirection Direction,
-        MoodSource Source,
+        MoodIntent Intent,
         string? Notes,
         int CreatedBy,
         string CreatedByName,

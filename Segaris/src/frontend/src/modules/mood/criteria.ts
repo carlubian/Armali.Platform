@@ -1,9 +1,4 @@
-import type {
-  MoodAlignment,
-  MoodDirection,
-  MoodEnergy,
-  MoodSource,
-} from '@/app/api/mood'
+import type { MoodAlignment, MoodEnergy, MoodIntent } from '@/app/api/mood'
 
 /**
  * Presentational metadata for the fixed Mood criteria and the 0–5 score. The
@@ -36,16 +31,12 @@ export const alignmentTone: Record<MoodAlignment, MoodTone> = {
   Positive: 'sea',
 }
 
-export const directionTone: Record<MoodDirection, MoodTone> = {
-  Harmony: 'aqua',
-  Defensive: 'azure',
-  Offensive: 'rose',
-  Stability: 'gold',
-}
-
-export const sourceTone: Record<MoodSource, MoodTone> = {
-  Internal: 'aqua',
-  External: 'azure',
+export const intentTone: Record<MoodIntent, MoodTone> = {
+  Stay: 'aqua',
+  Defend: 'azure',
+  Attack: 'rose',
+  Rebuild: 'gold',
+  Explore: 'sea',
 }
 
 /**

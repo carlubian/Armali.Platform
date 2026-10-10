@@ -25,25 +25,22 @@ internal static class MoodRequests
     public static string DerivedEmotionPreviewPath(
         string energy,
         string alignment,
-        string direction,
-        string source) =>
-        $"{DerivedEmotionPath}?energy={energy}&alignment={alignment}&direction={direction}&source={source}";
+        string intent) =>
+        $"{DerivedEmotionPath}?energy={energy}&alignment={alignment}&intent={intent}";
 
     public static CreateMoodEntryRequest ValidEntry(
         DateOnly entryDate,
         int score = 3,
         MoodEnergy energy = MoodEnergy.Medium,
         MoodAlignment alignment = MoodAlignment.Medium,
-        MoodDirection direction = MoodDirection.Harmony,
-        MoodSource source = MoodSource.Internal,
+        MoodIntent intent = MoodIntent.Stay,
         string? notes = null) =>
         new(
             entryDate,
             score,
             energy.ToString(),
             alignment.ToString(),
-            direction.ToString(),
-            source.ToString(),
+            intent.ToString(),
             notes);
 
     public static UpdateMoodEntryRequest ValidUpdate(
@@ -51,15 +48,13 @@ internal static class MoodRequests
         int score = 3,
         MoodEnergy energy = MoodEnergy.Medium,
         MoodAlignment alignment = MoodAlignment.Medium,
-        MoodDirection direction = MoodDirection.Harmony,
-        MoodSource source = MoodSource.Internal,
+        MoodIntent intent = MoodIntent.Stay,
         string? notes = null) =>
         new(
             entryDate,
             score,
             energy.ToString(),
             alignment.ToString(),
-            direction.ToString(),
-            source.ToString(),
+            intent.ToString(),
             notes);
 }

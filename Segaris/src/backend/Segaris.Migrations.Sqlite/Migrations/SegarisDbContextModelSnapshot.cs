@@ -2372,11 +2372,6 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Direction")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Energy")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -2385,17 +2380,17 @@ namespace Segaris.Migrations.Sqlite.Migrations
                     b.Property<DateOnly>("EntryDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Intent")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Score")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -2417,13 +2412,11 @@ namespace Segaris.Migrations.Sqlite.Migrations
                         {
                             t.HasCheckConstraint("CK_mood_entries_alignment", "\"Alignment\" IN ('Negative', 'Medium', 'Positive')");
 
-                            t.HasCheckConstraint("CK_mood_entries_direction", "\"Direction\" IN ('Harmony', 'Defensive', 'Offensive', 'Stability')");
-
                             t.HasCheckConstraint("CK_mood_entries_energy", "\"Energy\" IN ('Low', 'Medium', 'High')");
 
-                            t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 0 AND \"Score\" <= 5");
+                            t.HasCheckConstraint("CK_mood_entries_intent", "\"Intent\" IN ('Stay', 'Defend', 'Attack', 'Rebuild', 'Explore')");
 
-                            t.HasCheckConstraint("CK_mood_entries_source", "\"Source\" IN ('Internal', 'External')");
+                            t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 0 AND \"Score\" <= 5");
                         });
                 });
 

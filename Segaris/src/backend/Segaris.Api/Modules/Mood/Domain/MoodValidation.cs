@@ -43,9 +43,7 @@ internal static class MoodValidation
 
     public static MoodAlignment ValidateAlignment(MoodAlignment value) => ValidateEnum(value);
 
-    public static MoodDirection ValidateDirection(MoodDirection value) => ValidateEnum(value);
-
-    public static MoodSource ValidateSource(MoodSource value) => ValidateEnum(value);
+    public static MoodIntent ValidateIntent(MoodIntent value) => ValidateEnum(value);
 
     private static TEnum ValidateEnum<TEnum>(TEnum value)
         where TEnum : struct, Enum

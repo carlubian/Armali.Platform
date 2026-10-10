@@ -40,8 +40,7 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
                 entry.Score,
                 entry.Energy,
                 entry.Alignment,
-                entry.Direction,
-                entry.Source))
+                entry.Intent))
             .ToArrayAsync(cancellationToken);
 
         var byWeek = period.Scale == MoodDashboardScale.Month;
@@ -141,8 +140,7 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
     private static MoodCriteriaDistributionResponse BuildDistribution(IReadOnlyList<Row> rows) => new(
         Distribution(rows, row => row.Energy),
         Distribution(rows, row => row.Alignment),
-        Distribution(rows, row => row.Direction),
-        Distribution(rows, row => row.Source));
+        Distribution(rows, row => row.Intent));
 
     private static IReadOnlyList<MoodValueCountResponse> Distribution<TEnum>(
         IReadOnlyList<Row> rows,
@@ -186,6 +184,5 @@ internal sealed class MoodDashboardService(SegarisDbContext database)
         int Score,
         MoodEnergy Energy,
         MoodAlignment Alignment,
-        MoodDirection Direction,
-        MoodSource Source);
+        MoodIntent Intent);
 }

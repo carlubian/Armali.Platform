@@ -74,8 +74,7 @@ interface MoodDashboardResponseFixture {
 interface CriteriaDistributionFixture {
   energy: Array<{ value: string; count: number }>
   alignment: Array<{ value: string; count: number }>
-  direction: Array<{ value: string; count: number }>
-  source: Array<{ value: string; count: number }>
+  intent: Array<{ value: string; count: number }>
 }
 
 function responseScale(scale: string): string {
@@ -148,15 +147,12 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
         { value: 'Medium', count: 2 },
         { value: 'Positive', count: 5 },
       ],
-      direction: [
-        { value: 'Harmony', count: 3 },
-        { value: 'Defensive', count: 1 },
-        { value: 'Offensive', count: 2 },
-        { value: 'Stability', count: 2 },
-      ],
-      source: [
-        { value: 'Internal', count: 6 },
-        { value: 'External', count: 2 },
+      intent: [
+        { value: 'Stay', count: 3 },
+        { value: 'Defend', count: 1 },
+        { value: 'Attack', count: 2 },
+        { value: 'Rebuild', count: 2 },
+        { value: 'Explore', count: 0 },
       ],
     },
     buckets: [
@@ -179,15 +175,12 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
             { value: 'Medium', count: 1 },
             { value: 'Positive', count: 2 },
           ],
-          direction: [
-            { value: 'Harmony', count: 1 },
-            { value: 'Defensive', count: 0 },
-            { value: 'Offensive', count: 1 },
-            { value: 'Stability', count: 1 },
-          ],
-          source: [
-            { value: 'Internal', count: 2 },
-            { value: 'External', count: 1 },
+          intent: [
+            { value: 'Stay', count: 1 },
+            { value: 'Defend', count: 0 },
+            { value: 'Attack', count: 1 },
+            { value: 'Rebuild', count: 1 },
+            { value: 'Explore', count: 0 },
           ],
         },
       },
@@ -210,15 +203,12 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
             { value: 'Medium', count: 1 },
             { value: 'Positive', count: 2 },
           ],
-          direction: [
-            { value: 'Harmony', count: 2 },
-            { value: 'Defensive', count: 1 },
-            { value: 'Offensive', count: 0 },
-            { value: 'Stability', count: 1 },
-          ],
-          source: [
-            { value: 'Internal', count: 4 },
-            { value: 'External', count: 0 },
+          intent: [
+            { value: 'Stay', count: 2 },
+            { value: 'Defend', count: 1 },
+            { value: 'Attack', count: 0 },
+            { value: 'Rebuild', count: 1 },
+            { value: 'Explore', count: 0 },
           ],
         },
       },
@@ -244,7 +234,7 @@ function emptyDashboard(scale: string, period: string): MoodDashboardResponseFix
       histogram: [],
     },
     scoreByDayOfWeek: [],
-    distribution: { energy: [], alignment: [], direction: [], source: [] },
+    distribution: { energy: [], alignment: [], intent: [] },
     buckets: [],
   }
 }

@@ -19,8 +19,7 @@ internal sealed class MoodModelContributor : ISegarisModelContributor
             builder.Property(entry => entry.Score).IsRequired();
             builder.Property(entry => entry.Energy).HasConversion<string>().HasMaxLength(10).IsRequired();
             builder.Property(entry => entry.Alignment).HasConversion<string>().HasMaxLength(10).IsRequired();
-            builder.Property(entry => entry.Direction).HasConversion<string>().HasMaxLength(10).IsRequired();
-            builder.Property(entry => entry.Source).HasConversion<string>().HasMaxLength(10).IsRequired();
+            builder.Property(entry => entry.Intent).HasConversion<string>().HasMaxLength(10).IsRequired();
             builder.Property(entry => entry.Notes).HasMaxLength(MoodDefaults.NotesMaxLength);
             builder.Property(entry => entry.CreatedAt).IsRequired();
             builder.Property(entry => entry.CreatedBy).IsRequired();
@@ -32,8 +31,7 @@ internal sealed class MoodModelContributor : ISegarisModelContributor
                     $"\"Score\" >= {MoodDefaults.ScoreMinimum} AND \"Score\" <= {MoodDefaults.ScoreMaximum}");
                 table.HasCheckConstraint("CK_mood_entries_energy", EnumConstraint<MoodEnergy>("Energy"));
                 table.HasCheckConstraint("CK_mood_entries_alignment", EnumConstraint<MoodAlignment>("Alignment"));
-                table.HasCheckConstraint("CK_mood_entries_direction", EnumConstraint<MoodDirection>("Direction"));
-                table.HasCheckConstraint("CK_mood_entries_source", EnumConstraint<MoodSource>("Source"));
+                table.HasCheckConstraint("CK_mood_entries_intent", EnumConstraint<MoodIntent>("Intent"));
             });
             builder.HasOne<SegarisUser>().WithMany().HasForeignKey(entry => entry.CreatedBy).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<SegarisUser>().WithMany().HasForeignKey(entry => entry.UpdatedBy).OnDelete(DeleteBehavior.Restrict);

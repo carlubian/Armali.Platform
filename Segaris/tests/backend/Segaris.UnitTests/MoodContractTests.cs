@@ -11,15 +11,7 @@ public sealed class MoodContractTests
     {
         Assert.Equal(["Low", "Medium", "High"], Enum.GetNames<MoodEnergy>());
         Assert.Equal(["Negative", "Medium", "Positive"], Enum.GetNames<MoodAlignment>());
-        Assert.Equal(["Harmony", "Defensive", "Offensive", "Stability"], Enum.GetNames<MoodDirection>());
-        Assert.Equal(["Internal", "External"], Enum.GetNames<MoodSource>());
-    }
-
-    [Fact]
-    public void Direction_uses_offensive_spelling()
-    {
-        Assert.Contains("Offensive", Enum.GetNames<MoodDirection>());
-        Assert.DoesNotContain("Offence", Enum.GetNames<MoodDirection>());
+        Assert.Equal(["Stay", "Defend", "Attack", "Rebuild", "Explore"], Enum.GetNames<MoodIntent>());
     }
 
     [Fact]
@@ -27,20 +19,18 @@ public sealed class MoodContractTests
     {
         Assert.Equal(["Low", "Medium", "High"], MoodCriteriaCatalog.Energies);
         Assert.Equal(["Negative", "Medium", "Positive"], MoodCriteriaCatalog.Alignments);
-        Assert.Equal(["Harmony", "Defensive", "Offensive", "Stability"], MoodCriteriaCatalog.Directions);
-        Assert.Equal(["Internal", "External"], MoodCriteriaCatalog.Sources);
+        Assert.Equal(["Stay", "Defend", "Attack", "Rebuild", "Explore"], MoodCriteriaCatalog.Intents);
     }
 
     [Fact]
-    public void Derived_emotion_combination_count_is_seventy_two()
+    public void Derived_emotion_combination_count_is_forty_five()
     {
         Assert.Equal(
-            72,
+            45,
             MoodCriteriaCatalog.Energies.Count
                 * MoodCriteriaCatalog.Alignments.Count
-                * MoodCriteriaCatalog.Directions.Count
-                * MoodCriteriaCatalog.Sources.Count);
-        Assert.Equal(72, MoodCriteriaCatalog.DerivedEmotionCombinationCount);
+                * MoodCriteriaCatalog.Intents.Count);
+        Assert.Equal(45, MoodCriteriaCatalog.DerivedEmotionCombinationCount);
     }
 
     [Fact]
@@ -79,8 +69,14 @@ public sealed class MoodContractTests
     }
 
     [Fact]
-    public void Mutation_requests_do_not_carry_a_derived_emotion()
+    public void Mutation_requests_do_not_carry_a_derived_emotion_or_retired_criteria()
     {
+        Assert.DoesNotContain(
+            typeof(CreateMoodEntryRequest).GetProperties(),
+            property => property.Name is "Direction" or "Source");
+        Assert.DoesNotContain(
+            typeof(UpdateMoodEntryRequest).GetProperties(),
+            property => property.Name is "Direction" or "Source");
         Assert.DoesNotContain(
             typeof(CreateMoodEntryRequest).GetProperties(),
             property => property.Name is "DerivedEmotion" or "Emotion");

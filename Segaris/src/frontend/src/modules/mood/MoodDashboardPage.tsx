@@ -7,32 +7,29 @@ import type {
   MoodAlignment,
   MoodCriteriaEvolutionPoint,
   MoodDashboardScale,
-  MoodDirection,
   MoodDistributionBucket,
   MoodEnergy,
+  MoodIntent,
   MoodScoreStat,
   MoodScoreSummary,
-  MoodSource,
 } from '@/app/api/mood'
 import {
   moodAlignments,
   moodDashboardScales,
-  moodDirections,
   moodEnergies,
+  moodIntents,
   moodScoreMax,
   moodScoreMin,
   moodScores,
-  moodSources,
 } from '@/app/api/mood'
 import { Button, Spinner } from '@/components/ui'
 
 import {
   alignmentTone,
-  directionTone,
   energyTone,
+  intentTone,
   moodToneVars,
   scoreColor,
-  sourceTone,
   type MoodTone,
 } from './criteria'
 import {
@@ -45,21 +42,19 @@ import { householdToday } from './entryForm'
 import { MoodShell } from './MoodShell'
 import { useMoodDashboard } from './queries'
 
-type CriteriaKey = 'energy' | 'alignment' | 'direction' | 'source'
+type CriteriaKey = 'energy' | 'alignment' | 'intent'
 
 const dayOrder = [1, 2, 3, 4, 5, 6, 7] as const
 const criteriaValues = {
   energy: moodEnergies,
   alignment: moodAlignments,
-  direction: moodDirections,
-  source: moodSources,
+  intent: moodIntents,
 } as const
 
 const criteriaTones = {
   energy: energyTone,
   alignment: alignmentTone,
-  direction: directionTone,
-  source: sourceTone,
+  intent: intentTone,
 } as const
 
 function setDashboardParams(
@@ -270,12 +265,8 @@ export function MoodDashboardPage() {
               buckets={dashboard.distribution.alignment}
             />
             <DistributionCard
-              criterion="direction"
-              buckets={dashboard.distribution.direction}
-            />
-            <DistributionCard
-              criterion="source"
-              buckets={dashboard.distribution.source}
+              criterion="intent"
+              buckets={dashboard.distribution.intent}
             />
           </div>
           <ScoreSpreadCard
@@ -291,8 +282,7 @@ export function MoodDashboardPage() {
           <div className="mood-grid mood-grid--two">
             <EvolutionCard criterion="energy" points={dashboard.evolution} />
             <EvolutionCard criterion="alignment" points={dashboard.evolution} />
-            <EvolutionCard criterion="direction" points={dashboard.evolution} />
-            <EvolutionCard criterion="source" points={dashboard.evolution} />
+            <EvolutionCard criterion="intent" points={dashboard.evolution} />
           </div>
         </div>
       )}
@@ -726,10 +716,8 @@ function toneFor(criterion: CriteriaKey, value: string): MoodTone {
       return criteriaTones.energy[value as MoodEnergy]
     case 'alignment':
       return criteriaTones.alignment[value as MoodAlignment]
-    case 'direction':
-      return criteriaTones.direction[value as MoodDirection]
-    case 'source':
-      return criteriaTones.source[value as MoodSource]
+    case 'intent':
+      return criteriaTones.intent[value as MoodIntent]
   }
 }
 
@@ -743,9 +731,7 @@ function getEvolutionCount(
       return point.energy[value as MoodEnergy] ?? 0
     case 'alignment':
       return point.alignment[value as MoodAlignment] ?? 0
-    case 'direction':
-      return point.direction[value as MoodDirection] ?? 0
-    case 'source':
-      return point.source[value as MoodSource] ?? 0
+    case 'intent':
+      return point.intent[value as MoodIntent] ?? 0
   }
 }

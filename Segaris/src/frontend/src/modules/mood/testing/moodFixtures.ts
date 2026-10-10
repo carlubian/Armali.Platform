@@ -12,8 +12,7 @@ export function moodEntry(overrides: Partial<MoodEntry> = {}): MoodEntry {
     score: 3,
     energy: 'Medium',
     alignment: 'Medium',
-    direction: 'Harmony',
-    source: 'Internal',
+    intent: 'Stay',
     derivedEmotion: 'calm',
     notes: null,
     createdById: 1,
@@ -44,7 +43,7 @@ export function moodDashboard(overrides: Partial<MoodDashboard> = {}): MoodDashb
     },
     scoreByDayOfWeek: [],
     scoreByInterval: [],
-    distribution: { energy: [], alignment: [], direction: [], source: [] },
+    distribution: { energy: [], alignment: [], intent: [] },
     evolution: [],
     ...overrides,
   }

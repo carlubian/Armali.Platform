@@ -5,12 +5,11 @@ import type { MoodEntry } from '@/app/api/mood'
 
 import {
   alignmentTone,
-  directionTone,
   energyTone,
+  intentTone,
   moodToneVars,
   scoreColor,
   scoreTone,
-  sourceTone,
   type MoodTone,
 } from './criteria'
 
@@ -49,7 +48,7 @@ function Pill({ label, tone }: { label: string; tone: MoodTone }) {
   )
 }
 
-/** The four fixed criteria of an entry rendered as labelled, toned pills. */
+/** The three fixed criteria of an entry rendered as labelled, toned pills. */
 export function CriteriaPills({ entry }: { entry: MoodEntry }) {
   const { t } = useTranslation('mood')
   return (
@@ -63,12 +62,8 @@ export function CriteriaPills({ entry }: { entry: MoodEntry }) {
         tone={alignmentTone[entry.alignment]}
       />
       <Pill
-        label={t(`criteria.direction.${entry.direction}`)}
-        tone={directionTone[entry.direction]}
-      />
-      <Pill
-        label={t(`criteria.source.${entry.source}`)}
-        tone={sourceTone[entry.source]}
+        label={t(`criteria.intent.${entry.intent}`)}
+        tone={intentTone[entry.intent]}
       />
     </div>
   )

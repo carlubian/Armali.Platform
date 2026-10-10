@@ -30,13 +30,13 @@ public sealed class MoodDashboardEndpointTests
 
         // Two entries on one Monday (Jan), one Tuesday (Mar), one Wednesday (Jul).
         await CreateAsync(client, csrf, new DateOnly(2026, 1, 5), score: 2,
-            MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Harmony, MoodSource.Internal);
+            MoodEnergy.Low, MoodAlignment.Negative, MoodIntent.Stay);
         await CreateAsync(client, csrf, new DateOnly(2026, 1, 5), score: 4,
-            MoodEnergy.High, MoodAlignment.Positive, MoodDirection.Offensive, MoodSource.External);
+            MoodEnergy.High, MoodAlignment.Positive, MoodIntent.Attack);
         await CreateAsync(client, csrf, new DateOnly(2026, 3, 10), score: 5,
-            MoodEnergy.Medium, MoodAlignment.Medium, MoodDirection.Defensive, MoodSource.Internal);
+            MoodEnergy.Medium, MoodAlignment.Medium, MoodIntent.Defend);
         await CreateAsync(client, csrf, new DateOnly(2026, 7, 15), score: 1,
-            MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Stability, MoodSource.External);
+            MoodEnergy.Low, MoodAlignment.Negative, MoodIntent.Stay);
 
         // Entries just outside the year must not contribute.
         await CreateAsync(client, csrf, new DateOnly(2025, 12, 31), score: 5);
@@ -101,17 +101,17 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal(1, Count(dashboard.Distribution.Energy, "Medium"));
         Assert.Equal(1, Count(dashboard.Distribution.Energy, "High"));
         Assert.Equal(2, Count(dashboard.Distribution.Alignment, "Negative"));
-        Assert.Equal(1, Count(dashboard.Distribution.Direction, "Harmony"));
-        Assert.Equal(1, Count(dashboard.Distribution.Direction, "Offensive"));
-        Assert.Equal(1, Count(dashboard.Distribution.Direction, "Stability"));
-        Assert.Equal(2, Count(dashboard.Distribution.Source, "Internal"));
-        Assert.Equal(2, Count(dashboard.Distribution.Source, "External"));
+        Assert.Equal(2, Count(dashboard.Distribution.Intent, "Stay"));
+        Assert.Equal(1, Count(dashboard.Distribution.Intent, "Defend"));
+        Assert.Equal(1, Count(dashboard.Distribution.Intent, "Attack"));
+        Assert.Equal(0, Count(dashboard.Distribution.Intent, "Rebuild"));
+        Assert.Equal(0, Count(dashboard.Distribution.Intent, "Explore"));
 
         // Per-bucket evolution distribution for January.
         Assert.Equal(1, Count(january.Distribution.Energy, "Low"));
         Assert.Equal(0, Count(january.Distribution.Energy, "Medium"));
         Assert.Equal(1, Count(january.Distribution.Energy, "High"));
-        Assert.Equal(0, Count(Bucket(dashboard, "2026-02").Distribution.Source, "Internal"));
+        Assert.Equal(0, Count(Bucket(dashboard, "2026-02").Distribution.Intent, "Stay"));
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class MoodDashboardEndpointTests
         Assert.All(dashboard.Buckets, bucket => Assert.Null(bucket.AverageScore));
         Assert.Equal(3, dashboard.Distribution.Energy.Count);
         Assert.All(dashboard.Distribution.Energy, value => Assert.Equal(0, value.Count));
-        Assert.Equal(4, dashboard.Distribution.Direction.Count);
+        Assert.Equal(5, dashboard.Distribution.Intent.Count);
     }
 
     [Fact]
@@ -265,10 +265,9 @@ public sealed class MoodDashboardEndpointTests
         int score = 3,
         MoodEnergy energy = MoodEnergy.Medium,
         MoodAlignment alignment = MoodAlignment.Medium,
-        MoodDirection direction = MoodDirection.Harmony,
-        MoodSource source = MoodSource.Internal)
+        MoodIntent intent = MoodIntent.Stay)
     {
-        var request = MoodRequests.ValidEntry(entryDate, score, energy, alignment, direction, source);
+        var request = MoodRequests.ValidEntry(entryDate, score, energy, alignment, intent);
         using var response = await CapexApi.PostJsonAsync(client, MoodRequests.EntriesPath, request, csrf);
         response.EnsureSuccessStatusCode();
     }

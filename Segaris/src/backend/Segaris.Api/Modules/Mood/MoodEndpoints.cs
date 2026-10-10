@@ -81,16 +81,14 @@ internal static class MoodEndpoints
     private static IResult GetDerivedEmotion(
         string? energy,
         string? alignment,
-        string? direction,
-        string? source)
+        string? intent)
     {
         try
         {
             var derivedEmotion = MoodDerivedEmotionMatrix.Resolve(
                 ParseCriterion<MoodEnergy>(energy, "energy"),
                 ParseCriterion<MoodAlignment>(alignment, "alignment"),
-                ParseCriterion<MoodDirection>(direction, "direction"),
-                ParseCriterion<MoodSource>(source, "source"));
+                ParseCriterion<MoodIntent>(intent, "intent"));
             return TypedResults.Ok(new MoodDerivedEmotionResponse(derivedEmotion));
         }
         catch (MoodValidationException exception)

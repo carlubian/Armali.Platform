@@ -86,6 +86,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_MoodScoreZeroScale"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_MoodIntentCriterion"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -191,13 +194,14 @@ public sealed class MigrationTests
         Assert.Contains("GamesDomainPersistence", sqliteNames);
         Assert.Contains("WellnessDomainPersistence", sqliteNames);
         Assert.Contains("MoodScoreZeroScale", sqliteNames);
+        Assert.Contains("MoodIntentCriterion", sqliteNames);
     }
 
     [Fact]
-    public void Mood_score_zero_scale_is_the_current_tail()
+    public void Mood_intent_criterion_is_the_current_tail()
     {
-        // The Mood 0-5 score scale re-maps existing entries after the accepted
-        // Wellness persistence migration.
+        // The Mood Intent criterion replaces Direction and Source after the 0-5
+        // score scale re-mapping, which still reads the Direction column.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -209,8 +213,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("MoodScoreZeroScale", migrations[^1]);
-            Assert.Equal("WellnessDomainPersistence", migrations[^2]);
+            Assert.Equal("MoodIntentCriterion", migrations[^1]);
+            Assert.Equal("MoodScoreZeroScale", migrations[^2]);
         }
     }
 
@@ -363,7 +367,10 @@ public sealed class MigrationTests
                     $"VALUES ('2026-06-18', {score}, 'Medium', '{alignment}', '{direction}', 'Internal', '2026-06-18 00:00:00+00:00', 1);");
             }
 
-            await migrator.MigrateAsync();
+            // Stop at the score migration: later migrations drop the Direction
+            // column and, with foreign keys back on, reject the userless fixture.
+            await migrator.MigrateAsync(database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_MoodScoreZeroScale", StringComparison.Ordinal)));
 
             await using var command = database.Database.GetDbConnection().CreateCommand();
             command.CommandText = "SELECT \"Score\" FROM mood_entries ORDER BY \"Id\"";
@@ -380,6 +387,106 @@ public sealed class MigrationTests
 
             // The widened constraint now accepts the new zero score.
             await ExecuteAsync(database, "UPDATE mood_entries SET \"Score\" = 0 WHERE \"Id\" = 1;");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task Sqlite_upgrade_converts_mood_direction_and_source_into_intent()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-mood-intent-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
+            var baseline = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_MoodScoreZeroScale", StringComparison.Ordinal));
+            var migrator = database.GetService<IMigrator>();
+
+            // Apply the four-criteria schema and insert one entry for every previous
+            // combination. Foreign keys are relaxed so the fixture does not need an
+            // identity user.
+            await migrator.MigrateAsync(baseline);
+            await database.Database.OpenConnectionAsync();
+            await ExecuteAsync(database, "PRAGMA foreign_keys = OFF;");
+            string[] energies = ["High", "Medium", "Low"];
+            string[] alignments = ["Positive", "Medium", "Negative"];
+            string[] directions = ["Harmony", "Offensive", "Defensive", "Stability"];
+            string[] sources = ["Internal", "External"];
+            foreach (var energy in energies)
+            {
+                foreach (var alignment in alignments)
+                {
+                    foreach (var direction in directions)
+                    {
+                        foreach (var source in sources)
+                        {
+                            await ExecuteAsync(database,
+                                "INSERT INTO mood_entries (\"EntryDate\", \"Score\", \"Energy\", \"Alignment\", \"Direction\", \"Source\", \"Notes\", \"CreatedAt\", \"CreatedBy\") " +
+                                $"VALUES ('2026-06-18', 3, '{energy}', '{alignment}', '{direction}', '{source}', '{energy}/{alignment}/{direction}/{source}', '2026-06-18 00:00:00+00:00', 1);");
+                        }
+                    }
+                }
+            }
+
+            await migrator.MigrateAsync();
+
+            // Every entry survives with its Energy and Alignment and a known Intent.
+            var migrated = new Dictionary<string, (string Energy, string Alignment, string Intent)>();
+            await using var command = database.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "SELECT \"Notes\", \"Energy\", \"Alignment\", \"Intent\" FROM mood_entries";
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    migrated.Add(reader.GetString(0), (reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+                }
+            }
+
+            Assert.Equal(72, migrated.Count);
+            Assert.All(migrated, row =>
+            {
+                var parts = row.Key.Split('/');
+                Assert.Equal(parts[0], row.Value.Energy);
+                Assert.Equal(parts[1], row.Value.Alignment);
+                Assert.Contains(row.Value.Intent, new[] { "Stay", "Defend", "Attack", "Rebuild", "Explore" });
+            });
+
+            (string Energy, string Alignment, string Direction, string Source, string Expected)[] sample =
+            [
+                ("High", "Positive", "Harmony", "Internal", "Stay"),
+                ("High", "Positive", "Offensive", "Internal", "Explore"),
+                ("High", "Positive", "Offensive", "External", "Attack"),
+                ("High", "Negative", "Harmony", "Internal", "Rebuild"),
+                ("High", "Negative", "Harmony", "External", "Attack"),
+                ("Medium", "Medium", "Harmony", "External", "Stay"),
+                ("Medium", "Medium", "Defensive", "Internal", "Defend"),
+                ("Medium", "Negative", "Defensive", "Internal", "Rebuild"),
+                ("Low", "Positive", "Defensive", "External", "Stay"),
+                ("Low", "Medium", "Offensive", "Internal", "Attack"),
+                ("Low", "Negative", "Stability", "External", "Rebuild"),
+            ];
+            foreach (var (energy, alignment, direction, source, expected) in sample)
+            {
+                Assert.Equal(expected, migrated[$"{energy}/{alignment}/{direction}/{source}"].Intent);
+            }
+
+            // The old criteria columns are gone and Intent is constrained.
+            command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('mood_entries') WHERE name IN ('Direction', 'Source')";
+            Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+            await Assert.ThrowsAsync<SqliteException>(() =>
+                ExecuteAsync(database, "UPDATE mood_entries SET \"Intent\" = 'Harmony' WHERE \"Id\" = 1;"));
+
+            // Rolling back restores the previous columns with constraint-valid values.
+            // The upgrade's table rebuild re-enabled foreign keys, so relax them again.
+            await ExecuteAsync(database, "PRAGMA foreign_keys = OFF;");
+            await migrator.MigrateAsync(baseline);
+            command.CommandText =
+                "SELECT COUNT(*) FROM mood_entries WHERE \"Direction\" IN ('Harmony', 'Defensive', 'Offensive', 'Stability') AND \"Source\" = 'Internal'";
+            Assert.Equal(72L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {
@@ -433,6 +540,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_GamesDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_WellnessDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_MoodScoreZeroScale"));
+            Assert.Contains(applied, migration => migration.EndsWith("_MoodIntentCriterion"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.
