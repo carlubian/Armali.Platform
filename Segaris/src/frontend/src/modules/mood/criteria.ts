@@ -6,7 +6,7 @@ import type {
 } from '@/app/api/mood'
 
 /**
- * Presentational metadata for the fixed Mood criteria and the 1–5 score. The
+ * Presentational metadata for the fixed Mood criteria and the 0–5 score. The
  * derived-emotion code is translated through the `mood` i18next namespace; the
  * tone colours below are purely visual and never carry meaning the colour-blind
  * user would miss, because every pill and chip also shows its text label.
@@ -48,11 +48,14 @@ export const sourceTone: Record<MoodSource, MoodTone> = {
   External: 'azure',
 }
 
-/** Maps a 1–5 score (rounded) to a tone, from terracotta (low) to sea (high). */
+/**
+ * Maps a 0–5 score (rounded) to a tone: terracotta for the negative scores (0–1),
+ * gold for the neutral ones (2–3), and sea for the positive ones (4–5).
+ */
 export function scoreTone(score: number): MoodTone {
   const rounded = Math.round(score)
-  if (rounded <= 2) return 'rose'
-  if (rounded === 3) return 'gold'
+  if (rounded <= 1) return 'rose'
+  if (rounded <= 3) return 'gold'
   return 'sea'
 }
 

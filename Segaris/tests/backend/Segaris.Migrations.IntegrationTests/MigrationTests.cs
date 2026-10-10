@@ -83,6 +83,9 @@ public sealed class MigrationTests
                 Assert.Contains(
                     appliedMigrations,
                     migration => migration.EndsWith("_WellnessDomainPersistence"));
+                Assert.Contains(
+                    appliedMigrations,
+                    migration => migration.EndsWith("_MoodScoreZeroScale"));
                 Assert.True(File.Exists(databasePath));
 
                 await database.Database.OpenConnectionAsync();
@@ -187,13 +190,14 @@ public sealed class MigrationTests
         Assert.Contains("CurrencyExchangeRateToEur", sqliteNames);
         Assert.Contains("GamesDomainPersistence", sqliteNames);
         Assert.Contains("WellnessDomainPersistence", sqliteNames);
+        Assert.Contains("MoodScoreZeroScale", sqliteNames);
     }
 
     [Fact]
-    public void Wellness_domain_persistence_is_the_current_tail()
+    public void Mood_score_zero_scale_is_the_current_tail()
     {
-        // Wellness Wave 1 adds its catalogue, day, and day-task snapshot model after
-        // the accepted Games persistence migration.
+        // The Mood 0-5 score scale re-maps existing entries after the accepted
+        // Wellness persistence migration.
         using var sqlite = CreateContext("Sqlite", "Data Source=:memory:");
         using var postgres = CreateContext(
             "Postgres",
@@ -205,8 +209,8 @@ public sealed class MigrationTests
             postgres.Database.GetMigrations().Select(LogicalName).ToArray(),
         })
         {
-            Assert.Equal("WellnessDomainPersistence", migrations[^1]);
-            Assert.Equal("GamesDomainPersistence", migrations[^2]);
+            Assert.Equal("MoodScoreZeroScale", migrations[^1]);
+            Assert.Equal("WellnessDomainPersistence", migrations[^2]);
         }
     }
 
@@ -320,6 +324,70 @@ public sealed class MigrationTests
         }
     }
 
+    [Fact]
+    public async Task Sqlite_upgrade_remaps_mood_scores_onto_the_zero_based_scale()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"segaris-mood-scores-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using var database = CreateContext("Sqlite", $"Data Source={databasePath}");
+            var baseline = database.Database.GetMigrations()
+                .Single(migration => migration.EndsWith("_WellnessDomainPersistence", StringComparison.Ordinal));
+            var migrator = database.GetService<IMigrator>();
+
+            // Apply the 1-5 schema and insert one entry per re-mapping rule. Foreign
+            // keys are relaxed so the fixture does not need an identity user.
+            await migrator.MigrateAsync(baseline);
+            await database.Database.OpenConnectionAsync();
+            await ExecuteAsync(database, "PRAGMA foreign_keys = OFF;");
+            (int Score, string Alignment, string Direction, int Expected)[] cases =
+            [
+                (1, "Negative", "Defensive", 1),
+                (2, "Positive", "Harmony", 1),
+                (2, "Negative", "Offensive", 1),
+                (3, "Negative", "Harmony", 2),
+                (3, "Negative", "Stability", 2),
+                (3, "Medium", "Offensive", 2),
+                (3, "Medium", "Defensive", 2),
+                (3, "Medium", "Harmony", 3),
+                (3, "Medium", "Stability", 3),
+                (3, "Positive", "Offensive", 3),
+                (3, "Positive", "Defensive", 3),
+                (4, "Negative", "Offensive", 4),
+                (5, "Medium", "Defensive", 5),
+            ];
+            foreach (var (score, alignment, direction, _) in cases)
+            {
+                await ExecuteAsync(database,
+                    "INSERT INTO mood_entries (\"EntryDate\", \"Score\", \"Energy\", \"Alignment\", \"Direction\", \"Source\", \"CreatedAt\", \"CreatedBy\") " +
+                    $"VALUES ('2026-06-18', {score}, 'Medium', '{alignment}', '{direction}', 'Internal', '2026-06-18 00:00:00+00:00', 1);");
+            }
+
+            await migrator.MigrateAsync();
+
+            await using var command = database.Database.GetDbConnection().CreateCommand();
+            command.CommandText = "SELECT \"Score\" FROM mood_entries ORDER BY \"Id\"";
+            var migrated = new List<int>();
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    migrated.Add(reader.GetInt32(0));
+                }
+            }
+
+            Assert.Equal(cases.Select(row => row.Expected).ToArray(), migrated);
+
+            // The widened constraint now accepts the new zero score.
+            await ExecuteAsync(database, "UPDATE mood_entries SET \"Score\" = 0 WHERE \"Id\" = 1;");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
+    }
+
     private static async Task ExecuteAsync(
         Segaris.Persistence.SegarisDbContext database,
         string sql)
@@ -364,6 +432,7 @@ public sealed class MigrationTests
             Assert.Contains(applied, migration => migration.EndsWith("_HealthDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_GamesDomainPersistence"));
             Assert.Contains(applied, migration => migration.EndsWith("_WellnessDomainPersistence"));
+            Assert.Contains(applied, migration => migration.EndsWith("_MoodScoreZeroScale"));
             await database.Database.OpenConnectionAsync();
             await using var command = database.Database.GetDbConnection().CreateCommand();
             // Three catalog tables plus the one-time initialization table.

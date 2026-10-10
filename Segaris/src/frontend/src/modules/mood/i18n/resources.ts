@@ -183,6 +183,14 @@ export const mood = {
       notesPlaceholder: 'A short note about this check-in…',
       notesCount: '{{count}} / {{max}}',
     },
+    scoreTooltips: {
+      '0': 'A completely catastrophic period with stressful or inconvenient events. No relief was found or expected.',
+      '1': 'A majorly negative period with tiresome or undesired events. Some relief was found though not enough to overcome the negatives.',
+      '2': "A neutral but slightly negative period that isn't a cause for concern per se. It's sustainable although not ideal.",
+      '3': "A neutral but slightly positive period that doesn't excel by itself. It represents an average low level satisfaction.",
+      '4': 'A majorly positive event with pleasant or enjoyable events. However some negative or tense moments took place.',
+      '5': 'A completely positive period with nice and positive events. No discomfort or stressful moments took place.',
+    },
     derived: {
       label: 'Derived emotion',
       placeholder: 'Pick all four criteria',
@@ -214,7 +222,7 @@ export const mood = {
     },
     validation: {
       dateRequired: 'Choose an entry date.',
-      scoreRequired: 'Choose a score from 1 to 5.',
+      scoreRequired: 'Choose a score from 0 to 5.',
       energyRequired: 'Choose an energy level.',
       alignmentRequired: 'Choose an alignment.',
       directionRequired: 'Choose a direction.',

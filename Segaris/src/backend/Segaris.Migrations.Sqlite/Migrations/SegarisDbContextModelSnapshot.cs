@@ -2421,7 +2421,7 @@ namespace Segaris.Migrations.Sqlite.Migrations
 
                             t.HasCheckConstraint("CK_mood_entries_energy", "\"Energy\" IN ('Low', 'Medium', 'High')");
 
-                            t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 1 AND \"Score\" <= 5");
+                            t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 0 AND \"Score\" <= 5");
 
                             t.HasCheckConstraint("CK_mood_entries_source", "\"Source\" IN ('Internal', 'External')");
                         });

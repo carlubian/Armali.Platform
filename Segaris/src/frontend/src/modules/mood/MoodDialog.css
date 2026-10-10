@@ -58,13 +58,48 @@
   color: var(--terracotta-500);
 }
 
-/* Score selector 1–5 (active colours are applied inline by tone). */
+/* Score selector 0–5 (active colours are applied inline by tone). */
 .mood-scoresel {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
 }
+/* Each button's description bubble is anchored below the whole selector rather
+   than to its own narrow button, so the wrapped text stays inside the dialog and
+   does not jump while the pointer moves across scores. */
+.mood-scoresel .mood-scoresel__tip {
+  position: static;
+  display: flex;
+}
+.mood-scoresel .arm-tooltip__bubble {
+  top: calc(100% + 8px);
+  bottom: auto;
+  left: auto;
+  right: 0;
+  width: min(18rem, 80vw);
+  white-space: normal;
+  text-align: left;
+  font-weight: 500;
+  line-height: 1.45;
+  transform: translateY(-4px);
+}
+.mood-scoresel .arm-tooltip__bubble::after {
+  display: none;
+}
+.mood-scoresel .arm-tooltip:hover .arm-tooltip__bubble,
+.mood-scoresel .arm-tooltip:focus-within .arm-tooltip__bubble {
+  transform: translateY(0);
+}
+/* Only one bubble at a time: a clicked button keeps focus, so its bubble yields
+   to the hovered one and lingers only for keyboard focus. */
+.mood-scoresel:hover .arm-tooltip:not(:hover) .arm-tooltip__bubble,
+.mood-scoresel .arm-tooltip:not(:hover):not(:has(:focus-visible)) .arm-tooltip__bubble {
+  opacity: 0;
+}
 .mood-scoresel__btn {
+  flex: 1;
+  min-width: 0;
   cursor: pointer;
   border: 1px solid var(--border-default);
   background: var(--surface-card-solid);

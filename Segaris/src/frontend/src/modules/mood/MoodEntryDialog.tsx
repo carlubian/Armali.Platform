@@ -12,12 +12,13 @@ import {
   moodDirections,
   moodEnergies,
   moodNotesMaxLength,
+  moodScores,
   moodSources,
   type CreateMoodEntryRequest,
   type MoodDerivedEmotionQuery,
   type MoodEntry,
 } from '@/app/api/mood'
-import { Button, Dialog, Input, Spinner } from '@/components/ui'
+import { Button, Dialog, Input, Spinner, Tooltip } from '@/components/ui'
 
 import {
   alignmentTone,
@@ -487,24 +488,29 @@ function ScoreField({ value, onChange, error }: ScoreFieldProps) {
         {t('editor.fields.score')}
       </span>
       <div className="mood-scoresel" role="group" aria-label={t('editor.fields.score')}>
-        {[1, 2, 3, 4, 5].map((option) => {
+        {moodScores.map((option) => {
           const active = value === option
           const [bg, fg] = moodToneVars[scoreTone(option)]
           return (
-            <button
+            <Tooltip
               key={option}
-              type="button"
-              className={['mood-scoresel__btn', active ? 'is-active' : '']
-                .filter(Boolean)
-                .join(' ')}
-              aria-pressed={active}
-              style={
-                active ? { background: bg, color: fg, borderColor: fg } : undefined
-              }
-              onClick={() => onChange(option)}
+              className="mood-scoresel__tip"
+              label={t(`editor.scoreTooltips.${option}`)}
             >
-              {option}
-            </button>
+              <button
+                type="button"
+                className={['mood-scoresel__btn', active ? 'is-active' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-pressed={active}
+                style={
+                  active ? { background: bg, color: fg, borderColor: fg } : undefined
+                }
+                onClick={() => onChange(option)}
+              >
+                {option}
+              </button>
+            </Tooltip>
           )
         })}
       </div>

@@ -30,6 +30,16 @@ public sealed class MoodDomainTests
 
     [Theory]
     [InlineData(0)]
+    [InlineData(5)]
+    public void Entry_accepts_the_bounds_of_the_score_range(int score)
+    {
+        var entry = MoodEntry.Create(Values() with { Score = score }, new UserId(1), Now);
+
+        Assert.Equal(score, entry.Score);
+    }
+
+    [Theory]
+    [InlineData(-1)]
     [InlineData(6)]
     public void Entry_rejects_scores_outside_the_frozen_range(int score)
     {

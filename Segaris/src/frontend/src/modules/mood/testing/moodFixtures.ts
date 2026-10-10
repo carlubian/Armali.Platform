@@ -40,7 +40,7 @@ export function moodDashboard(overrides: Partial<MoodDashboard> = {}): MoodDashb
       average: null,
       max: null,
       standardDeviation: null,
-      histogram: [0, 0, 0, 0, 0],
+      histogram: [0, 0, 0, 0, 0, 0],
     },
     scoreByDayOfWeek: [],
     scoreByInterval: [],

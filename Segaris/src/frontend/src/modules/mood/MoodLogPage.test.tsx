@@ -283,8 +283,29 @@ describe('Mood log view', () => {
     expect(within(dialog).getByLabelText(/Entry date/)).toHaveValue(TODAY)
 
     await user.click(within(dialog).getByRole('button', { name: 'Save entry' }))
-    expect(await screen.findByText('Choose a score from 1 to 5.')).toBeInTheDocument()
+    expect(await screen.findByText('Choose a score from 0 to 5.')).toBeInTheDocument()
     expect(requests.some((r) => r.method === 'POST')).toBe(false)
+  })
+
+  it('offers scores 0 to 5, each described by a tooltip', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Grateful')
+    await user.click(screen.getByRole('button', { name: 'New entry' }))
+    const dialog = await screen.findByRole('dialog')
+    const scores = within(dialog).getByRole('group', { name: 'Score' })
+
+    expect(
+      within(scores)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['0', '1', '2', '3', '4', '5'])
+    const tooltips = within(scores).getAllByRole('tooltip', { hidden: true })
+    expect(tooltips).toHaveLength(6)
+    expect(tooltips[0]).toHaveTextContent(/completely catastrophic period/)
+    expect(tooltips[5]).toHaveTextContent(/completely positive period/)
   })
 
   it('creates an entry and shows success feedback', async () => {

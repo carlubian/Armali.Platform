@@ -289,7 +289,7 @@ Module purpose: Record moods or emotions for long term trend analysis.
 
 | Status | Decision | Notes |
 | --- | --- | --- |
-| Resolved | Entities and properties | Owner-only Mood entries with entry date, 1-5 score, fixed Energy/Alignment/Direction/Source criteria, optional short notes, and a code-backed derived-emotion matrix. The initial matrix source is `D:\Proyectos Locales\SegarisMood.csv`; implementation should translate it into module-owned code with full-combination tests. See `docs/requirements/MOOD_REQUIREMENTS.md`. |
+| Resolved | Entities and properties | Owner-only Mood entries with entry date, 0-5 score (originally 1-5), fixed Energy/Alignment/Direction/Source criteria, optional short notes, and a code-backed derived-emotion matrix. The initial matrix source is `D:\Proyectos Locales\SegarisMood.csv`; implementation should translate it into module-owned code with full-combination tests. See `docs/requirements/MOOD_REQUIREMENTS.md`. |
 | Resolved | Privacy model | Mood is privacy-first and always creator-only. Administrators cannot view another user's entries, and Mood has no public/private visibility toggle. |
 | Resolved | User workflow | Mood has a weekly Log view with Monday-Sunday navigation, a global new-entry action, derived emotion display, and a small weekly score chart; the Dashboard provides current-user trends by strict Year, Semester, Quarter, or Month periods. See `docs/requirements/MOOD_REQUIREMENTS.md`. |
 | Resolved | Integration scope | Mood is autocontained for the initial release, with no launcher attention, attachments, Analytics integration, audit history, or configurable criteria catalogs. |

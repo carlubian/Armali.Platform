@@ -69,7 +69,7 @@ public sealed class MoodContractTests
     [Fact]
     public void Validation_bounds_and_timezone_are_frozen()
     {
-        Assert.Equal(1, MoodDefaults.ScoreMinimum);
+        Assert.Equal(0, MoodDefaults.ScoreMinimum);
         Assert.Equal(5, MoodDefaults.ScoreMaximum);
         Assert.Equal(1000, MoodDefaults.NotesMaxLength);
         Assert.Equal("Europe/Madrid", MoodDefaults.HouseholdTimeZoneId);

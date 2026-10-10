@@ -20,8 +20,10 @@ export const moodSources = ['Internal', 'External'] as const
 export type MoodDashboardScale = 'year' | 'semester' | 'quarter' | 'month'
 export const moodDashboardScales = ['year', 'semester', 'quarter', 'month'] as const
 
-export const moodScoreMin = 1 as const
+export const moodScoreMin = 0 as const
 export const moodScoreMax = 5 as const
+/** Every selectable score, ascending. */
+export const moodScores = [0, 1, 2, 3, 4, 5] as const
 export const moodNotesMaxLength = 1000 as const
 
 export const moodRoutePath = '/mood' as const
@@ -113,9 +115,9 @@ export interface MoodScoreStat {
   standardDeviation: number | null
 }
 
-/** Whole-period score statistics plus the entry count for each score 1–5. */
+/** Whole-period score statistics plus the entry count for each score 0–5. */
 export interface MoodScoreSummary extends MoodScoreStat {
-  /** Entry counts indexed by score - 1 (always five bins, zeros included). */
+  /** Entry counts indexed by score (always six bins, zeros included). */
   histogram: number[]
 }
 
@@ -278,7 +280,7 @@ function mapScoreSummary(score: MoodScoreSummaryResponse): MoodScoreSummary {
     average: score.averageScore,
     max: score.maxScore,
     standardDeviation: score.standardDeviation,
-    histogram: [1, 2, 3, 4, 5].map(
+    histogram: moodScores.map(
       (value) => score.histogram.find((bin) => bin.score === value)?.count ?? 0,
     ),
   }

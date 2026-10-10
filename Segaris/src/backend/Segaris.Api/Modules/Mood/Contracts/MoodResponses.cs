@@ -100,7 +100,7 @@ internal sealed record MoodBucketResponse(
     double? StandardDeviation,
     MoodCriteriaDistributionResponse Distribution);
 
-/// <summary>Count of entries carrying one score value (<c>1</c>..<c>5</c>), including zeros.</summary>
+/// <summary>Count of entries carrying one score value (<c>0</c>..<c>5</c>), including zeros.</summary>
 internal sealed record MoodScoreCountResponse(int Score, int Count);
 
 /// <summary>

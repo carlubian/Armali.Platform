@@ -65,7 +65,7 @@ These rules apply:
 A Mood entry contains at least:
 
 - A required civil `EntryDate`.
-- A required integer score from `1` to `5`, inclusive.
+- A required integer score from `0` to `5`, inclusive.
 - Required Energy.
 - Required Alignment.
 - Required Direction.
@@ -84,8 +84,23 @@ valid and are ordered by insertion order.
 
 ## Score
 
-`Score` is a simple integer between `1` and `5`, inclusive. It is interpreted by
-the user as the overall subjective score for that entry.
+`Score` is a simple integer between `0` and `5`, inclusive. It is interpreted by
+the user as the overall subjective score for that entry. The entry editor
+describes each value in a tooltip on its score button:
+
+| Score | Meaning |
+| --- | --- |
+| `0` | A completely catastrophic period with stressful or inconvenient events. No relief was found or expected. |
+| `1` | A majorly negative period with tiresome or undesired events. Some relief was found though not enough to overcome the negatives. |
+| `2` | A neutral but slightly negative period that isn't a cause for concern per se. It's sustainable although not ideal. |
+| `3` | A neutral but slightly positive period that doesn't excel by itself. It represents an average low level satisfaction. |
+| `4` | A majorly positive event with pleasant or enjoyable events. However some negative or tense moments took place. |
+| `5` | A completely positive period with nice and positive events. No discomfort or stressful moments took place. |
+
+The scale originally ran from `1` to `5`. The `MoodScoreZeroScale` migration
+re-mapped existing entries onto the current scale: a `2` became `1`; a `3`
+became `2` when its Alignment was Negative, or Medium with a Defensive or
+Offensive Direction; every other entry kept its score.
 
 The initial module uses simple arithmetic averages for score summaries, and the
 dashboard complements them with the population standard deviation (divided by
@@ -201,7 +216,7 @@ confirmation in the interface.
 ## Validation
 
 - `EntryDate` is required and has no artificial past or future boundary.
-- `Score` is required and must be an integer between `1` and `5`, inclusive.
+- `Score` is required and must be an integer between `0` and `5`, inclusive.
 - Energy is required and must be a known value.
 - Alignment is required and must be a known value.
 - Direction is required and must be a known value.
@@ -335,7 +350,7 @@ or no-data states rather than special errors.
 The initial Dashboard may include:
 
 - Overall average and standard deviation of the score for the selected period,
-  with the distribution of entries across scores 1 to 5.
+  with the distribution of entries across scores 0 to 5.
 - Average, standard deviation (average ± 1σ band), minimum, and maximum score by
   day of week for the selected period.
 - Average, standard deviation, minimum, and maximum score by month for Year,

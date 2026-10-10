@@ -61,8 +61,8 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal(3.0d, dashboard.Score.AverageScore);
         Assert.Equal(5, dashboard.Score.MaxScore);
         Assert.Equal(Math.Sqrt(2.5d), dashboard.Score.StandardDeviation!.Value, 10);
-        Assert.Equal([1, 2, 3, 4, 5], dashboard.Score.Histogram.Select(bin => bin.Score).ToArray());
-        Assert.Equal([1, 1, 0, 1, 1], dashboard.Score.Histogram.Select(bin => bin.Count).ToArray());
+        Assert.Equal([0, 1, 2, 3, 4, 5], dashboard.Score.Histogram.Select(bin => bin.Score).ToArray());
+        Assert.Equal([0, 1, 1, 0, 1, 1], dashboard.Score.Histogram.Select(bin => bin.Count).ToArray());
 
         // Score by day of week, Monday-first, missing days null.
         Assert.Equal(7, dashboard.ScoreByDayOfWeek.Count);
@@ -164,7 +164,7 @@ public sealed class MoodDashboardEndpointTests
         Assert.Equal(0, dashboard.EntryCount);
         Assert.Null(dashboard.Score.AverageScore);
         Assert.Null(dashboard.Score.StandardDeviation);
-        Assert.Equal(5, dashboard.Score.Histogram.Count);
+        Assert.Equal(6, dashboard.Score.Histogram.Count);
         Assert.All(dashboard.Score.Histogram, bin => Assert.Equal(0, bin.Count));
         Assert.Equal(7, dashboard.ScoreByDayOfWeek.Count);
         Assert.All(dashboard.ScoreByDayOfWeek, day =>

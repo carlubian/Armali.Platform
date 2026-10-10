@@ -106,6 +106,7 @@ function dashboardFor(scale: string, period: string): MoodDashboardResponseFixtu
       maxScore: 5,
       standardDeviation: 0.87,
       histogram: [
+        { score: 0, count: 0 },
         { score: 1, count: 0 },
         { score: 2, count: 1 },
         { score: 3, count: 3 },

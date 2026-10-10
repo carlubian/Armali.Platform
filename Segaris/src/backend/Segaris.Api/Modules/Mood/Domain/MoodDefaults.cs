@@ -6,7 +6,7 @@ internal static class MoodDefaults
     public const string HouseholdTimeZoneId = "Europe/Madrid";
 
     /// <summary>Inclusive lower bound for <c>Score</c>.</summary>
-    public const int ScoreMinimum = 1;
+    public const int ScoreMinimum = 0;
 
     /// <summary>Inclusive upper bound for <c>Score</c>.</summary>
     public const int ScoreMaximum = 5;

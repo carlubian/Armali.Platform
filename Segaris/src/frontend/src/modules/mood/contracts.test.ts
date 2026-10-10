@@ -70,6 +70,11 @@ describe('mood contracts', () => {
     })
     expect(parsed.notes).toBeNull()
 
+    expect(moodEntryRequestSchema.safeParse({ ...parsed, score: 0 }).success).toBe(true)
+    expect(moodEntryRequestSchema.safeParse({ ...parsed, score: -1 }).success).toBe(
+      false,
+    )
+
     expect(
       moodEntryRequestSchema.safeParse({
         entryDate: '2026-06-15',
