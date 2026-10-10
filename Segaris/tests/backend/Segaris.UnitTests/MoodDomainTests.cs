@@ -30,6 +30,16 @@ public sealed class MoodDomainTests
 
     [Theory]
     [InlineData(0)]
+    [InlineData(5)]
+    public void Entry_accepts_the_bounds_of_the_score_range(int score)
+    {
+        var entry = MoodEntry.Create(Values() with { Score = score }, new UserId(1), Now);
+
+        Assert.Equal(score, entry.Score);
+    }
+
+    [Theory]
+    [InlineData(-1)]
     [InlineData(6)]
     public void Entry_rejects_scores_outside_the_frozen_range(int score)
     {
@@ -100,9 +110,8 @@ public sealed class MoodDomainTests
         var allCombinations =
             from energy in Enum.GetValues<MoodEnergy>()
             from alignment in Enum.GetValues<MoodAlignment>()
-            from direction in Enum.GetValues<MoodDirection>()
-            from source in Enum.GetValues<MoodSource>()
-            select new MoodCriteriaCombination(energy, alignment, direction, source);
+            from intent in Enum.GetValues<MoodIntent>()
+            select new MoodCriteriaCombination(energy, alignment, intent);
 
         Assert.Equal(MoodCriteriaCatalog.DerivedEmotionCombinationCount, MoodDerivedEmotionMatrix.All.Count);
         Assert.Equal(MoodCriteriaCatalog.DerivedEmotionCombinationCount, MoodDerivedEmotionMatrix.All.Keys.Distinct().Count());
@@ -110,15 +119,15 @@ public sealed class MoodDomainTests
     }
 
     [Theory]
-    [InlineData((int)MoodEnergy.High, (int)MoodAlignment.Positive, (int)MoodDirection.Harmony, (int)MoodSource.Internal, "Happy")]
-    [InlineData((int)MoodEnergy.High, (int)MoodAlignment.Negative, (int)MoodDirection.Offensive, (int)MoodSource.External, "Angry")]
-    [InlineData((int)MoodEnergy.Low, (int)MoodAlignment.Medium, (int)MoodDirection.Harmony, (int)MoodSource.Internal, "Self-Care")]
-    [InlineData((int)MoodEnergy.Low, (int)MoodAlignment.Negative, (int)MoodDirection.Stability, (int)MoodSource.External, "Burnout")]
+    [InlineData((int)MoodEnergy.High, (int)MoodAlignment.Positive, (int)MoodIntent.Stay, "Happy")]
+    [InlineData((int)MoodEnergy.High, (int)MoodAlignment.Negative, (int)MoodIntent.Attack, "Angry")]
+    [InlineData((int)MoodEnergy.Medium, (int)MoodAlignment.Positive, (int)MoodIntent.Defend, "In the bubble")]
+    [InlineData((int)MoodEnergy.Low, (int)MoodAlignment.Medium, (int)MoodIntent.Explore, "Indecisive")]
+    [InlineData((int)MoodEnergy.Low, (int)MoodAlignment.Negative, (int)MoodIntent.Rebuild, "Sad")]
     public void Derived_emotion_matrix_returns_stable_codes(
         int energy,
         int alignment,
-        int direction,
-        int source,
+        int intent,
         string expected)
     {
         Assert.Equal(
@@ -126,15 +135,14 @@ public sealed class MoodDomainTests
             MoodDerivedEmotionMatrix.Resolve(
                 (MoodEnergy)energy,
                 (MoodAlignment)alignment,
-                (MoodDirection)direction,
-                (MoodSource)source));
+                (MoodIntent)intent));
     }
 
     [Fact]
     public void Derived_emotion_matrix_rejects_impossible_combinations()
     {
         var error = Assert.Throws<MoodValidationException>(() =>
-            MoodDerivedEmotionMatrix.Resolve((MoodEnergy)99, MoodAlignment.Positive, MoodDirection.Harmony, MoodSource.Internal));
+            MoodDerivedEmotionMatrix.Resolve((MoodEnergy)99, MoodAlignment.Positive, MoodIntent.Stay));
 
         Assert.Equal(MoodValidationReason.Criteria, error.Reason);
     }
@@ -168,8 +176,7 @@ public sealed class MoodDomainTests
         Score: 3,
         Energy: MoodEnergy.Medium,
         Alignment: MoodAlignment.Positive,
-        Direction: MoodDirection.Harmony,
-        Source: MoodSource.Internal,
+        Intent: MoodIntent.Stay,
         Notes: null);
 
     private sealed class MoodFixture : IAsyncDisposable

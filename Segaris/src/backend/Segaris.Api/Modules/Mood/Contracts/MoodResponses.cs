@@ -11,8 +11,7 @@ internal sealed record MoodEntryResponse(
     int Score,
     string Energy,
     string Alignment,
-    string Direction,
-    string Source,
+    string Intent,
     string DerivedEmotion,
     string? Notes,
     int CreatedById,
@@ -42,8 +41,7 @@ internal sealed record MoodEntryListResponse(
 internal sealed record MoodOptionsResponse(
     IReadOnlyList<string> Energies,
     IReadOnlyList<string> Alignments,
-    IReadOnlyList<string> Directions,
-    IReadOnlyList<string> Sources,
+    IReadOnlyList<string> Intents,
     IReadOnlyList<string> Emotions);
 
 /// <summary>
@@ -77,8 +75,7 @@ internal sealed record MoodValueCountResponse(string Value, int Count);
 internal sealed record MoodCriteriaDistributionResponse(
     IReadOnlyList<MoodValueCountResponse> Energy,
     IReadOnlyList<MoodValueCountResponse> Alignment,
-    IReadOnlyList<MoodValueCountResponse> Direction,
-    IReadOnlyList<MoodValueCountResponse> Source);
+    IReadOnlyList<MoodValueCountResponse> Intent);
 
 /// <summary>
 /// A single dashboard time bucket carrying both the score min/average/max and
@@ -100,7 +97,7 @@ internal sealed record MoodBucketResponse(
     double? StandardDeviation,
     MoodCriteriaDistributionResponse Distribution);
 
-/// <summary>Count of entries carrying one score value (<c>1</c>..<c>5</c>), including zeros.</summary>
+/// <summary>Count of entries carrying one score value (<c>0</c>..<c>5</c>), including zeros.</summary>
 internal sealed record MoodScoreCountResponse(int Score, int Count);
 
 /// <summary>

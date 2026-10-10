@@ -4,24 +4,19 @@ import { apiRequest } from './client'
 // and the `mood/options` contract.
 export type MoodEnergy = 'Low' | 'Medium' | 'High'
 export type MoodAlignment = 'Negative' | 'Medium' | 'Positive'
-export type MoodDirection = 'Harmony' | 'Defensive' | 'Offensive' | 'Stability'
-export type MoodSource = 'Internal' | 'External'
+export type MoodIntent = 'Stay' | 'Defend' | 'Attack' | 'Rebuild' | 'Explore'
 
 export const moodEnergies = ['Low', 'Medium', 'High'] as const
 export const moodAlignments = ['Negative', 'Medium', 'Positive'] as const
-export const moodDirections = [
-  'Harmony',
-  'Defensive',
-  'Offensive',
-  'Stability',
-] as const
-export const moodSources = ['Internal', 'External'] as const
+export const moodIntents = ['Stay', 'Defend', 'Attack', 'Rebuild', 'Explore'] as const
 
 export type MoodDashboardScale = 'year' | 'semester' | 'quarter' | 'month'
 export const moodDashboardScales = ['year', 'semester', 'quarter', 'month'] as const
 
-export const moodScoreMin = 1 as const
+export const moodScoreMin = 0 as const
 export const moodScoreMax = 5 as const
+/** Every selectable score, ascending. */
+export const moodScores = [0, 1, 2, 3, 4, 5] as const
 export const moodNotesMaxLength = 1000 as const
 
 export const moodRoutePath = '/mood' as const
@@ -34,8 +29,7 @@ export interface MoodEntry {
   score: number
   energy: MoodEnergy
   alignment: MoodAlignment
-  direction: MoodDirection
-  source: MoodSource
+  intent: MoodIntent
   derivedEmotion: string
   notes: string | null
   createdById: number
@@ -77,8 +71,7 @@ export interface CreateMoodEntryRequest {
   score: number
   energy: MoodEnergy
   alignment: MoodAlignment
-  direction: MoodDirection
-  source: MoodSource
+  intent: MoodIntent
   notes: string | null
 }
 
@@ -87,16 +80,14 @@ export type UpdateMoodEntryRequest = CreateMoodEntryRequest
 export interface MoodOptions {
   energies: MoodEnergy[]
   alignments: MoodAlignment[]
-  directions: MoodDirection[]
-  sources: MoodSource[]
+  intents: MoodIntent[]
   emotions: string[]
 }
 
 export interface MoodDerivedEmotionQuery {
   energy: MoodEnergy
   alignment: MoodAlignment
-  direction: MoodDirection
-  source: MoodSource
+  intent: MoodIntent
 }
 
 export interface MoodDerivedEmotion {
@@ -113,9 +104,9 @@ export interface MoodScoreStat {
   standardDeviation: number | null
 }
 
-/** Whole-period score statistics plus the entry count for each score 1–5. */
+/** Whole-period score statistics plus the entry count for each score 0–5. */
 export interface MoodScoreSummary extends MoodScoreStat {
-  /** Entry counts indexed by score - 1 (always five bins, zeros included). */
+  /** Entry counts indexed by score (always six bins, zeros included). */
   histogram: number[]
 }
 
@@ -137,16 +128,14 @@ export interface MoodDistributionBucket {
 export interface MoodCriteriaDistribution {
   energy: MoodDistributionBucket[]
   alignment: MoodDistributionBucket[]
-  direction: MoodDistributionBucket[]
-  source: MoodDistributionBucket[]
+  intent: MoodDistributionBucket[]
 }
 
 export interface MoodCriteriaEvolutionPoint {
   interval: string
   energy: Record<MoodEnergy, number>
   alignment: Record<MoodAlignment, number>
-  direction: Record<MoodDirection, number>
-  source: Record<MoodSource, number>
+  intent: Record<MoodIntent, number>
 }
 
 export interface MoodDashboardQuery {
@@ -193,8 +182,7 @@ interface MoodValueCountResponse {
 interface MoodCriteriaDistributionResponse {
   energy: MoodValueCountResponse[]
   alignment: MoodValueCountResponse[]
-  direction: MoodValueCountResponse[]
-  source: MoodValueCountResponse[]
+  intent: MoodValueCountResponse[]
 }
 
 interface MoodBucketResponse {
@@ -267,8 +255,7 @@ function mapDistribution(
   return {
     energy: distribution.energy,
     alignment: distribution.alignment,
-    direction: distribution.direction,
-    source: distribution.source,
+    intent: distribution.intent,
   }
 }
 
@@ -278,7 +265,7 @@ function mapScoreSummary(score: MoodScoreSummaryResponse): MoodScoreSummary {
     average: score.averageScore,
     max: score.maxScore,
     standardDeviation: score.standardDeviation,
-    histogram: [1, 2, 3, 4, 5].map(
+    histogram: moodScores.map(
       (value) => score.histogram.find((bin) => bin.score === value)?.count ?? 0,
     ),
   }
@@ -313,8 +300,7 @@ function mapDashboard(response: MoodDashboardResponse): MoodDashboard {
       interval: bucket.key,
       energy: countMap(moodEnergies, bucket.distribution.energy),
       alignment: countMap(moodAlignments, bucket.distribution.alignment),
-      direction: countMap(moodDirections, bucket.distribution.direction),
-      source: countMap(moodSources, bucket.distribution.source),
+      intent: countMap(moodIntents, bucket.distribution.intent),
     })),
   }
 }
@@ -327,8 +313,7 @@ export const moodApi = {
       `/api/mood/derived-emotion${buildQuery({
         energy: query.energy,
         alignment: query.alignment,
-        direction: query.direction,
-        source: query.source,
+        intent: query.intent,
       })}`,
       { signal },
     ),

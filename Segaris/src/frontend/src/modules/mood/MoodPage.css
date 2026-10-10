@@ -273,6 +273,10 @@
 .mood-grid--two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+/* An odd trailing card spans the row instead of leaving an empty cell. */
+.mood-grid--two > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
 .mood-card {
   display: flex;
   flex-direction: column;
@@ -305,7 +309,7 @@
 }
 .mood-distgrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-5);
 }
 .mood-emptynote {
@@ -447,7 +451,7 @@
 }
 .mood-sdhist__bars {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: var(--space-2);
   align-items: end;
   height: 72px;
@@ -488,7 +492,7 @@
 }
 .mood-sdhist__lbls {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   text-align: center;
   font-family: var(--font-display);
   font-weight: 600;

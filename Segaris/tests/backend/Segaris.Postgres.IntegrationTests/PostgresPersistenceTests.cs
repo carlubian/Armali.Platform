@@ -756,11 +756,11 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         var userId = await database.Set<SegarisUser>().Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
         var now = new DateTimeOffset(2026, 6, 18, 10, 0, 0, TimeSpan.Zero);
         database.Add(MoodEntry.Create(
-            new(new DateOnly(2026, 6, 18), 4, MoodEnergy.High, MoodAlignment.Positive, MoodDirection.Harmony, MoodSource.Internal, "first"),
+            new(new DateOnly(2026, 6, 18), 4, MoodEnergy.High, MoodAlignment.Positive, MoodIntent.Stay, "first"),
             new UserId(userId),
             now));
         database.Add(MoodEntry.Create(
-            new(new DateOnly(2026, 6, 18), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Stability, MoodSource.External, "second"),
+            new(new DateOnly(2026, 6, 18), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodIntent.Rebuild, "second"),
             new UserId(userId),
             now.AddMinutes(1)));
         await database.SaveChangesAsync();
@@ -773,11 +773,10 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             .ToListAsync();
 
         Assert.Equal(["first", "second"], stored.Select(entry => entry.Notes));
-        Assert.Equal("Burnout", MoodDerivedEmotionMatrix.Resolve(
+        Assert.Equal("Sad", MoodDerivedEmotionMatrix.Resolve(
             stored[1].Energy,
             stored[1].Alignment,
-            stored[1].Direction,
-            stored[1].Source));
+            stored[1].Intent));
     }
 
     [Fact]
@@ -800,17 +799,17 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
                 .Where(user => user.UserName == userName).Select(user => user.Id).SingleAsync();
             var now = new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
             database.Add(MoodEntry.Create(
-                new(new DateOnly(2026, 1, 5), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Harmony, MoodSource.Internal, null),
+                new(new DateOnly(2026, 1, 5), 2, MoodEnergy.Low, MoodAlignment.Negative, MoodIntent.Stay, null),
                 new UserId(userId), now));
             database.Add(MoodEntry.Create(
-                new(new DateOnly(2026, 1, 5), 4, MoodEnergy.High, MoodAlignment.Positive, MoodDirection.Offensive, MoodSource.External, null),
+                new(new DateOnly(2026, 1, 5), 4, MoodEnergy.High, MoodAlignment.Positive, MoodIntent.Attack, null),
                 new UserId(userId), now.AddMinutes(1)));
             database.Add(MoodEntry.Create(
-                new(new DateOnly(2026, 3, 10), 5, MoodEnergy.Medium, MoodAlignment.Medium, MoodDirection.Defensive, MoodSource.Internal, null),
+                new(new DateOnly(2026, 3, 10), 5, MoodEnergy.Medium, MoodAlignment.Medium, MoodIntent.Stay, null),
                 new UserId(userId), now));
             // Outside the selected year, so it must not contribute.
             database.Add(MoodEntry.Create(
-                new(new DateOnly(2025, 12, 31), 1, MoodEnergy.Low, MoodAlignment.Negative, MoodDirection.Stability, MoodSource.External, null),
+                new(new DateOnly(2025, 12, 31), 1, MoodEnergy.Low, MoodAlignment.Negative, MoodIntent.Rebuild, null),
                 new UserId(userId), now));
             await database.SaveChangesAsync();
         }
@@ -846,8 +845,9 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
         Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "Low").Count);
         Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "Medium").Count);
         Assert.Equal(1, dashboard.Distribution.Energy.Single(value => value.Value == "High").Count);
-        Assert.Equal(2, dashboard.Distribution.Source.Single(value => value.Value == "Internal").Count);
-        Assert.Equal(1, dashboard.Distribution.Source.Single(value => value.Value == "External").Count);
+        Assert.Equal(2, dashboard.Distribution.Intent.Single(value => value.Value == "Stay").Count);
+        Assert.Equal(1, dashboard.Distribution.Intent.Single(value => value.Value == "Attack").Count);
+        Assert.Equal(0, dashboard.Distribution.Intent.Single(value => value.Value == "Rebuild").Count);
     }
 
     [Fact]
@@ -1681,6 +1681,106 @@ public sealed class PostgresPersistenceTests : IAsyncLifetime
             {
             }
         }
+    }
+
+    [Fact]
+    public async Task Postgres_converts_mood_direction_and_source_into_intent()
+    {
+        if (postgres is null)
+        {
+            return;
+        }
+
+        var schema = $"mood_intent_{Guid.NewGuid():N}";
+        await using (var connection = new NpgsqlConnection(postgres.GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"CREATE SCHEMA \"{schema}\"";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var connectionString = new NpgsqlConnectionStringBuilder(postgres.GetConnectionString())
+        {
+            SearchPath = schema,
+        }.ConnectionString;
+        await using var database = new SegarisDesignTimeDbContextFactory().CreateDbContext(
+        [
+            "--provider",
+            "Postgres",
+            "--connection",
+            connectionString,
+        ]);
+        var baseline = database.Database.GetMigrations()
+            .Single(migration => migration.EndsWith("_MoodScoreZeroScale", StringComparison.Ordinal));
+        var migrator = database.GetService<IMigrator>();
+
+        // Apply the four-criteria schema and insert one entry for every previous
+        // combination. Triggers are relaxed for the insert so the fixture does not
+        // need an identity user.
+        await migrator.MigrateAsync(baseline);
+        await database.Database.OpenConnectionAsync();
+        await using var seed = database.Database.GetDbConnection().CreateCommand();
+        seed.CommandText =
+            """
+            SET session_replication_role = replica;
+            INSERT INTO mood_entries ("EntryDate", "Score", "Energy", "Alignment", "Direction", "Source", "Notes", "CreatedAt", "CreatedBy")
+            SELECT DATE '2026-06-18', 3, e, a, d, s, e || '/' || a || '/' || d || '/' || s, TIMESTAMPTZ '2026-06-18 00:00:00+00', 1
+            FROM unnest(ARRAY['High', 'Medium', 'Low']) AS e,
+                 unnest(ARRAY['Positive', 'Medium', 'Negative']) AS a,
+                 unnest(ARRAY['Harmony', 'Offensive', 'Defensive', 'Stability']) AS d,
+                 unnest(ARRAY['Internal', 'External']) AS s;
+            SET session_replication_role = DEFAULT;
+            """;
+        await seed.ExecuteNonQueryAsync();
+        await migrator.MigrateAsync();
+
+        var migrated = new Dictionary<string, (string Energy, string Alignment, string Intent)>();
+        await using var query = database.Database.GetDbConnection().CreateCommand();
+        query.CommandText = "SELECT \"Notes\", \"Energy\", \"Alignment\", \"Intent\" FROM mood_entries";
+        await using (var reader = await query.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                migrated.Add(reader.GetString(0), (reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+            }
+        }
+
+        Assert.Equal(72, migrated.Count);
+        Assert.All(migrated, row =>
+        {
+            var parts = row.Key.Split('/');
+            Assert.Equal(parts[0], row.Value.Energy);
+            Assert.Equal(parts[1], row.Value.Alignment);
+            Assert.Contains(row.Value.Intent, new[] { "Stay", "Defend", "Attack", "Rebuild", "Explore" });
+        });
+
+        (string Energy, string Alignment, string Direction, string Source, string Expected)[] sample =
+        [
+            ("High", "Positive", "Harmony", "Internal", "Stay"),
+            ("High", "Positive", "Offensive", "Internal", "Explore"),
+            ("High", "Positive", "Offensive", "External", "Attack"),
+            ("High", "Negative", "Harmony", "Internal", "Rebuild"),
+            ("High", "Negative", "Harmony", "External", "Attack"),
+            ("Medium", "Medium", "Harmony", "External", "Stay"),
+            ("Medium", "Medium", "Defensive", "Internal", "Defend"),
+            ("Medium", "Negative", "Defensive", "Internal", "Rebuild"),
+            ("Low", "Positive", "Defensive", "External", "Stay"),
+            ("Low", "Medium", "Offensive", "Internal", "Attack"),
+            ("Low", "Negative", "Stability", "External", "Rebuild"),
+        ];
+        foreach (var (energy, alignment, direction, source, expected) in sample)
+        {
+            Assert.Equal(expected, migrated[$"{energy}/{alignment}/{direction}/{source}"].Intent);
+        }
+
+        // The old criteria columns are gone and Intent is required.
+        query.CommandText =
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'mood_entries' AND column_name IN ('Direction', 'Source')";
+        Assert.Equal(0L, (long)(await query.ExecuteScalarAsync())!);
+        query.CommandText =
+            "SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'mood_entries' AND column_name = 'Intent'";
+        Assert.Equal("NO", (string)(await query.ExecuteScalarAsync())!);
     }
 
     [Fact]

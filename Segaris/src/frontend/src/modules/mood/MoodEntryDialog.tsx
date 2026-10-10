@@ -9,23 +9,22 @@ import { isApiError } from '@/app/api/errors'
 import {
   moodAlignments,
   moodApi,
-  moodDirections,
   moodEnergies,
+  moodIntents,
   moodNotesMaxLength,
-  moodSources,
+  moodScores,
   type CreateMoodEntryRequest,
   type MoodDerivedEmotionQuery,
   type MoodEntry,
 } from '@/app/api/mood'
-import { Button, Dialog, Input, Spinner } from '@/components/ui'
+import { Button, Dialog, Input, Spinner, Tooltip } from '@/components/ui'
 
 import {
   alignmentTone,
-  directionTone,
   energyTone,
+  intentTone,
   moodToneVars,
   scoreTone,
-  sourceTone,
   type MoodTone,
 } from './criteria'
 import { useEmotionLabel } from './MoodPrimitives'
@@ -158,8 +157,7 @@ function MoodEntryForm({
         scoreRequired: t('editor.validation.scoreRequired'),
         energyRequired: t('editor.validation.energyRequired'),
         alignmentRequired: t('editor.validation.alignmentRequired'),
-        directionRequired: t('editor.validation.directionRequired'),
-        sourceRequired: t('editor.validation.sourceRequired'),
+        intentRequired: t('editor.validation.intentRequired'),
         notesTooLong: t('editor.validation.notesTooLong'),
       }),
     [t],
@@ -223,13 +221,13 @@ function MoodEntryForm({
   const submitting = mutation.isPending
   const busy = submitting || deleteMutation.isPending
   const notes = useWatch({ control, name: 'notes' })
-  const [energy, alignment, direction, source] = useWatch({
+  const [energy, alignment, intent] = useWatch({
     control,
-    name: ['energy', 'alignment', 'direction', 'source'],
+    name: ['energy', 'alignment', 'intent'],
   })
   const previewCriteria: MoodDerivedEmotionQuery | null =
-    energy != null && alignment != null && direction != null && source != null
-      ? { energy, alignment, direction, source }
+    energy != null && alignment != null && intent != null
+      ? { energy, alignment, intent }
       : null
   const previewQuery = useQuery({
     queryKey: moodKeys.derivedEmotion(previewCriteria),
@@ -346,38 +344,21 @@ function MoodEntryForm({
               />
             )}
           />
-          <div className="mood-form__grid2">
-            <Controller
-              control={control}
-              name="direction"
-              render={({ field }) => (
-                <ChoiceField
-                  label={t('criteria.direction.label')}
-                  options={moodDirections}
-                  value={field.value}
-                  onChange={field.onChange}
-                  toneOf={(value) => directionTone[value]}
-                  labelOf={(value) => t(`criteria.direction.${value}`)}
-                  error={formState.errors.direction?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="source"
-              render={({ field }) => (
-                <ChoiceField
-                  label={t('criteria.source.label')}
-                  options={moodSources}
-                  value={field.value}
-                  onChange={field.onChange}
-                  toneOf={(value) => sourceTone[value]}
-                  labelOf={(value) => t(`criteria.source.${value}`)}
-                  error={formState.errors.source?.message}
-                />
-              )}
-            />
-          </div>
+          <Controller
+            control={control}
+            name="intent"
+            render={({ field }) => (
+              <ChoiceField
+                label={t('criteria.intent.label')}
+                options={moodIntents}
+                value={field.value}
+                onChange={field.onChange}
+                toneOf={(value) => intentTone[value]}
+                labelOf={(value) => t(`criteria.intent.${value}`)}
+                error={formState.errors.intent?.message}
+              />
+            )}
+          />
 
           <div className="mood-derived">
             <span className="mood-derived__icon">
@@ -487,24 +468,29 @@ function ScoreField({ value, onChange, error }: ScoreFieldProps) {
         {t('editor.fields.score')}
       </span>
       <div className="mood-scoresel" role="group" aria-label={t('editor.fields.score')}>
-        {[1, 2, 3, 4, 5].map((option) => {
+        {moodScores.map((option) => {
           const active = value === option
           const [bg, fg] = moodToneVars[scoreTone(option)]
           return (
-            <button
+            <Tooltip
               key={option}
-              type="button"
-              className={['mood-scoresel__btn', active ? 'is-active' : '']
-                .filter(Boolean)
-                .join(' ')}
-              aria-pressed={active}
-              style={
-                active ? { background: bg, color: fg, borderColor: fg } : undefined
-              }
-              onClick={() => onChange(option)}
+              className="mood-scoresel__tip"
+              label={t(`editor.scoreTooltips.${option}`)}
             >
-              {option}
-            </button>
+              <button
+                type="button"
+                className={['mood-scoresel__btn', active ? 'is-active' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-pressed={active}
+                style={
+                  active ? { background: bg, color: fg, borderColor: fg } : undefined
+                }
+                onClick={() => onChange(option)}
+              >
+                {option}
+              </button>
+            </Tooltip>
           )
         })}
       </div>

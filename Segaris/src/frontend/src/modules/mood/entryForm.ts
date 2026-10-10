@@ -1,16 +1,10 @@
 import { z } from 'zod'
 
-import type {
-  MoodAlignment,
-  MoodDirection,
-  MoodEnergy,
-  MoodEntry,
-  MoodSource,
-} from '@/app/api/mood'
+import type { MoodAlignment, MoodEnergy, MoodEntry, MoodIntent } from '@/app/api/mood'
 import { moodNotesMaxLength, moodScoreMax, moodScoreMin } from '@/app/api/mood'
 
 /**
- * React Hook Form values for the entry dialog. Score and the four criteria start
+ * React Hook Form values for the entry dialog. Score and the three criteria start
  * as `null` because a new entry has no default selection until the user chooses
  * one; notes default to an empty string and become `null` in the request.
  */
@@ -19,8 +13,7 @@ export interface MoodEntryFormValues {
   score: number | null
   energy: MoodEnergy | null
   alignment: MoodAlignment | null
-  direction: MoodDirection | null
-  source: MoodSource | null
+  intent: MoodIntent | null
   notes: string
 }
 
@@ -29,8 +22,7 @@ export interface MoodEntrySchemaMessages {
   scoreRequired: string
   energyRequired: string
   alignmentRequired: string
-  directionRequired: string
-  sourceRequired: string
+  intentRequired: string
   notesTooLong: string
 }
 
@@ -62,11 +54,10 @@ export function createMoodEntrySchema(messages: MoodEntrySchemaMessages) {
       z.enum(['Negative', 'Medium', 'Positive']),
       messages.alignmentRequired,
     ),
-    direction: chosen(
-      z.enum(['Harmony', 'Defensive', 'Offensive', 'Stability']),
-      messages.directionRequired,
+    intent: chosen(
+      z.enum(['Stay', 'Defend', 'Attack', 'Rebuild', 'Explore']),
+      messages.intentRequired,
     ),
-    source: chosen(z.enum(['Internal', 'External']), messages.sourceRequired),
     notes: z
       .string()
       .max(moodNotesMaxLength, messages.notesTooLong)
@@ -99,8 +90,7 @@ export function buildDefaults(today: string): MoodEntryFormValues {
     score: null,
     energy: null,
     alignment: null,
-    direction: null,
-    source: null,
+    intent: null,
     notes: '',
   }
 }
@@ -111,8 +101,7 @@ export function fromEntry(entry: MoodEntry): MoodEntryFormValues {
     score: entry.score,
     energy: entry.energy,
     alignment: entry.alignment,
-    direction: entry.direction,
-    source: entry.source,
+    intent: entry.intent,
     notes: entry.notes ?? '',
   }
 }

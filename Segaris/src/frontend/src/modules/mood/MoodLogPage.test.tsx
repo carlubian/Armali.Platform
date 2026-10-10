@@ -45,9 +45,8 @@ const weekEntries: MoodEntry[] = [
     score: 4,
     energy: 'Medium',
     alignment: 'Positive',
-    direction: 'Harmony',
-    source: 'Internal',
-    derivedEmotion: 'Grateful',
+    intent: 'Stay',
+    derivedEmotion: 'Satisfied',
     notes: 'A good walk by the harbour.',
   }),
   moodEntry({
@@ -56,9 +55,8 @@ const weekEntries: MoodEntry[] = [
     score: 3,
     energy: 'High',
     alignment: 'Medium',
-    direction: 'Stability',
-    source: 'External',
-    derivedEmotion: 'Focused',
+    intent: 'Explore',
+    derivedEmotion: 'Curious',
     notes: null,
   }),
 ]
@@ -138,15 +136,11 @@ function mockBackend(options: BackendOptions = {}) {
       const parsed = new URL(url, 'http://localhost')
       const energy = parsed.searchParams.get('energy')
       const alignment = parsed.searchParams.get('alignment')
-      const direction = parsed.searchParams.get('direction')
-      const source = parsed.searchParams.get('source')
+      const intent = parsed.searchParams.get('intent')
       const derivedEmotion =
-        energy === 'High' &&
-        alignment === 'Positive' &&
-        direction === 'Harmony' &&
-        source === 'Internal'
+        energy === 'High' && alignment === 'Positive' && intent === 'Stay'
           ? 'Happy'
-          : 'Optimistic'
+          : 'Inspired'
       return json({ derivedEmotion })
     }
 
@@ -217,8 +211,8 @@ describe('Mood log view', () => {
     mockBackend()
     render(<App />)
 
-    expect(await screen.findByText('Grateful')).toBeInTheDocument()
-    expect(screen.getByText('Focused')).toBeInTheDocument()
+    expect(await screen.findByText('Satisfied')).toBeInTheDocument()
+    expect(screen.getByText('Curious')).toBeInTheDocument()
     // Criteria render as labelled pills, not raw notes.
     expect(screen.getAllByText('Positive').length).toBeGreaterThan(0)
     expect(screen.queryByText('A good walk by the harbour.')).not.toBeInTheDocument()
@@ -228,7 +222,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     expect(
       requests.some(
         (r) => r.url.includes('from=2026-06-15') && r.url.includes('to=2026-06-21'),
@@ -241,7 +235,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Previous week' }))
@@ -265,7 +259,7 @@ describe('Mood log view', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     const chart = screen.getByRole('img', { name: 'Average score per day this week' })
     expect(chart).toBeInTheDocument()
   })
@@ -275,7 +269,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     await user.click(screen.getByRole('button', { name: 'New entry' }))
 
     const dialog = await screen.findByRole('dialog')
@@ -283,8 +277,29 @@ describe('Mood log view', () => {
     expect(within(dialog).getByLabelText(/Entry date/)).toHaveValue(TODAY)
 
     await user.click(within(dialog).getByRole('button', { name: 'Save entry' }))
-    expect(await screen.findByText('Choose a score from 1 to 5.')).toBeInTheDocument()
+    expect(await screen.findByText('Choose a score from 0 to 5.')).toBeInTheDocument()
     expect(requests.some((r) => r.method === 'POST')).toBe(false)
+  })
+
+  it('offers scores 0 to 5, each described by a tooltip', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    render(<App />)
+
+    await screen.findByText('Satisfied')
+    await user.click(screen.getByRole('button', { name: 'New entry' }))
+    const dialog = await screen.findByRole('dialog')
+    const scores = within(dialog).getByRole('group', { name: 'Score' })
+
+    expect(
+      within(scores)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['0', '1', '2', '3', '4', '5'])
+    const tooltips = within(scores).getAllByRole('tooltip', { hidden: true })
+    expect(tooltips).toHaveLength(6)
+    expect(tooltips[0]).toHaveTextContent(/completely catastrophic period/)
+    expect(tooltips[5]).toHaveTextContent(/completely positive period/)
   })
 
   it('creates an entry and shows success feedback', async () => {
@@ -292,7 +307,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     await user.click(screen.getByRole('button', { name: 'New entry' }))
     const dialog = await screen.findByRole('dialog')
 
@@ -314,15 +329,9 @@ describe('Mood log view', () => {
       ),
     )
     await user.click(
-      within(within(dialog).getByRole('group', { name: 'Direction' })).getByRole(
+      within(within(dialog).getByRole('group', { name: 'Intent' })).getByRole(
         'button',
-        { name: 'Harmony' },
-      ),
-    )
-    await user.click(
-      within(within(dialog).getByRole('group', { name: 'Source' })).getByRole(
-        'button',
-        { name: 'Internal' },
+        { name: 'Stay' },
       ),
     )
     expect(await within(dialog).findByText('Happy')).toBeInTheDocument()
@@ -338,7 +347,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await user.click(await screen.findByRole('button', { name: /Grateful/ }))
+    await user.click(await screen.findByRole('button', { name: /Satisfied/ }))
     let dialog = await screen.findByRole('dialog')
     let notes = within(dialog).getByLabelText(/Notes/)
     expect(notes).toHaveValue('A good walk by the harbour.')
@@ -352,7 +361,7 @@ describe('Mood log view', () => {
     await waitFor(() => expect(requests.some((r) => r.method === 'PUT')).toBe(true))
     expect(await screen.findByText('Entry updated')).toBeInTheDocument()
 
-    await user.click(await screen.findByRole('button', { name: /Grateful/ }))
+    await user.click(await screen.findByRole('button', { name: /Satisfied/ }))
     dialog = await screen.findByRole('dialog')
     notes = within(dialog).getByLabelText(/Notes/)
     expect(notes).toHaveValue('Updated private note')
@@ -363,7 +372,7 @@ describe('Mood log view', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     await user.click(screen.getByRole('button', { name: 'New entry' }))
     const dialog = await screen.findByRole('dialog')
 
@@ -382,7 +391,7 @@ describe('Mood log view', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await user.click(await screen.findByRole('button', { name: /Grateful/ }))
+    await user.click(await screen.findByRole('button', { name: /Satisfied/ }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('Edit entry')).toBeInTheDocument()
 
@@ -409,7 +418,7 @@ describe('Mood log Wellness integration', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     // The composed Wellness percentages read out per day, including a visited day
     // with nothing completed (0) which must still show a marker, not a blank.
     expect(await screen.findByText('Wellness 80%')).toBeInTheDocument()
@@ -423,7 +432,7 @@ describe('Mood log Wellness integration', () => {
     const { requests } = mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     expect(
       requests.some(
         (r) =>
@@ -438,7 +447,7 @@ describe('Mood log Wellness integration', () => {
     mockBackend()
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     // Mean of the recorded days 80, 0, 50 rounds to 43.
     expect(await screen.findByText('43% Wellness')).toBeInTheDocument()
     expect(screen.getByLabelText('Weekly Wellness score 43%')).toBeInTheDocument()
@@ -448,7 +457,7 @@ describe('Mood log Wellness integration', () => {
     mockBackend({ wellnessStatus: 500 })
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     expect(
       screen.getByRole('img', { name: 'Average score per day this week' }),
     ).toBeInTheDocument()
@@ -461,7 +470,7 @@ describe('Mood log Wellness integration', () => {
     mockBackend({ wellness: [] })
     render(<App />)
 
-    await screen.findByText('Grateful')
+    await screen.findByText('Satisfied')
     expect(
       screen.getByRole('img', { name: 'Average score per day this week' }),
     ).toBeInTheDocument()

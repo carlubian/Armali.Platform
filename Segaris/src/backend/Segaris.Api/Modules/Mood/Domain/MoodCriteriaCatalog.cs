@@ -12,15 +12,13 @@ internal static class MoodCriteriaCatalog
 
     public static readonly IReadOnlyList<string> Alignments = Enum.GetNames<MoodAlignment>();
 
-    public static readonly IReadOnlyList<string> Directions = Enum.GetNames<MoodDirection>();
-
-    public static readonly IReadOnlyList<string> Sources = Enum.GetNames<MoodSource>();
+    public static readonly IReadOnlyList<string> Intents = Enum.GetNames<MoodIntent>();
 
     public static IReadOnlyList<string> Emotions => MoodDerivedEmotionMatrix.EmotionCodes;
 
     /// <summary>
-    /// Total derived-emotion combinations: 3 Energy x 3 Alignment x 4 Direction x
-    /// 2 Source. The code-backed matrix must cover exactly this count.
+    /// Total derived-emotion combinations: 3 Energy x 3 Alignment x 5 Intent.
+    /// The code-backed matrix must cover exactly this count.
     /// </summary>
-    public const int DerivedEmotionCombinationCount = 72;
+    public const int DerivedEmotionCombinationCount = 45;
 }

@@ -5,12 +5,11 @@ import type { MoodEntry } from '@/app/api/mood'
 
 import {
   alignmentTone,
-  directionTone,
   energyTone,
+  intentTone,
   moodToneVars,
   scoreColor,
   scoreTone,
-  sourceTone,
   type MoodTone,
 } from './criteria'
 
@@ -26,7 +25,7 @@ interface ScoreChipProps {
   className?: string
 }
 
-/** A rounded chip showing a 1–5 score (or a one-decimal average) in its tone. */
+/** A rounded chip showing a 0–5 score (or a one-decimal average) in its tone. */
 export function ScoreChip({ score, size = 34, className }: ScoreChipProps) {
   const [bg, fg] = moodToneVars[scoreTone(score)]
   const text = Number.isInteger(score) ? String(score) : score.toFixed(1)
@@ -49,7 +48,7 @@ function Pill({ label, tone }: { label: string; tone: MoodTone }) {
   )
 }
 
-/** The four fixed criteria of an entry rendered as labelled, toned pills. */
+/** The three fixed criteria of an entry rendered as labelled, toned pills. */
 export function CriteriaPills({ entry }: { entry: MoodEntry }) {
   const { t } = useTranslation('mood')
   return (
@@ -63,12 +62,8 @@ export function CriteriaPills({ entry }: { entry: MoodEntry }) {
         tone={alignmentTone[entry.alignment]}
       />
       <Pill
-        label={t(`criteria.direction.${entry.direction}`)}
-        tone={directionTone[entry.direction]}
-      />
-      <Pill
-        label={t(`criteria.source.${entry.source}`)}
-        tone={sourceTone[entry.source]}
+        label={t(`criteria.intent.${entry.intent}`)}
+        tone={intentTone[entry.intent]}
       />
     </div>
   )
@@ -105,7 +100,8 @@ export function WeekScoreChart({ days }: { days: WeekChartDay[] }) {
       >
         {days.map((day, index) => {
           const filled = day.average != null
-          const height = filled ? ((day.average! - 0.5) / 4.5) * 100 : 0
+          // Offset by half a point so a zero average still draws a visible bar.
+          const height = filled ? ((day.average! + 0.5) / 5.5) * 100 : 0
           return (
             <div key={index} className="mood-weekchart__col">
               <div className="mood-weekchart__track">

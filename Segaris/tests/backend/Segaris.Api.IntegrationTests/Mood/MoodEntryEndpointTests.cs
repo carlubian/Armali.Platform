@@ -33,10 +33,9 @@ public sealed class MoodEntryEndpointTests
         Assert.NotNull(options);
         Assert.Equal(["Low", "Medium", "High"], options.Energies);
         Assert.Equal(["Negative", "Medium", "Positive"], options.Alignments);
-        Assert.Equal(["Harmony", "Defensive", "Offensive", "Stability"], options.Directions);
-        Assert.Equal(["Internal", "External"], options.Sources);
-        Assert.Equal(72, options.Emotions.Count);
-        Assert.Contains("Thoughtful", options.Emotions);
+        Assert.Equal(["Stay", "Defend", "Attack", "Rebuild", "Explore"], options.Intents);
+        Assert.Equal(45, options.Emotions.Count);
+        Assert.Contains("In the bubble", options.Emotions);
     }
 
     [Fact]
@@ -46,7 +45,7 @@ public sealed class MoodEntryEndpointTests
         using var client = await server.CreateAuthenticatedClientAsync();
 
         using var response = await client.GetAsync(
-            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Harmony", "Internal"),
+            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Stay"),
             CancellationToken.None);
         var preview = await response.Content.ReadFromJsonAsync<MoodDerivedEmotionResponse>(
             CancellationToken.None);
@@ -67,10 +66,10 @@ public sealed class MoodEntryEndpointTests
         using var client = await server.CreateAuthenticatedClientAsync();
 
         using var anonymousResponse = await anonymous.GetAsync(
-            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Harmony", "Internal"),
+            MoodRequests.DerivedEmotionPreviewPath("High", "Positive", "Stay"),
             CancellationToken.None);
         using var invalid = await client.GetAsync(
-            MoodRequests.DerivedEmotionPreviewPath("Bogus", "Positive", "Harmony", "Internal"),
+            MoodRequests.DerivedEmotionPreviewPath("Bogus", "Positive", "Stay"),
             CancellationToken.None);
         var problem = await invalid.Content.ReadFromJsonAsync<ProblemPayload>(CancellationToken.None);
 
@@ -102,9 +101,8 @@ public sealed class MoodEntryEndpointTests
         Assert.Equal(4, created.Score);
         Assert.Equal("Medium", created.Energy);
         Assert.Equal("Positive", created.Alignment);
-        Assert.Equal("Harmony", created.Direction);
-        Assert.Equal("Internal", created.Source);
-        Assert.Equal("Optimistic", created.DerivedEmotion);
+        Assert.Equal("Stay", created.Intent);
+        Assert.Equal("Satisfied", created.DerivedEmotion);
         Assert.Equal("steady", created.Notes);
         Assert.Equal(CapexTestServer.AdminUserName, created.CreatedByName);
         Assert.Null(created.UpdatedById);
@@ -176,8 +174,7 @@ public sealed class MoodEntryEndpointTests
                 score: 5,
                 energy: MoodEnergy.High,
                 alignment: MoodAlignment.Positive,
-                direction: MoodDirection.Offensive,
-                source: MoodSource.External,
+                intent: MoodIntent.Attack,
                 notes: "updated"),
             memberCsrf);
         var updated = await memberUpdate.Content.ReadFromJsonAsync<MoodEntryResponse>(CancellationToken.None);
@@ -191,7 +188,7 @@ public sealed class MoodEntryEndpointTests
         Assert.Equal(HttpStatusCode.OK, memberUpdate.StatusCode);
         Assert.Equal(new DateOnly(2026, 6, 19), updated!.EntryDate);
         Assert.Equal(5, updated.Score);
-        Assert.Equal("Determined", updated.DerivedEmotion);
+        Assert.Equal("Empowered", updated.DerivedEmotion);
         Assert.Equal("updated", updated.Notes);
         Assert.Equal(memberId, updated.UpdatedById);
         Assert.Equal(HttpStatusCode.NoContent, memberDelete.StatusCode);

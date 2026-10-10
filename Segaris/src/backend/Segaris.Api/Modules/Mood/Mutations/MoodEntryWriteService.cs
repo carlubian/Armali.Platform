@@ -66,8 +66,7 @@ internal sealed class MoodEntryWriteService(SegarisDbContext database, IClock cl
         request.Score,
         ParseEnum<MoodEnergy>(request.Energy, "energy"),
         ParseEnum<MoodAlignment>(request.Alignment, "alignment"),
-        ParseEnum<MoodDirection>(request.Direction, "direction"),
-        ParseEnum<MoodSource>(request.Source, "source"),
+        ParseEnum<MoodIntent>(request.Intent, "intent"),
         request.Notes);
 
     private static MoodEntryValues Map(UpdateMoodEntryRequest request) => new(
@@ -75,8 +74,7 @@ internal sealed class MoodEntryWriteService(SegarisDbContext database, IClock cl
         request.Score,
         ParseEnum<MoodEnergy>(request.Energy, "energy"),
         ParseEnum<MoodAlignment>(request.Alignment, "alignment"),
-        ParseEnum<MoodDirection>(request.Direction, "direction"),
-        ParseEnum<MoodSource>(request.Source, "source"),
+        ParseEnum<MoodIntent>(request.Intent, "intent"),
         request.Notes);
 
     private static TEnum ParseEnum<TEnum>(string? value, string field)

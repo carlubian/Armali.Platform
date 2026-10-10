@@ -7,29 +7,29 @@ import type {
   MoodAlignment,
   MoodCriteriaEvolutionPoint,
   MoodDashboardScale,
-  MoodDirection,
   MoodDistributionBucket,
   MoodEnergy,
+  MoodIntent,
   MoodScoreStat,
   MoodScoreSummary,
-  MoodSource,
 } from '@/app/api/mood'
 import {
   moodAlignments,
   moodDashboardScales,
-  moodDirections,
   moodEnergies,
-  moodSources,
+  moodIntents,
+  moodScoreMax,
+  moodScoreMin,
+  moodScores,
 } from '@/app/api/mood'
 import { Button, Spinner } from '@/components/ui'
 
 import {
   alignmentTone,
-  directionTone,
   energyTone,
+  intentTone,
   moodToneVars,
   scoreColor,
-  sourceTone,
   type MoodTone,
 } from './criteria'
 import {
@@ -42,21 +42,19 @@ import { householdToday } from './entryForm'
 import { MoodShell } from './MoodShell'
 import { useMoodDashboard } from './queries'
 
-type CriteriaKey = 'energy' | 'alignment' | 'direction' | 'source'
+type CriteriaKey = 'energy' | 'alignment' | 'intent'
 
 const dayOrder = [1, 2, 3, 4, 5, 6, 7] as const
 const criteriaValues = {
   energy: moodEnergies,
   alignment: moodAlignments,
-  direction: moodDirections,
-  source: moodSources,
+  intent: moodIntents,
 } as const
 
 const criteriaTones = {
   energy: energyTone,
   alignment: alignmentTone,
-  direction: directionTone,
-  source: sourceTone,
+  intent: intentTone,
 } as const
 
 function setDashboardParams(
@@ -120,12 +118,12 @@ function formatSpread(value: number | null): string {
   return value == null ? '' : ` ±${value.toFixed(1)}`
 }
 
-/** Clamps a derived score (such as average ± σ) to the 1–5 score axis. */
+/** Clamps a derived score (such as average ± σ) to the 0–5 score axis. */
 function clampScore(value: number): number {
-  return Math.max(1, Math.min(5, value))
+  return Math.max(moodScoreMin, Math.min(moodScoreMax, value))
 }
 
-/** Qualitative reading of the period's standard deviation on the 1–5 scale. */
+/** Qualitative reading of the period's standard deviation on the 0–5 scale. */
 function spreadLevel(standardDeviation: number): 'steady' | 'some' | 'wide' {
   if (standardDeviation < 0.6) return 'steady'
   if (standardDeviation < 1) return 'some'
@@ -267,12 +265,8 @@ export function MoodDashboardPage() {
               buckets={dashboard.distribution.alignment}
             />
             <DistributionCard
-              criterion="direction"
-              buckets={dashboard.distribution.direction}
-            />
-            <DistributionCard
-              criterion="source"
-              buckets={dashboard.distribution.source}
+              criterion="intent"
+              buckets={dashboard.distribution.intent}
             />
           </div>
           <ScoreSpreadCard
@@ -288,8 +282,7 @@ export function MoodDashboardPage() {
           <div className="mood-grid mood-grid--two">
             <EvolutionCard criterion="energy" points={dashboard.evolution} />
             <EvolutionCard criterion="alignment" points={dashboard.evolution} />
-            <EvolutionCard criterion="direction" points={dashboard.evolution} />
-            <EvolutionCard criterion="source" points={dashboard.evolution} />
+            <EvolutionCard criterion="intent" points={dashboard.evolution} />
           </div>
         </div>
       )}
@@ -303,7 +296,7 @@ function emptyStat(): MoodScoreStat {
 
 type ScorePoint = MoodScoreStat & { key: string; label: string }
 
-/** Lead card: period average and standard deviation over a 1–5 score histogram. */
+/** Lead card: period average and standard deviation over a 0–5 score histogram. */
 function ScoreSpreadLead({
   score,
   entryCount,
@@ -363,7 +356,7 @@ function ScoreSpreadLead({
   )
 }
 
-/** Score 1–5 histogram with the average ± 1σ band drawn beneath on the same axis. */
+/** Score 0–5 histogram with the average ± 1σ band drawn beneath on the same axis. */
 function ScoreHistogram({
   histogram,
   mean,
@@ -375,8 +368,8 @@ function ScoreHistogram({
 }) {
   const { t } = useTranslation('mood')
   const max = Math.max(...histogram, 1)
-  // Bin centres sit at 10/30/50/70/90% of the axis.
-  const x = (value: number) => ((value - 0.5) / 5) * 100
+  // Six equal bins: the centre of score `n` sits at (n + 0.5) / 6 of the axis.
+  const x = (value: number) => ((value + 0.5) / moodScores.length) * 100
   return (
     <div className="mood-sdhist">
       <div
@@ -390,7 +383,7 @@ function ScoreHistogram({
               className="mood-sdhist__bar"
               style={{
                 height: `${Math.max((count / max) * 100, count > 0 ? 4 : 0)}%`,
-                background: scoreColor(index + 1),
+                background: scoreColor(index),
               }}
             />
           </div>
@@ -411,14 +404,14 @@ function ScoreHistogram({
         ) : null}
       </div>
       <div className="mood-sdhist__lbls" aria-hidden="true">
-        {[1, 2, 3, 4, 5].map((value) => (
+        {moodScores.map((value) => (
           <span key={value}>{value}</span>
         ))}
       </div>
       <ul className="mood-sr-only">
         {histogram.map((count, index) => (
           <li key={index}>
-            {t('dashboard.charts.histogram.bin', { score: index + 1, count })}
+            {t('dashboard.charts.histogram.bin', { score: index, count })}
           </li>
         ))}
       </ul>
@@ -468,14 +461,14 @@ function ScoreSpreadCard({
 /** Per-slot score spread: thin min–max whisker, average ± 1σ band, average marker. */
 function ScoreSpreadChart({ label, points }: { label: string; points: ScorePoint[] }) {
   const { t } = useTranslation('mood')
-  const position = (value: number) => ((value - 1) / 4) * 100
+  const position = (value: number) => (value / moodScoreMax) * 100
   return (
     <div className="mood-rangechart">
       {/* The axis mirrors a column (plot + invisible caption) so the ticks stay
           aligned with the grid lines however tall the captions wrap. */}
       <div className="mood-dow__col mood-dowsd__axis" aria-hidden="true">
         <div className="mood-dowsd__plot">
-          {[1, 2, 3, 4, 5].map((value) => (
+          {moodScores.map((value) => (
             <span
               key={value}
               className="mood-dowsd__tick"
@@ -501,11 +494,11 @@ function ScoreSpreadChart({ label, points }: { label: string; points: ScorePoint
         {points.map((point) => (
           <div key={point.key} className="mood-dow__col">
             <div className="mood-dowsd__plot">
-              {[0, 25, 50, 75, 100].map((pct) => (
+              {moodScores.map((value) => (
                 <span
-                  key={pct}
+                  key={value}
                   className="mood-dowsd__grid"
-                  style={{ bottom: `${pct}%` }}
+                  style={{ bottom: `${position(value)}%` }}
                 />
               ))}
               {point.min != null && point.max != null ? (
@@ -723,10 +716,8 @@ function toneFor(criterion: CriteriaKey, value: string): MoodTone {
       return criteriaTones.energy[value as MoodEnergy]
     case 'alignment':
       return criteriaTones.alignment[value as MoodAlignment]
-    case 'direction':
-      return criteriaTones.direction[value as MoodDirection]
-    case 'source':
-      return criteriaTones.source[value as MoodSource]
+    case 'intent':
+      return criteriaTones.intent[value as MoodIntent]
   }
 }
 
@@ -740,9 +731,7 @@ function getEvolutionCount(
       return point.energy[value as MoodEnergy] ?? 0
     case 'alignment':
       return point.alignment[value as MoodAlignment] ?? 0
-    case 'direction':
-      return point.direction[value as MoodDirection] ?? 0
-    case 'source':
-      return point.source[value as MoodSource] ?? 0
+    case 'intent':
+      return point.intent[value as MoodIntent] ?? 0
   }
 }

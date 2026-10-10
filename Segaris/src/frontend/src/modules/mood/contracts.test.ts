@@ -4,11 +4,10 @@ import {
   moodAlignments,
   moodDashboardRoutePath,
   moodDashboardScales,
-  moodDirections,
   moodEnergies,
+  moodIntents,
   moodLogRoutePath,
   moodRoutePath,
-  moodSources,
 } from '@/app/api/mood'
 
 import { moodEntryRequestSchema, moodKeys } from './contracts'
@@ -37,8 +36,7 @@ describe('mood contracts', () => {
     expect(moodDashboardRoutePath).toBe('/mood/dashboard')
     expect(moodEnergies).toEqual(['Low', 'Medium', 'High'])
     expect(moodAlignments).toEqual(['Negative', 'Medium', 'Positive'])
-    expect(moodDirections).toEqual(['Harmony', 'Defensive', 'Offensive', 'Stability'])
-    expect(moodSources).toEqual(['Internal', 'External'])
+    expect(moodIntents).toEqual(['Stay', 'Defend', 'Attack', 'Rebuild', 'Explore'])
     expect(moodDashboardScales).toEqual(['year', 'semester', 'quarter', 'month'])
   })
 
@@ -64,11 +62,15 @@ describe('mood contracts', () => {
       score: 3,
       energy: 'Medium',
       alignment: 'Positive',
-      direction: 'Offensive',
-      source: 'Internal',
+      intent: 'Attack',
       notes: '',
     })
     expect(parsed.notes).toBeNull()
+
+    expect(moodEntryRequestSchema.safeParse({ ...parsed, score: 0 }).success).toBe(true)
+    expect(moodEntryRequestSchema.safeParse({ ...parsed, score: -1 }).success).toBe(
+      false,
+    )
 
     expect(
       moodEntryRequestSchema.safeParse({
@@ -76,8 +78,7 @@ describe('mood contracts', () => {
         score: 6,
         energy: 'Medium',
         alignment: 'Positive',
-        direction: 'Harmony',
-        source: 'Internal',
+        intent: 'Stay',
         notes: null,
       }).success,
     ).toBe(false)
@@ -88,8 +89,7 @@ describe('mood contracts', () => {
         score: 3,
         energy: 'Extreme',
         alignment: 'Positive',
-        direction: 'Harmony',
-        source: 'Internal',
+        intent: 'Stay',
         notes: null,
       }).success,
     ).toBe(false)
@@ -100,10 +100,14 @@ describe('mood contracts', () => {
         score: 3,
         energy: 'Medium',
         alignment: 'Positive',
-        direction: 'Harmony',
-        source: 'Internal',
+        intent: 'Stay',
         notes: 'x'.repeat(1001),
       }).success,
+    ).toBe(false)
+
+    // The retired Direction values are not valid intents.
+    expect(
+      moodEntryRequestSchema.safeParse({ ...parsed, intent: 'Harmony' }).success,
     ).toBe(false)
   })
 })

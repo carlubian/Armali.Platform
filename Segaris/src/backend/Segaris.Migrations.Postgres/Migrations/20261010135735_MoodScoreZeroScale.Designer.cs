@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Segaris.Persistence;
@@ -11,9 +12,11 @@ using Segaris.Persistence;
 namespace Segaris.Migrations.Postgres.Migrations
 {
     [DbContext(typeof(SegarisDbContext))]
-    partial class SegarisDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261010135735_MoodScoreZeroScale")]
+    partial class MoodScoreZeroScale
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2465,6 +2468,11 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<string>("Energy")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -2473,17 +2481,17 @@ namespace Segaris.Migrations.Postgres.Migrations
                     b.Property<DateOnly>("EntryDate")
                         .HasColumnType("date");
 
-                    b.Property<string>("Intent")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
                     b.Property<int>("Score")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2505,11 +2513,13 @@ namespace Segaris.Migrations.Postgres.Migrations
                         {
                             t.HasCheckConstraint("CK_mood_entries_alignment", "\"Alignment\" IN ('Negative', 'Medium', 'Positive')");
 
+                            t.HasCheckConstraint("CK_mood_entries_direction", "\"Direction\" IN ('Harmony', 'Defensive', 'Offensive', 'Stability')");
+
                             t.HasCheckConstraint("CK_mood_entries_energy", "\"Energy\" IN ('Low', 'Medium', 'High')");
 
-                            t.HasCheckConstraint("CK_mood_entries_intent", "\"Intent\" IN ('Stay', 'Defend', 'Attack', 'Rebuild', 'Explore')");
-
                             t.HasCheckConstraint("CK_mood_entries_score", "\"Score\" >= 0 AND \"Score\" <= 5");
+
+                            t.HasCheckConstraint("CK_mood_entries_source", "\"Source\" IN ('Internal', 'External')");
                         });
                 });
 

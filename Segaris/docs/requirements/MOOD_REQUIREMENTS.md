@@ -18,8 +18,8 @@ weekly review, and lightweight trend visualisation.
 ## Initial Scope
 
 - Record multiple private mood entries per user and civil date.
-- Classify each entry through one score and four fixed criteria: Energy,
-  Alignment, Direction, and Source.
+- Classify each entry through one score and three fixed criteria: Energy,
+  Alignment, and Intent.
 - Derive the target emotion in read models from the criteria combination.
 - Show the current user's entries in a weekly log view.
 - Provide a basic weekly score chart in the log view.
@@ -65,11 +65,10 @@ These rules apply:
 A Mood entry contains at least:
 
 - A required civil `EntryDate`.
-- A required integer score from `1` to `5`, inclusive.
+- A required integer score from `0` to `5`, inclusive.
 - Required Energy.
 - Required Alignment.
-- Required Direction.
-- Required Source.
+- Required Intent.
 - Optional notes.
 
 Mood entries also store standard creation and modification metadata:
@@ -84,13 +83,29 @@ valid and are ordered by insertion order.
 
 ## Score
 
-`Score` is a simple integer between `1` and `5`, inclusive. It is interpreted by
-the user as the overall subjective score for that entry.
+`Score` is a simple integer between `0` and `5`, inclusive. It is interpreted by
+the user as the overall subjective score for that entry. The entry editor
+describes each value in a tooltip on its score button:
+
+| Score | Meaning |
+| --- | --- |
+| `0` | A completely catastrophic period with stressful or inconvenient events. No relief was found or expected. |
+| `1` | A majorly negative period with tiresome or undesired events. Some relief was found though not enough to overcome the negatives. |
+| `2` | A neutral but slightly negative period that isn't a cause for concern per se. It's sustainable although not ideal. |
+| `3` | A neutral but slightly positive period that doesn't excel by itself. It represents an average low level satisfaction. |
+| `4` | A majorly positive event with pleasant or enjoyable events. However some negative or tense moments took place. |
+| `5` | A completely positive period with nice and positive events. No discomfort or stressful moments took place. |
+
+The scale originally ran from `1` to `5`. The `MoodScoreZeroScale` migration
+re-mapped existing entries onto the current scale: a `2` became `1`; a `3`
+became `2` when its Alignment was Negative, or Medium with a Defensive or
+Offensive Direction (a criterion since replaced by Intent); every other entry
+kept its score.
 
 The initial module uses simple arithmetic averages for score summaries, and the
 dashboard complements them with the population standard deviation (divided by
 the entry count) to show how widely scores spread around that average. Scores
-are not weighted by Energy, Alignment, Direction, Source, or derived emotion.
+are not weighted by Energy, Alignment, Intent, or derived emotion.
 
 ## Energy
 
@@ -112,27 +127,26 @@ Alignment is a fixed enum with these values:
 
 Alignment defines how habitually good or bad the emotion is for the user.
 
-## Direction
+## Intent
 
-Direction is a fixed enum with these values:
+Intent is a fixed enum with these values:
 
-- `Harmony`
-- `Defensive`
-- `Offensive`
-- `Stability`
+- `Stay`
+- `Defend`
+- `Attack`
+- `Rebuild`
+- `Explore`
 
-Direction defines the objective or purpose of the emotion.
+Intent defines what the emotion moves the user to do.
 
-The value is spelled `Offensive` in code, API contracts, and documentation.
-
-## Source
-
-Source is a fixed enum with these values:
-
-- `Internal`
-- `External`
-
-Source defines the origin or motive of the emotion.
+Intent replaces the original Direction (`Harmony`, `Defensive`, `Offensive`,
+`Stability`) and Source (`Internal`, `External`) criteria. The
+`MoodIntentCriterion` migration converted every existing entry: it kept Energy
+and Alignment, derived the Intent from the entry's previous
+Energy/Alignment/Direction/Source combination using the product-supplied
+equivalence table (`Migration.csv`, 72 rows), and dropped the two old columns.
+The conversion is not reversible; rolling the migration back restores only an
+approximate Direction and a fixed `Internal` Source.
 
 ## Notes
 
@@ -147,29 +161,26 @@ opening the entry details or editor.
 ## Derived Emotion Matrix
 
 Mood does not persist the concrete emotion selected by a combination of Energy,
-Alignment, Direction, and Source. The backend derives it in read models from a
-static matrix owned by the Mood module.
+Alignment, and Intent. The backend derives it in read models from a static
+matrix owned by the Mood module.
 
 The matrix covers every possible combination:
 
 - 3 Energy values.
 - 3 Alignment values.
-- 4 Direction values.
-- 2 Source values.
+- 5 Intent values.
 
-This produces exactly 72 mappings. Every combination must have one and only one
+This produces exactly 45 mappings. Every combination must have one and only one
 derived emotion code.
 
-The initial product source for the matrix is the CSV file supplied outside the
-repository at:
+The product source for the matrix is a CSV file supplied outside the
+repository (`NewMoods.csv` in the product owner's "Mood v6" folder). It replaced
+the original 72-mapping matrix built on Direction and Source. Because emotions
+are derived on read, replacing the matrix needed no data migration.
 
-```text
-D:\Proyectos Locales\SegarisMood.csv
-```
-
-The implementation should translate this CSV into module-owned code rather than
+The implementation translates this CSV into module-owned code rather than
 loading an administrator-configurable catalog. Tests must validate that the
-code-backed matrix has exactly 72 mappings, contains no duplicate combinations,
+code-backed matrix has exactly 45 mappings, contains no duplicate combinations,
 and has no missing combinations.
 
 Derived emotions are exposed as stable codes, not user-facing text. The
@@ -201,11 +212,10 @@ confirmation in the interface.
 ## Validation
 
 - `EntryDate` is required and has no artificial past or future boundary.
-- `Score` is required and must be an integer between `1` and `5`, inclusive.
+- `Score` is required and must be an integer between `0` and `5`, inclusive.
 - Energy is required and must be a known value.
 - Alignment is required and must be a known value.
-- Direction is required and must be a known value.
-- Source is required and must be a known value.
+- Intent is required and must be a known value.
 - Notes are optional and at most 1,000 characters.
 - A user cannot create, update, delete, query, or aggregate another user's
   entries.
@@ -216,8 +226,7 @@ A new Mood entry starts with:
 
 - `EntryDate` equal to today in `Europe/Madrid`.
 - No default score until the user chooses one.
-- No default Energy, Alignment, Direction, or Source until the user chooses
-  them.
+- No default Energy, Alignment, or Intent until the user chooses them.
 - No notes.
 
 ## Module Entry And Navigation
@@ -262,8 +271,7 @@ Each entry shown in the weekly display includes at least:
 - Score.
 - Energy.
 - Alignment.
-- Direction.
-- Source.
+- Intent.
 - Derived emotion.
 
 Notes are not shown inline. Opening an entry shows its details and allows free
@@ -335,7 +343,7 @@ or no-data states rather than special errors.
 The initial Dashboard may include:
 
 - Overall average and standard deviation of the score for the selected period,
-  with the distribution of entries across scores 1 to 5.
+  with the distribution of entries across scores 0 to 5.
 - Average, standard deviation (average ± 1σ band), minimum, and maximum score by
   day of week for the selected period.
 - Average, standard deviation, minimum, and maximum score by month for Year,
@@ -344,11 +352,10 @@ The initial Dashboard may include:
   scale.
 - Distribution of Energy values in the selected period.
 - Distribution of Alignment values in the selected period.
-- Distribution of Direction values in the selected period.
-- Distribution of Source values in the selected period.
-- Evolution of Energy, Alignment, Direction, and Source by month for Year,
-  Semester, and Quarter scales.
-- Evolution of Energy, Alignment, Direction, and Source by week for Month scale.
+- Distribution of Intent values in the selected period.
+- Evolution of Energy, Alignment, and Intent by month for Year, Semester, and
+  Quarter scales.
+- Evolution of Energy, Alignment, and Intent by week for Month scale.
 
 All dashboard calculations use only the current user's entries.
 
@@ -401,12 +408,11 @@ The initial Mood definition is satisfied when:
 2. Mood entries are always owner-only; administrators cannot view or mutate
    another user's entries, and private existence is not disclosed through detail
    endpoints.
-3. Each entry stores `EntryDate`, `Score`, Energy, Alignment, Direction, Source,
-   optional notes, and standard metadata, but does not store a time of day,
-   visibility value, attachment reference, or concrete emotion.
-4. The fixed criteria enums expose exactly the documented values, including
-   `Offensive` for Direction.
-5. The derived-emotion matrix is code-backed, covers exactly the 72 possible
+3. Each entry stores `EntryDate`, `Score`, Energy, Alignment, Intent, optional
+   notes, and standard metadata, but does not store a time of day, visibility
+   value, attachment reference, or concrete emotion.
+4. The fixed criteria enums expose exactly the documented values.
+5. The derived-emotion matrix is code-backed, covers exactly the 45 possible
    criteria combinations, contains no duplicate or missing combinations, and
    returns a stable translatable emotion code.
 6. Users can create multiple entries for the same date with no hard per-day

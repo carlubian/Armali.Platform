@@ -34,8 +34,7 @@ export const moodEntryRequestSchema = z.object({
   score: z.number().int().min(moodScoreMin).max(moodScoreMax),
   energy: z.enum(['Low', 'Medium', 'High']),
   alignment: z.enum(['Negative', 'Medium', 'Positive']),
-  direction: z.enum(['Harmony', 'Defensive', 'Offensive', 'Stability']),
-  source: z.enum(['Internal', 'External']),
+  intent: z.enum(['Stay', 'Defend', 'Attack', 'Rebuild', 'Explore']),
   notes: optionalNotes,
 }) satisfies z.ZodType<CreateMoodEntryRequest>
 
