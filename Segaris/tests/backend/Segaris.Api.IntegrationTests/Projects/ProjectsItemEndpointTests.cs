@@ -54,6 +54,52 @@ public sealed class ProjectsItemEndpointTests
     }
 
     [Fact]
+    public async Task Flat_item_list_filters_by_program_axis_status_and_kind_and_hides_private_items()
+    {
+        using var server = new CapexTestServer();
+        using var admin = await server.CreateAuthenticatedClientAsync();
+        var csrf = await CapexTestServer.GetCsrfTokenAsync(admin);
+        var home = await CreateProgramAsync(admin, csrf, "Home", "HOME");
+        var work = await CreateProgramAsync(admin, csrf, "Work", "WORK");
+        var kitchen = await CreateAxisAsync(admin, csrf, home.Id, "Kitchen", "KTCH");
+        var garden = await CreateAxisAsync(admin, csrf, home.Id, "Garden", "GRDN");
+        var office = await CreateAxisAsync(admin, csrf, work.Id, "Office", "OFFC");
+
+        var kitchenProject = await CreateProjectAsync(admin, csrf, new CreateProjectRequest(kitchen.Id, "Kitchen refit", "Active", null));
+        var gardenActivity = await CreateActivityAsync(admin, csrf, new CreateActivityRequest(garden.Id, "Mow lawn", "Active", null));
+        var officeProject = await CreateProjectAsync(admin, csrf, new CreateProjectRequest(office.Id, "Desk upgrade", "Planning", null));
+        var privateProject = await CreateProjectAsync(admin, csrf, new CreateProjectRequest(office.Id, "Private plan", "Active", "Private"));
+
+        var all = await admin.GetFromJsonAsync<ProjectListItemResponse[]>("/api/projects/items", CancellationToken.None);
+        Assert.Equal(
+            [gardenActivity.Id, kitchenProject.Id, officeProject.Id, privateProject.Id],
+            all!.Select(item => item.Id).ToArray());
+        var gardenRow = all![0];
+        Assert.Equal(
+            ("Activity", "HOMEGRDN-000002 Mow lawn", home.Id, "HOME", "Home", garden.Id, "GRDN", "Garden"),
+            (gardenRow.Kind, gardenRow.Identifier, gardenRow.ProgramId, gardenRow.ProgramCode, gardenRow.ProgramName, gardenRow.AxisId, gardenRow.AxisCode, gardenRow.AxisName));
+        Assert.Null(gardenRow.RiskSummary);
+        Assert.Equal(new ProjectRiskBandSummaryResponse(0, 0, 0), all[1].RiskSummary);
+
+        var active = await admin.GetFromJsonAsync<ProjectListItemResponse[]>("/api/projects/items?status=Active", CancellationToken.None);
+        Assert.Equal([gardenActivity.Id, kitchenProject.Id, privateProject.Id], active!.Select(item => item.Id).ToArray());
+
+        var homeProjects = await admin.GetFromJsonAsync<ProjectListItemResponse[]>($"/api/projects/items?programId={home.Id}&kind=Project", CancellationToken.None);
+        Assert.Equal([kitchenProject.Id], homeProjects!.Select(item => item.Id).ToArray());
+
+        var officeItems = await admin.GetFromJsonAsync<ProjectListItemResponse[]>($"/api/projects/items?axisId={office.Id}&status=Planning", CancellationToken.None);
+        Assert.Equal([officeProject.Id], officeItems!.Select(item => item.Id).ToArray());
+
+        await server.CreateUserAsync("projects-list-viewer", "ViewerPass123!");
+        using var viewer = await server.CreateAuthenticatedClientAsync("projects-list-viewer", "ViewerPass123!");
+        var viewerItems = await viewer.GetFromJsonAsync<ProjectListItemResponse[]>("/api/projects/items?status=Active", CancellationToken.None);
+        Assert.Equal([gardenActivity.Id, kitchenProject.Id], viewerItems!.Select(item => item.Id).ToArray());
+
+        using var invalid = await admin.GetAsync("/api/projects/items?status=Unknown&kind=Task", CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
     public async Task Visibility_filtering_preserves_public_collaboration_and_private_isolation()
     {
         using var server = new CapexTestServer();

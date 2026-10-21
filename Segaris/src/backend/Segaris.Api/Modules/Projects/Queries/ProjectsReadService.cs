@@ -80,6 +80,82 @@ internal sealed class ProjectsReadService(SegarisDbContext database, IAttachment
             .ToArray();
     }
 
+    public async Task<IReadOnlyList<ProjectListItemResponse>> ListItemsAsync(
+        ProjectItemListFilter filter,
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        ListRow[] projects = filter.Kind is null or ProjectItemKind.Project
+            ? await ListRowsAsync(
+                database.Set<Project>().AsNoTracking().Where(ProjectItemPolicies.AccessibleTo<Project>(userId)),
+                nameof(ProjectItemKind.Project),
+                filter,
+                cancellationToken)
+            : [];
+        var riskSummaries = await RiskSummariesByProjectAsync(projects.Select(project => project.Id), cancellationToken);
+        ListRow[] activities = filter.Kind is null or ProjectItemKind.Activity
+            ? await ListRowsAsync(
+                database.Set<Activity>().AsNoTracking().Where(ProjectItemPolicies.AccessibleTo<Activity>(userId)),
+                nameof(ProjectItemKind.Activity),
+                filter,
+                cancellationToken)
+            : [];
+
+        return projects
+            .Concat(activities)
+            .OrderBy(item => item.ProgramCode, StringComparer.Ordinal)
+            .ThenBy(item => item.AxisCode, StringComparer.Ordinal)
+            .ThenBy(item => item.Number)
+            .ThenBy(item => item.Kind, StringComparer.Ordinal)
+            .ThenBy(item => item.Id)
+            .Select(item => item.ToResponse(riskSummaries))
+            .ToArray();
+    }
+
+    private async Task<ListRow[]> ListRowsAsync<TItem>(
+        IQueryable<TItem> items,
+        string kind,
+        ProjectItemListFilter filter,
+        CancellationToken cancellationToken)
+        where TItem : ProjectItem
+    {
+        if (filter.Status is { } status)
+        {
+            items = items.Where(item => item.Status == status);
+        }
+
+        if (filter.AxisId is { } axisId)
+        {
+            items = items.Where(item => item.AxisId == axisId);
+        }
+
+        var rows =
+            from item in items
+            join axis in database.Set<ProjectAxis>().AsNoTracking() on item.AxisId equals axis.Id
+            join program in database.Set<ProjectProgram>().AsNoTracking() on axis.ProgramId equals program.Id
+            select new { Item = item, Axis = axis, Program = program };
+        if (filter.ProgramId is { } programId)
+        {
+            rows = rows.Where(row => row.Program.Id == programId);
+        }
+
+        return await rows
+            .Select(row => new ListRow(
+                row.Item.Id,
+                kind,
+                row.Item.Number,
+                row.Item.Name,
+                row.Item.Status,
+                row.Item.Visibility,
+                row.Program.Id,
+                row.Program.Code,
+                row.Program.Name,
+                row.Axis.Id,
+                row.Axis.Code,
+                row.Axis.Name))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<ProjectResponse?> GetProjectAsync(
         int projectId,
         UserId userId,
@@ -245,6 +321,40 @@ internal sealed class ProjectsReadService(SegarisDbContext database, IAttachment
             Status.ToString(),
             Visibility.ToString(),
             Kind == "Project" ? riskSummaries.GetValueOrDefault(Id, EmptyRiskSummary) : RiskSummary);
+    }
+
+    private sealed record ListRow(
+        int Id,
+        string Kind,
+        int Number,
+        string Name,
+        ProjectStatus Status,
+        Segaris.Shared.Authorization.RecordVisibility Visibility,
+        int ProgramId,
+        string ProgramCode,
+        string ProgramName,
+        int AxisId,
+        string AxisCode,
+        string AxisName)
+    {
+        public ProjectListItemResponse ToResponse(
+            IReadOnlyDictionary<int, ProjectRiskBandSummaryResponse> riskSummaries) => new(
+            Id,
+            Kind,
+            Number,
+            ProjectIdentifier.Format(ProgramCode, AxisCode, Number, Name),
+            Name,
+            Status.ToString(),
+            Visibility.ToString(),
+            ProgramId,
+            ProgramCode,
+            ProgramName,
+            AxisId,
+            AxisCode,
+            AxisName,
+            Kind == nameof(ProjectItemKind.Project)
+                ? riskSummaries.GetValueOrDefault(Id, EmptyRiskSummary)
+                : null);
     }
 
     private sealed record ProjectDetailRow(

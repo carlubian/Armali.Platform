@@ -157,6 +157,49 @@ export function useProjectsSelectionState() {
   }
 }
 
+/**
+ * The filterable table view is an additional URL flag, independent from the dialog
+ * params, so edit and risk dialogs can stack on top of it without closing it.
+ */
+const VIEW_PARAM = 'view'
+const TABLE_VIEW = 'table'
+
+export function parseProjectsTableOpen(params: URLSearchParams): boolean {
+  return params.get(VIEW_PARAM) === TABLE_VIEW
+}
+
+export function useProjectsTableState() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const open = parseProjectsTableOpen(searchParams)
+
+  // React Router does not queue functional search-param updates, so closing the table
+  // and selecting a row for the detail pane must happen in a single navigation.
+  const apply = useCallback(
+    (
+      nextOpen: boolean,
+      selection?: Exclude<ProjectsSelectionState, { kind: 'none' }>,
+    ) => {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        if (nextOpen) next.set(VIEW_PARAM, TABLE_VIEW)
+        else next.delete(VIEW_PARAM)
+        if (selection != null) next.set('selected', selectionRefValue(selection))
+        return next
+      })
+    },
+    [setSearchParams],
+  )
+
+  return {
+    open,
+    openTable: () => apply(true),
+    closeTable: () => apply(false),
+    closeTableAndSelect: (
+      selection: Exclude<ProjectsSelectionState, { kind: 'none' }>,
+    ) => apply(false, selection),
+  }
+}
+
 export function useProjectsDialogState() {
   const [searchParams, setSearchParams] = useSearchParams()
   const dialog = useMemo(() => parseProjectsDialogState(searchParams), [searchParams])

@@ -5,6 +5,7 @@ import type {
   CreateActivityRequest,
   CreateProjectRequest,
   ProgramRequest,
+  ProjectListFilters,
   ProjectRiskRequest,
 } from '@/app/api/projects'
 import {
@@ -20,6 +21,8 @@ export const projectsKeys = {
   programs: () => [...projectsKeys.tree(), 'programs'] as const,
   axes: (programId: number) => [...projectsKeys.programs(), programId, 'axes'] as const,
   items: (axisId: number) => [...projectsKeys.tree(), 'axes', axisId, 'items'] as const,
+  lists: () => [...projectsKeys.all, 'list'] as const,
+  list: (filters: ProjectListFilters) => [...projectsKeys.lists(), filters] as const,
   projects: () => [...projectsKeys.all, 'projects'] as const,
   project: (projectId: number) => [...projectsKeys.projects(), projectId] as const,
   projectRisks: (projectId: number) =>

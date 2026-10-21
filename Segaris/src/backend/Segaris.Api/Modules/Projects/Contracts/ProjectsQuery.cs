@@ -5,10 +5,14 @@ namespace Segaris.Api.Modules.Projects.Contracts;
 /// ordering and exposes no client-controlled sort, filter, or pagination: programs and
 /// axes are ordered by code ascending and projects and activities by their global number
 /// ascending. These constants freeze the field names the Wave 3 query implementation
-/// orders by.
+/// orders by. The flat item list accepts optional program, axis, status, and kind
+/// filters but keeps a fixed, unpaginated ordering by unified identifier.
 /// </summary>
 internal static class ProjectsQuery
 {
+    /// <summary>The field the flat item list is ordered by (identifier ascending).</summary>
+    public const string ListOrderField = "identifier";
+
     /// <summary>The field programs and axes are ordered by (code ascending).</summary>
     public const string NodeOrderField = "code";
 
