@@ -2,6 +2,8 @@ using System.Text.Json;
 using Segaris.Api.Modules.Projects;
 using Segaris.Api.Modules.Projects.Contracts;
 using Segaris.Api.Modules.Projects.Domain;
+using Segaris.Api.Modules.Projects.Queries;
+using Segaris.Api.Platform.Api;
 using Segaris.Shared.Api;
 using Segaris.Shared.Authorization;
 
@@ -82,6 +84,7 @@ public sealed class ProjectsContractTests
         Assert.Equal("projects/tree/programs", ProjectsApiRoutes.TreePrograms);
         Assert.Equal("projects/tree/programs/{programId:int}/axes", ProjectsApiRoutes.TreeAxesByProgram);
         Assert.Equal("projects/tree/axes/{axisId:int}/items", ProjectsApiRoutes.TreeItemsByAxis);
+        Assert.Equal("projects/items", ProjectsApiRoutes.Items);
         Assert.Equal("projects/projects", ProjectsApiRoutes.Projects);
         Assert.Equal("/{projectId:int}", ProjectsApiRoutes.ProjectById);
         Assert.Equal("projects/activities", ProjectsApiRoutes.Activities);
@@ -100,6 +103,28 @@ public sealed class ProjectsContractTests
         Assert.Equal("code", ProjectsQuery.NodeOrderField);
         Assert.Equal("number", ProjectsQuery.ItemOrderField);
         Assert.Equal("asc", ProjectsQuery.OrderDirection);
+        Assert.Equal("identifier", ProjectsQuery.ListOrderField);
+    }
+
+    [Fact]
+    public void Flat_item_list_query_parses_optional_filters()
+    {
+        Assert.Equal(
+            new ProjectItemListFilter(null, null, null, null),
+            new ProjectItemListQuery().ToFilter());
+        Assert.Equal(
+            new ProjectItemListFilter(3, 9, ProjectStatus.Active, ProjectItemKind.Activity),
+            new ProjectItemListQuery { ProgramId = 3, AxisId = 9, Status = "Active", Kind = "Activity" }.ToFilter());
+    }
+
+    [Fact]
+    public void Flat_item_list_query_rejects_unknown_status_and_kind()
+    {
+        var exception = Assert.Throws<ApiProblemException>(
+            () => new ProjectItemListQuery { Status = "active", Kind = "Task" }.ToFilter());
+
+        Assert.Equal(400, exception.StatusCode);
+        Assert.Equal(["kind", "status"], exception.Errors!.Keys.Order(StringComparer.Ordinal).ToArray());
     }
 
     [Fact]

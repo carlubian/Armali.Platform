@@ -20,6 +20,7 @@ internal static class ProjectsEndpoints
             .RequireAuthorization();
 
         MapTreeEndpoints(group);
+        MapListEndpoints(group);
         MapProjectEndpoints(group);
         MapActivityEndpoints(group);
         MapStructureEndpoints(group);
@@ -44,6 +45,15 @@ internal static class ProjectsEndpoints
             .WithSummary("Returns accessible projects and activities for an axis ordered by number")
             .Produces<IReadOnlyList<ProjectTreeItemResponse>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static void MapListEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/items", ListItemsAsync)
+            .WithName("ListProjectItems")
+            .WithSummary("Returns accessible projects and activities as a flat list filtered by program, axis, status, and kind")
+            .Produces<IReadOnlyList<ProjectListItemResponse>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     private static void MapProjectEndpoints(RouteGroupBuilder group)
@@ -227,6 +237,20 @@ internal static class ProjectsEndpoints
         }
 
         return TypedResults.Ok(await read.ListItemsByAxisAsync(axisId, userId, token));
+    }
+
+    private static async Task<IResult> ListItemsAsync(
+        [AsParameters] ProjectItemListQuery query,
+        ProjectsReadService read,
+        ICurrentUser currentUser,
+        CancellationToken token)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(await read.ListItemsAsync(query.ToFilter(), userId, token));
     }
 
     private static async Task<IResult> GetProjectAsync(int projectId, ProjectsReadService read, ICurrentUser currentUser, CancellationToken token)

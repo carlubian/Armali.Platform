@@ -29,6 +29,27 @@ internal sealed record ProjectTreeItemResponse(
     ProjectRiskBandSummaryResponse? RiskSummary);
 
 /// <summary>
+/// Flat list projection of a project or activity for the filtered table view, ordered by
+/// unified identifier. It carries the parent axis and program so rows can be read without
+/// expanding the tree. <see cref="RiskSummary"/> is populated only for projects.
+/// </summary>
+internal sealed record ProjectListItemResponse(
+    int Id,
+    string Kind,
+    int Number,
+    string Identifier,
+    string Name,
+    string Status,
+    string Visibility,
+    int ProgramId,
+    string ProgramCode,
+    string ProgramName,
+    int AxisId,
+    string AxisCode,
+    string AxisName,
+    ProjectRiskBandSummaryResponse? RiskSummary);
+
+/// <summary>
 /// Frozen project detail projection. <see cref="Identifier"/> is computed on demand and
 /// never persisted. Project attachments have no primary image.
 /// </summary>

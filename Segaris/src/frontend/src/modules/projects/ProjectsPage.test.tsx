@@ -8,6 +8,7 @@ import type {
   AxisNode,
   ProgramNode,
   Project,
+  ProjectListItem,
   ProjectRisk,
   ProjectTreeItem,
 } from '@/app/api/projects'
@@ -43,6 +44,41 @@ const activityItem: ProjectTreeItem = {
   visibility: 'Private',
   riskSummary: null,
 }
+
+const listItems: ProjectListItem[] = [
+  {
+    id: 10,
+    kind: 'Project',
+    number: 1,
+    identifier: projectItem.identifier,
+    name: projectItem.name,
+    status: 'Active',
+    visibility: 'Public',
+    programId: 1,
+    programCode: 'PRGM',
+    programName: 'Platform',
+    axisId: 11,
+    axisCode: 'WEBB',
+    axisName: 'Web work',
+    riskSummary: { low: 1, medium: 0, high: 2 },
+  },
+  {
+    id: 20,
+    kind: 'Activity',
+    number: 2,
+    identifier: activityItem.identifier,
+    name: activityItem.name,
+    status: 'Planning',
+    visibility: 'Private',
+    programId: 1,
+    programCode: 'PRGM',
+    programName: 'Platform',
+    axisId: 11,
+    axisCode: 'WEBB',
+    axisName: 'Web work',
+    riskSummary: null,
+  },
+]
 
 function projectDetail(): Project {
   return {
@@ -135,6 +171,21 @@ function mockBackend({ items = [projectItem, activityItem] } = {}) {
       return json(axes)
     if (url === '/api/projects/tree/axes/11/items' && method === 'GET') {
       return json(items)
+    }
+    if (url.startsWith('/api/projects/items') && method === 'GET') {
+      requests.push({ method, url })
+      const query = new URL(url, 'http://localhost').searchParams
+      return json(
+        listItems.filter(
+          (item) =>
+            (query.get('status') == null || item.status === query.get('status')) &&
+            (query.get('kind') == null || item.kind === query.get('kind')) &&
+            (query.get('programId') == null ||
+              item.programId === Number(query.get('programId'))) &&
+            (query.get('axisId') == null ||
+              item.axisId === Number(query.get('axisId'))),
+        ),
+      )
     }
     if (url === '/api/projects/programs' && method === 'GET') return json(programs)
     if (url === '/api/projects/axes' && method === 'GET') return json(axes)
@@ -496,6 +547,133 @@ describe('Projects page', () => {
         mitigation: 4,
       }),
     )
+  })
+
+  it('opens the table view on active items from any programme and edits rows in place', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Table view' }))
+    const table = await screen.findByRole('dialog', { name: 'Projects table' })
+    expect(window.location.search).toContain('view=table')
+    expect(within(table).getByRole('combobox', { name: 'Status' })).toHaveValue(
+      'Active',
+    )
+    expect(within(table).getByRole('combobox', { name: 'Programme' })).toHaveValue('')
+    expect(within(table).getByRole('combobox', { name: 'Axis' })).toHaveValue('')
+
+    const rows = await within(table).findByRole('table', {
+      name: 'Projects and activities',
+    })
+    expect(within(rows).getByText(projectItem.name)).toBeInTheDocument()
+    expect(within(rows).queryByText(activityItem.name)).not.toBeInTheDocument()
+    expect(within(rows).getByLabelText('Risk summary')).toHaveTextContent('High 2')
+    expect(requests.map((request) => request.url)).toContain(
+      '/api/projects/items?status=Active',
+    )
+
+    await user.click(within(rows).getByText('Platform'))
+    const editDialog = await screen.findByRole('dialog', { name: 'Edit project' })
+    expect(window.location.search).toContain('view=table')
+    expect(window.location.search).toContain('editProjectId=10')
+    await user.click(within(editDialog).getByRole('button', { name: 'Cancel' }))
+    expect(
+      screen.queryByRole('dialog', { name: 'Edit project' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Projects table' })).toBeInTheDocument()
+
+    await user.click(
+      within(rows).getByRole('button', {
+        name: `Open risks for ${projectItem.identifier}`,
+      }),
+    )
+    expect(
+      await screen.findByRole('dialog', { name: 'Project risks' }),
+    ).toBeInTheDocument()
+    expect(window.location.search).toContain('riskProjectId=10')
+  })
+
+  it('filters the table by status, type, programme, axis, and text and resets to defaults', async () => {
+    const user = userEvent.setup()
+    const { requests } = mockBackend()
+    window.history.replaceState({}, '', '/projects?view=table')
+    render(<App />)
+
+    const table = await screen.findByRole('dialog', { name: 'Projects table' })
+    await within(table).findByText(projectItem.name)
+    const reset = within(table).getByRole('button', { name: 'Reset filters' })
+    expect(reset).toBeDisabled()
+
+    await user.selectOptions(
+      within(table).getByRole('combobox', { name: 'Status' }),
+      'All statuses',
+    )
+    expect(await within(table).findByText(activityItem.name)).toBeInTheDocument()
+    expect(within(table).getByText('2 items')).toBeInTheDocument()
+    expect(requests.map((request) => request.url)).toContain('/api/projects/items')
+
+    await user.selectOptions(
+      within(table).getByRole('combobox', { name: 'Programme' }),
+      'PRGM - Platform',
+    )
+    await user.selectOptions(
+      within(table).getByRole('combobox', { name: 'Axis' }),
+      'WEBB - Web work',
+    )
+    await user.selectOptions(
+      within(table).getByRole('combobox', { name: 'Type' }),
+      'Activity',
+    )
+    await waitFor(() =>
+      expect(within(table).queryByText(projectItem.name)).not.toBeInTheDocument(),
+    )
+    expect(requests.map((request) => request.url)).toContain(
+      '/api/projects/items?programId=1&axisId=11&kind=Activity',
+    )
+
+    await user.selectOptions(
+      within(table).getByRole('combobox', { name: 'Type' }),
+      'All types',
+    )
+    await user.type(within(table).getByRole('textbox', { name: 'Search' }), '000002')
+    await waitFor(() =>
+      expect(within(table).queryByText(projectItem.name)).not.toBeInTheDocument(),
+    )
+    expect(within(table).getByText(activityItem.name)).toBeInTheDocument()
+
+    await user.click(reset)
+    expect(within(table).getByRole('combobox', { name: 'Status' })).toHaveValue(
+      'Active',
+    )
+    expect(within(table).getByRole('textbox', { name: 'Search' })).toHaveValue('')
+    expect(await within(table).findByText(projectItem.name)).toBeInTheDocument()
+    expect(within(table).queryByText(activityItem.name)).not.toBeInTheDocument()
+  })
+
+  it('closes the table and selects a row in the detail pane on demand', async () => {
+    const user = userEvent.setup()
+    mockBackend()
+    window.history.replaceState({}, '', '/projects?view=table')
+    render(<App />)
+
+    const table = await screen.findByRole('dialog', { name: 'Projects table' })
+    await user.click(
+      await within(table).findByRole('button', {
+        name: `Show ${projectItem.identifier} in the detail pane`,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Projects table' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(window.location.search).toContain('selected=project-10')
+    expect(window.location.search).not.toContain('view=table')
+    expect(
+      await screen.findByRole('heading', { name: projectItem.name }),
+    ).toBeInTheDocument()
   })
 })
 

@@ -21,6 +21,7 @@ export const projectStatuses: readonly ProjectStatus[] = [
   'Cancelled',
 ]
 export const projectVisibilities: readonly ProjectVisibility[] = ['Public', 'Private']
+export const projectItemKinds: readonly ProjectItemKind[] = ['Project', 'Activity']
 
 export const projectsRoutePath = '/projects' as const
 
@@ -57,6 +58,36 @@ export interface ProjectTreeItem {
   status: ProjectStatus
   visibility: ProjectVisibility
   riskSummary: ProjectRiskBandSummary | null
+}
+
+/**
+ * Flat list row of the filterable Projects table. It carries the parent program and
+ * axis so rows can be read without expanding the tree; `riskSummary` is populated only
+ * for projects.
+ */
+export interface ProjectListItem {
+  id: number
+  kind: ProjectItemKind
+  number: number
+  identifier: string
+  name: string
+  status: ProjectStatus
+  visibility: ProjectVisibility
+  programId: number
+  programCode: string
+  programName: string
+  axisId: number
+  axisCode: string
+  axisName: string
+  riskSummary: ProjectRiskBandSummary | null
+}
+
+/** Optional server-side filters of the flat item list; `null` means any value. */
+export interface ProjectListFilters {
+  programId: number | null
+  axisId: number | null
+  status: ProjectStatus | null
+  kind: ProjectItemKind | null
 }
 
 export interface ProjectAttachment {
@@ -157,7 +188,22 @@ export interface StructuralNodeReassignmentRequest {
   targetNodeId: number
 }
 
+function buildListQuery(filters: ProjectListFilters): string {
+  const parameters = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value != null) parameters.set(key, String(value))
+  })
+  const search = parameters.toString()
+  return search ? `?${search}` : ''
+}
+
 export const projectsApi = {
+  // Flat, filterable list across the whole tree.
+  listItems: (filters: ProjectListFilters, signal?: AbortSignal) =>
+    apiRequest<ProjectListItem[]>(`/api/projects/items${buildListQuery(filters)}`, {
+      signal,
+    }),
+
   // Lazily expanded tree reads.
   programs: (signal?: AbortSignal) =>
     apiRequest<ProgramNode[]>('/api/projects/tree/programs', { signal }),

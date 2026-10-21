@@ -16,6 +16,9 @@ internal static class ProjectsApiRoutes
     public const string TreeAxesByProgram = "projects/tree/programs/{programId:int}/axes";
     public const string TreeItemsByAxis = "projects/tree/axes/{axisId:int}/items";
 
+    // Flat, filterable list of projects and activities across the whole tree.
+    public const string Items = "projects/items";
+
     // Project lifecycle.
     public const string Projects = "projects/projects";
     public const string ProjectById = "/{projectId:int}";

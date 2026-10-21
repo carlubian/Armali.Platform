@@ -15,6 +15,7 @@ import {
   Plus,
   Settings2,
   ShieldAlert,
+  Table2,
   Trash2,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -57,9 +58,11 @@ import {
 
 import { projectRiskRequestSchema, projectsKeys } from './contracts'
 import { ProjectAttachments } from './ProjectAttachments'
+import { ProjectsTableDialog } from './ProjectsTableDialog'
 import {
   useProjectsDialogState,
   useProjectsSelectionState,
+  useProjectsTableState,
   type ProjectsSelectionState,
 } from './projectsState'
 
@@ -105,6 +108,7 @@ export function ProjectsPage() {
   const queryClient = useQueryClient()
   const dialogState = useProjectsDialogState()
   const selectionState = useProjectsSelectionState()
+  const tableState = useProjectsTableState()
   const [expandedPrograms, setExpandedPrograms] = useState<Set<number>>(new Set())
   const [expandedAxes, setExpandedAxes] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<ToastState | null>(null)
@@ -120,6 +124,7 @@ export function ProjectsPage() {
 
   const invalidateTree = (item?: Project | Activity) => {
     void queryClient.invalidateQueries({ queryKey: projectsKeys.tree() })
+    void queryClient.invalidateQueries({ queryKey: projectsKeys.lists() })
     if (item != null) {
       if ('riskSummary' in item)
         void queryClient.invalidateQueries({ queryKey: projectsKeys.project(item.id) })
@@ -184,9 +189,18 @@ export function ProjectsPage() {
           <h1>{t('page.title')}</h1>
           <p>{t('page.description')}</p>
         </div>
-        <Badge tone="neutral">
-          {t('page.programCount', { count: programsQuery.data?.length ?? 0 })}
-        </Badge>
+        <div className="seg-projects__head-actions">
+          <Badge tone="neutral">
+            {t('page.programCount', { count: programsQuery.data?.length ?? 0 })}
+          </Badge>
+          <Button
+            variant="outline"
+            iconLeft={<Table2 size={16} />}
+            onClick={tableState.openTable}
+          >
+            {t('table.open')}
+          </Button>
+        </div>
       </section>
 
       <section className="seg-projects__workspace">
@@ -246,6 +260,22 @@ export function ProjectsPage() {
         />
       </section>
 
+      {tableState.open && (
+        <ProjectsTableDialog
+          programs={programsQuery.data ?? []}
+          onClose={tableState.closeTable}
+          onEditProject={dialogState.openProject}
+          onEditActivity={dialogState.openActivity}
+          onOpenProjectRisks={dialogState.openProjectRisks}
+          onShowDetails={(item) =>
+            tableState.closeTableAndSelect(
+              item.kind === 'Project'
+                ? { kind: 'project', projectId: item.id }
+                : { kind: 'activity', activityId: item.id },
+            )
+          }
+        />
+      )}
       {dialogState.dialog.mode === 'createItem' && (
         <ProjectItemDialog
           mode="create"
@@ -1492,6 +1522,7 @@ function ProjectRiskDialog({ projectId, onClose, onChanged }: ProjectRiskDialogP
     })
     await queryClient.invalidateQueries({ queryKey: projectsKeys.project(projectId) })
     await queryClient.invalidateQueries({ queryKey: projectsKeys.tree() })
+    await queryClient.invalidateQueries({ queryKey: projectsKeys.lists() })
   }
 
   return (
